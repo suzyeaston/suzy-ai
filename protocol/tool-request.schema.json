@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://suzy-ai.local/schema/tool-request-0.1.json",
+  "title": "SUZY//AI Tool Request",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "reason",
+    "input"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "freshness_required": {
+      "type": "boolean"
+    },
+    "input": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

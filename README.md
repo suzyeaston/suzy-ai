@@ -1,0 +1,165 @@
+# SUZY//AI
+
+**A local-first, open-source intelligence core for creative machines, cultural interpretation, and personal world-building.**
+
+SUZY//AI is the shared nervous system beneath a family of experiments by [Suzy Easton](https://www.suzyeaston.ca/).
+
+It is deliberately **not one giant app**.
+
+```text
+                         SUZY//AI
+                  local brain + memory
+                   protocol + timeline
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+  APPLIANCE LATENT SPACE            POP//CONTEXT
+     create / perform              observe / interpret
+     music / visuals               video / audio / culture
+     physical controls             research / evidence
+```
+
+The laptop/computer is the compute host.
+
+The physical toaster can become a Bluetooth control surface that emits the same logical controls as keyboard, MIDI, or browser UI. It does not need to run the AI itself.
+
+## Why a separate core?
+
+The Appliance and POP//CONTEXT were independently converging on the same requirements:
+
+- local inference,
+- private user data,
+- inspectable events,
+- personal learning,
+- replaceable models,
+- timeline-based interaction,
+- optional access to the current world.
+
+SUZY//AI owns those shared contracts without swallowing the applications.
+
+## The rule
+
+> **Open machinery. Personally owned intelligence.**
+
+The source code can be cloned by anyone.
+
+Your private memory, recordings, model files, training examples, research cache, and world timeline live outside the repository under:
+
+```text
+~/.suzy-ai/
+```
+
+A fresh clone starts with an empty identity.
+
+## Current v0.1
+
+SUZY//AI currently provides:
+
+- a language-neutral JSON event protocol,
+- a shared timeline event format,
+- an application registry,
+- a local state directory,
+- a tiny localhost HTTP event/timeline server,
+- a CLI for initializing, inspecting, and writing timeline events,
+- no required cloud account,
+- no required commercial model API.
+
+It does **not** claim to contain a trained Suzy model yet.
+
+## Install
+
+Python 3.11+.
+
+```bash
+git clone https://github.com/suzyeaston/suzy-ai.git
+cd suzy-ai
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+
+suzy-ai init
+suzy-ai doctor
+```
+
+Run the local core:
+
+```bash
+suzy-ai serve
+```
+
+Default:
+
+```text
+http://127.0.0.1:7331
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:7331/health
+```
+
+The server binds to loopback only by default.
+
+## Timeline
+
+The timeline is a shared primitive, not a single musical UI.
+
+The Appliance can render **musical** events by bars/beats.
+
+POP//CONTEXT can render **media** events in seconds.
+
+SUZY//AI can store **world** events in real time.
+
+Example:
+
+```bash
+suzy-ai timeline add \
+  --stream world \
+  --kind note \
+  --text "First SUZY//AI event."
+```
+
+Then:
+
+```bash
+suzy-ai timeline list --stream world
+```
+
+## Existing apps
+
+See [`config/apps.json`](config/apps.json).
+
+The apps remain independent repositories:
+
+- `suzyeaston/appliance-latent-space-live`
+- `suzyeaston/pop-context`
+- `suzyeaston/suzyeastonca`
+
+Use:
+
+```bash
+./scripts/sync-apps.sh
+```
+
+to clone/update local sibling copies in `~/Projects/suzy-ai-workspace/apps`.
+
+## Open source
+
+Licensed under Apache-2.0.
+
+Open source does not prevent a future business. Possible paid layers can include hosted inference, hardware, curated model/data packs, collaboration, managed sync, installation, support, performances, and specialized interfaces while the core remains open.
+
+## Next
+
+1. adapters from Appliance and POP//CONTEXT into the local event server,
+2. model adapter interface,
+3. local open-weight model runtime,
+4. private retrieval/memory,
+5. explicit web research tool with provenance,
+6. audio/vision perception services,
+7. learning from approved corrections and examples.
+
+See [`docs/architecture.md`](docs/architecture.md) and [`docs/roadmap.md`](docs/roadmap.md).

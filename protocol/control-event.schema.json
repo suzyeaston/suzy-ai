@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://suzy-ai.local/schema/control-event-0.1.json",
+  "title": "SUZY//AI Control Event",
+  "description": "Language-neutral envelope compatible with the Appliance idea that hardware, keyboard, MIDI, and browser UI are bindings to logical controls.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "group",
+    "value",
+    "source",
+    "at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": ["continuous", "toggle", "momentary"]
+    },
+    "group": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string",
+      "description": "Examples: browser, keyboard, midi, bluetooth-toaster"
+    },
+    "at": {
+      "type": ["number", "string"]
+    }
+  },
+  "additionalProperties": true
+}

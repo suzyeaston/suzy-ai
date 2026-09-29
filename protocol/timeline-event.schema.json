@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://suzy-ai.local/schema/timeline-event-0.1.json",
+  "title": "SUZY//AI Timeline Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "stream",
+    "kind",
+    "source",
+    "position",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stream": {
+      "type": "string",
+      "description": "Examples: music, media, world"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "position": {
+      "type": "object",
+      "required": ["unit", "value"],
+      "properties": {
+        "unit": {
+          "enum": ["seconds", "bar", "beat", "iso8601"]
+        },
+        "value": {
+          "type": ["number", "string"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "duration": {
+      "type": ["object", "null"]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "provenance": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

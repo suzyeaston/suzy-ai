@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "suzy-ai"
+version = "0.1.0"
+description = "Local-first open-source intelligence core for creative machines and cultural interpretation."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Suzy Easton" }
+]
+license = { text = "Apache-2.0" }
+dependencies = []
+
+[project.scripts]
+suzy-ai = "suzy_ai.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["suzy_ai*"]

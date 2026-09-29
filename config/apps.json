@@ -1,0 +1,50 @@
+{
+  "schema_version": "0.1",
+  "core": {
+    "id": "suzy-ai",
+    "name": "SUZY//AI",
+    "repo": "suzyeaston/suzy-ai",
+    "role": "local intelligence core"
+  },
+  "apps": [
+    {
+      "id": "appliance-latent-space",
+      "name": "The Appliance Latent Space",
+      "repo": "suzyeaston/appliance-latent-space-live",
+      "role": "actor",
+      "purpose": "programmable musical and visual instrument",
+      "timeline": "musical",
+      "integration": [
+        "control-events",
+        "timeline-events",
+        "model-requests"
+      ],
+      "hardware_direction": "Bluetooth control surface; computer remains compute and audio host"
+    },
+    {
+      "id": "pop-context",
+      "name": "POP//CONTEXT",
+      "repo": "suzyeaston/pop-context",
+      "role": "observer",
+      "purpose": "multimodal audiovisual evidence and cultural interpretation",
+      "timeline": "media",
+      "integration": [
+        "evidence-events",
+        "timeline-events",
+        "research-requests",
+        "model-requests"
+      ]
+    },
+    {
+      "id": "suzyeastonca",
+      "name": "suzyeaston.ca",
+      "repo": "suzyeaston/suzyeastonca",
+      "role": "public-surface",
+      "purpose": "website and current canonical Appliance control vocabulary",
+      "timeline": null,
+      "integration": [
+        "public-artifacts"
+      ]
+    }
+  ]
+}
