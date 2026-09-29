@@ -18,3 +18,6 @@ cache/
 data/
 recordings/
 training-data/
+
+# Python editable-install / build metadata.
+*.egg-info/
