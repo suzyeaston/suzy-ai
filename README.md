@@ -197,3 +197,27 @@ See:
 - [`docs/world-model.md`](docs/world-model.md)
 - [`docs/teaching-surfaces.md`](docs/teaching-surfaces.md)
 - [`docs/wordpress-page.md`](docs/wordpress-page.md)
+
+
+<!-- SUZY-WORLD-PUBLIC -->
+
+## Public knowledge: SUZY//WORLD
+
+Private intelligence and public knowledge are separate systems.
+
+- **SUZY//AI** owns private memory, learning, timelines, models, and inference.
+- **SUZY//WORLD** holds only deliberately published entities, reviews, tags, relationships, and media metadata.
+
+Public API:
+
+```text
+https://www.suzyeaston.ca/wp-json/suzy-world/v1
+```
+
+Source:
+
+```text
+https://github.com/suzyeaston/suzy-world
+```
+
+See [`docs/public-world.md`](docs/public-world.md).

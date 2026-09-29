@@ -45,6 +45,22 @@
       "integration": [
         "public-artifacts"
       ]
+    },
+    {
+      "id": "suzy-world",
+      "name": "SUZY//WORLD",
+      "repo": "suzyeaston/suzy-world",
+      "role": "public-knowledge",
+      "purpose": "deliberately published, versioned knowledge graph and public REST API",
+      "timeline": "published-history",
+      "integration": [
+        "public-entities",
+        "versioned-statements",
+        "tags",
+        "relationships",
+        "assets"
+      ],
+      "api": "https://www.suzyeaston.ca/wp-json/suzy-world/v1"
     }
   ]
 }
