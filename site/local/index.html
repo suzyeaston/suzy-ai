@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUZY//AI — local world</title>
+<style>
+:root{color-scheme:dark;--bg:#07080a;--panel:#101216;--ink:#f4f0e8;--muted:#8f96a3;--line:#2b3039;--acid:#b8ff39;--violet:#a98cff;--cyan:#64e9ff;--danger:#ff6d8a}
+*{box-sizing:border-box}html{background:var(--bg)}
+body{margin:0;color:var(--ink);background:radial-gradient(circle at 82% 5%,rgba(169,140,255,.12),transparent 28rem),radial-gradient(circle at 8% 35%,rgba(100,233,255,.06),transparent 25rem),var(--bg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+main{width:min(1180px,calc(100% - 32px));margin:auto;padding:44px 0 100px}
+header{padding:6vh 0 48px;border-bottom:1px solid var(--line)}
+.eyebrow,.tag{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acid)}
+h1{font:900 clamp(54px,11vw,122px)/.82 Arial Black,Helvetica,sans-serif;letter-spacing:-.07em;margin:.22em 0}
+h1 span{color:var(--violet)}
+.lede{font:italic clamp(20px,3vw,34px)/1.08 Georgia,serif;max-width:850px}
+.status{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px;margin-top:24px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--danger)}.dot.on{background:var(--acid);box-shadow:0 0 20px rgba(184,255,57,.6)}
+.stats{display:flex;gap:20px;flex-wrap:wrap;margin-top:26px}.stat{border-left:1px solid var(--line);padding-left:12px}.stat strong{font-size:20px}.stat small{display:block;color:var(--muted);margin-top:4px}
+nav{display:flex;gap:8px;flex-wrap:wrap;padding:22px 0}
+button{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:11px 14px;font:700 12px/1 ui-monospace,monospace;letter-spacing:.05em;cursor:pointer}
+button:hover,button.active{border-color:var(--acid);color:var(--acid)}button.primary{background:var(--acid);color:#060606;border-color:var(--acid)}
+section.surface{display:none;border-top:1px solid var(--line);padding:36px 0}section.surface.active{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{border:1px solid var(--line);background:rgba(16,18,22,.72);padding:20px}.card.wide{grid-column:1/-1}
+h2{margin:0 0 8px;font-size:18px}.help{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:20px}
+label{display:block;margin:13px 0 6px;color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+input,textarea,select{width:100%;border:1px solid var(--line);background:#090b0e;color:var(--ink);padding:11px 12px;font:13px/1.5 ui-monospace,monospace;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--cyan)}textarea{min-height:100px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;align-items:center;margin-top:16px}
+.message{font-size:12px;color:var(--muted)}.message.new{color:var(--acid)}.message.dup{color:var(--violet)}.message.err{color:var(--danger)}
+.feed{margin-top:30px;border-top:1px solid var(--line)}.event{display:grid;grid-template-columns:160px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.event time{font-size:10px;color:var(--muted)}.event h3{font-size:13px;margin:0 0 6px}.event p{margin:0;color:#c5c8d0;font-size:12px;line-height:1.55;white-space:pre-wrap}
+.pill{display:inline-block;border:1px solid var(--line);padding:3px 6px;margin-right:6px;color:var(--cyan);font-size:9px;text-transform:uppercase}
+.world-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:28px}.world-card{border:1px solid var(--line);padding:18px;min-height:145px}.world-card b{display:block;margin-top:45px}.world-card small{color:var(--muted);line-height:1.4;display:block;margin-top:6px}
+footer{margin-top:70px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}code{color:var(--cyan)}
+@media(max-width:800px){.grid,.row{grid-template-columns:1fr}.card.wide{grid-column:auto}.world-grid{grid-template-columns:1fr 1fr}.event{grid-template-columns:1fr;gap:4px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="eyebrow">LOCAL WORLD MODEL // 0.2</div>
+  <h1>SUZY<span>//</span>AI</h1>
+  <div class="lede">Teach it by living with it. Records, chords, idioms, hockey, culture, corrections, contradictions, character development.</div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">checking local core…</span></div>
+  <div class="stats">
+    <div class="stat"><strong id="entities">0</strong><small>entities</small></div>
+    <div class="stat"><strong id="teachings">0</strong><small>teachings</small></div>
+    <div class="stat"><strong id="domains">0</strong><small>active worlds</small></div>
+  </div>
+  <div class="world-grid">
+    <div class="world-card"><span class="tag">music</span><b>Records + musical ideas</b><small>What you hear, what influenced it, what you keep, what you reject.</small></div>
+    <div class="world-card"><span class="tag">language</span><b>Idioms + expressions</b><small>The phrases you actually use, what they mean, when they belong.</small></div>
+    <div class="world-card"><span class="tag">canucks</span><b>Hockey world</b><small>Players, games, changing opinions, long arcs. Same brain, different rink.</small></div>
+    <div class="world-card"><span class="tag">culture</span><b>Everything else</b><small>Films, people, places, ideas, memories, connections not yet obvious.</small></div>
+  </div>
+</header>
+
+<nav>
+  <button data-target="albums" class="active">ALBUMS</button>
+  <button data-target="music">MUSICAL IDEAS</button>
+  <button data-target="language">IDIOMS</button>
+  <button data-target="world">WORLD NOTE</button>
+  <button data-target="timeline">TIMELINE</button>
+</nav>
+
+<section id="albums" class="surface active">
+<form class="card wide" id="album-form">
+  <h2>Review an album</h2>
+  <div class="help">Teach the world what this record means to you. Exact repeats are ignored. A changed review becomes a new historical teaching on the same album.</div>
+  <div class="row"><div><label>Artist</label><input name="artist" required></div><div><label>Album</label><input name="album" required></div></div>
+  <div class="row"><div><label>Year</label><input name="year" type="number"></div><div><label>Rating, if useful</label><input name="rating" type="number" min="0" max="10" step=".1"></div></div>
+  <label>What do you think?</label><textarea name="opinion"></textarea>
+  <label>Production / musical notes</label><textarea name="sonic_notes"></textarea>
+  <div class="row"><div><label>Favorite tracks</label><input name="favorite_tracks" placeholder="comma separated"></div><div><label>Influences / associations</label><input name="associations" placeholder="comma separated"></div></div>
+  <label>What did this record teach you?</label><textarea name="lesson"></textarea>
+  <div class="actions"><button class="primary" type="submit">TEACH THIS RECORD</button><span class="message"></span></div>
+</form>
+</section>
+
+<section id="music" class="surface">
+<form class="card wide" id="music-form">
+  <h2>Teach a musical idea</h2>
+  <div class="help">The seed of the Appliance learning loop. Play something, then tell SUZY//AI what it connects to and why it matters.</div>
+  <div class="row"><div><label>What did you play?</label><input name="idea" required></div><div><label>Voicing / shape</label><input name="voicing"></div></div>
+  <div class="row"><div><label>Instrument</label><input name="instrument"></div><div><label>Influence</label><input name="influences" placeholder="comma separated"></div></div>
+  <label>Why do you like it?</label><textarea name="why"></textarea>
+  <label>What should the AI NOT flatten this into?</label><textarea name="avoid"></textarea>
+  <label>Where could it go?</label><textarea name="connections"></textarea>
+  <div class="actions"><button class="primary" type="submit">TEACH THIS IDEA</button><span class="message"></span></div>
+</form>
+</section>
+
+<section id="language" class="surface">
+<form class="card wide" id="idiom-form">
+  <h2>Teach an idiom / expression</h2>
+  <div class="help">A personal intelligence should know how you actually speak, not cosplay a style guide.</div>
+  <label>Phrase</label><input name="phrase" required>
+  <label>What does it mean when YOU use it?</label><textarea name="meaning"></textarea>
+  <div class="row"><div><label>When do you use it?</label><input name="context"></div><div><label>Tone</label><input name="tone"></div></div>
+  <label>Example</label><textarea name="example"></textarea>
+  <div class="actions"><button class="primary" type="submit">TEACH THIS PHRASE</button><span class="message"></span></div>
+</form>
+</section>
+
+<section id="world" class="surface">
+<form class="card wide" id="world-form">
+  <h2>Add a world note</h2>
+  <div class="help">For Canucks, culture, people, projects, changed opinions, or anything we have not designed a dedicated interface for yet.</div>
+  <div class="row">
+    <div><label>Domain</label><select name="domain"><option>canucks</option><option>music</option><option>culture</option><option>technology</option><option>creative-life</option><option>world</option></select></div>
+    <div><label>Subject</label><input name="subject" required></div>
+  </div>
+  <label>What do you want it to know?</label><textarea name="note" required></textarea>
+  <label>Connections you already see</label><input name="connections" placeholder="comma separated">
+  <label>If this changed your mind, what did you think before?</label><textarea name="changed_from"></textarea>
+  <div class="actions"><button class="primary" type="submit">ADD TO THE WORLD</button><span class="message"></span></div>
+</form>
+</section>
+
+<section id="timeline" class="surface">
+  <h2>The world so far</h2>
+  <div class="help">Not a static profile. Every changed version survives as an event. This is where character development starts.</div>
+  <div id="feed" class="feed"></div>
+</section>
+
+<footer>PRIVATE LOCAL INTERFACE · <code>~/.suzy-ai/</code> · exact duplicate teachings are ignored</footer>
+</main>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+async function api(path,options={}){const res=await fetch(path,{headers:{"Content-Type":"application/json"},...options});const body=await res.json();if(!res.ok)throw new Error(body.error||`HTTP ${res.status}`);return body}
+const csv=v=>v.split(",").map(x=>x.trim()).filter(Boolean);
+const obj=f=>Object.fromEntries(new FormData(f).entries());
+function msg(form,result,error=false){const el=$(".message",form);if(error){el.className="message err";el.textContent=result;return}el.className=result.duplicate?"message dup":"message new";el.textContent=result.duplicate?"Already knew this exact version. No duplicate created.":"Learned. Added to the timeline."}
+async function teach(form,path,transform){try{const result=await api(path,{method:"POST",body:JSON.stringify(transform(obj(form)))});msg(form,result);await refresh()}catch(e){msg(form,e.message,true)}}
+$("#album-form").addEventListener("submit",e=>{e.preventDefault();teach(e.currentTarget,"/v1/teach/album",x=>({...x,year:x.year?Number(x.year):null,rating:x.rating?Number(x.rating):null,favorite_tracks:csv(x.favorite_tracks),associations:csv(x.associations)}))});
+$("#music-form").addEventListener("submit",e=>{e.preventDefault();teach(e.currentTarget,"/v1/teach/music",x=>({...x,influences:csv(x.influences),connections:csv(x.connections),source:"human"}))});
+$("#idiom-form").addEventListener("submit",e=>{e.preventDefault();teach(e.currentTarget,"/v1/teach/idiom",x=>x)});
+$("#world-form").addEventListener("submit",e=>{e.preventDefault();teach(e.currentTarget,"/v1/teach/world-note",x=>({...x,connections:csv(x.connections)}))});
+$$("nav button").forEach(button=>button.addEventListener("click",()=>{$$("nav button").forEach(b=>b.classList.remove("active"));$$(".surface").forEach(s=>s.classList.remove("active"));button.classList.add("active");$("#"+button.dataset.target).classList.add("active");if(button.dataset.target==="timeline")refreshFeed()}));
+const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+function compact(p){return Object.entries(p||{}).filter(([,v])=>v!==null&&v!==""&&!(Array.isArray(v)&&!v.length)).slice(0,4).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(", "):v}`).join("\n")}
+async function refreshFeed(){const {teachings}=await api("/v1/world/teachings?limit=80");const feed=$("#feed");feed.innerHTML=teachings.length?teachings.map(t=>`<article class="event"><time>${new Date(t.created_at).toLocaleString()}</time><div><span class="pill">${esc(t.domain)}</span><span class="pill">${esc(t.teaching_kind)}</span><h3>${esc(t.entity_name||t.entity_id)}</h3><p>${esc(compact(t.payload))}</p></div></article>`).join(""):`<div class="event"><time>NOW</time><p>Nothing taught yet. Go ruin the clean slate.</p></div>`}
+async function refresh(){try{const h=await api("/health");$("#dot").classList.add("on");$("#status").textContent=`${h.name} ${h.version} · local core online`;const s=await api("/v1/world/stats");$("#entities").textContent=s.entities;$("#teachings").textContent=s.teachings;$("#domains").textContent=s.domains.length;await refreshFeed()}catch(e){$("#dot").classList.remove("on");$("#status").textContent=e.message}}
+refresh();
+</script>
+</body>
+</html>

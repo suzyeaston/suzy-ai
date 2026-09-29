@@ -163,3 +163,37 @@ Open source does not prevent a future business. Possible paid layers can include
 7. learning from approved corrections and examples.
 
 See [`docs/architecture.md`](docs/architecture.md) and [`docs/roadmap.md`](docs/roadmap.md).
+
+
+<!-- WORLD-MODEL-V02 -->
+
+## Teach SUZY//AI
+
+SUZY//AI 0.2 adds a private living world model and a local teaching interface:
+
+```text
+http://127.0.0.1:7331/
+```
+
+Current teaching surfaces:
+
+- album reviews,
+- musical ideas / chords / influences,
+- idioms and expressions,
+- generic world notes, including Canucks and culture.
+
+Everything writes through one deduplicating API into:
+
+```text
+~/.suzy-ai/world/world.sqlite3
+```
+
+Exact repeat submissions are ignored. Changed interpretations become new historical teachings attached to the same entity.
+
+This lets the system preserve **character development** instead of rewriting the past.
+
+See:
+
+- [`docs/world-model.md`](docs/world-model.md)
+- [`docs/teaching-surfaces.md`](docs/teaching-surfaces.md)
+- [`docs/wordpress-page.md`](docs/wordpress-page.md)
