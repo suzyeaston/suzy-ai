@@ -47,7 +47,7 @@ The launcher verifies the file, loads the model, starts SUZY//AI, and sends a
 synthetic hello to test the full chat path. Then type at `you >`.
 
 - `/memory on` includes matching previously approved notes in subsequent requests.
-- `/memory off` disables retrieval (the default).
+- `/memory off` pauses retrieval for this session. Saved-memory recall starts on each launch.
 - `/reset` clears in-process chat history.
 - `/quit`, Ctrl-D, or Ctrl-C stops the two child services started by this launcher.
 

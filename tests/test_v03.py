@@ -199,11 +199,11 @@ class PrivateStateTests(unittest.TestCase):
         self.note()
         before = {p: p.read_bytes() for p in Path(self.tmp.name).rglob('*') if p.is_file()}
         with patch('suzy_ai.chat.memory.search') as search:
-            result = chat({'message': 'cedar'}, adapter)
+            result = chat({'message': 'cedar', 'use_memory': False}, adapter)
             search.assert_not_called()
         self.assertFalse(result['stored'])
         self.assertEqual(result['sources'], [])
-        result = chat({'message': 'cedar', 'use_memory': True}, adapter)
+        result = chat({'message': 'cedar'}, adapter)
         self.assertEqual(len(result['sources']), 1)
         self.assertEqual(adapter.messages[-1]['content'], 'cedar')
         self.assertIn('Untrusted private reference data', adapter.messages[-2]['content'])

@@ -70,7 +70,7 @@ def add(*, title: str, text: str, source: str, approved: bool = False) -> dict:
     return document
 
 
-def search(query: str, limit: int = 5, max_chars: int = 6000) -> list[dict]:
+def search(query: str, limit: int = 5, max_chars: int = 6000, *, title_only: bool = False) -> list[dict]:
     query = text_field(query, "query", 8000)
     if type(limit) is not int or not 1 <= limit <= 10:
         raise ValueError("limit must be an integer from 1 to 10")
@@ -81,6 +81,8 @@ def search(query: str, limit: int = 5, max_chars: int = 6000) -> list[dict]:
     if not tokens:
         return []
     expression = " OR ".join('"' + token + '"' for token in tokens)
+    if title_only:
+        expression = "title : (" + expression + ")"
     with connect() as db:
         rows = db.execute("""
             SELECT d.*, bm25(documents_fts, 2.0, 1.0) AS score,
@@ -92,7 +94,7 @@ def search(query: str, limit: int = 5, max_chars: int = 6000) -> list[dict]:
     remaining = max_chars
     for row in rows:
         item = {key: row[key] for key in ("id", "title", "source", "created_at")}
-        item["excerpt"] = row["excerpt"][:2000]
+        item["excerpt"] = row["text"] if len(row["text"]) <= 2000 else row["excerpt"][:2000]
         # Budget the entire serialized source, including metadata and escaping.
         size = len(json.dumps(item, ensure_ascii=False))
         if size > remaining:
@@ -110,3 +112,27 @@ def delete(document_id: str) -> bool:
         if deleted:
             db.execute("INSERT INTO documents_fts(documents_fts) VALUES ('rebuild')")
     return bool(deleted)
+
+
+def recall(query: str, limit: int = 5) -> list[dict]:
+    """Topic matches plus a small background set of explicitly labelled taste notes.
+
+    This is a deterministic lexical policy, not semantic classification or training.
+    It only reads already-approved documents and never writes or publishes them.
+    """
+    matches = search(query, limit=limit)
+    background = search("humour humor taste preferences style", limit=2,
+                        max_chars=3000, title_only=True)
+    result = []
+    seen = set()
+    remaining = 6000
+    for item in matches + background:
+        size = len(json.dumps(item, ensure_ascii=False))
+        if item["id"] in seen or size > remaining:
+            continue
+        if len(result) >= limit:
+            break
+        result.append(item)
+        seen.add(item["id"])
+        remaining -= size
+    return result

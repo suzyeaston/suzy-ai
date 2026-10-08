@@ -104,7 +104,7 @@ class LocalRuntimeTests(unittest.TestCase):
             return {'message': {'content': 'hello'}, 'sources': []}
         with patch('builtins.input', side_effect=['first', '/memory on', 'second', '/reset', '/memory off', 'third', '/quit']), patch.object(local, 'request', side_effect=reply), contextlib.redirect_stdout(io.StringIO()):
             local.conversation(7331)
-        self.assertFalse(calls[0]['use_memory'])
+        self.assertTrue(calls[0]['use_memory'])
         self.assertTrue(calls[1]['use_memory'])
         self.assertEqual(len(calls[1]['history']), 2)
         self.assertEqual(calls[2]['history'], [])

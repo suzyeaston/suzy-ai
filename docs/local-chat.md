@@ -94,7 +94,14 @@ Response includes `id`, `created_at`, `model`, an assistant `message`, `sources`
 `memory_used` and `stored: false`. Sources identify the actual retrieved excerpts;
 they do not certify the answer as accurate. Inline model-generated citations can
 still be wrong. `memory_used` means sources were supplied, not that the model relied
-on them. `use_memory` defaults to false. No chat turns, prompts or answers are saved.
+on them. `use_memory` defaults to true; set it to false to skip all recall. No chat turns,
+prompts or answers are saved. Recall combines topic matches with up to two background
+notes whose titles contain humour, humor, taste, preferences or style. It deduplicates
+sources and shares the existing result/character limits. Topic matches take priority;
+background examples can be omitted when the budget is full. Short notes (up to 2,000
+characters) retain their full text, so short joke threads keep their replies together.
+This is a lexical rule, not automatic categorization or embeddings. The model is told
+to use examples appropriately; matching a note cannot guarantee a funny or accurate answer.
 
 Optional `history` accepts at most 12 `{role, content}` objects, restricted to user
 and assistant roles. Each turn/message is limited to 8,000 characters; history to
