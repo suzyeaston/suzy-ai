@@ -7,6 +7,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import shutil
@@ -134,6 +135,7 @@ def printable(value: str) -> str:
 
 def conversation(port: int) -> None:
     print('\nSUZY//AI is ready. Type a message, /memory on, /memory off, /reset, or /quit.')
+    print('You are in chat, not the shell. Type quit or press Ctrl-C before running Terminal commands.')
     print('Conversations stay in this process only. Saved memories are recalled automatically. /memory off pauses recall.')
     history: list[dict] = []
     use_memory = True
@@ -144,8 +146,12 @@ def conversation(port: int) -> None:
             return
         if not message:
             continue
-        if message == '/quit':
+        if message.casefold() in ('/quit', '/exit', 'quit', 'exit'):
             return
+        if re.match(r'^(?:cd(?:\s|$)|git\s+(?:fetch|pull|switch|checkout|clone|status)\b|bash\s+scripts/|brew\s+(?:install|reinstall|update|upgrade)\b)', message):
+            print('That looks like a Terminal command. Type /quit or press Ctrl-C first, '
+                  'then paste it at your shell prompt (% or $). Nothing was run or sent to the model.')
+            continue
         if message == '/reset':
             history.clear()
             print('Conversation cleared.')

@@ -1,248 +1,167 @@
 # SUZY//AI
 
-**A local-first, open-source intelligence core for creative machines, cultural interpretation, and personal world-building.**
+**A local AI experiment in musical taste, humour, and memory — built in public.**
 
-SUZY//AI is the shared nervous system beneath a family of experiments by [Suzy Easton](https://www.suzyeaston.ca/).
+By [Suzy Easton](https://www.suzyeaston.ca/). A place for album reviews, strange
+connections, music questions, and threads that make me laugh. Save the examples,
+keep their context, and see what a local model can do with them in conversation.
 
-It is deliberately **not one giant app**.
+One of the first public examples starts here:
 
-```text
-                         SUZY//AI
-                  local brain + memory
-                   protocol + timeline
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-             ▼                           ▼
-  APPLIANCE LATENT SPACE            POP//CONTEXT
-     create / perform              observe / interpret
-     music / visuals               video / audio / culture
-     physical controls             research / evidence
+> **What do you think about Mormon music?**
+>
+> I'm partial to the The Joseph Smiths... The Mormonissey years, at least.
+
+The [full thread](docs/build-in-public/2026-10-08-humour-memory.md) has six replies.
+Suzy supplied and selected the examples; individual reply authors are unspecified.
+
+This is a working project, with the experiments and limitations visible alongside
+the code. The model is currently Qwen3 1.7B running through llama.cpp on a local Mac.
+Saving examples gives it material to retrieve; it does not retrain its weights.
+
+## The direction
+
+Start with a thread: a setup or question, followed by the replies worth keeping.
+Preserve the wording and any known attribution. Let humour, musical taste, and
+unexpected associations coexist in the same collection.
+
+The current workflow saves a thread as one approved memory through the local API.
+Chat recalls saved notes automatically. A small background selection of notes
+labelled as humour, taste, preferences, or style helps bring examples into
+conversation without requiring the original topic phrase every time. These are
+lexical rules; automatic categorization and a dedicated thread-entry interface
+are still to come.
+
+Threads Suzy contributes for the public collection will become examples and build
+notes here on GitHub. The repository documents what was supplied, what was saved,
+and what was actually tested. Generated riffs can become selected public drafts
+later; generated text is not automatically a new memory or a published post.
+
+## Working now: v0.3
+
+| Capability | Current behaviour |
+|---|---|
+| Local conversation | A model running on your computer, with no required commercial API |
+| Mac setup | Verified model download and a launcher for the model plus SUZY//AI |
+| Saved memory | Explicitly approved notes in private SQLite storage |
+| Recall | On by default; bounded topic matches plus labelled humour/taste examples |
+| Threads | A whole setup-and-replies exchange stored as one document |
+| Provenance | Source labels, timestamps, and the actual retrieved excerpts |
+| Teaching surfaces | Albums, musical ideas, idioms, and world notes in the existing world store |
+| Shared infrastructure | JSON event protocol, timeline, app registry, and local HTTP API |
+
+There is no weight training, automatic thread classification, autonomous tool
+execution, or automatic chat-history saving. Recall can miss relevant material,
+and a small model can still make mistakes or write an unfunny joke.
+
+## Run on an Apple Silicon Mac
+
+From a fresh clone:
+
+```bash
+git clone https://github.com/suzyeaston/suzy-ai.git
+cd suzy-ai
+bash scripts/setup-mac.sh
+bash scripts/start-mac.sh
 ```
 
-The laptop/computer is the compute host.
+Setup installs the tools, runs tests, and downloads the model once. Later launches
+reuse the verified file. See [Mac setup](docs/mac-setup.md) for requirements and
+troubleshooting.
 
-The physical toaster can become a Bluetooth control surface that emits the same logical controls as keyboard, MIDI, or browser UI. It does not need to run the AI itself.
+If ports are already in use:
 
-## Why a separate core?
+```bash
+bash scripts/start-mac.sh --api-port 7332 --model-port 8082
+```
 
-The Appliance and POP//CONTEXT were independently converging on the same requirements:
+Wait for `Local inference test passed` and the `you >` prompt. Then chat normally.
+Saved-memory recall starts on; `/memory off` pauses it for the session.
 
-- local inference,
-- private user data,
-- inspectable events,
-- personal learning,
-- replaceable models,
-- timeline-based interaction,
-- optional access to the current world.
+**`you >` is a chat prompt. Your Terminal shell prompt usually ends in `%` or `$`.**
+To run an update command, first exit chat with `/quit` or Ctrl-C. New versions also
+accept plain `quit` and `exit`, and recognize common accidentally pasted setup
+commands without forwarding them to the model. No chat command executes a shell.
 
-SUZY//AI owns those shared contracts without swallowing the applications.
+### Updating an existing checkout
 
-## The rule
+After leaving chat, update the branch you are using:
 
-> **Open machinery. Personally owned intelligence.**
+```bash
+git pull --ff-only
+bash scripts/start-mac.sh --api-port 7332 --model-port 8082
+```
 
-The source code can be cloned by anyone.
+An update from GitHub cannot affect a process that is already running: restart to
+load the new code. There is no need to rerun setup or download the model just to
+pick up a code change. If testing a PR branch, use that PR's checkout instructions.
 
-Your private memory, recordings, model files, training examples, research cache, and world timeline live outside the repository under:
+### Core only / other local model servers
+
+Python 3.11+ is required. Install with `pip install -e .` in a virtual environment,
+then use `suzy-ai init`, `suzy-ai doctor`, and `suzy-ai serve`. The core defaults to
+`http://127.0.0.1:7331`; inference requires a configured local model server.
+
+See the [chat and memory API guide](docs/local-chat.md) for approved memory writes,
+search, deletion, model configuration, and the local-process trust boundary.
+
+## Open machinery. Personally owned intelligence.
+
+The public repository contains code, selected examples, and build notes. Local
+memory, recordings, model weights, and world timelines live outside the checkout:
 
 ```text
 ~/.suzy-ai/
 ```
 
-A fresh clone starts with an empty identity.
-
-## Current v0.3
-
-SUZY//AI currently provides:
-
-- a language-neutral JSON event protocol,
-- a shared timeline event format,
-- an application registry,
-- a local state directory,
-- a localhost HTTP event/timeline and teaching server,
-- a local-only inference adapter and stateless chat API,
-- explicitly approved private notes with source-aware lexical retrieval,
-- a CLI for initializing, inspecting, and writing timeline events,
-- no required cloud account,
-- no required commercial model API.
-
-It does **not** claim to contain a trained Suzy model yet.
-
-## Install
-
-Python 3.11+.
-
-```bash
-git clone https://github.com/suzyeaston/suzy-ai.git
-cd suzy-ai
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-
-suzy-ai init
-suzy-ai doctor
-```
-
-Run the local core:
-
-```bash
-suzy-ai serve
-```
-
-Default:
-
-```text
-http://127.0.0.1:7331
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:7331/health
-```
-
-The server binds to loopback only by default.
-
-## Timeline
-
-The timeline is a shared primitive, not a single musical UI.
-
-The Appliance can render **musical** events by bars/beats.
-
-POP//CONTEXT can render **media** events in seconds.
-
-SUZY//AI can store **world** events in real time.
-
-Example:
-
-```bash
-suzy-ai timeline add \
-  --stream world \
-  --kind note \
-  --text "First SUZY//AI event."
-```
-
-Then:
-
-```bash
-suzy-ai timeline list --stream world
-```
-
-## Existing apps
-
-See [`config/apps.json`](config/apps.json).
-
-The apps remain independent repositories:
-
-- `suzyeaston/appliance-latent-space-live`
-- `suzyeaston/pop-context`
-- `suzyeaston/suzyeastonca`
-
-Use:
-
-```bash
-./scripts/sync-apps.sh
-```
-
-to clone/update local sibling copies in `~/Projects/suzy-ai-workspace/apps`.
-
-## Open source
-
-Licensed under Apache-2.0.
-
-Open source does not prevent a future business. Possible paid layers can include hosted inference, hardware, curated model/data packs, collaboration, managed sync, installation, support, performances, and specialized interfaces while the core remains open.
-
-## Local chat and private memory
-
-On an Apple Silicon Mac, start with [Mac setup](docs/mac-setup.md):
-
-```bash
-bash scripts/setup-mac.sh
-bash scripts/start-mac.sh
-```
-
-See [the v0.3 setup and API guide](docs/local-chat.md) for model configuration,
-approved memory writes, retrieval, deletion, chat, and privacy boundaries.
-Inference stays disabled until a local model is configured; chat does not save
-conversations. Saved memories are recalled automatically; `/memory off` pauses recall.
-
-## Next
-
-1. adapters from Appliance and POP//CONTEXT into the local event server,
-2. machine-aware local model selection,
-3. semantic retrieval and approved corrections,
-4. private export/backup tooling,
-5. explicit web research tool with provenance,
-6. audio/vision perception services,
-7. learning from approved corrections and examples.
-
-See [`docs/architecture.md`](docs/architecture.md) and [`docs/roadmap.md`](docs/roadmap.md).
-
-
-<!-- WORLD-MODEL-V02 -->
-
-## Teach SUZY//AI
-
-SUZY//AI 0.2 adds a private living world model and a local teaching interface:
-
-```text
-http://127.0.0.1:7331/
-```
-
-Current teaching surfaces:
-
-- album reviews,
-- musical ideas / chords / influences,
-- idioms and expressions,
-- generic world notes, including Canucks and culture.
-
-Everything writes through one deduplicating API into:
-
-```text
-~/.suzy-ai/world/world.sqlite3
-```
-
-Exact repeat submissions are ignored. Changed interpretations become new historical teachings attached to the same entity.
-
-This lets the system preserve **character development** instead of rewriting the past.
-
-See:
-
-- [`docs/world-model.md`](docs/world-model.md)
-- [`docs/teaching-surfaces.md`](docs/teaching-surfaces.md)
-- [`docs/wordpress-page.md`](docs/wordpress-page.md)
-
-
-<!-- SUZY-WORLD-PUBLIC -->
-
-## Public knowledge: SUZY//WORLD
-
-Private intelligence and public knowledge are separate systems.
-
-- **SUZY//AI** owns private memory, learning, timelines, models, and inference.
-- **SUZY//WORLD** holds only deliberately published entities, reviews, tags, relationships, and media metadata.
-
-Public API:
-
-```text
-https://www.suzyeaston.ca/wp-json/suzy-world/v1
-```
-
-Source:
-
-```text
-https://github.com/suzyeaston/suzy-world
-```
-
-See [`docs/public-world.md`](docs/public-world.md).
+Publishing a selected thread creates a public copy of that example; it does not
+sync the private database. A fresh clone does not automatically ingest the public
+examples into memory. Existing world teachings also require deliberate inclusion
+in the retrieval store. Local chat history remains in process and is not saved.
 
 ## Building in public
 
-Selected examples and development notes document how SUZY//AI is taking shape.
-These are deliberate public contributions; private memory stays local.
-
 - [Teaching SUZY//AI what makes me laugh](docs/build-in-public/2026-10-08-humour-memory.md)
-  — a setup and six music jokes, saved together as one memory.
-- [The approved input as JSON](examples/threads/mormon-music.json).
+- [The approved thread input as JSON](examples/threads/mormon-music.json)
+- [Architecture](docs/architecture.md) and [roadmap](docs/roadmap.md)
+
+More contributed threads and music examples will extend this collection. A public
+example can be funny, exploratory, unfinished, or something that did not work;
+notes should distinguish supplied material from generated output and verified
+results from plans.
+
+## Later: the website and music app
+
+The longer-term direction is to connect this memory and conversational system to
+Suzy's website and **The Appliance Latent Space** music app: musical prompts,
+creative interactions, and selected public outputs. That integration is future
+work. The music app is not currently driven by this chat launcher, and the website
+has no access to the private memory store.
+
+The related applications remain separate repositories:
+
+- [Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)
+  — the musical and visual instrument, with physical controls as a future input.
+- [POP//CONTEXT](https://github.com/suzyeaston/pop-context) — media interpretation.
+- [Website](https://github.com/suzyeaston/suzyeastonca).
+- [SUZY//WORLD](https://github.com/suzyeaston/suzy-world) — deliberately published
+  cultural knowledge; see the [public/private boundary](docs/public-world.md).
+
+The shared event/timeline protocol and [app registry](config/apps.json) provide a
+base for those connections. `scripts/sync-apps.sh` manages sibling app checkouts.
+
+## Development
+
+```bash
+bash scripts/test.sh
+```
+
+Tests use temporary private state and synthetic model services. CI includes Linux
+and macOS. Passing those tests does not establish the quality of model-generated
+jokes; real listening and conversational experiments are part of the work.
+
+See [world-model storage](docs/world-model.md), [teaching surfaces](docs/teaching-surfaces.md),
+and [timeline/event architecture](docs/architecture.md) for the existing systems.
+
+Code is licensed under Apache-2.0. Attribution for shared thread examples is recorded
+with the examples; do not assume every supplied reply was authored by Suzy or by AI.

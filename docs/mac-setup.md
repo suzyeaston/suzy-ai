@@ -49,7 +49,7 @@ synthetic hello to test the full chat path. Then type at `you >`.
 - `/memory on` includes matching previously approved notes in subsequent requests.
 - `/memory off` pauses retrieval for this session. Saved-memory recall starts on each launch.
 - `/reset` clears in-process chat history.
-- `/quit`, Ctrl-D, or Ctrl-C stops the two child services started by this launcher.
+- `/quit`, `/exit`, plain `quit` or `exit`, Ctrl-D, or Ctrl-C stops the two child services started by this launcher.
 
 Chat history is not saved. The terminal retains at most two prior exchanges with
 a combined 4,000-character limit. Messages are capped at 2,000 characters. It does
@@ -119,3 +119,17 @@ cd ~/Projects/suzy-ai-mac
 git pull --ff-only origin feature/mac-local-launcher
 bash scripts/setup-mac.sh && bash scripts/start-mac.sh
 ```
+
+## Chat versus the shell
+
+`you >` accepts chat messages and chat commands. It is not a Terminal shell.
+Leave chat with `/quit` (including the slash) or Ctrl-C before pasting `cd`, `git`
+or `bash` commands. Plain `quit` and `exit` are also recognized in updated versions.
+Common pasted setup/update commands show this guidance and are not sent to the
+model. This guard does not run any shell command.
+
+Seeing the old “Memory retrieval starts OFF” banner means the old process is still
+running. Updating files alone does not restart it. Stop chat, fetch/switch to the
+updated branch at the shell prompt, and run `start-mac.sh` again. A previous curl
+error followed by “Model SHA-256 verified” records a recovered download; do not
+redownload that verified model to fix a chat/shell mix-up.

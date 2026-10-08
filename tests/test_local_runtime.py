@@ -111,6 +111,23 @@ class LocalRuntimeTests(unittest.TestCase):
         self.assertFalse(calls[2]['use_memory'])
         self.assertNotIn('\x1b', local.printable('\x1b[31mhello'))
 
+    def test_quit_aliases_exit_without_inference(self):
+        for command in ('quit', 'exit', '/quit', '/exit', 'QUIT'):
+            with self.subTest(command=command), patch('builtins.input', return_value=command), patch.object(local, 'request') as request:
+                local.conversation(7331)
+                request.assert_not_called()
+
+    def test_shell_commands_show_guidance_without_inference(self):
+        commands = ['cd "$HOME/Projects/suzy-ai-mac" &&', 'git fetch origin &&',
+                    'git switch feature/automatic-memory-recall &&',
+                    'bash scripts/start-mac.sh --api-port 7332 --model-port 8082',
+                    'brew reinstall python@3.12', '/quit']
+        output = io.StringIO()
+        with patch('builtins.input', side_effect=commands), patch.object(local, 'request') as request, contextlib.redirect_stdout(output):
+            local.conversation(7331)
+        request.assert_not_called()
+        self.assertEqual(output.getvalue().count('Nothing was run or sent to the model.'), 5)
+
     def test_inference_auth_header_and_secret_redaction(self):
         class AuthModel(FakeModel):
             auth = None
