@@ -16,6 +16,9 @@ from test_v03 import FakeModel, running
 
 class LocalRuntimeTests(unittest.TestCase):
     def setUp(self):
+        output = contextlib.redirect_stdout(io.StringIO())
+        output.__enter__()
+        self.addCleanup(output.__exit__, None, None, None)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         env = patch.dict(os.environ, {'SUZY_AI_HOME': self.tmp.name})

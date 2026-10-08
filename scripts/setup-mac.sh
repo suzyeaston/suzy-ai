@@ -31,7 +31,9 @@ if [[ ! -d .venv-mac ]]; then
 fi
 .venv-mac/bin/python -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required"'
 .venv-mac/bin/python -m pip install -e .
+echo 'Running synthetic tests (no real model downloads or model launches in this step)…'
 .venv-mac/bin/python -m unittest discover -s tests -q
+echo 'Tests passed. Starting the actual model download/verification now…'
 .venv-mac/bin/python -m suzy_ai.local_runtime download
 printf '\n%s\n' 'Setup complete. Start SUZY//AI with:'
 printf '  cd %q && bash scripts/start-mac.sh\n' "$ROOT"

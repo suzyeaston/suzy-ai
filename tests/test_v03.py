@@ -2,7 +2,6 @@ import contextlib
 import http.client
 import json
 import os
-import socket
 import tempfile
 import threading
 import time
@@ -138,11 +137,12 @@ class InferenceTests(unittest.TestCase):
             adapter = LocalInference(f'http://127.0.0.1:{server.server_port}/v1', 'test', timeout=0.02)
             with self.assertRaises(InferenceTimeout):
                 adapter.complete([], 1)
-        with socket.socket() as sock:
-            sock.bind(('127.0.0.1', 0))
-            port = sock.getsockname()[1]  # Bound but not listening.
+        # A bound-but-not-listening socket may time out instead of refusing on
+        # macOS. Inject ECONNREFUSED to test its classification deterministically.
+        with patch('suzy_ai.inference.http.client.HTTPConnection.connect',
+                   side_effect=ConnectionRefusedError('synthetic refusal')):
             with self.assertRaises(InferenceUnavailable):
-                LocalInference(f'http://127.0.0.1:{port}/v1', 'test').complete([], 1)
+                LocalInference('http://127.0.0.1:8081/v1', 'test').complete([], 1)
 
 
 class PrivateStateTests(unittest.TestCase):
@@ -247,7 +247,11 @@ class PrivateStateTests(unittest.TestCase):
             self.assertEqual(request('/v1/chat', raw='{broken')[0], 400)
             self.assertEqual(request('/v1/chat', raw='[' * 2000 + ']' * 2000)[0], 400)
             self.assertEqual(request('/v1/chat', raw=b'\xff')[0], 400)
-            self.assertEqual(request('/v1/chat', raw='x' * 131073)[0], 400)
+            for _ in range(3):
+                status, body, headers = request('/v1/chat', raw='x' * 131073)
+                self.assertEqual(status, 400)
+                self.assertEqual(int(headers['Content-Length']), len(body))
+                self.assertEqual(json.loads(body)['error'], 'invalid request size')
             self.assertEqual(request('/v1/world/entities?limit=oops')[0], 400)
             self.assertEqual(request('/health', method='OPTIONS', headers={'Origin': 'null'})[0], 403)
             self.assertNotIn('Access-Control-Allow-Origin', request('/health')[2])

@@ -97,3 +97,25 @@ with Homebrew if required. Startup logs are not persisted.
 owned-process cleanup, inherited runtime setting isolation, terminal memory
 opt-in/reset, and authenticated loopback inference. These tests do not download
 weights or install Homebrew. The shell scripts also have a `bash -n` check in CI.
+
+## First Mac setup regression (fixed)
+
+The first on-device setup installed Homebrew, Python, llama.cpp and SUZY//AI, then
+stopped at the test gate with two socket-related errors. The real model download
+had not started; earlier model messages came from synthetic fixtures.
+
+- A bound, non-listening socket can time out on macOS. The refusal-classification
+  test now injects a refusal deterministically; real timeout tests remain.
+- Closing a rejected oversized request with unread input could reset the client
+  connection. Responses now have explicit byte lengths, and early rejections
+  close the write side then drain at most 256 KiB/100 ms of unread socket input.
+- Fixture progress output is suppressed, and setup labels test and real-download
+  stages. CI now includes macOS/Python 3.12 as well as Linux.
+
+To resume from the launcher branch, without recloning or reinstalling Homebrew:
+
+```bash
+cd ~/Projects/suzy-ai-mac
+git pull --ff-only origin feature/mac-local-launcher
+bash scripts/setup-mac.sh && bash scripts/start-mac.sh
+```
