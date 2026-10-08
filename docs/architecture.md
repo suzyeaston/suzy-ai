@@ -1,38 +1,24 @@
 # Architecture
 
-## One brain, multiple organs
+## One system, specialized components
 
-SUZY//AI is a local control plane.
+SUZY//AI is the overall local intelligence system for musical perception, memory,
+interpretation, and creative interaction. This repository implements the core;
+POP//CONTEXT is its audiovisual input pipeline in a separate repository.
 
-It does not replace the applications.
+| Component | Responsibility | Status |
+|---|---|---|
+| SUZY//AI core | Local text inference, approved memory retrieval, world teachings and events | Implemented; retrieval memory and world teachings remain separate stores |
+| POP//CONTEXT input pipeline | Media ingest, transcripts, frames and timestamped evidence | Local evidence pipeline works; automatic transfer to the core is not implemented |
+| Appliance instrument | Musical and visual interaction | Playable independently; AI proposals and control integration are future work |
+| SUZY//WORLD and website | Deliberately published knowledge and public interfaces | Separate applications; no automatic private-memory access |
 
-```text
-                  ┌──────────────────────┐
-                  │       SUZY//AI       │
-                  │                      │
-                  │ model adapters       │
-                  │ private memory       │
-                  │ tool broker          │
-                  │ timeline/event bus   │
-                  │ provenance           │
-                  └──────────┬───────────┘
-                             │
-              local protocol│
-                 ┌───────────┴───────────┐
-                 │                       │
-        ┌────────▼────────┐     ┌────────▼────────┐
-        │   APPLIANCE     │     │  POP//CONTEXT  │
-        │                 │     │                │
-        │ musical actor   │     │ observer       │
-        │ visual actor    │     │ interpreter    │
-        │ timeline UI     │     │ evidence       │
-        └────────┬────────┘     └─────────────────┘
-                 │
-        ┌────────▼────────┐
-        │ TOASTER / BLE   │
-        │ control surface │
-        └─────────────────┘
-```
+Cultural interpretation and developing musical taste belong to the shared
+SUZY//AI direction. POP//CONTEXT supplies evidence for that work rather than
+maintaining a second cultural-memory system. Threads, album reviews, and approved
+media observations can eventually inform the same conversational and musical
+context. This is an integration goal, not a claim that the stores or applications
+are already connected. See [the input-pipeline contract](pop-context.md).
 
 ## The toaster decision
 
