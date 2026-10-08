@@ -166,7 +166,7 @@ bash scripts/start-mac.sh
 See [the v0.3 setup and API guide](docs/local-chat.md) for model configuration,
 approved memory writes, retrieval, deletion, chat, and privacy boundaries.
 Inference stays disabled until a local model is configured; chat does not save
-conversations or use memory unless requested.
+conversations. Saved memories are recalled automatically; `/memory off` pauses recall.
 
 ## Next
 

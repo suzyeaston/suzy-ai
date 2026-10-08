@@ -134,9 +134,9 @@ def printable(value: str) -> str:
 
 def conversation(port: int) -> None:
     print('\nSUZY//AI is ready. Type a message, /memory on, /memory off, /reset, or /quit.')
-    print('Conversations stay in this process only. Memory retrieval starts OFF.')
+    print('Conversations stay in this process only. Saved memories are recalled automatically. /memory off pauses recall.')
     history: list[dict] = []
-    use_memory = False
+    use_memory = True
     while True:
         try:
             message = input('\nyou > ').strip()
@@ -205,7 +205,7 @@ def run(api_port: int = 7331, model_port: int = 8081, no_chat: bool = False) -> 
         children.append(core)
         wait_ready(core, api_port, timeout=15)
         # Synthetic smoke test only; never read or write private memory here.
-        request(api_port, '/v1/chat', {'message': 'Reply with a short hello.', 'max_tokens': 64})
+        request(api_port, '/v1/chat', {'message': 'Reply with a short hello.', 'max_tokens': 64, 'use_memory': False})
         print(f'Local inference test passed. Core API: http://127.0.0.1:{api_port}', flush=True)
         if no_chat:
             print('Services running. Ctrl-C stops both.', flush=True)
