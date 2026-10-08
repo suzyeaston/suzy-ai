@@ -9,7 +9,7 @@ import os
 import socket
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -59,9 +59,12 @@ class LocalInference:
     model: str
     timeout: float = 60.0
     max_response_bytes: int = 262_144
+    api_key: str = field(default="", repr=False)
 
     def __post_init__(self) -> None:
         local_endpoint(self.base_url)
+        if not isinstance(self.api_key, str) or any(ord(c) < 33 or ord(c) > 126 for c in self.api_key):
+            raise ValueError("invalid local inference API key")
         if not isinstance(self.model, str) or not self.model.strip() or len(self.model) > 200:
             raise ValueError("configure a local model name (1–200 characters)")
         if not math.isfinite(self.timeout) or not 0 < self.timeout <= 120:
@@ -101,7 +104,10 @@ class LocalInference:
             timer.daemon = True
             timer.start()
             # HTTPConnection deliberately ignores HTTP_PROXY/HTTPS_PROXY settings.
-            connection.request("POST", path, body, {"Content-Type": "application/json"})
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = "Bearer " + self.api_key
+            connection.request("POST", path, body, headers)
             response = connection.getresponse()
             if response.status != 200:
                 raise InferenceUnavailable("local model server rejected the request")
@@ -145,6 +151,7 @@ def from_environment() -> LocalInference:
         return LocalInference(
             os.environ.get("SUZY_AI_INFERENCE_URL", "http://127.0.0.1:11434/v1"),
             model, float(os.environ.get("SUZY_AI_INFERENCE_TIMEOUT", "60")),
+            api_key=os.environ.get("SUZY_AI_INFERENCE_API_KEY", ""),
         )
     except ValueError:
         raise InferenceUnavailable("invalid local inference configuration") from None

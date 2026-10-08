@@ -4,6 +4,7 @@ import json
 import socket
 import sqlite3
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -28,6 +29,31 @@ class Handler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         self.connection.settimeout(15)
+        self._discard_input = False
+
+    def finish(self) -> None:
+        try:
+            super().finish()
+        finally:
+            if self._discard_input:
+                # Deliver the rejection before closing a socket with unread input.
+                # A bounded drain avoids a TCP reset swallowing the response on
+                # macOS, without accepting or allocating an oversized body.
+                try:
+                    self.connection.shutdown(socket.SHUT_WR)
+                    deadline = time.monotonic() + 0.1
+                    remaining = 262_144
+                    while remaining:
+                        time_left = deadline - time.monotonic()
+                        if time_left <= 0:
+                            break
+                        self.connection.settimeout(time_left)
+                        chunk = self.connection.recv(min(remaining, 16_384))
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                except OSError:
+                    pass
 
     def _trusted_request(self) -> bool:
         # Reject DNS rebinding and cross-origin browser access on every route.
@@ -41,6 +67,7 @@ class Handler(BaseHTTPRequestHandler):
                 or len(origins) > 1
                 or (origins and origins[0] != f"http://{host}")
                 or self.headers.get("Sec-Fetch-Site") == "cross-site"):
+            self._discard_input = True
             self._json({"error": "only same-origin local requests are allowed"}, 403)
             return False
         return True
@@ -65,24 +92,27 @@ class Handler(BaseHTTPRequestHandler):
         self,
         status: int = 200,
         content_type: str = "application/json; charset=utf-8",
+        content_length: int = 0,
     ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(content_length))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
 
     def _json(self, payload: object, status: int = 200) -> None:
-        self._headers(status)
-        self.wfile.write(
-            (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-        )
+        body = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        self._headers(status, content_length=len(body))
+        self.wfile.write(body)
 
     def _html(self, body: str, status: int = 200) -> None:
-        self._headers(status, "text/html; charset=utf-8")
-        self.wfile.write(body.encode("utf-8"))
+        encoded = body.encode("utf-8")
+        self._headers(status, "text/html; charset=utf-8", len(encoded))
+        self.wfile.write(encoded)
 
     def _body(self) -> dict:
+        self._discard_input = True
         if (self.headers.get_content_type() != "application/json"
                 or self.headers.get("Transfer-Encoding")
                 or len(self.headers.get_all("Content-Length", [])) != 1):
@@ -90,7 +120,9 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0 or length > 131_072:
             raise ValueError("invalid request size")
-        payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        raw = self.rfile.read(length)
+        self._discard_input = False
+        payload = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("request body must be a JSON object")
         return payload

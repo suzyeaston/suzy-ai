@@ -156,6 +156,13 @@ Open source does not prevent a future business. Possible paid layers can include
 
 ## Local chat and private memory
 
+On an Apple Silicon Mac, start with [Mac setup](docs/mac-setup.md):
+
+```bash
+bash scripts/setup-mac.sh
+bash scripts/start-mac.sh
+```
+
 See [the v0.3 setup and API guide](docs/local-chat.md) for model configuration,
 approved memory writes, retrieval, deletion, chat, and privacy boundaries.
 Inference stays disabled until a local model is configured; chat does not save
