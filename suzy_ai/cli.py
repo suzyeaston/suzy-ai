@@ -72,7 +72,7 @@ def doctor() -> int:
         print(f"{command:<14} {state:<34} # {purpose}")
 
     print()
-    print("Optional tools may be added as adapters. None are required for the v0.1 core.")
+    print("Optional tools may be added as adapters. Chat needs a configured local model server.")
     return 0
 
 
@@ -100,7 +100,7 @@ def main() -> None:
         ensure_home()
         if args.host not in ("127.0.0.1", "localhost", "::1"):
             print(
-                "Refusing non-loopback bind in v0.1. "
+                "Refusing non-loopback bind. "
                 "SUZY//AI is local-first by default.",
                 file=sys.stderr,
             )

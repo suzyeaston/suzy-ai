@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import json
+import socket
+import sqlite3
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from . import __version__, memory
+from .chat import chat
+from .inference import InferenceError, InferenceTimeout, InferenceUnavailable
 from .events import timeline_event
 from .registry import load_registry
 from .store import append_event, read_events
@@ -16,7 +22,44 @@ LOCAL_UI = ROOT / "site" / "local" / "index.html"
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "SUZYAI/0.2"
+    server_version = "SUZYAI/0.3"
+    inference_slot = threading.BoundedSemaphore(1)
+
+    def setup(self) -> None:
+        super().setup()
+        self.connection.settimeout(15)
+
+    def _trusted_request(self) -> bool:
+        # Reject DNS rebinding and cross-origin browser access on every route.
+        port = self.server.server_address[1]
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        if port == 80:
+            hosts.update({"127.0.0.1", "localhost", "[::1]"})
+        host = self.headers.get("Host", "")
+        origins = self.headers.get_all("Origin", [])
+        if (len(self.headers.get_all("Host", [])) != 1 or host not in hosts
+                or len(origins) > 1
+                or (origins and origins[0] != f"http://{host}")
+                or self.headers.get("Sec-Fetch-Site") == "cross-site"):
+            self._json({"error": "only same-origin local requests are allowed"}, 403)
+            return False
+        return True
+
+    def _dispatch(self, callback) -> None:
+        if not self._trusted_request():
+            return
+        try:
+            callback()
+        except InferenceTimeout as exc:
+            self._json({"error": str(exc)}, 504)
+        except InferenceUnavailable as exc:
+            self._json({"error": str(exc)}, 503)
+        except InferenceError as exc:
+            self._json({"error": str(exc)}, 502)
+        except (TypeError, ValueError, UnicodeError, RecursionError):
+            self._json({"error": "invalid request"}, 400)
+        except (sqlite3.Error, OSError):
+            self._json({"error": "local storage or connection unavailable"}, 503)
 
     def _headers(
         self,
@@ -26,9 +69,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
 
     def _json(self, payload: object, status: int = 200) -> None:
@@ -42,8 +83,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body.encode("utf-8"))
 
     def _body(self) -> dict:
+        if (self.headers.get_content_type() != "application/json"
+                or self.headers.get("Transfer-Encoding")
+                or len(self.headers.get_all("Content-Length", [])) != 1):
+            raise ValueError("JSON with a single Content-Length is required")
         length = int(self.headers.get("Content-Length", "0"))
-        if length <= 0 or length > 1_000_000:
+        if length <= 0 or length > 131_072:
             raise ValueError("invalid request size")
         payload = json.loads(self.rfile.read(length).decode("utf-8"))
         if not isinstance(payload, dict):
@@ -51,9 +96,13 @@ class Handler(BaseHTTPRequestHandler):
         return payload
 
     def do_OPTIONS(self) -> None:
-        self._headers(204)
+        if self._trusted_request():
+            self._headers(204)
 
     def do_GET(self) -> None:
+        self._dispatch(self._get)
+
+    def _get(self) -> None:
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
 
@@ -69,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "name": "SUZY//AI",
-                    "version": "0.2.0",
+                    "version": __version__,
                     "mode": "local-first",
                     "world_model": True,
                 }
@@ -115,12 +164,44 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": "not found"}, 404)
 
     def do_POST(self) -> None:
+        self._dispatch(self._post)
+
+    def _post(self) -> None:
         parsed = urlparse(self.path)
 
         try:
             payload = self._body()
         except (ValueError, json.JSONDecodeError) as exc:
             self._json({"error": str(exc)}, 400)
+            return
+
+        if parsed.path == "/v1/chat":
+            if not self.inference_slot.acquire(blocking=False):
+                self._json({"error": "local inference is busy; retry later"}, 429)
+                return
+            try:
+                self._json(chat(payload))
+            finally:
+                self.inference_slot.release()
+            return
+
+        if parsed.path == "/v1/memory":
+            if set(payload) != {"title", "text", "source", "approved"}:
+                raise ValueError("title, text, source and approved are required")
+            self._json(memory.add(**payload), 201)
+            return
+
+        if parsed.path == "/v1/memory/search":
+            if set(payload) - {"query", "limit"} or "query" not in payload:
+                raise ValueError("query and optional limit are accepted")
+            self._json({"sources": memory.search(**payload)})
+            return
+
+        if parsed.path == "/v1/memory/delete":
+            if set(payload) != {"id"}:
+                raise ValueError("id is required")
+            deleted = memory.delete(payload["id"])
+            self._json({"deleted": deleted}, 200 if deleted else 404)
             return
 
         if parsed.path == "/v1/events":
@@ -134,6 +215,9 @@ class Handler(BaseHTTPRequestHandler):
                 "unit": "iso8601",
                 "value": payload.get("at") or "",
             }
+
+            if not isinstance(position, dict):
+                raise ValueError("position must be an object")
 
             event = timeline_event(
                 stream=str(payload["stream"]),
@@ -298,11 +382,19 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": "not found"}, 404)
 
     def log_message(self, format: str, *args: object) -> None:
-        print(f"[suzy-ai] {self.address_string()} - {format % args}")
+        # Request URLs, bodies, and model responses can contain private data.
+        pass
 
 
 def serve(host: str = "127.0.0.1", port: int = 7331) -> None:
-    server = ThreadingHTTPServer((host, port), Handler)
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        raise ValueError("SUZY//AI only binds to loopback")
+    if host == "::1":
+        class IPv6Server(ThreadingHTTPServer):
+            address_family = socket.AF_INET6
+        server = IPv6Server((host, port), Handler)
+    else:
+        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"SUZY//AI listening on http://{host}:{port}")
     print("Local loopback only. Ctrl-C to stop.")
     try:

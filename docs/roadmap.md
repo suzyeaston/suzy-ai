@@ -14,18 +14,19 @@
 
 ## 0.2 - local mind
 
-- [ ] model adapter interface
-- [ ] llama.cpp or equivalent open-weight runtime
+- [x] model adapter interface
+- [x] adapter for an independently installed local OpenAI-compatible runtime
 - [ ] machine-aware model selection
 - [ ] local prompt / response provenance
-- [ ] hard local-only default
+- [x] hard loopback-only transport with no cloud fallback
 
 ## 0.3 - memory
 
-- [ ] private document store
-- [ ] embeddings / retrieval
+- [x] explicitly approved private document store
+- [x] bounded lexical retrieval with SQLite FTS5
+- [ ] semantic embeddings
 - [ ] approved corrections
-- [ ] explicit memory provenance
+- [x] explicit memory provenance
 - [ ] export / backup
 
 ## 0.4 - current world
@@ -48,3 +49,14 @@
 ## Rule
 
 Do not train a personality before we have earned a dataset worth training on.
+
+## v0.3 integration
+
+- [x] stateless `/v1/chat` API; memory opt-in per request
+- [x] safe inference failure handling and request/response limits
+- [x] same-origin local API protection
+- [x] synthetic tests and Python 3.11–3.13 CI
+
+Prompt/response provenance is returned per request, not persisted. Machine-aware
+selection, approved corrections, semantic embeddings and export tooling remain
+future work. See [local chat](local-chat.md).
