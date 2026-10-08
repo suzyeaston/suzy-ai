@@ -120,3 +120,12 @@ Timeline is a core primitive with multiple coordinate systems.
 Applications keep their specialized UIs.
 
 SUZY//AI only defines the event grammar that lets those timelines talk to each other.
+
+## Implemented in v0.3
+
+`server.py` validates local HTTP requests, `chat.py` composes bounded context,
+`memory.py` retrieves explicitly approved notes from private SQLite FTS5, and
+`inference.py` sends text-only requests to a configured loopback model server.
+The adapter protocol is replaceable. There is no tool execution or cloud fallback.
+World teachings and timelines keep their existing formats. See
+[local chat](local-chat.md) for configuration, API contracts, and trust boundaries.

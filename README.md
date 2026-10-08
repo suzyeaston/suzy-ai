@@ -52,7 +52,7 @@ Your private memory, recordings, model files, training examples, research cache,
 
 A fresh clone starts with an empty identity.
 
-## Current v0.1
+## Current v0.3
 
 SUZY//AI currently provides:
 
@@ -60,7 +60,9 @@ SUZY//AI currently provides:
 - a shared timeline event format,
 - an application registry,
 - a local state directory,
-- a tiny localhost HTTP event/timeline server,
+- a localhost HTTP event/timeline and teaching server,
+- a local-only inference adapter and stateless chat API,
+- explicitly approved private notes with source-aware lexical retrieval,
 - a CLI for initializing, inspecting, and writing timeline events,
 - no required cloud account,
 - no required commercial model API.
@@ -152,12 +154,19 @@ Licensed under Apache-2.0.
 
 Open source does not prevent a future business. Possible paid layers can include hosted inference, hardware, curated model/data packs, collaboration, managed sync, installation, support, performances, and specialized interfaces while the core remains open.
 
+## Local chat and private memory
+
+See [the v0.3 setup and API guide](docs/local-chat.md) for model configuration,
+approved memory writes, retrieval, deletion, chat, and privacy boundaries.
+Inference stays disabled until a local model is configured; chat does not save
+conversations or use memory unless requested.
+
 ## Next
 
 1. adapters from Appliance and POP//CONTEXT into the local event server,
-2. model adapter interface,
-3. local open-weight model runtime,
-4. private retrieval/memory,
+2. machine-aware local model selection,
+3. semantic retrieval and approved corrections,
+4. private export/backup tooling,
 5. explicit web research tool with provenance,
 6. audio/vision perception services,
 7. learning from approved corrections and examples.

@@ -21,3 +21,9 @@ training-data/
 
 # Python editable-install / build metadata.
 *.egg-info/
+
+# Additional safeguards for local runtime state and packaging output.
+.suzy-ai/
+*.sqlite3*
+build/
+dist/
