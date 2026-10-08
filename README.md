@@ -1,41 +1,88 @@
 # SUZY//AI
 
-**A local AI experiment in musical taste, humour, and memory — built in public.**
+**Local intelligence for music, cultural context, and creative instruments.**
 
-By [Suzy Easton](https://www.suzyeaston.ca/). A place for album reviews, strange
-connections, music questions, and threads that make me laugh. Save the examples,
-keep their context, and see what a local model can do with them in conversation.
+SUZY//AI is an open-source project by [Suzy Easton](https://www.suzyeaston.ca/),
+developed as the shared memory and inference layer for a growing collection of
+music and creative-technology applications.
 
-One of the first public examples starts here:
+The aim is to build musical AI whose responses can be informed by a developing
+body of taste: album reviews, musical ideas, listening observations, cultural
+references, humour, and connections between them. Threads contributed by Suzy are
+part of that material. Each adds examples of language, association, or musical
+judgement that can remain available beyond a single conversation.
 
-> **What do you think about Mormon music?**
->
-> I'm partial to the The Joseph Smiths... The Mormonissey years, at least.
+The longer-term goal is for those references to inform creative decisions in
+**The Appliance Latent Space** and related music tools: suggestions about phrasing,
+texture, arrangement, and audiovisual behaviour that a musician can audition,
+accept, or change. That connection is being developed. The current core supports
+local text conversation and memory retrieval; it does not yet listen to audio or
+control the instrument.
 
-The [full thread](docs/build-in-public/2026-10-08-humour-memory.md) has six replies.
-Suzy supplied and selected the examples; individual reply authors are unspecified.
+## How the projects fit together
 
-This is a working project, with the experiments and limitations visible alongside
-the code. The model is currently Qwen3 1.7B running through llama.cpp on a local Mac.
-Saving examples gives it material to retrieve; it does not retrain its weights.
+The repositories divide the work between an instrument, an observer, a local
+intelligence core, and public knowledge and interfaces.
 
-## The direction
+| Project | Existing role | Connection to the music-AI direction |
+|---|---|---|
+| **[SUZY//AI](https://github.com/suzyeaston/suzy-ai)** | Local text inference, private memory, teaching APIs, events and timelines | Provides the core in which contributed examples can be retained and recalled; musical decision-making is a development goal |
+| **[The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)** | Playable browser instrument with patterns, synthesis, arrangements, scenes and synchronized visuals | Intended to receive musically relevant suggestions through its control/event language, while remaining playable without AI |
+| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | Local audiovisual evidence pipeline: media windows, transcripts, representative frames and timestamps | Intended to supply approved observations with evidence and timing; cultural AI interpretation remains future work |
+| **[SUZY//WORLD](https://github.com/suzyeaston/suzy-world)** | WordPress plugin and public API for versioned album reviews, entities, tags and relationships | Holds deliberately published cultural knowledge that could support public music interfaces |
+| **[suzyeaston.ca](https://github.com/suzyeaston/suzyeastonca)** | Public website and creative lab, including Loop Lab, Track Analyzer and other music experiments | A future surface for selected SUZY//AI capabilities and outputs; the website does not currently access private memory |
 
-Start with a thread: a setup or question, followed by the replies worth keeping.
-Preserve the wording and any known attribution. Let humour, musical taste, and
-unexpected associations coexist in the same collection.
+These are related applications with separate responsibilities. Their published
+integration notes describe the intended connections; the complete pipeline is not
+operational yet. The [app registry](config/apps.json),
+[Appliance integration notes](https://github.com/suzyeaston/appliance-latent-space-live/blob/main/docs/suzy-ai-integration.md)
+and [POP//CONTEXT integration notes](https://github.com/suzyeaston/pop-context/blob/main/docs/suzy-ai-integration.md)
+record those contracts.
 
-The current workflow saves a thread as one approved memory through the local API.
-Chat recalls saved notes automatically. A small background selection of notes
-labelled as humour, taste, preferences, or style helps bring examples into
-conversation without requiring the original topic phrase every time. These are
-lexical rules; automatic categorization and a dedicated thread-entry interface
-are still to come.
+The Appliance already includes local example-based mapping between musical and
+visual controls. Its seeded musical variations are separate from the language
+model here. A future AI sound/proposal layer will need its own implementation and
+listening tests.
 
-Threads Suzy contributes for the public collection will become examples and build
-notes here on GitHub. The repository documents what was supplied, what was saved,
-and what was actually tested. Generated riffs can become selected public drafts
-later; generated text is not automatically a new memory or a published post.
+## Building taste through examples
+
+The collection can grow through ordinary material supplied over time:
+
+- album reviews and discussions of production, performance, or arrangement;
+- musical phrases, voicings, textures, and explanations of particular choices;
+- threads containing a question or setup and several replies;
+- wordplay, references, and cultural associations;
+- later corrections or comparisons that refine an earlier interpretation.
+
+Humour belongs in this collection because musical references also carry language,
+context, and association. A band-name thread can demonstrate those relationships;
+it is one kind of example within the broader musical project.
+
+The first public thread asks **“What do you think about Mormon music?”** Its replies
+include “The Joseph Smiths” and “The Mormonissey years.” The
+[full example](docs/build-in-public/2026-10-08-humour-memory.md) preserves all six
+replies, with [the approved input available as JSON](examples/threads/mormon-music.json).
+Suzy supplied and selected the material; individual reply authors are unspecified.
+Selection records an example of interest, not authorship of every reply or agreement
+with every statement.
+
+The current workflow saves the whole thread as one approved memory. Further
+contributed threads can extend the collection without replacing earlier examples.
+Original wording, context, and available attribution stay with the material.
+Individual reply relationships and automatic categorization remain future work.
+
+## What learning means at this stage
+
+The current model is Qwen3 1.7B, running locally through llama.cpp. Saved notes are
+retrieved into its conversational context. Topic matches and a small background
+selection of notes labelled as humour, taste, preferences, or style support recall
+without requiring the original topic phrase every time.
+
+This provides continuity and examples for a response; it does not change model
+weights or establish a learned musical style. The next steps are to evaluate how
+well the examples inform conversation, improve retrieval and musical representation,
+and connect approved suggestions to the instrument. Fine-tuning is a later option
+once suitable examples and evaluation criteria exist.
 
 ## Working now: v0.3
 
@@ -52,7 +99,7 @@ later; generated text is not automatically a new memory or a published post.
 
 There is no weight training, automatic thread classification, autonomous tool
 execution, or automatic chat-history saving. Recall can miss relevant material,
-and a small model can still make mistakes or write an unfunny joke.
+and a small model can still make mistakes or make an unsuitable musical or cultural association.
 
 ## Run on an Apple Silicon Mac
 
@@ -105,7 +152,7 @@ then use `suzy-ai init`, `suzy-ai doctor`, and `suzy-ai serve`. The core default
 See the [chat and memory API guide](docs/local-chat.md) for approved memory writes,
 search, deletion, model configuration, and the local-process trust boundary.
 
-## Open machinery. Personally owned intelligence.
+## Public development and local memory
 
 The public repository contains code, selected examples, and build notes. Local
 memory, recordings, model weights, and world timelines live outside the checkout:
@@ -121,34 +168,29 @@ in the retrieval store. Local chat history remains in process and is not saved.
 
 ## Building in public
 
-- [Teaching SUZY//AI what makes me laugh](docs/build-in-public/2026-10-08-humour-memory.md)
+- [Threads as musical and cultural memory](docs/build-in-public/2026-10-08-humour-memory.md)
 - [The approved thread input as JSON](examples/threads/mormon-music.json)
 - [Architecture](docs/architecture.md) and [roadmap](docs/roadmap.md)
 
-More contributed threads and music examples will extend this collection. A public
-example can be funny, exploratory, unfinished, or something that did not work;
-notes should distinguish supplied material from generated output and verified
-results from plans.
+The public collection will grow as Suzy contributes more threads and musical
+examples. GitHub records the selected material and the development around it:
+what was supplied, what was saved, and what was actually evaluated. Build notes
+separate contributed examples from generated responses and verified results from
+plans. Publishing remains separate from local memory capture.
 
-## Later: the website and music app
+## Development priorities
 
-The longer-term direction is to connect this memory and conversational system to
-Suzy's website and **The Appliance Latent Space** music app: musical prompts,
-creative interactions, and selected public outputs. That integration is future
-work. The music app is not currently driven by this chat launcher, and the website
-has no access to the private memory store.
+1. Make continued thread capture and retrieval easier while preserving context.
+2. Represent musical preferences and associations in ways that can be evaluated.
+3. Connect the core to the Appliance's musical controls and proposal workflow.
+4. Introduce approved audiovisual observations from POP//CONTEXT.
+5. Expose selected cultural knowledge and creative outputs through SUZY//WORLD
+   and the website's music interfaces.
 
-The related applications remain separate repositories:
-
-- [Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)
-  — the musical and visual instrument, with physical controls as a future input.
-- [POP//CONTEXT](https://github.com/suzyeaston/pop-context) — media interpretation.
-- [Website](https://github.com/suzyeaston/suzyeastonca).
-- [SUZY//WORLD](https://github.com/suzyeaston/suzy-world) — deliberately published
-  cultural knowledge; see the [public/private boundary](docs/public-world.md).
-
-The shared event/timeline protocol and [app registry](config/apps.json) provide a
-base for those connections. `scripts/sync-apps.sh` manages sibling app checkouts.
+The laptop remains the compute/audio host. Physical controls can later send
+logical events to the instrument. The instrument should retain reliable playback,
+explicit audition/accept, and an immediate Kill independently of AI availability.
+`scripts/sync-apps.sh` manages sibling application checkouts.
 
 ## Development
 
@@ -157,8 +199,8 @@ bash scripts/test.sh
 ```
 
 Tests use temporary private state and synthetic model services. CI includes Linux
-and macOS. Passing those tests does not establish the quality of model-generated
-jokes; real listening and conversational experiments are part of the work.
+and macOS. Passing those tests establishes software behaviour, not musical judgement.
+Listening sessions and conversational evaluations will assess the creative results.
 
 See [world-model storage](docs/world-model.md), [teaching surfaces](docs/teaching-surfaces.md),
 and [timeline/event architecture](docs/architecture.md) for the existing systems.
