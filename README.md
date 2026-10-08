@@ -237,3 +237,12 @@ https://github.com/suzyeaston/suzy-world
 ```
 
 See [`docs/public-world.md`](docs/public-world.md).
+
+## Building in public
+
+Selected examples and development notes document how SUZY//AI is taking shape.
+These are deliberate public contributions; private memory stays local.
+
+- [Teaching SUZY//AI what makes me laugh](docs/build-in-public/2026-10-08-humour-memory.md)
+  — a setup and six music jokes, saved together as one memory.
+- [The approved input as JSON](examples/threads/mormon-music.json).
