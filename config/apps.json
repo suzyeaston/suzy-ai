@@ -26,7 +26,7 @@
       "name": "POP//CONTEXT",
       "repo": "suzyeaston/pop-context",
       "role": "observer",
-      "purpose": "multimodal audiovisual evidence and cultural interpretation",
+      "purpose": "SUZY//AI audiovisual input pipeline: local timestamped evidence",
       "timeline": "media",
       "integration": [
         "evidence-events",

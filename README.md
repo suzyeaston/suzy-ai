@@ -3,8 +3,10 @@
 **Local intelligence for music, cultural context, and creative instruments.**
 
 SUZY//AI is an open-source project by [Suzy Easton](https://www.suzyeaston.ca/),
-developed as the shared memory and inference layer for a growing collection of
-music and creative-technology applications.
+developed as a local system for musical perception, memory, interpretation, and
+creative interaction. This repository implements its shared memory and inference
+core. **POP//CONTEXT is its audiovisual input pipeline**, maintained in a separate
+repository. Together they contribute to the same music-AI direction.
 
 The aim is to build musical AI whose responses can be informed by a developing
 body of taste: album reviews, musical ideas, listening observations, cultural
@@ -21,20 +23,24 @@ control the instrument.
 
 ## How the projects fit together
 
-The repositories divide the work between an instrument, an observer, a local
-intelligence core, and public knowledge and interfaces.
+Repository boundaries organize the code. SUZY//AI is the overall intelligence
+system; its core and POP//CONTEXT input pipeline have complementary responsibilities.
+The Appliance is the instrument, with SUZY//WORLD and the website providing
+selected public knowledge and interfaces.
 
 | Project | Existing role | Connection to the music-AI direction |
 |---|---|---|
 | **[SUZY//AI](https://github.com/suzyeaston/suzy-ai)** | Local text inference, private memory, teaching APIs, events and timelines | Provides the core in which contributed examples can be retained and recalled; musical decision-making is a development goal |
 | **[The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)** | Playable browser instrument with patterns, synthesis, arrangements, scenes and synchronized visuals | Intended to receive musically relevant suggestions through its control/event language, while remaining playable without AI |
-| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | Local audiovisual evidence pipeline: media windows, transcripts, representative frames and timestamps | Intended to supply approved observations with evidence and timing; cultural AI interpretation remains future work |
+| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | SUZY//AI audiovisual input pipeline: media windows, transcripts, representative frames and timestamps | Intended to supply approved observations with evidence and timing; cultural AI interpretation remains future work |
 | **[SUZY//WORLD](https://github.com/suzyeaston/suzy-world)** | WordPress plugin and public API for versioned album reviews, entities, tags and relationships | Holds deliberately published cultural knowledge that could support public music interfaces |
 | **[suzyeaston.ca](https://github.com/suzyeaston/suzyeastonca)** | Public website and creative lab, including Loop Lab, Track Analyzer and other music experiments | A future surface for selected SUZY//AI capabilities and outputs; the website does not currently access private memory |
 
-These are related applications with separate responsibilities. Their published
-integration notes describe the intended connections; the complete pipeline is not
-operational yet. The [app registry](config/apps.json),
+POP//CONTEXT prepares evidence for the same memory and interpretation system that
+uses contributed threads, album reviews, and musical examples. It does not need a
+separate musical identity or cultural-memory database. Its approved-evidence
+transfer into the core is planned; the complete pipeline is not operational yet.
+The published integration notes describe the intended connections. The [app registry](config/apps.json),
 [Appliance integration notes](https://github.com/suzyeaston/appliance-latent-space-live/blob/main/docs/suzy-ai-integration.md)
 and [POP//CONTEXT integration notes](https://github.com/suzyeaston/pop-context/blob/main/docs/suzy-ai-integration.md)
 record those contracts.
