@@ -27,3 +27,5 @@ training-data/
 *.sqlite3*
 build/
 dist/
+
+.venv-mac/

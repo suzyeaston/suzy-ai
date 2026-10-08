@@ -7,6 +7,9 @@ Python dependencies or model downloads are added.
 
 ## Start
 
+For an integrated Apple Silicon setup and terminal chat, see [Mac setup](mac-setup.md).
+The following describes connecting an independently managed runtime.
+
 Install the core as described in the README. Start your own local, OpenAI-compatible
 model server with a model already installed. Select its exact model name:
 
@@ -24,7 +27,8 @@ and [llama.cpp server documentation](https://github.com/ggml-org/llama.cpp/blob/
 The adapter sends model, messages, `stream: false` and `max_tokens`; it accepts a
 non-empty assistant text response. Tool/function-call responses are rejected.
 
-An unset `SUZY_AI_MODEL` disables inference. `.env.example` documents settings but
+An unset `SUZY_AI_MODEL` disables inference. Optional `SUZY_AI_INFERENCE_API_KEY`
+authenticates to a trusted local runtime; it is not an API key for a cloud provider. `.env.example` documents settings but
 is not automatically loaded. A configured endpoint is **not** proof of local
 compute: use a trusted runtime with cloud models, forwarding and telemetry disabled.
 SUZY//AI cannot control networking or logging performed by a separately run server.
@@ -109,7 +113,8 @@ tool requests) are rejected. This is SUZY//AI's API, not an OpenAI API replaceme
   a 15-second socket idle timeout. Request URLs/bodies and answers are not logged.
 - Inference URLs accept HTTP loopback IP literals or `localhost` (pinned to
   127.0.0.1), with path `/v1`. No DNS for arbitrary hosts, proxies, URL credentials,
-  redirects, remote fallback, runtime launch, or model download occurs.
+  redirects, remote fallback, runtime launch, or model download occurs in the adapter. The separate, explicitly
+  invoked Mac setup/launcher manages its own local model process.
 - The inference deadline defaults to 60 seconds, configurable up to 120; output is
   capped at 256 KiB and only one model request runs at a time. Model server errors
   never expose backend response bodies or exception details.

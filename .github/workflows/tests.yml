@@ -14,3 +14,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: bash scripts/test.sh
+      - run: bash -n scripts/setup-mac.sh scripts/start-mac.sh
