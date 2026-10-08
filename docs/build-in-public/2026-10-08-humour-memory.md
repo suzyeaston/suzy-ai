@@ -1,9 +1,11 @@
-# Teaching SUZY//AI what makes me laugh
+# Threads as musical and cultural memory
 
 **Build note · October 8, 2026**
 
-SUZY//AI is now answering through a local model. The next experiment starts with
-a question and a handful of music jokes.
+SUZY//AI is now answering through a local model. This experiment adds a thread
+of musical references and wordplay to the material available for recall. It is
+one contribution to the broader aim of developing musical taste and cultural
+context for the project's music AI and creative instruments.
 
 ## The thread
 
