@@ -18,9 +18,8 @@ context for the project's music AI and creative instruments.
 5. Mennonite At Work
 6. Mission of Burma
 
-These are the examples Suzy supplied and chose to share. Individual reply authors
-are unspecified; this does not attribute every joke to Suzy or to the model.
-Wording is preserved from the saved note, including the doubled “the”.
+Suzy created this brainstorming thread as a set of musical wordplay examples.
+The original wording is preserved.
 
 ## What happened
 
@@ -31,7 +30,9 @@ retrieval and the quality of new jokes are the next things to evaluate.
 The current label is **humour / music / band-name wordplay**. It was assigned in
 the assisted capture workflow, not automatically discovered by the local model.
 The [JSON example](../../examples/threads/mormon-music.json) contains the same
-approved input, without the private database ID or local machine details.
+approved thread text, with the source updated to reflect Suzy's clarification
+that she created the brainstorming thread. It omits the private database ID and
+local machine details.
 
 This is an early example of teaching through humour and musical taste: supply a
 setup and the replies together, preserve their context, and see whether SUZY can

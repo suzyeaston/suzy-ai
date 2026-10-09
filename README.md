@@ -75,8 +75,7 @@ it is one kind of example within the broader musical project.
 > 5. Mennonite At Work
 > 6. Mission of Burma
 
-Suzy supplied and selected this thread; individual reply authors are unspecified.
-The wording is preserved as contributed. See the
+Created by Suzy as a brainstorming thread of musical wordplay. See the
 [build note](docs/build-in-public/2026-10-08-humour-memory.md) and
 [approved input as JSON](examples/threads/mormon-music.json).
 
@@ -224,5 +223,4 @@ Listening sessions and conversational evaluations will assess the creative resul
 See [world-model storage](docs/world-model.md), [teaching surfaces](docs/teaching-surfaces.md),
 and [timeline/event architecture](docs/architecture.md) for the existing systems.
 
-Code is licensed under Apache-2.0. Attribution for shared thread examples is recorded
-with the examples; do not assume every supplied reply was authored by Suzy or by AI.
+Code is licensed under Apache-2.0. Thread examples include their source and context.
