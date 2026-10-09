@@ -64,18 +64,31 @@ Humour belongs in this collection because musical references also carry language
 context, and association. A band-name thread can demonstrate those relationships;
 it is one kind of example within the broader musical project.
 
-The first public thread asks **“What do you think about Mormon music?”** Its replies
-include “The Joseph Smiths” and “The Mormonissey years.” The
-[full example](docs/build-in-public/2026-10-08-humour-memory.md) preserves all six
-replies, with [the approved input available as JSON](examples/threads/mormon-music.json).
-Suzy supplied and selected the material; individual reply authors are unspecified.
-Selection records an example of interest, not authorship of every reply or agreement
-with every statement.
+### From the thread collection: Mormon music
 
-The current workflow saves the whole thread as one approved memory. Further
-contributed threads can extend the collection without replacing earlier examples.
-Original wording, context, and available attribution stay with the material.
-Individual reply relationships and automatic categorization remain future work.
+> **What do you think about Mormon music?**
+>
+> 1. I'm partial to the The Joseph Smiths... The Mormonissey years, at least.
+> 2. the (latter day) Saints
+> 3. Detroit Salt City
+> 4. Better Than Ezra...Just Ask Him
+> 5. Mennonite At Work
+> 6. Mission of Burma
+
+Suzy supplied and selected this thread; individual reply authors are unspecified.
+The wording is preserved as contributed. See the
+[build note](docs/build-in-public/2026-10-08-humour-memory.md) and
+[approved input as JSON](examples/threads/mormon-music.json).
+
+More threads contributed by Suzy will be added to the public GitHub collection,
+with their original wording, context, and available attribution. Together with
+album reviews and musical examples, they provide material for SUZY//AI's developing
+taste and associations.
+
+The current workflow saves a whole thread as one approved local memory. Publishing
+an example on GitHub is a separate step; it does not automatically import it into
+local memory. Individual reply relationships and automatic categorization remain
+future work.
 
 ## What learning means at this stage
 
