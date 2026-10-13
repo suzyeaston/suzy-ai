@@ -79,6 +79,45 @@ Created by Suzy as a brainstorming thread of musical wordplay. See the
 [build note](docs/build-in-public/2026-10-08-humour-memory.md) and
 [approved input as JSON](examples/threads/mormon-music.json).
 
+### From the thread collection: best music to take a crap to?
+
+> **best music to take a crap to?**
+>
+> 1. duh- the brown tone
+>    - de-bunked on mythbusters
+>      - baby got back
+> 2. The House at Pooh Corner
+> 3. sunn O ))) only if they are playing in the room
+> 4. Big Bottom by Spinal Tap
+> 5. Buzzcocks- Oh Shit
+> 6. Coil: Scatology ( whole album )
+> 7. The Pooh Sticks
+> 8. Bathtub shitter
+> 9. World of Pooh
+> 10. The Fartz ( well almost )
+> 11. U2- stuck in a moment you can't get out of
+> 12. Stones- Can't always get what you want
+> 13. Carly Simon- Anticipation
+> 14. Kinks- So tired ( tired of waiting for yoooouuu)
+>     - +4 for imagination, creativity, and refraining
+> 15. salt n pepa- push it
+> 16. Clash- Cut the crap
+>     - There is NEVER a reason to listen to that
+> 17. one more, got go to the bathroom now
+> 18. "I Can't Get Behind That"
+> 19. Every Impaled album except the new one.
+> 20. screamin' jay hawkins - constipation blues
+> 21. Whoomp, There It Is!
+> 22. Supersuckers - She's my Bitch
+> 23. This belongs in the Kink forum.
+>     - Freud would have a lot to say about you then
+> 24. Snoop Dogg "Drop It Like It's Hot"
+
+Created by Suzy; the supplied thread dates to March 9–10, 2005. Handles and
+forum metadata are omitted, while the reply chains remain. See the
+[build note](docs/build-in-public/2026-10-12-crap-music-thread.md) and
+[approved input as JSON](examples/threads/best-music-to-take-a-crap-to.json).
+
 More threads contributed by Suzy will be added to the public GitHub collection,
 with their original wording, context, and available attribution. Together with
 album reviews and musical examples, they provide material for SUZY//AI's developing
@@ -187,6 +226,8 @@ in the retrieval store. Local chat history remains in process and is not saved.
 ## Building in public
 
 - [Threads as musical and cultural memory](docs/build-in-public/2026-10-08-humour-memory.md)
+- [2005 music-humour thread](docs/build-in-public/2026-10-12-crap-music-thread.md)
+- [Approved 2005 thread as JSON](examples/threads/best-music-to-take-a-crap-to.json)
 - [The approved thread input as JSON](examples/threads/mormon-music.json)
 - [Architecture](docs/architecture.md) and [roadmap](docs/roadmap.md)
 
