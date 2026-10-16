@@ -133,7 +133,7 @@ no guarantee against machine-wide overload is made. On an 8 GB M2, test with the
 model stopped first; try concurrent inference only with a modest Logic session.
 Keep accepted audio in Logic and rehearse with both AI services stopped.
 
-## Validation and next PR
+## Validation and Mac companion
 
 ```bash
 bash scripts/test.sh
@@ -144,8 +144,8 @@ private recordings or audio hardware. They exercise PCM capture, HTTP lifecycle,
 sequence/size limits, output duration, provider labels, model plan rejection,
 late-result discard and client deadlines, plus the existing core suite.
 
-Next PR: a Mac capture/playback adapter, with a controller action to capture a
-phrase, a ready indicator and a dedicated audition/response output. First validate
+The [Mac companion](mac-companion.md) provides dry system-input capture,
+controller actions and response audition/loop playback alongside Logic. First validate
 ordinary Godin/voice audio; 13-pin synth hardware is not required. A thin AU capture
 component must compile and pass host testing in Xcode/Logic on the Mac. Choose and
 verify the response playback/routing method before claiming automatic Live Loops

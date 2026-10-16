@@ -19,3 +19,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: bash scripts/test.sh
       - run: bash -n scripts/setup-mac.sh scripts/start-mac.sh
+  mac-companion:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test and compile Mac companion
+        working-directory: apps/macos
+        run: swift test
+      - name: Build signed local app bundle
+        run: bash scripts/build-mac-companion.sh
+      - name: Check launch scripts
+        run: bash -n scripts/build-mac-companion.sh scripts/start-mac-companion.sh
