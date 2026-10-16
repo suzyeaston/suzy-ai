@@ -87,6 +87,19 @@ final class PerformanceSafetyTests: XCTestCase {
         XCTAssertTrue(old.stopped); XCTAssertTrue(slot.current === retry)
         slot.stop(); XCTAssertTrue(retry.stopped)
     }
+    func testRepeatedSourceInvalidationPreservesAcceptedLayer() {
+        let slot = PlaybackSlot(), accepted = Player(), proposal = Player()
+        XCTAssertTrue(slot.replace(with: accepted))
+        XCTAssertTrue(slot.stage(proposal, at: 20))
+        slot.cancelPending() // source overdub invalidates the proposal
+        slot.cancelPending() // another variation request has no pending player
+        XCTAssertTrue(slot.current === accepted)
+        XCTAssertFalse(accepted.stopped)
+        XCTAssertTrue(proposal.stopped)
+        XCTAssertNil(slot.pending)
+        slot.stop() // explicit Remove AI layer
+        XCTAssertTrue(accepted.stopped)
+    }
     func testInboxPreservesFragmentsAndStopAcrossQueuedBatches() {
         var inbox = MIDIInbox()
         inbox.push([0x9F,36], at: 1)

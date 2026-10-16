@@ -60,6 +60,7 @@ private struct CompanionView: View {
                 Button("Audition (shared)", action: model.audition).disabled(!model.canRespond)
                 Button("Add AI layer", action: model.accept).disabled(!model.canRespond)
                 Button("Discard AI", action: model.discard).disabled(model.phase == "idle" || model.phase == "stopping")
+                Button("Remove AI layer", action: model.removeAILayer).disabled(!model.loopPlaying)
                 Button("Save AI WAV", action: model.saveResponse).disabled(!model.canSave)
                 Spacer()
                 Button("STOP ALL", action: model.stopAll).keyboardShortcut(.escape, modifiers: []).tint(.red)
@@ -78,7 +79,7 @@ private struct CompanionView: View {
                 Button("Refresh", action: model.refreshMIDI)
                 Stepper("Channel \(model.midiChannel)", value: $model.midiChannel, in: 1...16).frame(width: 160)
             }
-            Text("36 record/finish · 37 audition AI · 38 add AI · 39 stop all · 40 discard AI · 41 overdub · 42 undo · 43 mute original · 44 clear · 45 play")
+            Text("36 record/finish · 37 audition AI · 38 add AI · 39 stop all · 40 discard AI · 41 overdub · 42 undo · 43 mute original · 44 clear · 45 play · 46 remove AI layer")
                 .font(.caption).foregroundStyle(.secondary)
             Text(model.message).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .padding(12).background(.quaternary).cornerRadius(8)
