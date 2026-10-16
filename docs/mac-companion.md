@@ -233,3 +233,9 @@ References:
 - https://support.apple.com/guide/audio-midi-setup/ams1013/mac
 - https://developer.apple.com/documentation/avfaudio/avaudioplayer/play(attime:)
 - https://developer.apple.com/documentation/avfaudio/avaudiorecorder/record(attime:forduration:)
+
+## Local looping first
+
+The local-looper update supersedes the earlier capture-waits-for-response workflow.
+Read [Local looper with background AI](local-looper.md) for original-loop playback,
+overdub/undo controls, expanded MIDI mapping, and the first-repeat timing limitation.

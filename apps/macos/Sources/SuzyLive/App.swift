@@ -33,7 +33,11 @@ private struct CompanionView: View {
                 Button("Connect", action: model.connect)
                 Circle().fill(model.connected ? Color.green : Color.gray).frame(width: 10, height: 10)
             }
-            Text("\(model.phase.uppercased())\(model.loopPlaying ? " · RESPONSE LOOP PLAYING" : "")")
+            LocalLoopView(model: model, loop: model.looper)
+            Divider()
+            Toggle("AI works in the background", isOn: $model.backgroundAI)
+            Button("Request variation of current loop", action: model.requestBackgroundResponse).disabled(!model.connected || model.actionBusy || model.phase == "processing")
+            Text("AI: \(model.phase.uppercased())\(model.loopPlaying ? " · RESPONSE LOOP PLAYING" : "")")
                 .font(.system(.headline, design: .monospaced)).foregroundStyle(.mint)
             HStack {
                 Picker("Response", selection: $model.mode) {
@@ -50,45 +54,13 @@ private struct CompanionView: View {
                 Button("Clear musical history", action: model.resetMusicalContext)
             }.disabled(!model.canCapture)
             TextField("Direction (e.g. sparse, leave room for my voice)", text: $model.direction).focused($editing).disabled(!model.canCapture)
-            HStack {
-                Toggle("Follow Logic clock (experimental)", isOn: $model.syncEnabled)
-                Picker("Clock input", selection: $model.clockSource) {
-                    Text("Off").tag(UInt32(0))
-                    ForEach(model.midiSources) { source in Text(source.name).tag(source.id) }
-                }
-                Text(model.clockLabel).font(.caption)
-            }.disabled(!model.canCapture)
-            HStack {
-                Stepper("\(model.beatsPerBar) quarter-note beats / bar", value: $model.beatsPerBar, in: 1...8)
-                Picker("Musical capture", selection: $model.captureBeats) {
-                    ForEach([1,2,4,8], id: \.self) { Text("\($0) beats").tag($0) }
-                }
-            }.disabled(!model.canCapture || !model.syncEnabled)
-            HStack {
-                Text("Free BPM")
-                TextField("120", value: $model.bpm, format: .number).focused($editing).frame(width: 65)
-                Picker("Free capture", selection: $model.duration) {
-                    Text("2 sec").tag(2.0); Text("4 sec").tag(4.0)
-                    Text("6 sec").tag(6.0); Text("7.5 sec").tag(7.5)
-                }
-                Picker("Input", selection: $model.channel) {
-                    Text("Channel 1").tag(0); Text("Channel 2").tag(1); Text("Stereo 1 + 2").tag(2)
-                }
-            }.disabled(!model.canCapture)
-            HStack {
-                ProgressView(value: Double(max(-60, min(0, model.meter)) + 60), total: 60)
-                Text(String(format: "%.1f sec", model.elapsed)).monospacedDigit().frame(width: 65)
-            }
             Toggle("I understand audition uses the SAME output as the audience (no private cue)", isOn: $model.auditionAcknowledged)
                 .font(.caption).foregroundStyle(.orange)
             HStack(spacing: 12) {
-                Button(model.phase == "capturing" ? "Finish capture" : "Capture", action: model.captureOrFinish)
-                    .keyboardShortcut(editing ? nil : KeyboardShortcut("c", modifiers: []))
-                    .disabled(!model.canCapture && model.phase != "capturing")
-                Button("Audition (shared)", action: model.audition).keyboardShortcut(editing ? nil : KeyboardShortcut("a", modifiers: [])).disabled(!model.canRespond)
-                Button("Bring in / loop", action: model.accept).keyboardShortcut(editing ? nil : KeyboardShortcut("b", modifiers: [])).disabled(!model.canRespond)
-                Button("Discard", action: model.discard).disabled(model.phase == "idle" || model.phase == "stopping")
-                Button("Save WAV", action: model.saveResponse).disabled(!model.canSave)
+                Button("Audition (shared)", action: model.audition).disabled(!model.canRespond)
+                Button("Add AI layer", action: model.accept).disabled(!model.canRespond)
+                Button("Discard AI", action: model.discard).disabled(model.phase == "idle" || model.phase == "stopping")
+                Button("Save AI WAV", action: model.saveResponse).disabled(!model.canSave)
                 Spacer()
                 Button("STOP ALL", action: model.stopAll).keyboardShortcut(.escape, modifiers: []).tint(.red)
             }.controlSize(.large)
@@ -106,7 +78,7 @@ private struct CompanionView: View {
                 Button("Refresh", action: model.refreshMIDI)
                 Stepper("Channel \(model.midiChannel)", value: $model.midiChannel, in: 1...16).frame(width: 160)
             }
-            Text("Notes 36 capture/finish · 37 audition · 38 bring in · 39 stop · 40 discard")
+            Text("36 record/finish · 37 audition AI · 38 add AI · 39 stop all · 40 discard AI · 41 overdub · 42 undo · 43 mute original · 44 clear · 45 play")
                 .font(.caption).foregroundStyle(.secondary)
             Text(model.message).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .padding(12).background(.quaternary).cornerRadius(8)
@@ -124,5 +96,61 @@ private struct CompanionView: View {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive, action: model.resetBridge)
         } message: { Text("Use one companion at a time. Reset discards any bridge phrase, including one left by another client. Logic is unaffected.") }
+    }
+}
+
+
+private struct LocalLoopView: View {
+    @ObservedObject var model: Performance
+    @ObservedObject var loop: LocalLooper
+    @FocusState private var editing: Bool
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("YOUR LOOP · \(loop.state.uppercased())").font(.headline).foregroundStyle(.mint)
+            Text("Record → loop → overdub → undo. Works with AI off or disconnected.").font(.caption)
+            HStack {
+                Toggle("Follow Logic clock (experimental)", isOn: $model.syncEnabled)
+                Picker("Clock input", selection: $model.clockSource) {
+                    Text("Off").tag(UInt32(0))
+                    ForEach(model.midiSources) { source in Text(source.name).tag(source.id) }
+                }
+                Text(model.clockLabel).font(.caption)
+            }.disabled(loop.busy)
+            HStack {
+                Stepper("\(model.beatsPerBar) quarter-note beats / bar", value: $model.beatsPerBar, in: 1...8)
+                Picker("Musical capture", selection: $model.captureBeats) {
+                    ForEach([1,2,4,8], id: \.self) { Text("\($0) beats").tag($0) }
+                }
+            }.disabled(loop.busy || !model.syncEnabled)
+            HStack {
+                Text("Free BPM")
+                TextField("120", value: $model.bpm, format: .number).focused($editing).frame(width: 65)
+                Picker("Free capture", selection: $model.duration) {
+                    Text("2 sec").tag(2.0); Text("4 sec").tag(4.0)
+                    Text("6 sec").tag(6.0); Text("7.5 sec").tag(7.5)
+                }
+                Picker("Input", selection: $model.channel) {
+                    Text("Channel 1").tag(0); Text("Channel 2").tag(1); Text("Stereo 1 + 2").tag(2)
+                }
+            }.disabled(loop.busy)
+
+            HStack {
+                Button(loop.state == "recording" ? "Finish loop" : "Record", action: model.captureOrFinish)
+                    .disabled(loop.hasLoop || (loop.busy && loop.state != "recording"))
+                Button("Overdub", action: loop.overdub).disabled(!loop.hasLoop || loop.busy || !loop.playing)
+                Button("Undo overdub", action: loop.undo).disabled(!loop.canUndo || loop.busy)
+                Button(loop.muted ? "Unmute" : "Mute") { loop.muted.toggle() }.disabled(!loop.hasLoop)
+                Button("Play", action: loop.play).disabled(!loop.hasLoop || loop.busy || loop.playing)
+                Button("Stop", action: model.stopAll)
+                Button("Clear", action: loop.clear).disabled(!loop.hasLoop && !loop.busy)
+                Button("Save original", action: loop.save).disabled(!loop.hasLoop || loop.saveOpen)
+            }.controlSize(.large)
+            HStack {
+                Text("Original level")
+                Slider(value: $loop.volume, in: 0...1)
+                Text(String(format: "%.2f sec", loop.seconds)).monospacedDigit()
+            }
+            Text(loop.message).font(.callout)
+        }
     }
 }

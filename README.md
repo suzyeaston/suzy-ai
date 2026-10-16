@@ -282,3 +282,8 @@ experimental Logic/IAC clock scheduling, and a bounded musical history with onse
 hints. See [the Mac performance QA guide](docs/mac-companion.md#performance-reliability-clock-and-musical-context)
 before using synchronization live. This is still a companion, not an Audio Unit or an
 automatic Live Loops cell inserter.
+
+[Local looping with background AI](docs/local-looper.md) now separates the original
+record/loop/overdub/undo instrument from asynchronous response generation. Local
+controls work with the bridge disconnected. This remains experimental pending
+Focusrite/Logic timing and listening QA.
