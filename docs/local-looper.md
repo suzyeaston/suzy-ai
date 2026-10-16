@@ -88,7 +88,7 @@ Escape is Stop All. Mouse controls and MIDI work without a bridge connection.
 `NativeLoop/Loop.c` owns audio state on the CoreAudio IOProc thread. A bounded atomic
 mailbox carries commands; Stop has a separate priority flag. No Swift, heap allocation,
 file I/O, locks or networking runs inside the render callback. Only this app's IOProc
-is started/stopped. Device rate/alive changes cause a visible failure requiring Clear
+is started/stopped. Device rate, buffer-size, stream or alive changes cause a visible failure requiring Clear
 and reconnect; the app does not reconfigure the device or stop Logic's IOProc.
 
 Four preallocated stereo Float32 buffers (current, spare, undo, export) use about

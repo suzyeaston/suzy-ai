@@ -147,7 +147,13 @@ static int validStreams(AudioDeviceID device,AudioObjectPropertyScope scope,doub
 static OSStatus changed(AudioObjectID object,UInt32 count,const AudioObjectPropertyAddress addresses[],void *context) {
     (void)object;(void)count;(void)addresses;NL *e=context;atomic_store(&e->fault,1);return noErr;
 }
-static const AudioObjectPropertySelector watched[]={kAudioDevicePropertyNominalSampleRate,kAudioDevicePropertyDeviceIsAlive,kAudioDevicePropertyStreamConfiguration};
+static const AudioObjectPropertyAddress watched[]={
+    {kAudioDevicePropertyNominalSampleRate,kAudioObjectPropertyScopeGlobal,kAudioObjectPropertyElementMain},
+    {kAudioDevicePropertyDeviceIsAlive,kAudioObjectPropertyScopeGlobal,kAudioObjectPropertyElementMain},
+    {kAudioDevicePropertyBufferFrameSize,kAudioObjectPropertyScopeGlobal,kAudioObjectPropertyElementMain},
+    {kAudioDevicePropertyStreamConfiguration,kAudioObjectPropertyScopeInput,kAudioObjectPropertyElementMain},
+    {kAudioDevicePropertyStreamConfiguration,kAudioObjectPropertyScopeOutput,kAudioObjectPropertyElementMain}
+};
 static float sample(const AudioBufferList *list,uint32_t frame,unsigned channel) {
     if(!list)return 0;
     for(UInt32 i=0;i<list->mNumberBuffers;i++) {
@@ -197,9 +203,8 @@ NL *nl_open(char *error,uint32_t cap) {
     e->device=input;mach_timebase_info_data_t info;mach_timebase_info(&info);e->hostScale=(double)info.numer/info.denom/1e9;
     reason="Unable to start interface audio. Check microphone permission and the interface connection.";
     if(AudioDeviceCreateIOProcID(input,process,e,&e->proc)){nl_destroy(e);goto fail;}
-    for(unsigned i=0;i<3;i++) {
-        AudioObjectPropertyAddress a={watched[i],kAudioObjectPropertyScopeGlobal,kAudioObjectPropertyElementMain};
-        AudioObjectAddPropertyListener(input,&a,changed,e);
+    for(unsigned i=0;i<sizeof(watched)/sizeof(watched[0]);i++) {
+        if(AudioObjectAddPropertyListener(input,&watched[i],changed,e)) {nl_close(e);goto fail;}
     }
     if(AudioDeviceStart(input,e->proc)){nl_close(e);goto fail;}return e;
 fail:
@@ -208,9 +213,8 @@ fail:
 void nl_close(NL *e) {
     if(!e)return;
     if(e->proc)AudioDeviceStop(e->device,e->proc);
-    for(unsigned i=0;i<3;i++) {
-        AudioObjectPropertyAddress a={watched[i],kAudioObjectPropertyScopeGlobal,kAudioObjectPropertyElementMain};
-        AudioObjectRemovePropertyListener(e->device,&a,changed,e);
+    for(unsigned i=0;i<sizeof(watched)/sizeof(watched[0]);i++) {
+        AudioObjectRemovePropertyListener(e->device,&watched[i],changed,e);
     }
     if(e->proc)AudioDeviceDestroyIOProcID(e->device,e->proc);nl_destroy(e);
 }
