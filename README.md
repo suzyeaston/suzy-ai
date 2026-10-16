@@ -132,54 +132,66 @@ weights or automatically establish a learned musical style. Live response planni
 currently uses its own small musical session history, with personal-memory recall
 disabled. Bringing the broader collection into musical decisions is future work.
 
-### From the thread collection: Mormon music
+### From threads to Top Ten countdowns
 
-> **What do you think about Mormon music?**
->
-> 1. I'm partial to the The Joseph Smiths... The Mormonissey years, at least.
-> 2. the (latter day) Saints
-> 3. Detroit Salt City
-> 4. Better Than Ezra...Just Ask Him
-> 5. Mennonite At Work
-> 6. Mission of Burma
+The next comedy direction is original AI parodies of David Letterman’s Top Ten
+list format: a dry setup, ten musical punchlines, and a countdown to number one.
+These first curated drafts adapt Suzy’s threads and add new jokes; the original
+threads remain available as source material.
 
-A musical-wordplay thread created by Suzy.
+#### Top Ten Acts on the Mormon Music Festival Lineup
 
-### From the thread collection: best music to take a crap to?
+The lineup is subject to revelation.
 
-> **best music to take a crap to?**
->
-> 1. duh- the brown tone
->    - de-bunked on mythbusters
->      - baby got back
-> 2. The House at Pooh Corner
-> 3. sunn O ))) only if they are playing in the room
-> 4. Big Bottom by Spinal Tap
-> 5. Buzzcocks- Oh Shit
-> 6. Coil: Scatology ( whole album )
-> 7. The Pooh Sticks
-> 8. Bathtub shitter
-> 9. World of Pooh
-> 10. The Fartz ( well almost )
-> 11. U2- stuck in a moment you can't get out of
-> 12. Stones- Can't always get what you want
-> 13. Carly Simon- Anticipation
-> 14. Kinks- So tired ( tired of waiting for yoooouuu)
->     - +4 for imagination, creativity, and refraining
-> 15. salt n pepa- push it
-> 16. Clash- Cut the crap
->     - There is NEVER a reason to listen to that
-> 17. one more, got go to the bathroom now
-> 18. "I Can't Get Behind That"
-> 19. Every Impaled album except the new one.
-> 20. screamin' jay hawkins - constipation blues
-> 21. Whoomp, There It Is!
-> 22. Supersuckers - She's my Bitch
-> 23. This belongs in the Kink forum.
->     - Freud would have a lot to say about you then
-> 24. Snoop Dogg "Drop It Like It's Hot"
+**10.** Latter Day Gaga.
 
-A thread created by Suzy, March 2005.
+**9.** The Tabernacle of Sound.
+
+**8.** The Book of More Bass.
+
+**7.** Salt Lake, Emerson & Palmer.
+
+**6.** Mission of Burma. They took the assignment literally.
+
+**5.** Better Than Ezra. Just ask him.
+
+**4.** Mennonite at Work. Booked by the interfaith committee.
+
+**3.** Detroit Salt City.
+
+**2.** The (latter day) Saints.
+
+**1.** The Joseph Smiths. The Mormonissey years, of course.
+
+
+#### Top Ten Songs to Take a Crap To
+
+Tonight’s playlist comes with its own listening booth.
+
+**10.** Carly Simon — Anticipation. We have all been here before.
+
+**9.** The Kinks — Tired of Waiting for You. So is everyone outside.
+
+**8.** U2 — Stuck in a Moment You Can’t Get Out Of. A concept album, apparently.
+
+**7.** The House at Pooh Corner. Location, location, location.
+
+**6.** Buzzcocks — Oh Shit. Finally, an honest review.
+
+**5.** Spinal Tap — Big Bottom. Turn the fan up to eleven.
+
+**4.** The Clash — Cut the Crap. Management has requested a shorter set.
+
+**3.** Salt-N-Pepa — Push It. No further notes.
+
+**2.** Snoop Dogg — Drop It Like It’s Hot. Please remain seated.
+
+**1.** Screamin’ Jay Hawkins — Constipation Blues. The residency has been extended.
+
+
+The [Top Ten workflow](docs/top-ten.md) supports curated lists and new local-model
+drafts. Generation is separate from live audio and never automatically saves a
+parody as an original thread or private memory.
 
 More threads, album reviews and musical examples will join the collection as the
 project develops.

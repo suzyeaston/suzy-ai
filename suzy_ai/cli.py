@@ -31,6 +31,13 @@ def make_parser() -> argparse.ArgumentParser:
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=7331)
 
+    top = sub.add_parser("top-ten", help="Render or generate a thread-based parody countdown draft.")
+    top.add_argument("--thread", required=True, help="Original thread JSON (unchanged memory-import format).")
+    mode = top.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--list", dest="list_file", help="Curated countdown JSON; no model needed.")
+    mode.add_argument("--generate", action="store_true", help="Draft a new countdown with configured local inference.")
+    top.add_argument("--format", choices=("json", "markdown"), default="markdown")
+
     timeline = sub.add_parser("timeline", help="Read or write local timeline events.")
     timeline_sub = timeline.add_subparsers(dest="timeline_command")
 
@@ -82,6 +89,18 @@ def main() -> None:
 
     if args.version:
         print(f"SUZY//AI {__version__}")
+        return
+
+    if args.command == "top-ten":
+        from . import top_ten
+        from .inference import InferenceError
+        try:
+            thread = top_ten.read_json(args.thread)
+            result = (top_ten.generate(thread) if args.generate else
+                      top_ten.curated(thread, top_ten.read_json(args.list_file)))
+            print(json.dumps(result, ensure_ascii=False, indent=2) if args.format == "json" else top_ten.markdown(result), end="\n")
+        except (ValueError, OSError, InferenceError) as exc:
+            parser.exit(2, f"Top Ten draft failed: {exc}\n")
         return
 
     if args.command == "init":
