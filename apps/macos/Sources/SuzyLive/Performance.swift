@@ -99,9 +99,10 @@ private final class AudioLoop: LoopPlayer {
                 if self.syncEnabled && self.clock.revision != revision { self.cancelSynchronized("Logic transport changed; synchronized capture/playback stopped.") }
             }
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
+        if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
     private func tick() {
         midi.drain(); clockInput.drain()

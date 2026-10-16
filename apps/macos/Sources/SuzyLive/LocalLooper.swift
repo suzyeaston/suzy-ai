@@ -41,9 +41,10 @@ private final class LoopRecorderDelegate: NSObject, AVAudioRecorderDelegate {
     var playing: Bool { player?.isPlaying == true }
 
     init() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: 0.01, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
+        if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
     private func updateVolume() {
         player?.volume = muted ? 0 : volume; pendingPlayer?.volume = muted ? 0 : volume
