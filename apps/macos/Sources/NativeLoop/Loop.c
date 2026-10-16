@@ -29,6 +29,10 @@ NL *nl_create(uint32_t rate) {
     e->base=calloc(e->capacity*2,sizeof(float)); e->spare=calloc(e->capacity*2,sizeof(float));
     e->previous=calloc(e->capacity*2,sizeof(float)); e->snapshot=calloc(e->capacity*2,sizeof(float));
     if (!e->base || !e->spare || !e->previous || !e->snapshot) { nl_destroy(e); return NULL; }
+    /* Pre-touch backing pages on the control thread, before starting the IOProc. */
+    float *buffers[]={e->base,e->spare,e->previous,e->snapshot};
+    for(unsigned b=0;b<4;b++)for(uint32_t i=0;i<e->capacity*2;i+=1024)((volatile float*)buffers[b])[i]=0;
+    if(!atomic_is_lock_free(&e->mailbox) || !atomic_is_lock_free(&e->boundaryNS)) {nl_destroy(e);return NULL;}
     atomic_init(&e->gain,60000); return e;
 }
 void nl_destroy(NL *e) { if(e) { free(e->base);free(e->spare);free(e->previous);free(e->snapshot);free(e); } }
@@ -66,7 +70,7 @@ void nl_render(NL *e,const float *in,float *out,uint32_t n,double time,uint32_t 
         uint32_t c=e->command,f=e->commandFrames,ch=e->commandChannel;double start=e->commandStart;
         atomic_store_explicit(&e->mailbox,0,memory_order_release);
         if(c==NL_CLEAR) {e->length=0;e->pos=0;e->state=NL_EMPTY;e->undo=0;e->undoQueued=0;e->revision++;}
-        if(c==NL_RECORD && !e->length) { e->target=f;e->channel=ch;e->start=start;e->count=0;e->state=NL_ARMED; }
+        if(c==NL_RECORD && e->state==NL_EMPTY) { e->target=f;e->channel=ch;e->start=start;e->count=0;e->state=NL_ARMED; }
         if(c==NL_FINISH && e->state==NL_RECORDING && e->count>=e->rate/4) finish(e);
         if(c==NL_OVERDUB && e->state==NL_PLAYING) e->state=NL_DUB_QUEUED;
         if(c==NL_PLAY && e->state==NL_STOPPED && e->length) {e->pos=0;e->state=NL_PLAYING;}
@@ -125,7 +129,7 @@ static OSStatus property(AudioObjectID object,AudioObjectPropertySelector select
     AudioObjectPropertyAddress a={selector,scope,kAudioObjectPropertyElementMain};
     return AudioObjectGetPropertyData(object,&a,0,NULL,&size,value);
 }
-static int validStreams(AudioDeviceID device,AudioObjectPropertyScope scope) {
+static int validStreams(AudioDeviceID device,AudioObjectPropertyScope scope,double rate) {
     AudioObjectPropertyAddress a={kAudioDevicePropertyStreams,scope,kAudioObjectPropertyElementMain};UInt32 size=0;
     if(AudioObjectGetPropertyDataSize(device,&a,0,NULL,&size) || !size || size>64*sizeof(AudioStreamID))return 0;
     AudioStreamID streams[64]; if(AudioObjectGetPropertyData(device,&a,0,NULL,&size,streams))return 0;
@@ -134,7 +138,8 @@ static int validStreams(AudioDeviceID device,AudioObjectPropertyScope scope) {
         AudioStreamBasicDescription f={0};
         if(property(streams[i],kAudioStreamPropertyVirtualFormat,kAudioObjectPropertyScopeGlobal,&f,sizeof(f)) ||
             f.mFormatID!=kAudioFormatLinearPCM || !(f.mFormatFlags&kAudioFormatFlagIsFloat) ||
-            (f.mFormatFlags&kAudioFormatFlagIsBigEndian) || f.mBitsPerChannel!=32 || f.mFramesPerPacket!=1) return 0;
+            (f.mFormatFlags&kAudioFormatFlagIsBigEndian) || f.mBitsPerChannel!=32 || f.mFramesPerPacket!=1 ||
+            f.mSampleRate!=rate || f.mBytesPerFrame!=4*((f.mFormatFlags&kAudioFormatFlagIsNonInterleaved)?1:f.mChannelsPerFrame)) return 0;
         channels+=f.mChannelsPerFrame;
     }
     return channels>=2;
@@ -187,7 +192,7 @@ NL *nl_open(char *error,uint32_t cap) {
        property(kAudioObjectSystemObject,kAudioHardwarePropertyDefaultOutputDevice,kAudioObjectPropertyScopeGlobal,&output,sizeof(output)) || !input || input!=output)goto fail;
     reason="Use a stereo 44.1 or 48 kHz interface with Float32 audio streams. Device settings were not changed.";
     if(property(input,kAudioDevicePropertyNominalSampleRate,kAudioObjectPropertyScopeGlobal,&rate,sizeof(rate)) ||
-       (rate!=44100 && rate!=48000) || !validStreams(input,kAudioObjectPropertyScopeInput) || !validStreams(input,kAudioObjectPropertyScopeOutput))goto fail;
+       (rate!=44100 && rate!=48000) || !validStreams(input,kAudioObjectPropertyScopeInput,rate) || !validStreams(input,kAudioObjectPropertyScopeOutput,rate))goto fail;
     NL *e=nl_create((uint32_t)rate);reason="Unable to allocate the bounded loop buffers.";if(!e)goto fail;
     e->device=input;mach_timebase_info_data_t info;mach_timebase_info(&info);e->hostScale=(double)info.numer/info.denom/1e9;
     reason="Unable to start interface audio. Check microphone permission and the interface connection.";

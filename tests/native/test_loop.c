@@ -66,4 +66,20 @@ static void boundariesAndValidation(void) {
     assert(fabs(nl_status(e).boundary-(double)(10+LENGTH*2)/RATE)<1e-7);nl_destroy(e);
     e=record(0.125f);assert(nl_command(e,NL_RECORD,LENGTH,0,0));render(e,1,0,0);assert(output[0]==0.125f);nl_destroy(e);
 }
-int main(void) {continuity();overdubUndoAndCancel();compensatedImpulse();snapshotAndPriority();boundariesAndValidation();puts("Native loop: 5 timing/safety scenarios passed");}
+static void maximumAndManualFinish(void) {
+    NL *e=nl_create(44100);assert(e);nl_gain(e,1);cursor=0;
+    assert(nl_command(e,NL_RECORD,44100*8,1,0));advance(e,44100*8,0,0.125f);
+    render(e,1,0,0);assert(output[0]==0.125f && nl_status(e).frames==44100*8);
+    nl_destroy(e);
+    e=nl_create(RATE);nl_gain(e,1);cursor=0;
+    assert(nl_command(e,NL_RECORD,RATE*8,2,0));advance(e,LENGTH+7,0,0.25f);
+    assert(nl_command(e,NL_FINISH,0,0,0));render(e,1,0,0);
+    assert(output[0]==0.25f && nl_status(e).frames==LENGTH+7);nl_destroy(e);
+}
+static void cancelledTakeKeepsUndo(void) {
+    NL *e=record(0.125f);assert(nl_command(e,NL_OVERDUB,0,0,0));advance(e,LENGTH,0,0.25f);
+    assert(nl_command(e,NL_OVERDUB,0,0,0));advance(e,100,0,0.5f);nl_stop(e);render(e,1,0,0);
+    assert(nl_status(e).undo);assert(nl_command(e,NL_UNDO,0,0,0));render(e,1,0,0);
+    assert(nl_command(e,NL_PLAY,0,0,0));render(e,1,0,0);assert(output[0]==0.125f);nl_destroy(e);
+}
+int main(void) {continuity();overdubUndoAndCancel();compensatedImpulse();snapshotAndPriority();boundariesAndValidation();maximumAndManualFinish();cancelledTakeKeepsUndo();puts("Native loop: 7 timing/safety scenarios passed");}

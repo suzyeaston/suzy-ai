@@ -1,4 +1,9 @@
-# SUZY // LIVE — first Mac companion
+# SUZY // LIVE — Mac companion
+
+**Current looper:** use the [local looper guide](local-looper.md) for the continuous
+CoreAudio engine, interface requirements and QA. It supersedes the file-recorder
+workflow and fixed 48 kHz capture described in the historical setup notes below.
+Select the same stereo 44.1/48 kHz interface for system input and output.
 
 This is an experimental native Mac app for the EVOLVE WITH ME performance. It
 captures dry audio from the **macOS default input**, sends it to the live-response

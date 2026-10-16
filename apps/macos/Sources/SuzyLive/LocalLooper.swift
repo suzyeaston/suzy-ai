@@ -23,6 +23,13 @@ import NativeLoop
     private var generation = 0
     private var exportGeneration = 0
     private var snapshotRevision: UInt32 = 0
+    private var observedRevision: UInt32 = 0
+    private var exportedRevision: UInt32 = 0
+    private var exporting = false
+    var currentSnapshot: Data? {
+        guard let engine, nl_status(engine).revision == exportedRevision else { return nil }
+        return history.current
+    }
     private var synchronizedTempo: Double?
     var isSynchronized: Bool { synchronizedTempo != nil }
     var tempo: Double? { synchronizedTempo }
@@ -47,6 +54,7 @@ import NativeLoop
         if nl_fault(engine) != 0 {
             // Stop only our IOProc, never Logic's device or stream. Preserve the latest exported take.
             nl_close(engine); self.engine = nil; synchronizedTempo = nil
+            canUndo = false; onSnapshot?(nil)
             state = "stopped"; message = "Interface changed or its audio format is unsupported. Save your take, Clear, then reconnect and record."
             return
         }
@@ -55,22 +63,28 @@ import NativeLoop
         state = names[min(Int(status.state), names.count-1)]
         hasLoop = status.frames > 0; canUndo = status.undo != 0
         seconds = Double(status.frames)/Double(status.rate)
+        if status.revision != observedRevision {
+            observedRevision = status.revision
+            onSnapshot?(nil) // invalidate proposals before asynchronous WAV encoding finishes
+        }
+        guard !exporting else { return }
         var frames: UInt32 = 0, revision: UInt32 = 0
         guard let samples = nl_snapshot(engine, &frames, &revision) else { return }
         // Immutable export buffer, never the render buffer. Bounded to 8 seconds.
         // Copy on control thread; encoding runs on a background task and cannot delay audio.
         let copy = Array(UnsafeBufferPointer(start: samples, count: Int(frames)*2))
         nl_release_snapshot(engine)
-        guard revision == status.revision, revision != snapshotRevision else { return }
-        snapshotRevision = revision
+        guard revision == nl_status(engine).revision, revision != snapshotRevision else { return }
+        snapshotRevision = revision; exporting = true
         let token = exportGeneration, rate = Int(status.rate)
         Task {
             let wav = await Task.detached(priority: .utility) { Self.encode(copy, rate: rate) }.value
+            exporting = false
             guard token == exportGeneration, let engine = self.engine,
                   nl_status(engine).revision == revision else { return }
-            history.commit(wav)
-            message = "Your loop is playing independently of AI."
-            onSnapshot?(wav)
+            history.commit(wav); exportedRevision = revision
+            message = playing ? "Your loop is playing independently of AI." : "Loop snapshot ready to save or resume."
+            onSnapshot?(playing ? wav : nil)
         }
     }
     nonisolated private static func encode(_ samples: [Float], rate: Int) -> Data {
@@ -133,7 +147,7 @@ import NativeLoop
         generation += 1; exportGeneration += 1
         // Closing only our IOProc guarantees no stale command or snapshot survives Clear.
         if let engine { nl_close(engine); self.engine = nil }
-        synchronizedTempo = nil; snapshotRevision = 0; history.clear()
+        synchronizedTempo = nil; snapshotRevision = 0; observedRevision = 0; exportedRevision = 0; history.clear()
         hasLoop = false; canUndo = false; seconds = 0; state = "empty"; onSnapshot?(nil)
     }
     func save() {

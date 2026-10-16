@@ -158,7 +158,7 @@ private final class AudioLoop: LoopPlayer {
         looper.record(channel: channel, duration: seconds, tempo: tempo,
                       start: syncEnabled ? clock.nextBoundary(at: now, beats: beatsPerBar, lead: 0.3) : nil)
     }
-    func requestBackgroundResponse() { sourceChanged(looper.history.current) }
+    func requestBackgroundResponse() { sourceChanged(looper.currentSnapshot) }
     private func sourceChanged(_ wav: Data?) {
         // Only AI state is invalidated. The local looper never waits for this task.
         epoch += 1; let token = epoch; let oldID = captureID

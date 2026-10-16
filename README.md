@@ -28,7 +28,7 @@ responses from SUZY//AI.
    separate layer at the next original-loop boundary. Ignoring it changes nothing.
 
 The local looper remains usable with the AI bridge disconnected. Changing the
-original invalidates stale proposals. A slow or failed AI request does not need
+original invalidates stale proposals while accepted AI layers keep playing. A slow or failed AI request does not need
 to interrupt recording or playback.
 
 Audio is the musical material: the Godin guitar and microphone feed the audio
@@ -52,10 +52,11 @@ inference to choose a validated arrangement from measured features and musical
 context; rendering still uses deterministic audio processing. The model does not
 hear the waveform directly, generate neural audio or synthesize inferred harmonies.
 
-**This is an experimental instrument.** The first repeat can have a recording
-finalization/startup gap, and an overdub can take another cycle to enter. Timing
-is not yet sample-accurate, and there is no continuous drift correction or input/output
-latency compensation. Audition shares the audience output; there is no private
+**This is an experimental instrument.** Original-loop capture, repeat, overdub and
+undo now run in a continuous CoreAudio callback with timestamp-based overdub alignment.
+It requires the same stereo 44.1/48 kHz interface for macOS input/output. Actual hardware
+alignment still needs measurement; there is no continuous Logic clock drift correction.
+AI-layer replacement still uses the separate player and UI-timer path. Audition shares the audience output; there is no private
 cue bus. The companion runs alongside Logic and does not yet provide an Audio Unit
 or insert Live Loops cells automatically.
 
@@ -202,7 +203,7 @@ Approved memory and world state are stored locally under `~/.suzy-ai/` by defaul
 The public examples are separate from that private store and are not automatically
 ingested by a fresh clone. Chat history and musical session context stay in process.
 
-Loop audio is held in memory, with private temporary files used during recording.
+Loop audio is held in bounded memory buffers; recording no longer creates temporary WAV files.
 Use the save controls to keep a WAV; unsaved loops are lost on exit. Model weights
 are managed separately from the public source code.
 
@@ -210,8 +211,8 @@ are managed separately from the public source code.
 
 1. Rehearse with real guitar and vocals; measure the first-repeat gap, overdub
    alignment and sustained timing alongside Logic.
-2. Improve seamless looping and latency compensation while keeping AI off the
-   critical playback path.
+2. Calibrate hardware alignment, improve loop seams and move AI-layer replacement
+   off its remaining UI timer while keeping inference outside the audio callback.
 3. Evaluate whether MIRROR, AUGMENT and EVOLVE produce useful musical responses.
 4. Develop richer musical transformations and connect the wider collection and
    audiovisual tools where they serve the performance.
