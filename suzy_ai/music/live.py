@@ -38,7 +38,7 @@ class LiveSession:
             return self._status()
 
     def _status(self):
-        return {'id': self._id, 'state': self._state,
+        return {'protocol_version': 2, 'id': self._id, 'state': self._state,
                 'busy': self._worker is not None and self._worker.is_alive(),
                 'captured_bytes': len(self._pcm), 'next_sequence': self._sequence,
                 'error': self._error, 'response': copy.deepcopy(self._manifest),

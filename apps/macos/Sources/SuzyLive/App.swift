@@ -20,7 +20,9 @@ import AppKit
 private struct CompanionView: View {
     @ObservedObject var model: Performance
     @State private var confirmReset = false
+    @FocusState private var editing: Bool
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading) {
@@ -43,11 +45,11 @@ private struct CompanionView: View {
                 }
             }.disabled(!model.canCapture)
             HStack {
-                TextField("Section (e.g. opening)", text: $model.section)
-                TextField("Key, if known", text: $model.musicalKey).frame(width: 130)
+                TextField("Section (e.g. opening)", text: $model.section).focused($editing)
+                TextField("Key, if known", text: $model.musicalKey).focused($editing).frame(width: 130)
                 Button("Clear musical history", action: model.resetMusicalContext)
             }.disabled(!model.canCapture)
-            TextField("Direction (e.g. sparse, leave room for my voice)", text: $model.direction).disabled(!model.canCapture)
+            TextField("Direction (e.g. sparse, leave room for my voice)", text: $model.direction).focused($editing).disabled(!model.canCapture)
             HStack {
                 Toggle("Follow Logic clock (experimental)", isOn: $model.syncEnabled)
                 Picker("Clock input", selection: $model.clockSource) {
@@ -64,7 +66,7 @@ private struct CompanionView: View {
             }.disabled(!model.canCapture || !model.syncEnabled)
             HStack {
                 Text("Free BPM")
-                TextField("120", value: $model.bpm, format: .number).frame(width: 65)
+                TextField("120", value: $model.bpm, format: .number).focused($editing).frame(width: 65)
                 Picker("Free capture", selection: $model.duration) {
                     Text("2 sec").tag(2.0); Text("4 sec").tag(4.0)
                     Text("6 sec").tag(6.0); Text("7.5 sec").tag(7.5)
@@ -81,10 +83,10 @@ private struct CompanionView: View {
                 .font(.caption).foregroundStyle(.orange)
             HStack(spacing: 12) {
                 Button(model.phase == "capturing" ? "Finish capture" : "Capture", action: model.captureOrFinish)
-                    .keyboardShortcut("c", modifiers: [])
+                    .keyboardShortcut(editing ? nil : KeyboardShortcut("c", modifiers: []))
                     .disabled(!model.canCapture && model.phase != "capturing")
-                Button("Audition (shared)", action: model.audition).keyboardShortcut("a", modifiers: []).disabled(!model.canRespond)
-                Button("Bring in / loop", action: model.accept).keyboardShortcut("b", modifiers: []).disabled(!model.canRespond)
+                Button("Audition (shared)", action: model.audition).keyboardShortcut(editing ? nil : KeyboardShortcut("a", modifiers: [])).disabled(!model.canRespond)
+                Button("Bring in / loop", action: model.accept).keyboardShortcut(editing ? nil : KeyboardShortcut("b", modifiers: [])).disabled(!model.canRespond)
                 Button("Discard", action: model.discard).disabled(model.phase == "idle" || model.phase == "stopping")
                 Button("Save WAV", action: model.saveResponse).disabled(!model.canSave)
                 Spacer()
@@ -115,7 +117,8 @@ private struct CompanionView: View {
                 Button("Reset bridge…") { confirmReset = true }
             }
         }
-        .padding(24).frame(minWidth: 1000, minHeight: 760)
+        .padding(24)
+        }.frame(minWidth: 1000, minHeight: 650)
         .preferredColorScheme(.dark)
         .alert("Discard the bridge's current phrase?", isPresented: $confirmReset) {
             Button("Cancel", role: .cancel) {}

@@ -46,6 +46,7 @@ private final class AudioLoop: LoopPlayer {
     @Published var loopPlaying = false
     @Published var actionBusy = false
     @Published var auditionAcknowledged = false
+    @Published var savePanelOpen = false
     private let bridge = Bridge()
     private let midi = MIDIController()
     private let clockInput = MIDIController()
@@ -71,7 +72,7 @@ private final class AudioLoop: LoopPlayer {
 
     var canCapture: Bool { connected && !actionBusy && ["idle", "accepted", "failed"].contains(phase) }
     var canRespond: Bool { !actionBusy && ["ready", "auditioning"].contains(phase) }
-    var canSave: Bool { !actionBusy && (canRespond || responseAudio != nil || acceptedAudio != nil) }
+    var canSave: Bool { !savePanelOpen && !actionBusy && (canRespond || responseAudio != nil || acceptedAudio != nil) }
 
     init() {
         refreshMIDI()
@@ -311,7 +312,9 @@ private final class AudioLoop: LoopPlayer {
                 guard token == epoch else { return }
                 let panel = NSSavePanel(); panel.nameFieldStringValue = "Suzy-response-\(Int(Date().timeIntervalSince1970)).wav"
                 panel.title = "Save response WAV"; panel.allowedContentTypes = [.wav]
+                savePanelOpen = true
                 panel.begin { [weak self] result in
+                    self?.savePanelOpen = false
                     guard result == .OK, let url = panel.url else { return }
                     do { try data.write(to: url, options: .atomic); self?.message = "Saved response WAV." }
                     catch { self?.message = "Save failed: \(error.localizedDescription)" }

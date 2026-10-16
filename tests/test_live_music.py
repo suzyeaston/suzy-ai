@@ -185,6 +185,7 @@ class LiveHTTPTests(unittest.TestCase):
     def test_controller_lifecycle_over_http(self):
         code, body = self.request('POST', '/v1/live/capture', json.dumps(config()), {'Content-Type': 'application/json'})
         self.assertEqual(code, 201)
+        self.assertEqual(json.loads(body)['protocol_version'], 2)
         cid = json.loads(body)['id']
         pcm = phrase(0.25)
         code, _ = self.request('POST', f'/v1/live/{cid}/chunks/0', pcm, {'Content-Type': 'application/octet-stream'})

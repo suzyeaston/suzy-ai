@@ -24,7 +24,7 @@ class LiveHandler(Handler):
     def _get(self):
         parts = urlparse(self.path).path.strip('/').split('/')
         if parts == ['health']:
-            self._json({'ok': True, 'experimental': True, 'audio_device_access': False})
+            self._json({'ok': True, 'experimental': True, 'audio_device_access': False, 'protocol_version': 2})
         elif parts == ['v1', 'live']:
             self._json(self.session.status())
         elif len(parts) == 4 and parts[:2] == ['v1', 'live'] and parts[3] == 'audio.wav':

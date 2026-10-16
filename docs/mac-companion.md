@@ -5,10 +5,9 @@ captures dry audio from the **macOS default input**, sends it to the live-respon
 backend, and plays the returned source-audio response through the **macOS default
 output**. Logic continues to own its Live Loops, instruments and transport.
 
-This is not an Audio Unit. It does not read Logic buses/effects, insert a Live
-Loops cell, or synchronize playback to Logic's bar clock. Bring in starts a loop
-immediately. Expect manual timing and potential drift; quantized host integration
-is the next milestone, not a claim of this PR.
+This is not an Audio Unit. It does not read Logic buses/effects or insert a Live
+Loops cell. Free mode starts immediately; experimental Logic/IAC clock mode schedules
+capture and response starts on a bar boundary. Read the timing limits and QA section below.
 
 ## Tomorrow's first launch
 
@@ -23,7 +22,8 @@ bash scripts/start-mac-companion.sh
 The script builds an ad-hoc-signed app in `build/SuzyLive.app`, starts the bridge
 on 7333 if none is running, and opens the app. Keep the terminal open. Quitting
 the app stops only the bridge that this script started. An existing bridge is
-reused and never killed. It does not start/download a model. For model mode use
+reused only when its protocol version matches, and never killed. Quit an old bridge
+from the previous version before starting this checkout. It does not start/download a model. For model mode use
 the existing core on 7332 in another terminal. Start with deterministic mode.
 `SUZY_PYTHON` can select a Python executable; otherwise `.venv-mac/bin/python` is
 used if present, then `python3`.
@@ -62,15 +62,15 @@ render callback. Recorder capture goes to one private temporary WAV, is parsed a
 uploaded automatically, then removed. No manual file export/import is required.
 Ordinary stop/discard/quit removes the temporary directory; a forced termination
 can leave it in the macOS temporary directory (`suzy-live-<UUID>`). The directory
-has mode 0700. Accepted responses stay in memory only and are lost on app exit.
+has mode 0700. Responses stay in memory unless explicitly saved with Save WAV; unsaved responses are lost on exit.
 
 ## Performance controls
 
-- **Capture** starts a 2, 4, 6 or 7.5 second recording. Press again to finish early.
+- **Capture** in free mode starts a 2, 4, 6 or 7.5 second recording. Press again to finish early.
   Backend minimum is 0.25 seconds. The 7.5 second option leaves headroom below
   the backend's eight-second limit for recording-buffer timing.
-- **Audition** plays the response once at the Response level setting.
-- **Bring in / loop** accepts and loops it immediately, replacing the previously
+- **Audition** plays once on the shared output, after acknowledgment.
+- **Bring in / loop** accepts and loops immediately in free mode (next bar in clock mode), replacing the previously
   accepted loop. It does not mute Logic or reset its playhead.
 - Capture another phrase while an accepted loop keeps playing. There is one
   accepted loop and one candidate audition, not an unlimited layer stack.
@@ -82,7 +82,7 @@ has mode 0700. Accepted responses stay in memory only and are lost on app exit.
   It asks before discarding the bridge's current phrase. Use one companion client.
 
 Keyboard shortcuts while the app is focused: C capture/finish, A audition, B bring
-in, Escape stop. Don't use these while editing tempo. MIDI works without app focus.
+in, Escape stop. Letter shortcuts are disabled while text fields are focused. MIDI works without app focus.
 
 ## MIDI controller
 

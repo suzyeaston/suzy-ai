@@ -1,6 +1,7 @@
 import Foundation
 
 public struct LiveStatus: Decodable, Sendable {
+    public let protocol_version: Int?
     public let id: String?
     public let state: String
     public let busy: Bool
@@ -43,7 +44,11 @@ public final class Bridge: @unchecked Sendable {
         return data
     }
     public func status() async throws -> LiveStatus {
-        try JSONDecoder().decode(LiveStatus.self, from: await request("v1/live"))
+        let status = try JSONDecoder().decode(LiveStatus.self, from: await request("v1/live"))
+        guard status.protocol_version == 2 else {
+            throw CompanionError.invalid("Bridge version mismatch. Quit the previous companion/bridge and restart from this checkout.")
+        }
+        return status
     }
     public func arm(rate: Int, channels: Int, bpm: Double, mode: String, provider: String, section: String = "", key: String = "", instruction: String = "") async throws -> String {
         let body = try JSONSerialization.data(withJSONObject: ["sample_rate":rate, "channels":channels,
