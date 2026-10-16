@@ -8,7 +8,10 @@ __pycache__/
 !.env.example
 
 # Local sibling apps are synced outside this repo.
-apps/
+apps/*
+!apps/macos/
+apps/macos/.build/
+apps/macos/.swiftpm/
 
 # Models and personal state NEVER belong in the public repository.
 models/

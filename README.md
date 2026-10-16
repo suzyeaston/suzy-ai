@@ -242,8 +242,10 @@ plans. Publishing remains separate from local memory capture.
 The [live-response backend](docs/live-response.md) accepts bounded audio phrases
 and prepares source-audio variations asynchronously, with optional local-model
 arrangement decisions and explicit audition/accept/discard states. It is the
-backend for the planned Logic Live Loops performance interaction. Native Logic
-capture, controller wiring and playback integration are not implemented yet.
+backend for the planned Logic Live Loops performance interaction. The [experimental Mac companion](docs/mac-companion.md) captures dry system
+input and auditions/loops responses with keyboard or MIDI controls. It operates
+alongside Logic; native AU capture, Live Loops insertion and bar synchronization
+are not implemented yet.
 
 ## Development priorities
 
