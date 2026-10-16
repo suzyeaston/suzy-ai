@@ -2,6 +2,10 @@
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bash "$ROOT/scripts/build-mac-companion.sh"
+if [[ "${1:-}" == --looper-only ]]; then
+  open -W "$ROOT/build/SuzyLive.app"
+  exit 0
+fi
 if [[ -n "${SUZY_PYTHON:-}" ]]; then
   PYTHON="$SUZY_PYTHON"
 elif [[ -x "$ROOT/.venv-mac/bin/python" ]]; then

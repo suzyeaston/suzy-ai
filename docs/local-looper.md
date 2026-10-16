@@ -2,7 +2,9 @@
 
 The original performance loop now belongs to a native `LocalLooper`, independent
 of the Python bridge and model. Start the app, leave AI disconnected or disabled,
-and use Record, Overdub, Undo, Mute, Play, Stop and Clear. Logic continues its
+and use Record, Overdub, Undo, Mute, Play, Stop and Clear. For native-only launch,
+run `bash scripts/start-mac-companion.sh --looper-only`; it does not start or require
+the Python bridge/model. Logic continues its
 prepared Live Loops backing. No file export/import is required during playing.
 
 ## Playing
