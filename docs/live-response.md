@@ -4,12 +4,12 @@ The performance is built in Logic Live Loops: prepared beats and synths,
 live Godin audio through Focusrite, layered vocals, and a MIDI controller.
 SUZY//AI should respond to a phrase while that performance continues.
 
-This PR implements **the backend half** of that interaction. It accepts bounded
+This service implements **the backend half** of that interaction. It accepts bounded
 PCM chunks, responds in a background thread, and exposes audition/accept/discard
-commands for a future capture adapter and controller. It neither captures from
-Logic nor plays sound. There is no AU, MIDI input/output adapter, beat-quantized
-launch, or Live Loops cell insertion yet. Do not describe this as a finished
-Logic plug-in or a rehearsed live system.
+commands. The native Mac companion supplies dry capture, controller input, playback
+and experimental MIDI-clock scheduling; see `mac-companion.md`. The Python service
+itself does not capture or play sound. There is no AU or Live Loops cell insertion,
+and hardware rehearsal remains required.
 
 ## Start
 
@@ -22,7 +22,7 @@ python3 -m suzy_ai.music.server --port 7333
 For model-assisted decisions, start the **existing** SUZY//AI runtime separately
 on 7332, using already installed model weights. The bridge defaults to
 `http://127.0.0.1:7332/v1`; override with `--core-url` for another loopback port.
-It calls `/v1/chat` with memory disabled, no history, at most 1024 output tokens,
+It calls `/v1/chat` with personal memory disabled, empty chat history, at most 1024 output tokens,
 an eight-second client deadline, and a 16 KiB response limit. The existing core
 retains its single inference slot and local protections. A busy/offline/invalid
 model request fails explicitly; it is never silently relabelled deterministic.
@@ -32,7 +32,8 @@ The existing Mac launcher uses a 120-second backend timeout.
 
 ## Controller/capture protocol
 
-All URLs below are on `http://127.0.0.1:7333`. Host/origin protections are inherited
+All URLs below are on `http://127.0.0.1:7333`. Health/status report `protocol_version: 2`;
+the current companion refuses an old bridge instead of sending incompatible config. Host/origin protections are inherited
 from the existing core. No permissive CORS or external bind is added. Local native
 clients may call the API; hosted browser pages may not. This trusts local processes
 on the machine, like the existing core; it is not an authentication boundary
@@ -90,7 +91,8 @@ rate (e.g. 5 Hz); do not poll or perform HTTP on an audio callback.
 ## What produces the sound
 
 The source is the musician's actual captured waveform. Analysis currently derives
-level envelopes and host-tempo slice boundaries, not pitch, key, chords or lyrics.
+level envelopes, host-tempo slice boundaries, energy-rise onsets and uncertain
+monophonic pitch hints. It does not detect key, chords or lyrics.
 There are at most 16 slices; long/fast phrases use coarser slices to retain that cap.
 The final slice may be shorter. When a shorter source slice occupies a longer
 output slot, its remaining space is silent; longer slices are cropped to the slot.

@@ -18,8 +18,9 @@ The longer-term goal is for those references to inform creative decisions in
 **The Appliance Latent Space** and related music tools: suggestions about phrasing,
 texture, arrangement, and audiovisual behaviour that a musician can audition,
 accept, or change. That connection is being developed. The current core supports
-local text conversation and memory retrieval; it does not yet listen to audio or
-control the instrument.
+local text conversation and memory retrieval. The experimental music bridge and
+Mac companion analyze short phrases and transform their source audio; the text
+model receives measured features rather than hearing the waveform directly.
 
 ## How the projects fit together
 
