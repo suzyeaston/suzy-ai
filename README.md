@@ -237,6 +237,14 @@ what was supplied, what was saved, and what was actually evaluated. Build notes
 separate contributed examples from generated responses and verified results from
 plans. Publishing remains separate from local memory capture.
 
+## Experimental live musical responses
+
+The [live-response backend](docs/live-response.md) accepts bounded audio phrases
+and prepares source-audio variations asynchronously, with optional local-model
+arrangement decisions and explicit audition/accept/discard states. It is the
+backend for the planned Logic Live Loops performance interaction. Native Logic
+capture, controller wiring and playback integration are not implemented yet.
+
 ## Development priorities
 
 1. Make continued thread capture and retrieval easier while preserving context.
