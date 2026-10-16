@@ -1,69 +1,136 @@
 # SUZY//AI
 
-**Local intelligence for music, cultural context, and creative instruments.**
+**A local musical collaborator. You keep playing; AI works in the background.**
 
 SUZY//AI is an open-source project by [Suzy Easton](https://www.suzyeaston.ca/),
-developed as a local system for musical perception, memory, interpretation, and
-creative interaction. This repository implements its shared memory and inference
-core. **POP//CONTEXT is its audiovisual input pipeline**, maintained in a separate
-repository. Together they contribute to the same music-AI direction.
+built around live music, memory, cultural references and creative interaction.
+The current focus is **EVOLVE WITH ME**: performing with prepared loops, live
+nylon-string guitar and layered vocals while AI develops variations of the
+musician's own sounds.
 
-The aim is to build musical AI whose responses can be informed by a developing
-body of taste: album reviews, musical ideas, listening observations, cultural
-references, humour, and connections between them. Threads contributed by Suzy are
-part of that material. Each adds examples of language, association, or musical
-judgement that can remain available beyond a single conversation.
+This work is being developed for **The Appliance Latent Space**, a 15-minute
+performance at Futureproof Festival in Vancouver on October 29, 2026.
+Logic Pro handles the prepared Live Loops backing, beats and instruments. The
+native Mac companion adds an experimental local looper and optional background
+responses from SUZY//AI.
 
-The longer-term goal is for those references to inform creative decisions in
-**The Appliance Latent Space** and related music tools: suggestions about phrasing,
-texture, arrangement, and audiovisual behaviour that a musician can audition,
-accept, or change. That connection is being developed. The current core supports
-local text conversation and memory retrieval. The experimental music bridge and
-Mac companion analyze short phrases and transform their source audio; the text
-model receives measured features rather than hearing the waveform directly.
+> The technology was always meant to serve the art, not the other way around.
+
+## Play first. Let AI evolve alongside you.
+
+1. **Record and loop your own phrase.** Original playback starts locally without
+   waiting for a model or server.
+2. **Keep playing.** Overdub, undo the last overdub, mute, stop, resume and save
+   your loop using the app or a MIDI controller.
+3. **Let AI work on a copy.** When enabled and connected, the background response
+   service receives a snapshot of the loop. Your original keeps playing.
+4. **Choose what enters the performance.** Audition a variation or add it as a
+   separate layer at the next original-loop boundary. Ignoring it changes nothing.
+
+The local looper remains usable with the AI bridge disconnected. Changing the
+original invalidates stale proposals. A slow or failed AI request does not need
+to interrupt recording or playback.
+
+Audio is the musical material: the Godin guitar and microphone feed the audio
+interface. MIDI is optional for controller actions and experimental clock sync;
+it is not required to capture or transform the sound.
+
+## What is implemented
+
+| Component | Current capabilities |
+| --- | --- |
+| **Mac looper** | One loop up to eight seconds, one-cycle overdubs, one-level undo, mute, stop/resume, clear and WAV saving |
+| **Background responses** | One bounded capture/proposal at a time, optional local-model decisions, audition, discard and an optional response layer |
+| **Musical analysis and context** | Onset estimates, uncertain monophonic pitch hints, section/key/direction inputs and the last four accepted decisions in RAM |
+| **Performance controls** | MIDI note mappings, local Stop All and experimental Logic/IAC clock scheduling |
+| **Local AI core** | Text inference, explicitly approved private memory, bounded recall, teaching APIs, JSON events and timelines |
+
+The response modes are **MIRROR**, **AUGMENT** and **EVOLVE**. Today they operate
+on the source audio through slice order, gain, reversal and a delayed layer.
+Deterministic mode uses fixed processing rules. Local-model mode uses neural text
+inference to choose a validated arrangement from measured features and musical
+context; rendering still uses deterministic audio processing. The model does not
+hear the waveform directly, generate neural audio or synthesize inferred harmonies.
+
+**This is an experimental instrument.** The first repeat can have a recording
+finalization/startup gap, and an overdub can take another cycle to enter. Timing
+is not yet sample-accurate, and there is no continuous drift correction or input/output
+latency compensation. Audition shares the audience output; there is no private
+cue bus. The companion runs alongside Logic and does not yet provide an Audio Unit
+or insert Live Loops cells automatically.
+
+See the [local looper guide](docs/local-looper.md) for controls and listening tests,
+the [Mac companion guide](docs/mac-companion.md) for routing and clock setup, and
+the [response protocol](docs/live-response.md) for the backend.
+
+## Run on a Mac
+
+The companion requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
+The response bridge also requires Python 3.11+. Start with local looping:
+
+```bash
+git clone https://github.com/suzyeaston/suzy-ai.git
+cd suzy-ai
+bash scripts/start-mac-companion.sh --looper-only
+```
+
+This builds and opens the native app without starting Python or downloading a
+model. Select your interface as the macOS sound input/output; Logic has its own
+audio settings. Begin with headphones and verify the input channel.
+
+For the companion plus the background response bridge, quit the app and run:
+
+```bash
+bash scripts/start-mac-companion.sh
+```
+
+The bridge uses port **7333**. In the app, Connect and choose deterministic DSP or
+local-model decisions. Deterministic responses require no model. For model mode,
+start the existing SUZY//AI core in another terminal on **7332**:
+
+```bash
+bash scripts/start-mac.sh --api-port 7332 --model-port 8082
+```
+
+The local inference setup uses Qwen3 1.7B through llama.cpp. If you have not set
+it up before, follow [Mac setup](docs/mac-setup.md); `scripts/setup-mac.sh` installs
+tools and downloads the model. Existing installations can reuse their verified
+weights. The companion launcher does not download or start a model itself.
+
+To update an existing checkout, quit the app and old services, then run
+`git pull --ff-only` and relaunch. A running process does not pick up new code.
+If you are in the core's `you >` chat prompt, use `/quit` before running shell commands.
+
+For the Python core alone, install with `pip install -e .` in a virtual environment,
+then use `suzy-ai init`, `suzy-ai doctor` and `suzy-ai serve`. Its default API port is
+7331; the musical setup above uses 7332. See the [chat and memory API guide](docs/local-chat.md).
 
 ## How the projects fit together
 
-Repository boundaries organize the code. SUZY//AI is the overall intelligence
-system; its core and POP//CONTEXT input pipeline have complementary responsibilities.
-The Appliance is the instrument, with SUZY//WORLD and the website providing
-selected public knowledge and interfaces.
+| Project | Role |
+| --- | --- |
+| **SUZY//AI — this repository** | Local AI core, memory, music-response service and native Mac looper |
+| **[The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)** | Browser instrument with sequencing, synthesis, scenes, deterministic variations and visuals |
+| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | Audiovisual input pipeline with media windows, transcripts, frames and timestamps |
+| **[SUZY//WORLD](https://github.com/suzyeaston/suzy-world)** | Published album reviews and structured cultural knowledge |
+| **[suzyeaston.ca](https://www.suzyeaston.ca/)** | Public creative lab and music experiments |
 
-| Project | Existing role | Connection to the music-AI direction |
-|---|---|---|
-| **[SUZY//AI](https://github.com/suzyeaston/suzy-ai)** | Local text inference, private memory, teaching APIs, events and timelines | Provides the core in which contributed examples can be retained and recalled; musical decision-making is a development goal |
-| **[The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)** | Playable browser instrument with patterns, synthesis, arrangements, scenes and synchronized visuals | Intended to receive musically relevant suggestions through its control/event language, while remaining playable without AI |
-| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | SUZY//AI audiovisual input pipeline: media windows, transcripts, representative frames and timestamps | Intended to supply approved observations with evidence and timing; cultural AI interpretation remains future work |
-| **[SUZY//WORLD](https://github.com/suzyeaston/suzy-world)** | WordPress plugin and public API for versioned album reviews, entities, tags and relationships | Holds deliberately published cultural knowledge that could support public music interfaces |
-| **[suzyeaston.ca](https://github.com/suzyeaston/suzyeastonca)** | Public website and creative lab, including Loop Lab, Track Analyzer and other music experiments | A future surface for selected SUZY//AI capabilities and outputs; the website does not currently access private memory |
+These projects share a creative direction, but they are not a fully integrated
+system. The Mac looper and response service live here. Connecting the browser
+instrument, approved audiovisual observations and cultural knowledge to the live
+workflow remains development work. The [app registry](config/apps.json) records
+the related repositories; `scripts/sync-apps.sh` manages sibling checkouts.
 
-POP//CONTEXT prepares evidence for the same memory and interpretation system that
-uses contributed threads, album reviews, and musical examples. It does not need a
-separate musical identity or cultural-memory database. Its approved-evidence
-transfer into the core is planned; the complete pipeline is not operational yet.
-The published integration notes describe the intended connections. The [app registry](config/apps.json),
-[Appliance integration notes](https://github.com/suzyeaston/appliance-latent-space-live/blob/main/docs/suzy-ai-integration.md)
-and [POP//CONTEXT integration notes](https://github.com/suzyeaston/pop-context/blob/main/docs/suzy-ai-integration.md)
-record those contracts.
+## Musical taste, memory and humour
 
-The Appliance already includes local example-based mapping between musical and
-visual controls. Its seeded musical variations are separate from the language
-model here. A future AI sound/proposal layer will need its own implementation and
-listening tests.
+The wider project explores how album reviews, musical ideas, listening observations,
+wordplay and cultural associations can inform a creative collaborator. Suzy's
+threads are part of that collection: music knowledge with a sense of humour.
 
-## Building taste through examples
-
-The collection can grow through ordinary material supplied over time:
-
-- album reviews and discussions of production, performance, or arrangement;
-- musical phrases, voicings, textures, and explanations of particular choices;
-- threads containing a question or setup and several replies;
-- wordplay, references, and cultural associations;
-- later corrections or comparisons that refine an earlier interpretation.
-
-Humour belongs in this collection because musical references also carry language,
-context, and association. A band-name thread can demonstrate those relationships;
-it is one kind of example within the broader musical project.
+Saved examples can be retrieved into local conversations. They do not change model
+weights or automatically establish a learned musical style. Live response planning
+currently uses its own small musical session history, with personal-memory recall
+disabled. Bringing the broader collection into musical decisions is future work.
 
 ### From the thread collection: Mormon music
 
@@ -76,9 +143,7 @@ it is one kind of example within the broader musical project.
 > 5. Mennonite At Work
 > 6. Mission of Burma
 
-Created by Suzy as a brainstorming thread of musical wordplay. See the
-[build note](docs/build-in-public/2026-10-08-humour-memory.md) and
-[approved input as JSON](examples/threads/mormon-music.json).
+A musical-wordplay thread created by Suzy.
 
 ### From the thread collection: best music to take a crap to?
 
@@ -114,176 +179,54 @@ Created by Suzy as a brainstorming thread of musical wordplay. See the
 >     - Freud would have a lot to say about you then
 > 24. Snoop Dogg "Drop It Like It's Hot"
 
-Created by Suzy; the supplied thread dates to March 9–10, 2005. Handles and
-forum metadata are omitted, while the reply chains remain. See the
-[build note](docs/build-in-public/2026-10-12-crap-music-thread.md) and
-[approved input as JSON](examples/threads/best-music-to-take-a-crap-to.json).
+A thread created by Suzy, March 2005.
 
-More threads contributed by Suzy will be added to the public GitHub collection,
-with their original wording, context, and available attribution. Together with
-album reviews and musical examples, they provide material for SUZY//AI's developing
-taste and associations.
+More threads, album reviews and musical examples will join the collection as the
+project develops.
 
-The current workflow saves a whole thread as one approved local memory. Publishing
-an example on GitHub is a separate step; it does not automatically import it into
-local memory. Individual reply relationships and automatic categorization remain
-future work.
+## Local data
 
-## What learning means at this stage
+Approved memory and world state are stored locally under `~/.suzy-ai/` by default.
+The public examples are separate from that private store and are not automatically
+ingested by a fresh clone. Chat history and musical session context stay in process.
 
-The current model is Qwen3 1.7B, running locally through llama.cpp. Saved notes are
-retrieved into its conversational context. Topic matches and a small background
-selection of notes labelled as humour, taste, preferences, or style support recall
-without requiring the original topic phrase every time.
+Loop audio is held in memory, with private temporary files used during recording.
+Use the save controls to keep a WAV; unsaved loops are lost on exit. Model weights
+are managed separately from the public source code.
 
-This provides continuity and examples for a response; it does not change model
-weights or establish a learned musical style. The next steps are to evaluate how
-well the examples inform conversation, improve retrieval and musical representation,
-and connect approved suggestions to the instrument. Fine-tuning is a later option
-once suitable examples and evaluation criteria exist.
+## Next priorities
 
-## Working now: v0.3
+1. Rehearse with real guitar and vocals; measure the first-repeat gap, overdub
+   alignment and sustained timing alongside Logic.
+2. Improve seamless looping and latency compensation while keeping AI off the
+   critical playback path.
+3. Evaluate whether MIRROR, AUGMENT and EVOLVE produce useful musical responses.
+4. Develop richer musical transformations and connect the wider collection and
+   audiovisual tools where they serve the performance.
 
-| Capability | Current behaviour |
-|---|---|
-| Local conversation | A model running on your computer, with no required commercial API |
-| Mac setup | Verified model download and a launcher for the model plus SUZY//AI |
-| Saved memory | Explicitly approved notes in private SQLite storage |
-| Recall | On by default; bounded topic matches plus labelled humour/taste examples |
-| Threads | A whole setup-and-replies exchange stored as one document |
-| Provenance | Source labels, timestamps, and the actual retrieved excerpts |
-| Teaching surfaces | Albums, musical ideas, idioms, and world notes in the existing world store |
-| Shared infrastructure | JSON event protocol, timeline, app registry, and local HTTP API |
-
-There is no weight training, automatic thread classification, autonomous tool
-execution, or automatic chat-history saving. Recall can miss relevant material,
-and a small model can still make mistakes or make an unsuitable musical or cultural association.
-
-## Run on an Apple Silicon Mac
-
-From a fresh clone:
-
-```bash
-git clone https://github.com/suzyeaston/suzy-ai.git
-cd suzy-ai
-bash scripts/setup-mac.sh
-bash scripts/start-mac.sh
-```
-
-Setup installs the tools, runs tests, and downloads the model once. Later launches
-reuse the verified file. See [Mac setup](docs/mac-setup.md) for requirements and
-troubleshooting.
-
-If ports are already in use:
-
-```bash
-bash scripts/start-mac.sh --api-port 7332 --model-port 8082
-```
-
-Wait for `Local inference test passed` and the `you >` prompt. Then chat normally.
-Saved-memory recall starts on; `/memory off` pauses it for the session.
-
-**`you >` is a chat prompt. Your Terminal shell prompt usually ends in `%` or `$`.**
-To run an update command, first exit chat with `/quit` or Ctrl-C. New versions also
-accept plain `quit` and `exit`, and recognize common accidentally pasted setup
-commands without forwarding them to the model. No chat command executes a shell.
-
-### Updating an existing checkout
-
-After leaving chat, update the branch you are using:
-
-```bash
-git pull --ff-only
-bash scripts/start-mac.sh --api-port 7332 --model-port 8082
-```
-
-An update from GitHub cannot affect a process that is already running: restart to
-load the new code. There is no need to rerun setup or download the model just to
-pick up a code change. If testing a PR branch, use that PR's checkout instructions.
-
-### Core only / other local model servers
-
-Python 3.11+ is required. Install with `pip install -e .` in a virtual environment,
-then use `suzy-ai init`, `suzy-ai doctor`, and `suzy-ai serve`. The core defaults to
-`http://127.0.0.1:7331`; inference requires a configured local model server.
-
-See the [chat and memory API guide](docs/local-chat.md) for approved memory writes,
-search, deletion, model configuration, and the local-process trust boundary.
-
-## Public development and local memory
-
-The public repository contains code, selected examples, and build notes. Local
-memory, recordings, model weights, and world timelines live outside the checkout:
-
-```text
-~/.suzy-ai/
-```
-
-Publishing a selected thread creates a public copy of that example; it does not
-sync the private database. A fresh clone does not automatically ingest the public
-examples into memory. Existing world teachings also require deliberate inclusion
-in the retrieval store. Local chat history remains in process and is not saved.
-
-## Building in public
-
-- [Threads as musical and cultural memory](docs/build-in-public/2026-10-08-humour-memory.md)
-- [2005 music-humour thread](docs/build-in-public/2026-10-12-crap-music-thread.md)
-- [Approved 2005 thread as JSON](examples/threads/best-music-to-take-a-crap-to.json)
-- [The approved thread input as JSON](examples/threads/mormon-music.json)
-- [Architecture](docs/architecture.md) and [roadmap](docs/roadmap.md)
-
-The public collection will grow as Suzy contributes more threads and musical
-examples. GitHub records the selected material and the development around it:
-what was supplied, what was saved, and what was actually evaluated. Build notes
-separate contributed examples from generated responses and verified results from
-plans. Publishing remains separate from local memory capture.
-
-## Experimental live musical responses
-
-The [live-response backend](docs/live-response.md) accepts bounded audio phrases
-and prepares source-audio variations asynchronously, with optional local-model
-arrangement decisions and explicit audition/accept/discard states. It is the
-backend for the planned Logic Live Loops performance interaction. The [experimental Mac companion](docs/mac-companion.md) captures dry system
-input and auditions/loops responses with keyboard or MIDI controls. It operates
-alongside Logic; native AU capture, Live Loops insertion and bar synchronization
-are not implemented yet.
-
-## Development priorities
-
-1. Make continued thread capture and retrieval easier while preserving context.
-2. Represent musical preferences and associations in ways that can be evaluated.
-3. Connect the core to the Appliance's musical controls and proposal workflow.
-4. Introduce approved audiovisual observations from POP//CONTEXT.
-5. Expose selected cultural knowledge and creative outputs through SUZY//WORLD
-   and the website's music interfaces.
-
-The laptop remains the compute/audio host. Physical controls can later send
-logical events to the instrument. The instrument should retain reliable playback,
-explicit audition/accept, and an immediate Kill independently of AI availability.
-`scripts/sync-apps.sh` manages sibling application checkouts.
+Development targets include an M2 MacBook Pro with 8 GB unified memory, so audio
+buffers, session history and concurrent work are bounded. Actual CPU load and
+memory pressure still need testing with Logic and the model running together.
 
 ## Development
+
+Python core and backend tests:
 
 ```bash
 bash scripts/test.sh
 ```
 
-Tests use temporary private state and synthetic model services. CI includes Linux
-and macOS. Passing those tests establishes software behaviour, not musical judgement.
-Listening sessions and conversational evaluations will assess the creative results.
+Native companion tests and local app build, on macOS:
 
-See [world-model storage](docs/world-model.md), [teaching surfaces](docs/teaching-surfaces.md),
-and [timeline/event architecture](docs/architecture.md) for the existing systems.
+```bash
+(cd apps/macos && swift test)
+bash scripts/build-mac-companion.sh
+```
 
-Code is licensed under Apache-2.0. Thread examples include their source and context.
+CI covers Linux and macOS. Automated tests use synthetic audio and model services;
+passing them does not establish musical quality or performance-ready hardware timing.
 
-The Mac companion also supports response WAV saving, explicit shared-output audition,
-experimental Logic/IAC clock scheduling, and a bounded musical history with onset/pitch
-hints. See [the Mac performance QA guide](docs/mac-companion.md#performance-reliability-clock-and-musical-context)
-before using synchronization live. This is still a companion, not an Audio Unit or an
-automatic Live Loops cell inserter.
+Further reading: [architecture](docs/architecture.md), [world-model storage](docs/world-model.md),
+[teaching surfaces](docs/teaching-surfaces.md) and [build notes](docs/build-in-public/).
 
-[Local looping with background AI](docs/local-looper.md) now separates the original
-record/loop/overdub/undo instrument from asynchronous response generation. Local
-controls work with the bridge disconnected. This remains experimental pending
-Focusrite/Logic timing and listening QA.
+Code is licensed under [Apache-2.0](LICENSE).
