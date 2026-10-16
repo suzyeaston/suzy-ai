@@ -6,7 +6,8 @@ let package = Package(
     products: [.executable(name: "SuzyLive", targets: ["SuzyLive"])],
     targets: [
         .target(name: "CompanionCore"),
-        .executableTarget(name: "SuzyLive", dependencies: ["CompanionCore"]),
-        .testTarget(name: "CompanionCoreTests", dependencies: ["CompanionCore"])
+        .target(name: "NativeLoop", linkerSettings: [.linkedFramework("CoreAudio"), .linkedFramework("AudioToolbox")]),
+        .executableTarget(name: "SuzyLive", dependencies: ["CompanionCore", "NativeLoop"]),
+        .testTarget(name: "CompanionCoreTests", dependencies: ["CompanionCore", "NativeLoop"])
     ]
 )

@@ -4,14 +4,9 @@ import AVFoundation
 import AppKit
 import UniformTypeIdentifiers
 import CompanionCore
+import NativeLoop
 
-private final class LoopRecorderDelegate: NSObject, AVAudioRecorderDelegate {
-    var finished: ((Bool) -> Void)?
-    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) { finished?(flag) }
-    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) { finished?(false) }
-}
-
-/// Local instrument: no HTTP, inference or model state is needed for any control.
+/// UI/control surface only. CoreAudio owns capture, repeat, overdub and undo timing.
 @MainActor final class LocalLooper: ObservableObject {
     @Published var state = "empty"
     @Published var message = "Record a phrase. It loops locally before AI does any work."
@@ -23,163 +18,137 @@ private final class LoopRecorderDelegate: NSObject, AVAudioRecorderDelegate {
     @Published var saveOpen = false
     private(set) var history = LoopHistory()
     var onSnapshot: ((Data?) -> Void)?
-    private var player: AVAudioPlayer?
-    private var pendingPlayer: AVAudioPlayer?
-    private var recorder: AVAudioRecorder?
-    private let delegate = LoopRecorderDelegate()
-    private var folder: URL?
-    private var generation = 0
-    private var pendingWAV: Data?
-    private var pendingUndo = false
-    private var boundary: Double?
+    private var engine: OpaquePointer?
     private var timer: Timer?
-    private var loopChannel = 0
+    private var generation = 0
+    private var exportGeneration = 0
+    private var snapshotRevision: UInt32 = 0
+    private var observedRevision: UInt32 = 0
+    private var exportedRevision: UInt32 = 0
+    private var exporting = false
+    var currentSnapshot: Data? {
+        guard let engine, nl_status(engine).revision == exportedRevision else { return nil }
+        return history.current
+    }
     private var synchronizedTempo: Double?
     var isSynchronized: Bool { synchronizedTempo != nil }
     var tempo: Double? { synchronizedTempo }
-    var busy: Bool { ["arming", "recording", "overdubbing", "queued", "finalizing"].contains(state) }
-    var playing: Bool { player?.isPlaying == true }
+    var busy: Bool { ["arming", "recording", "overdubbing", "queued"].contains(state) }
+    var playing: Bool { ["playing", "overdubbing", "queued"].contains(state) }
 
     init() {
-        timer = Timer(timeInterval: 0.01, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: 0.03, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
         if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
-    private func updateVolume() {
-        player?.volume = muted ? 0 : volume; pendingPlayer?.volume = muted ? 0 : volume
+    private func updateVolume() { if let engine { nl_gain(engine, muted ? 0 : volume) } }
+    private func command(_ code: Int, frames: UInt32 = 0, channel: UInt32 = 0, start: Double = 0) -> Bool {
+        guard let engine, nl_command(engine, UInt32(code), frames, channel, start) != 0 else {
+            message = "Audio control is busy; try that control again."; return false
+        }
+        return true
     }
     private func tick() {
-        if let target = boundary, MIDIController.now >= target, let pendingPlayer, let wav = pendingWAV {
-            player?.stop(); player = pendingPlayer; self.pendingPlayer = nil; pendingWAV = nil; boundary = nil
-            if pendingUndo { _ = history.undo() } else { history.commit(wav) }
-            pendingUndo = false; state = "playing"; canUndo = history.previous != nil
-            message = "Loop updated. Keep playing; AI is optional."
-            onSnapshot?(wav)
+        guard let engine else { return }
+        if nl_fault(engine) != 0 {
+            // Stop only our IOProc, never Logic's device or stream. Preserve the latest exported take.
+            nl_close(engine); self.engine = nil; synchronizedTempo = nil
+            canUndo = false; onSnapshot?(nil)
+            state = "stopped"; message = "Interface changed or its audio format is unsupported. Save your take, Clear, then reconnect and record."
+            return
         }
+        let status = nl_status(engine)
+        let names = ["empty", "arming", "recording", "playing", "queued", "overdubbing", "stopped"]
+        state = names[min(Int(status.state), names.count-1)]
+        hasLoop = status.frames > 0; canUndo = status.undo != 0
+        seconds = Double(status.frames)/Double(status.rate)
+        if status.revision != observedRevision {
+            observedRevision = status.revision
+            onSnapshot?(nil) // invalidate proposals before asynchronous WAV encoding finishes
+        }
+        guard !exporting else { return }
+        var frames: UInt32 = 0, revision: UInt32 = 0
+        guard let samples = nl_snapshot(engine, &frames, &revision) else { return }
+        // Immutable export buffer, never the render buffer. Bounded to 8 seconds.
+        // Copy on control thread; encoding runs on a background task and cannot delay audio.
+        let copy = Array(UnsafeBufferPointer(start: samples, count: Int(frames)*2))
+        nl_release_snapshot(engine)
+        guard revision == nl_status(engine).revision, revision != snapshotRevision else { return }
+        snapshotRevision = revision; exporting = true
+        let token = exportGeneration, rate = Int(status.rate)
+        Task {
+            let wav = await Task.detached(priority: .utility) { Self.encode(copy, rate: rate) }.value
+            exporting = false
+            guard token == exportGeneration, let engine = self.engine,
+                  nl_status(engine).revision == revision else { return }
+            history.commit(wav); exportedRevision = revision
+            message = playing ? "Your loop is playing independently of AI." : "Loop snapshot ready to save or resume."
+            onSnapshot?(playing ? wav : nil)
+        }
+    }
+    nonisolated private static func encode(_ samples: [Float], rate: Int) -> Data {
+        var data = Data(capacity: 44+samples.count*2)
+        func le(_ value: Int, _ count: Int) { for byte in 0..<count { data.append(UInt8((value >> (8*byte)) & 255)) } }
+        data.append(contentsOf: "RIFF".utf8); le(36+samples.count*2,4); data.append(contentsOf: "WAVEfmt ".utf8)
+        le(16,4); le(1,2); le(2,2); le(rate,4); le(rate*4,4); le(4,2); le(16,2)
+        data.append(contentsOf: "data".utf8); le(samples.count*2,4)
+        for sample in samples { let v = Int16(clamping: Int((max(-1,min(1,sample))*32767).rounded())); le(Int(UInt16(bitPattern:v)),2) }
+        return data
     }
     func record(channel: Int, duration: Double, tempo: Double?, start: Double?) {
         if state == "recording" {
-            if synchronizedTempo != nil { message = "Beat-length capture finishes automatically. Stop cancels it."; return }
-            state = "finalizing"; recorder?.stop(); return
+            guard synchronizedTempo == nil else { message = "Beat-length capture finishes automatically. Stop cancels it."; return }
+            _ = command(Int(NL_FINISH)); return
         }
         guard !busy, !hasLoop else { message = "Use Overdub to add a layer, or Clear for a new loop."; return }
-        guard duration >= 0.25, duration <= 8 else { message = "Loop length must be 0.25–8 seconds."; return }
-        loopChannel = channel; synchronizedTempo = tempo
-        startRecording(duration: duration, channel: channel, isOverdub: false, scheduled: start)
-    }
-    func overdub() {
-        guard hasLoop, playing, !busy else { message = "Play the loop before overdubbing."; return }
-        startRecording(duration: seconds, channel: loopChannel, isOverdub: true, scheduled: nil)
-    }
-    private func startRecording(duration: Double, channel: Int, isOverdub: Bool, scheduled: Double?) {
-        generation += 1; let token = generation
-        state = "arming"
+        guard duration.isFinite, duration >= 0.25, duration <= 8, (0...2).contains(channel) else { message = "Loop length must be 0.25–8 seconds."; return }
+        generation += 1; let token = generation; state = "arming"
         Task {
             let allowed = await AVCaptureDevice.requestAccess(for: .audio)
             guard token == generation else { return }
-            guard allowed else { fail("Microphone permission is required; existing loop preserved."); return }
-            do {
-                let root = FileManager.default.temporaryDirectory.appendingPathComponent("suzy-loop-\(UUID().uuidString)", isDirectory: true)
-                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions:0o700])
-                folder = root; let url = root.appendingPathComponent("take.wav")
-                let recorder = try AVAudioRecorder(url: url, settings: [AVFormatIDKey:kAudioFormatLinearPCM,
-                    AVSampleRateKey:48000, AVNumberOfChannelsKey:2, AVLinearPCMBitDepthKey:16,
-                    AVLinearPCMIsFloatKey:false, AVLinearPCMIsBigEndianKey:false, AVLinearPCMIsNonInterleaved:false])
-                self.recorder = recorder; recorder.delegate = delegate
-                guard recorder.prepareToRecord() else { throw CompanionError.invalid("Input preparation failed.") }
-                delegate.finished = { [weak self] success in
-                    Task { @MainActor [weak self] in
-                        guard let self, token == self.generation else { return }
-                        self.recorder = nil
-                        guard success else { self.fail("Recording failed; existing loop preserved."); return }
-                        self.finish(url, channel: channel, duration: duration, isOverdub: isOverdub)
-                    }
-                }
-                if isOverdub {
-                    guard let target = nextBoundary() else { throw CompanionError.invalid("Loop stopped before overdub.") }
-                    guard recorder.record(atTime: recorder.deviceCurrentTime + target-MIDIController.now, forDuration: duration) else {
-                        throw CompanionError.invalid("Overdub could not start.")
-                    }
-                    state = "overdubbing"; message = "One-cycle overdub starts at the next loop boundary. Original loop keeps playing."
-                } else if let scheduled {
-                    let remaining = scheduled-MIDIController.now
-                    guard remaining > 0.05 else { throw CompanionError.invalid("Capture boundary passed while granting permission. Press Record again.") }
-                    guard recorder.record(atTime: recorder.deviceCurrentTime+remaining, forDuration: duration) else { throw CompanionError.invalid("Scheduled capture failed.") }
-                    state = "recording"; message = "Capture scheduled on Logic's bar; playback follows locally."
-                } else {
-                    guard recorder.record(forDuration: duration) else { throw CompanionError.invalid("Recording could not start.") }
-                    state = "recording"; message = "Recording. Press Record again to close the loop."
-                }
-            } catch { fail(error.localizedDescription) }
-        }
-    }
-    private func finish(_ url: URL, channel: Int, duration: Double, isOverdub: Bool) {
-        defer { cleanup() }
-        do {
-            guard (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) <= 2_000_000 else { throw CompanionError.invalid("Take too large.") }
-            let target = isOverdub || synchronizedTempo != nil ? Int((duration*48000).rounded()) : nil
-            let take = try PCM(wav: Data(contentsOf: url), channel: channel == 2 ? nil : channel, targetFrames: target)
-            if isOverdub {
-                guard let original = history.current else { throw CompanionError.invalid("Original loop is unavailable.") }
-                let mixed = try LoopAudio.overdub(base: PCM(wav: original), take: take)
-                try queue(LoopAudio.wav(mixed), undo: false)
-            } else {
-                let wav = LoopAudio.wav(take)
-                let next = try makePlayer(wav)
-                // Start the original locally BEFORE invoking any AI snapshot callback.
-                guard next.play() else { throw CompanionError.invalid("Local playback could not start.") }
-                player = next; history.commit(wav); hasLoop = true; seconds = take.seconds
-                canUndo = false; state = "playing"; message = "Your original is looping. AI can work in the background."
-                onSnapshot?(wav)
+            guard allowed else { state = "empty"; message = "Microphone permission is required."; return }
+            if engine == nil {
+                var error = [CChar](repeating: 0, count: 512)
+                engine = nl_open(&error, UInt32(error.count))
+                guard engine != nil else { state = "empty"; message = String(cString:error); return }
+                snapshotRevision = 0; updateVolume()
             }
-        } catch { fail(error.localizedDescription) }
-    }
-    private func makePlayer(_ wav: Data) throws -> AVAudioPlayer {
-        let next = try AVAudioPlayer(data: wav); next.numberOfLoops = -1; next.volume = muted ? 0 : volume
-        guard next.prepareToPlay() else { throw CompanionError.invalid("Loop preparation failed.") }
-        return next
-    }
-    func nextBoundary(lead: Double = 0.1) -> Double? {
-        guard let player, player.isPlaying, seconds > 0 else { return nil }
-        var remaining = seconds - player.currentTime.truncatingRemainder(dividingBy: seconds)
-        while remaining < lead { remaining += seconds }
-        return MIDIController.now + remaining
-    }
-    private func queue(_ wav: Data, undo: Bool) throws {
-        let next = try makePlayer(wav)
-        guard let target = nextBoundary(), next.play(atTime: next.deviceCurrentTime + target-MIDIController.now) else {
-            throw CompanionError.invalid("Loop replacement could not schedule; original preserved.")
+            if let start, start-MIDIController.now < 0.05 {
+                state = "empty"; message = "The capture boundary passed during setup. Press Record again."; return
+            }
+            let rate = nl_status(engine!).rate
+            if command(Int(NL_RECORD), frames: UInt32((duration*Double(rate)).rounded()), channel: UInt32(channel), start: start ?? 0) {
+                synchronizedTempo = tempo; message = "Recording will roll directly into looping."
+            } else { state = "empty" }
         }
-        pendingPlayer = next; pendingWAV = wav; pendingUndo = undo; boundary = target
-        state = "queued"; message = undo ? "Undo queued at next loop boundary." : "Overdub queued at next loop boundary."
     }
-    func undo() {
-        guard !busy, let wav = history.previous else { return }
-        do {
-            if playing { try queue(wav, undo: true) }
-            else { _ = history.undo(); canUndo = false; onSnapshot?(wav); message = "Last overdub undone." }
-        } catch { message = error.localizedDescription }
+    func overdub() {
+        guard hasLoop, playing, !busy else { message = "Play the loop before overdubbing."; return }
+        if command(Int(NL_OVERDUB)) { state = "queued"; message = "One-cycle overdub starts at the next loop boundary." }
     }
-    func play() {
-        guard !busy, !playing, let wav = history.current else { return }
-        do {
-            let next = try makePlayer(wav)
-            guard next.play() else { throw CompanionError.invalid("Loop playback failed.") }
-            player = next; state = "playing"
-            // Manual resume is free timing; do not pretend it retained Logic phase.
-            synchronizedTempo = nil; message = "Loop resumed with free timing."
-        } catch { message = error.localizedDescription }
+    func undo() { guard !busy, canUndo else { return }; _ = command(Int(NL_UNDO)) }
+    func play() { guard !busy, !playing, hasLoop else { return }; if command(Int(NL_PLAY)) { synchronizedTempo = nil } }
+    func nextBoundary(lead: Double = 0.1) -> Double? {
+        guard let engine, playing, seconds > 0 else { return nil }
+        var target = nl_status(engine).boundary
+        guard target > 0 else { return nil }
+        let earliest = MIDIController.now+lead
+        if target < earliest { target += ceil((earliest-target)/seconds)*seconds }
+        return target
     }
     func stop() {
-        generation += 1; delegate.finished = nil; recorder?.stop(); recorder = nil
-        pendingPlayer?.stop(); pendingPlayer = nil; pendingWAV = nil; pendingUndo = false; boundary = nil
-        player?.stop(); player = nil; cleanup(); synchronizedTempo = nil
-        state = hasLoop ? "stopped" : "empty"; message = "Local loop stopped. Play resumes; Clear removes it."
+        generation += 1
+        if let engine { nl_stop(engine) }
+        synchronizedTempo = nil; state = hasLoop ? "stopped" : "empty"
+        message = "Local loop stopped. Play resumes; Clear removes it."
     }
     func clear() {
-        stop(); history.clear(); hasLoop = false; canUndo = false; seconds = 0; state = "empty"
-        onSnapshot?(nil)
+        generation += 1; exportGeneration += 1
+        // Closing only our IOProc guarantees no stale command or snapshot survives Clear.
+        if let engine { nl_close(engine); self.engine = nil }
+        synchronizedTempo = nil; snapshotRevision = 0; observedRevision = 0; exportedRevision = 0; history.clear()
+        hasLoop = false; canUndo = false; seconds = 0; state = "empty"; onSnapshot?(nil)
     }
     func save() {
         guard !saveOpen, let wav = history.current else { return }
@@ -192,10 +161,5 @@ private final class LoopRecorderDelegate: NSObject, AVAudioRecorderDelegate {
             catch { self?.message = error.localizedDescription }
         }
     }
-    private func cleanup() { if let folder { try? FileManager.default.removeItem(at: folder) }; folder = nil }
-    private func fail(_ text: String) {
-        delegate.finished = nil; recorder?.stop(); recorder = nil; cleanup()
-        state = playing ? "playing" : (hasLoop ? "stopped" : "empty"); message = text
-    }
-    func shutdown() { stop(); timer?.invalidate() }
+    func shutdown() { clear(); timer?.invalidate() }
 }

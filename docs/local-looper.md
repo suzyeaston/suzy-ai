@@ -1,53 +1,69 @@
 # Local looper with optional background AI
 
-The original performance loop now belongs to a native `LocalLooper`, independent
-of the Python bridge and model. Start the app, leave AI disconnected or disabled,
-and use Record, Overdub, Undo, Mute, Play, Stop and Clear. For native-only launch,
-run `bash scripts/start-mac-companion.sh --looper-only`; it does not start or require
-the Python bridge/model. Logic continues its
-prepared Live Loops backing. No file export/import is required during playing.
+Play the native looper with AI disconnected or disabled. Logic continues its prepared
+Live Loops backing. Launch without Python or a model:
+
+```bash
+bash scripts/start-mac-companion.sh --looper-only
+```
+
+## Interface setup
+
+Select the **same full-duplex stereo interface** (such as the Focusrite) for macOS
+input and output. Use 44.1 or 48 kHz. The app uses channels 1/2 and requires Float32
+virtual streams; unsupported devices fail visibly. Separate built-in mic/output,
+Bluetooth and aggregate-device arrangements are outside this first implementation.
+The app never changes the device's rate, buffer size or Logic's audio settings.
+
+Monitor live guitar/vocals through the interface or Logic. The looper outputs the
+recorded loop, not live input monitoring. Avoid sending its output back to its input.
 
 ## Playing
 
-- Record captures the selected dry input, up to the configured maximum (8 seconds).
-  Press again to finish in free mode. The captured phrase starts repeating locally
-  before the AI snapshot callback runs. A short file-finalization/playback-start gap
-  remains: this is not yet a sample-accurate, gapless pedal looper.
-- Overdub schedules one complete cycle against the original player's phase. Existing
-  playback continues while the dry input is captured. The take is mixed into the
-  original and queued for a later loop boundary. There can be one extra cycle before
-  the completed overdub becomes audible. Monitor the live input through Logic or the
-  interface; do not route the looper's output back into its own input.
-- Undo removes the last committed overdub, at a loop boundary if playing. Only one
-  undo is kept. Mute changes output level without resetting the loop's phase.
-- Stop silences local and AI playback immediately, before HTTP cleanup. Original audio
-  remains available for Play or Save original. Play resumes with free timing; Clear
-  removes the loop and undo. A cancelled/failed overdub preserves the original.
-- Save original preserves the current local mix; Save AI WAV preserves the optional
-  response. Unsaved loops and the undo buffer are lost when the app exits.
+- **Record:** capture 0.25–8 seconds. Press again to finish in free mode; beat-length
+  recording finishes automatically. The C audio callback starts repeating on the
+  next frame after capture closes, even within the same audio block. No recording
+  file is finalized and no new player is started between these stages.
+- **Overdub:** arm one cycle at the next loop boundary. The existing mix keeps
+  playing while input is written into a spare buffer at compensated loop positions.
+  At cycle completion, pointers swap; the next frame uses the completed mix.
+  Input/output timestamp separation is frozen for that take. The capture window
+  includes the interface's input lead relative to output; play continuously across
+  the boundary. This is not calibration for Logic plug-in or monitoring latency.
+- **Undo:** restore the preceding mix at a loop boundary, or immediately while
+  stopped. One undo is retained. Mute preserves phase.
+- **Stop:** cancel unfinished recording/overdub and silence this app at the next
+  audio callback; accepted local audio remains available. Play resumes with free
+  timing. Clear removes the original and undo, and invalidates pending AI proposals.
+- **Save original:** save the latest exported WAV. Export follows the audio commit
+  asynchronously; wait for the snapshot-ready message before saving a recent take.
+  Unsaved audio is lost on exit. Interface failure preserves only the last export.
 
-Local looping keeps at most the current mix, one undo and a bounded take/pending mix.
-Each is at most eight seconds, mono/stereo PCM16 at 48 kHz. More overdubs do not add
-unbounded tracks. Summing saturates at PCM16 limits; leave input headroom and listen
-for clipping. This is one loop with overdubs, not a bank of independently editable tracks.
+This is one loop with overdubs, not independently editable tracks. Summing saturates
+at +/-1; leave input headroom. No automatic seam crossfade is applied yet, so abrupt
+phrase endpoints can still click even though playback has no file-start gap.
 
 ## Background AI
 
-Enable AI, Connect the bridge, and select deterministic DSP or local model decisions.
-After a committed recording, overdub or undo, an immutable WAV snapshot is offered to
-AI. The original loop keeps playing and all local controls remain available. The AI
-state is displayed separately. Background AI off means no new inference request.
+Enable AI, Connect, and choose deterministic DSP or local-model decisions. Committed
+recordings, overdubs and undo produce immutable WAV snapshots. Audio playback never
+waits for snapshot encoding, HTTP or inference. There is one export worker and one
+bounded snapshot buffer; slower consumers do not accumulate audio jobs.
 
-Only one proposal is active. Changing/clearing the local loop invalidates old results
-and stops any previous AI layer, without stopping the original. The worker is not
-forcibly killed; if it is still occupied, the new proposal can fail visibly instead
-of accumulating queued jobs. Press Request variation after it becomes available.
-No automatic AI fallback is relabelled as a model result.
+A changed source or new variation request cancels unaccepted proposals, **not the
+accepted AI layer**. Turning background AI off stops new requests and invalidates
+proposals while accepted music continues. Use **Remove AI layer** to stop it while
+keeping the original. Stop All and explicit bridge reset also stop the AI layer;
+clock safety handling can stop synchronized playback on transport/clock loss.
 
-Add AI layer schedules the selected variation at the next original-loop boundary.
-It adds a separately controlled layer; it does not overwrite the original or its undo.
-Ignoring a ready proposal has no effect on the original loop. Audition remains shared
-with the audience output and requires acknowledgment; there is no private cue bus.
+Add AI layer schedules the selected variation against the original's phase. It does
+not overwrite the original or its undo. AI playback still uses the existing separate
+AVAudioPlayer path: its replacement uses a UI timer and can overlap during UI stalls.
+It is not yet part of the C render engine. Audition shares the audience output.
+
+Only one proposal is active. An occupied backend can reject a new request visibly;
+Request variation retries when it becomes available. Deterministic DSP is never
+labelled as neural audio generation.
 
 ## Controller mapping
 
@@ -61,30 +77,50 @@ with the audience output and requires acknowledgment; there is no private cue bu
 | 41 | One-cycle overdub |
 | 42 | Undo last overdub |
 | 43 | Mute/unmute original |
-| 44 | Clear original and invalidate AI |
+| 44 | Clear original and invalidate proposals |
 | 45 | Play stopped original |
+| 46 | Remove accepted AI layer |
 
-Letter shortcuts are removed to avoid interfering with musical direction fields.
-Escape remains Stop All. Mouse controls and MIDI work without a bridge connection.
+Escape is Stop All. Mouse controls and MIDI work without a bridge connection.
 
-## Timing and QA gate
+## Implementation and resource bounds
 
-The existing experimental Logic/IAC clock option can schedule the first recording;
-beat lengths and transport handling remain available. However, AVAudioRecorder file
-finalization and AVAudioPlayer startup add an unmeasured gap before the first repeat.
-Subsequent overdubs and AI entries follow the actual original-loop phase, not a claim
-of sample-accurate Logic synchronization. There is no input/output latency compensation
-or continuous drift correction. Replacements stop the old player on a 10 ms UI timer,
-so overlap can be longer if the UI stalls. Hardware listening QA is mandatory.
+`NativeLoop/Loop.c` owns audio state on the CoreAudio IOProc thread. A bounded atomic
+mailbox carries commands; Stop has a separate priority flag. No Swift, heap allocation,
+file I/O, locks or networking runs inside the render callback. Only this app's IOProc
+is started/stopped. Device rate, buffer-size, stream or alive changes cause a visible failure requiring Clear
+and reconnect; the app does not reconfigure the device or stop Logic's IOProc.
 
-1. **No bridge/model:** record, loop, overdub twice, undo, mute/unmute, stop/play, save.
-2. **Slow/offline AI:** repeat all local controls while a request stalls or fails.
-3. **Stale result:** change or clear the source while AI works; no old response may play.
-4. **Failure:** deny mic access or stop mid-overdub; existing audio/undo must survive.
-5. **Timing:** record a click/guitar phrase against Logic, measure first-repeat gap,
-   overdub alignment and 15-minute drift. Test at performance tempo with Focusrite.
-6. **Levels:** repeated overdubs and original+AI layers must not clip the final mix.
+Four preallocated stereo Float32 buffers (current, spare, undo, export) use about
+12.3 MB at the eight-second/48 kHz maximum, plus small I/O scratch arrays. Snapshot
+copying is limited to 4096 frames per callback. One control-thread copy and one
+background WAV encoder add bounded temporary storage. Retained WAVs, AI players,
+Python and model memory are additional; this is not a whole-app memory measurement.
 
-If timing is not musically acceptable, keep Logic's own recording/loop playback as
-the stage looper while improving the native audio engine. Passing CI does not establish
-pedal-quality timing. Do not merge automatically or describe this as hardware-tested.
+The UI timer displays status, invalidates proposals and collects completed exports;
+it does not close recordings, advance playback or commit local overdubs/undo.
+Manual commands take effect on the next audio block. Experimental Logic/IAC scheduling
+still has MIDI delivery jitter and no continuous drift correction. Hardware timestamp
+compensation is implemented, but actual guitar/vocal alignment remains unmeasured.
+
+## QA gate before performance use
+
+Automated C tests exercise within-block first repeat, repeated playback, compensated
+impulses, overdub/undo, cancellation, immutable snapshots, command limits and scheduled
+boundaries with address/undefined-behavior sanitizers. Swift regression tests check
+accepted-layer preservation. CI compilation is not a listening test.
+
+1. At both 44.1/48 kHz, record clicks and real guitar/vocals; measure first-repeat
+   continuity and overdub alignment against Logic. Try the intended buffer size.
+2. With AI off, record, overdub twice, undo, mute, stop/resume and save. Stop midway
+   through an overdub; confirm the original and previous undo survive.
+3. Accept an AI layer, overdub the original, request another variation, disable AI,
+   and clear the original. The accepted layer must continue until explicitly removed.
+4. Stall/stop the bridge while playing. Local controls and accepted music must work.
+5. Deny microphone access, disconnect the interface and change its rate. Confirm a
+   visible error and that Logic's own processing has not been stopped by the app.
+6. Run the full 15 minutes with Logic and, separately, with the local model enabled.
+   Measure drift, peak CPU, memory pressure and clipping in the combined mix.
+
+Keep this change in draft until Mac listening QA is complete. Use Logic's own looping
+for the show if native timing is not musically acceptable.

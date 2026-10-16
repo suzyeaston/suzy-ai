@@ -86,6 +86,7 @@ private final class AudioLoop: LoopPlayer {
                 case 43: self.looper.muted.toggle()
                 case 44: self.looper.clear()
                 case 45: self.looper.play()
+                case 46: self.removeAILayer()
                 default: break
                 }
             }
@@ -157,13 +158,13 @@ private final class AudioLoop: LoopPlayer {
         looper.record(channel: channel, duration: seconds, tempo: tempo,
                       start: syncEnabled ? clock.nextBoundary(at: now, beats: beatsPerBar, lead: 0.3) : nil)
     }
-    func requestBackgroundResponse() { sourceChanged(looper.history.current) }
+    func requestBackgroundResponse() { sourceChanged(looper.currentSnapshot) }
     private func sourceChanged(_ wav: Data?) {
         // Only AI state is invalidated. The local looper never waits for this task.
         epoch += 1; let token = epoch; let oldID = captureID
         captureID = nil; responseAudio = nil; preview?.stop(); preview = nil
-        slot.stop(); pendingBoundary = nil; pendingAudio = nil; pendingTempo = nil; loopTempo = nil
-        loopPlaying = false; phase = "idle"; actionBusy = false
+        slot.cancelPending(); pendingBoundary = nil; pendingAudio = nil; pendingTempo = nil; pendingRevision = nil
+        phase = "idle"; actionBusy = false
         captureTempo = looper.tempo
         let selectedBPM = looper.tempo ?? bpm
         let selectedMode = mode, selectedProvider = provider
@@ -302,6 +303,7 @@ private final class AudioLoop: LoopPlayer {
         }
     }
     func discard() { clear(stopLoop: false, resetRemote: false) }
+    func removeAILayer() { clear(stopLoop: true, resetRemote: false) }
     func stopAll() { looper.stop(); clear(stopLoop: true, resetRemote: false) }
     func resetBridge() { clear(stopLoop: true, resetRemote: true) }
     private func clear(stopLoop: Bool, resetRemote: Bool) {
