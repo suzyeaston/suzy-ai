@@ -84,6 +84,7 @@ private final class RecorderDelegate: NSObject, AVAudioRecorderDelegate {
     func captureOrFinish() {
         if phase == "capturing" { phase = "finalizing"; recorder?.stop(); return }
         guard canCapture else { return }
+        guard bpm.isFinite, (40...240).contains(bpm) else { message = "Use a BPM between 40 and 240."; return }
         epoch += 1
         let token = epoch
         phase = "arming"; elapsed = 0; meter = -60

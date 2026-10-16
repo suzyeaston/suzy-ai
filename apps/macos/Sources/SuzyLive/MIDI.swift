@@ -9,11 +9,15 @@ final class MIDIController {
     private var source = MIDIEndpointRef()
     private let queue = DispatchQueue(label: "ca.suzyeaston.suzylive.midi")
     private var parser = MIDIParser()
+    private let pending = DispatchSemaphore(value: 1)
     var onNote: ((Int, Int) -> Void)?
 
     init() {
         MIDIClientCreateWithBlock("SUZY Live" as CFString, &client, nil)
-        MIDIInputPortCreateWithBlock(client, "Performance controls" as CFString, &port) { [weak self] list, _ in
+        MIDIInputPortCreateWithBlock(client, "Performance controls" as CFString, &port) { [weak self] list, context in
+            guard let self, self.pending.wait(timeout: .now()) == .success else { return }
+            let pending = self.pending
+            let endpoint = UInt32(UInt(bitPattern: context))
             // Copy packet bytes before CoreMIDI releases the list. Parsing/UI work is off its thread.
             let first = UnsafeRawPointer(list).advanced(by: MemoryLayout<MIDIPacketList>.offset(of: \.packet)!)
                 .assumingMemoryBound(to: MIDIPacket.self)
@@ -24,14 +28,18 @@ final class MIDIController {
                     .assumingMemoryBound(to: UInt8.self)
                 let count = Int(packet.pointee.length)
                 // A pathological controller burst is dropped, never allowed to grow without bound.
-                if data.count + count > 4096 { return }
+                if data.count + count > 4096 { pending.signal(); return }
                 data.append(contentsOf: UnsafeBufferPointer(start: bytes, count: count))
                 packet = UnsafePointer(MIDIPacketNext(packet))
             }
-            self?.queue.async { [weak self] in
-                guard let self else { return }
-                for note in self.parser.feed(data) {
-                    DispatchQueue.main.async { [weak self] in self?.onNote?(note.channel, note.note) }
+            let packetData = data
+            self.queue.async { [weak self] in
+                guard let self else { pending.signal(); return }
+                let notes = Array(self.parser.feed(packetData).filter { (36...40).contains($0.note) }.prefix(16))
+                DispatchQueue.main.async { [weak self] in
+                    defer { pending.signal() }
+                    guard let self, self.source == endpoint else { return }
+                    for note in notes { self.onNote?(note.channel, note.note) }
                 }
             }
         }
@@ -48,7 +56,7 @@ final class MIDIController {
         if source != 0 { MIDIPortDisconnectSource(port, source) }
         source = endpoint
         queue.sync { parser = MIDIParser() }
-        if endpoint != 0 { MIDIPortConnectSource(port, endpoint, nil) }
+        if endpoint != 0 { MIDIPortConnectSource(port, endpoint, UnsafeMutableRawPointer(bitPattern: UInt(endpoint))) }
     }
     deinit { MIDIPortDispose(port); MIDIClientDispose(client) }
 }
