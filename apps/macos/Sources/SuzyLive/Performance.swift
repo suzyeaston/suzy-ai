@@ -4,11 +4,6 @@ import SwiftUI
 import CompanionCore
 import UniformTypeIdentifiers
 
-private final class RecorderDelegate: NSObject, AVAudioRecorderDelegate {
-    var finished: ((Bool) -> Void)?
-    func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) { finished?(flag) }
-    func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: Error?) { finished?(false) }
-}
 private final class AudioLoop: LoopPlayer {
     let player: AVAudioPlayer
     init(_ player: AVAudioPlayer) { self.player = player }
@@ -17,6 +12,8 @@ private final class AudioLoop: LoopPlayer {
 }
 
 @MainActor final class Performance: ObservableObject {
+    let looper = LocalLooper()
+    @Published var backgroundAI = true { didSet { if !backgroundAI { sourceChanged(nil) } } }
     @Published var phase = "idle"
     @Published var message = "Select Focusrite as macOS input/output, then Connect. Audition shares the audience output."
     @Published var bpm = 120.0
@@ -51,14 +48,11 @@ private final class AudioLoop: LoopPlayer {
     private let midi = MIDIController()
     private let clockInput = MIDIController()
     private var clock = MIDIClock()
-    private var recorder: AVAudioRecorder?
-    private let recorderDelegate = RecorderDelegate()
     private var preview: AVAudioPlayer?
     private let slot = PlaybackSlot()
     private var responseAudio: Data?
     private var acceptedAudio: Data?
     private var captureID: String?
-    private var folder: URL?
     private var epoch = 0
     private var timer: Timer?
     private var ticks = 0
@@ -68,13 +62,13 @@ private final class AudioLoop: LoopPlayer {
     private var pendingRevision: Int?
     private var pendingAudio: Data?
     private var pendingTempo: Double?
-    private var recorderStart: Double?
 
     var canCapture: Bool { connected && !actionBusy && ["idle", "accepted", "failed"].contains(phase) }
     var canRespond: Bool { !actionBusy && ["ready", "auditioning"].contains(phase) }
     var canSave: Bool { !savePanelOpen && !actionBusy && (canRespond || responseAudio != nil || acceptedAudio != nil) }
 
     init() {
+        looper.onSnapshot = { [weak self] wav in self?.sourceChanged(wav) }
         refreshMIDI()
         midi.onEvents = { [weak self] events, overflow in
             guard let self else { return }
@@ -87,6 +81,11 @@ private final class AudioLoop: LoopPlayer {
                 case 38: self.accept()
                 case 39: self.stopAll()
                 case 40: self.discard()
+                case 41: self.looper.overdub()
+                case 42: self.looper.undo()
+                case 43: self.looper.muted.toggle()
+                case 44: self.looper.clear()
+                case 45: self.looper.play()
                 default: break
                 }
             }
@@ -100,9 +99,10 @@ private final class AudioLoop: LoopPlayer {
                 if self.syncEnabled && self.clock.revision != revision { self.cancelSynchronized("Logic transport changed; synchronized capture/playback stopped.") }
             }
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
+        if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
     private func tick() {
         midi.drain(); clockInput.drain()
@@ -112,7 +112,7 @@ private final class AudioLoop: LoopPlayer {
             let locked = clock.locked(at: now)
             if ticks % 5 == 0 { clockLabel = locked ? String(format: "Logic clock %.1f BPM", clock.bpm ?? 0) : "Waiting for Logic Start + clock" }
             if !locked { cancelSynchronized("Logic clock lost: synchronized capture/playback stopped.") }
-            if let tempo = pendingTempo ?? loopTempo ?? (recorder != nil ? captureTempo : nil), let current = clock.bpm, abs(current-tempo)/tempo > 0.01 {
+            if let tempo = pendingTempo ?? loopTempo ?? looper.tempo, let current = clock.bpm, abs(current-tempo)/tempo > 0.01 {
                 cancelSynchronized("Tempo changed. Capture a new phrase at the new tempo.")
             }
         } else if ticks % 5 == 0 { clockLabel = "Free timing" }
@@ -124,19 +124,15 @@ private final class AudioLoop: LoopPlayer {
             loopPlaying = true; phase = "accepted"; actionBusy = false
             message = "Response looping. Capture another phrase when ready."
         }
-        if let start = recorderStart, now >= start, phase == "queued capture" { phase = "capturing"; recorderStart = nil }
-        if ticks % 5 == 0, let recorder, recorder.isRecording {
-            recorder.updateMeters(); meter = recorder.averagePower(forChannel: channel == 1 ? 1 : 0)
-            elapsed = recorder.currentTime
-        }
     }
+
     private func invalidateClock() {
         cancelSynchronized("Clock source/mode changed; synchronized audio stopped.")
         clock = MIDIClock()
     }
     private func cancelSynchronized(_ reason: String) {
         let recording = captureTempo != nil && ["arming", "queued capture", "capturing", "finalizing"].contains(phase)
-        if recording || pendingBoundary != nil || loopTempo != nil {
+        if recording || pendingBoundary != nil || loopTempo != nil || (looper.isSynchronized && (looper.playing || looper.busy)) {
             stopAll(); message = reason
         }
     }
@@ -151,68 +147,42 @@ private final class AudioLoop: LoopPlayer {
         }
     }
     func captureOrFinish() {
-        if phase == "capturing" {
-            if captureTempo != nil { message = "Musical capture finishes at its selected beat length. Stop cancels it."; return }
-            phase = "finalizing"; recorder?.stop(); return
+        if looper.state == "recording" {
+            looper.record(channel: channel, duration: duration, tempo: nil, start: nil); return
         }
-        guard canCapture else { return }
         let now = MIDIController.now
-        if syncEnabled && !clock.locked(at: now) { message = "Select Logic's IAC clock source, then start Logic and wait for clock lock."; return }
-        let selectedBPM = syncEnabled ? (clock.bpm ?? bpm) : bpm
-        guard selectedBPM.isFinite, (40...240).contains(selectedBPM) else { message = "Use 40–240 BPM."; return }
-        let selectedDuration = syncEnabled ? Double(captureBeats)*60/selectedBPM : duration
-        guard selectedDuration >= 0.25, selectedDuration <= 8 else { message = "Choose fewer beats: each phrase must fit within eight seconds."; return }
-        epoch += 1; let token = epoch
-        captureTempo = syncEnabled ? selectedBPM : nil
-        let synchronized = syncEnabled
-        phase = "arming"; elapsed = 0; meter = -60
-        preview?.stop(); preview = nil; responseAudio = nil
-        let selectedChannel = channel, selectedMode = mode, selectedProvider = provider
-        let selectedSection = String(section.prefix(64)), selectedKey = String(musicalKey.prefix(24)), instruction = String(direction.prefix(500))
+        if syncEnabled && !clock.locked(at: now) { looper.message = "Start Logic and wait for its clock before recording."; return }
+        let tempo = syncEnabled ? clock.bpm : nil
+        let seconds = tempo.map { Double(captureBeats)*60/$0 } ?? duration
+        looper.record(channel: channel, duration: seconds, tempo: tempo,
+                      start: syncEnabled ? clock.nextBoundary(at: now, beats: beatsPerBar, lead: 0.3) : nil)
+    }
+    func requestBackgroundResponse() { sourceChanged(looper.history.current) }
+    private func sourceChanged(_ wav: Data?) {
+        // Only AI state is invalidated. The local looper never waits for this task.
+        epoch += 1; let token = epoch; let oldID = captureID
+        captureID = nil; responseAudio = nil; preview?.stop(); preview = nil
+        slot.stop(); pendingBoundary = nil; pendingAudio = nil; pendingTempo = nil; loopTempo = nil
+        loopPlaying = false; phase = "idle"; actionBusy = false
+        captureTempo = looper.tempo
+        let selectedBPM = looper.tempo ?? bpm
+        let selectedMode = mode, selectedProvider = provider
+        let selectedSection = String(section.prefix(64)), key = String(musicalKey.prefix(24)), instruction = String(direction.prefix(500))
+        let enabled = backgroundAI && connected && wav != nil
+        message = enabled ? "Original loop playing; preparing a background variation." : "Local looper is independent. Connect/enable AI and request a variation when wanted."
+        if enabled { phase = "processing" }
         Task {
-            let allowed = await AVCaptureDevice.requestAccess(for: .audio)
-            guard token == epoch else { return }
-            guard allowed else { fail("Allow microphone access in System Settings → Privacy & Security."); return }
+            if let oldID { try? await bridge.action(id: oldID, name: "discard") }
+            guard token == epoch, enabled, let wav else { return }
             do {
-                let root = FileManager.default.temporaryDirectory.appendingPathComponent("suzy-live-\(UUID().uuidString)", isDirectory: true)
-                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-                folder = root; let url = root.appendingPathComponent("capture.wav")
-                let settings: [String: Any] = [AVFormatIDKey:kAudioFormatLinearPCM, AVSampleRateKey:48000, AVNumberOfChannelsKey:2,
-                    AVLinearPCMBitDepthKey:16, AVLinearPCMIsFloatKey:false, AVLinearPCMIsBigEndianKey:false, AVLinearPCMIsNonInterleaved:false]
-                let rec = try AVAudioRecorder(url: url, settings: settings)
-                rec.delegate = recorderDelegate; rec.isMeteringEnabled = true
-                recorderDelegate.finished = { [weak self] success in
-                    Task { @MainActor [weak self] in
-                        guard let self, token == self.epoch, ["queued capture", "capturing", "finalizing"].contains(self.phase) else { return }
-                        self.recorder = nil; self.recorderStart = nil
-                        guard success else { self.fail("Audio capture failed."); return }
-                        self.phase = "processing"
-                        await self.sendCapture(url, channel: selectedChannel, mode: selectedMode, provider: selectedProvider,
-                            bpm: selectedBPM, frames: synchronized ? Int((selectedDuration*48000).rounded()) : nil,
-                            section: selectedSection, key: selectedKey, instruction: instruction, token: token)
-                    }
-                }
-                recorder = rec
-                if synchronized {
-                    guard rec.prepareToRecord() else { throw CompanionError.invalid("Input could not prepare.") }
-                    let now = MIDIController.now
-                    guard let target = clock.nextBoundary(at: now, beats: beatsPerBar) else { throw CompanionError.invalid("Clock unavailable or input could not prepare.") }
-                    guard rec.record(atTime: rec.deviceCurrentTime + target-now, forDuration: selectedDuration) else { throw CompanionError.invalid("Could not schedule capture.") }
-                    recorderStart = target; phase = "queued capture"
-                    message = "Capture queued for next bar; \(captureBeats) beats."
-                } else {
-                    guard rec.record(forDuration: selectedDuration) else { throw CompanionError.invalid("Could not start recorder.") }
-                    phase = "capturing"; message = "Capturing dry input. Press Capture to finish."
-                }
+                let pcm = try PCM(wav: wav)
+                await sendCapture(pcm, mode: selectedMode, provider: selectedProvider, bpm: selectedBPM,
+                                  section: selectedSection, key: key, instruction: instruction, token: token)
             } catch { if token == epoch { fail(error.localizedDescription) } }
         }
     }
-    private func sendCapture(_ url: URL, channel: Int, mode: String, provider: String, bpm: Double, frames: Int?, section: String, key: String, instruction: String, token: Int) async {
+    private func sendCapture(_ pcm: PCM, mode: String, provider: String, bpm: Double, section: String, key: String, instruction: String, token: Int) async {
         do {
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= 2_000_000 else { throw CompanionError.invalid("Recording exceeds capture limit.") }
-            let pcm = try PCM(wav: Data(contentsOf: url), channel: channel == 2 ? nil : channel, targetFrames: frames)
-            cleanupRecording()
             let id = try await bridge.arm(rate: pcm.rate, channels: pcm.channels, bpm: bpm, mode: mode, provider: provider, section: section, key: key, instruction: instruction)
             guard token == epoch else { try? await bridge.action(id: id, name: "discard"); return }
             captureID = id
@@ -228,7 +198,7 @@ private final class AudioLoop: LoopPlayer {
                 guard token == epoch else { return }
                 guard status.id == id else { throw CompanionError.invalid("Bridge phrase changed in another client.") }
                 if status.state == "ready" {
-                    phase = "ready"; message = "Response ready · \(status.response?.provider ?? "unknown"). Save, audition on shared output, or bring in."; return
+                    phase = "ready"; message = "Original loop continues. Response ready · \(status.response?.provider ?? "unknown"). Save, audition on shared output, or bring in."; return
                 }
                 if status.state == "failed" { throw CompanionError.invalid(status.error ?? "Response failed.") }
                 try await Task.sleep(nanoseconds: 200_000_000)
@@ -283,17 +253,16 @@ private final class AudioLoop: LoopPlayer {
                 try await bridge.action(id: id, name: "accept")
                 guard token == epoch else { return }
                 let wrapped = AudioLoop(player)
-                if syncEnabled {
-                    let now = MIDIController.now
-                    guard let target = clock.nextBoundary(at: now, beats: beatsPerBar) else { throw CompanionError.invalid("Clock lost before launch. Retry when locked.") }
-                    guard slot.stage(wrapped, at: player.deviceCurrentTime + target-now) else { throw CompanionError.invalid("Scheduling failed; old loop preserved.") }
-                    pendingBoundary = target; pendingRevision = clock.revision; pendingAudio = data; pendingTempo = captureTempo
-                    phase = "queued launch"; message = "Response queued for next bar. Stop cancels it."
-                } else {
-                    guard slot.replace(with: wrapped) else { throw CompanionError.invalid("Playback failed; old loop preserved. Retry Bring in.") }
-                    acceptedAudio = data; loopTempo = nil; loopPlaying = true; phase = "accepted"
-                    message = "Response looping with free timing."
+                let now = MIDIController.now
+                guard let target = looper.nextBoundary(lead: 0.15) else {
+                    throw CompanionError.invalid("Play the original loop before bringing in its variation.")
                 }
+                guard slot.stage(wrapped, at: player.deviceCurrentTime + target-now) else {
+                    throw CompanionError.invalid("Scheduling failed; original loop is unchanged.")
+                }
+                pendingBoundary = target; pendingRevision = clock.revision; pendingAudio = data
+                pendingTempo = syncEnabled ? captureTempo : nil
+                phase = "queued launch"; message = "AI layer queued at the next original-loop boundary."
                 preview?.stop(); preview = nil
             } catch { if token == epoch { phase = "auditioning"; message = error.localizedDescription } }
             if token == epoch && pendingBoundary == nil { actionBusy = false }
@@ -333,15 +302,14 @@ private final class AudioLoop: LoopPlayer {
         }
     }
     func discard() { clear(stopLoop: false, resetRemote: false) }
-    func stopAll() { clear(stopLoop: true, resetRemote: false) }
+    func stopAll() { looper.stop(); clear(stopLoop: true, resetRemote: false) }
     func resetBridge() { clear(stopLoop: true, resetRemote: true) }
     private func clear(stopLoop: Bool, resetRemote: Bool) {
         epoch += 1; let token = epoch
-        recorderDelegate.finished = nil; recorder?.stop(); recorder = nil; recorderStart = nil
         preview?.stop(); preview = nil; responseAudio = nil
         slot.cancelPending(); pendingBoundary = nil; pendingAudio = nil; pendingTempo = nil; pendingRevision = nil
         if stopLoop { slot.stop(); loopPlaying = false; loopTempo = nil }
-        cleanupRecording(); captureTempo = nil
+        captureTempo = nil
         let oldID = captureID; captureID = nil; phase = "stopping"; actionBusy = true
         Task {
             do {
@@ -354,15 +322,11 @@ private final class AudioLoop: LoopPlayer {
             if token == epoch { phase = "idle"; actionBusy = false }
         }
     }
-    private func cleanupRecording() {
-        if let folder { try? FileManager.default.removeItem(at: folder) }; folder = nil
-    }
     private func fail(_ text: String) {
-        recorderDelegate.finished = nil; recorder?.stop(); recorder = nil; recorderStart = nil
-        cleanupRecording(); phase = "failed"; actionBusy = false; message = text
+        phase = "failed"; actionBusy = false
+        message = "AI response unavailable; local loop unchanged. " + text
     }
     func shutdown() {
-        epoch += 1; recorderDelegate.finished = nil; recorder?.stop(); preview?.stop(); slot.stop()
-        cleanupRecording(); timer?.invalidate()
+        epoch += 1; preview?.stop(); slot.stop(); looper.shutdown(); timer?.invalidate()
     }
 }

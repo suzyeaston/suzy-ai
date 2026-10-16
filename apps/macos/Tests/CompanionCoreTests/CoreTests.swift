@@ -137,3 +137,43 @@ final class PerformanceSafetyTests: XCTestCase {
         XCTAssertThrowsError(try PCM(wav: wav(frames: 48000), targetFrames: 0))
     }
 }
+
+final class LocalLoopTests: XCTestCase {
+    func testOriginalRoundTripsWithoutAIOrBackend() throws {
+        let source = try PCM(wav: wav(frames: 48000))
+        let output = try PCM(wav: LoopAudio.wav(source))
+        XCTAssertEqual(source.data,output.data)
+        XCTAssertEqual(output.seconds,1)
+    }
+    func testOverdubPreservesLengthAndAddsTheTake() throws {
+        let source = try PCM(wav: wav(frames: 48000))
+        let mixed = try LoopAudio.overdub(base: source, take: source)
+        XCTAssertEqual(mixed.data.count,source.data.count)
+        let offset = 24000 * 4
+        XCTAssertEqual(Array(mixed.data[offset..<offset+4]),[208,7,160,15])
+        XCTAssertEqual(Array(mixed.data.prefix(4)),Array(source.data.prefix(4)))
+        XCTAssertThrowsError(try LoopAudio.overdub(base: source, take: PCM(wav: wav(frames:24000))))
+    }
+    func testUndoAndSnapshotsRemainIndependentOfLaterEdits() {
+        var history = LoopHistory()
+        history.commit(Data([1]))
+        let aiSnapshot = history.current
+        history.commit(Data([2]))
+        XCTAssertEqual(aiSnapshot,Data([1]))
+        XCTAssertEqual(history.current,Data([2]))
+        XCTAssertEqual(history.undo(),Data([1]))
+        XCTAssertNil(history.previous)
+        XCTAssertNil(history.undo())
+        history.clear()
+        XCTAssertNil(history.current)
+        XCTAssertEqual(aiSnapshot,Data([1]))
+    }
+    func testHistoryRetainsOnlyOneUndoAcrossManyOverdubs() {
+        var history = LoopHistory()
+        for i in 0..<100 { history.commit(Data([UInt8(i)])) }
+        XCTAssertEqual(history.current,Data([99]))
+        XCTAssertEqual(history.previous,Data([98]))
+        XCTAssertEqual(history.undo(),Data([98]))
+        XCTAssertNil(history.undo())
+    }
+}
