@@ -24,14 +24,14 @@ try:
     c=http.client.HTTPConnection('127.0.0.1',7333,timeout=2)
     c.request('GET','/health'); r=c.getresponse(); raw=r.read(4097)
     p=json.loads(raw) if len(raw)<=4096 else {}
-    print('ready' if r.status==200 and p.get('experimental') is True and p.get('audio_device_access') is False else 'occupied')
+    print('ready' if r.status==200 and p.get('experimental') is True and p.get('audio_device_access') is False and p.get('protocol_version') == 2 else 'occupied')
 except ConnectionRefusedError:
     print('free')
 except Exception:
     print('occupied')
 PY
 )"
-if [[ "$STATE" == occupied ]]; then echo 'Port 7333 is occupied by an unrecognized service. Nothing was stopped.' >&2; exit 1; fi
+if [[ "$STATE" == occupied ]]; then echo 'Port 7333 has an old bridge or another service. Quit the old companion/bridge and retry. Nothing was stopped.' >&2; exit 1; fi
 if [[ "$STATE" == free ]]; then
   "$PYTHON" -m suzy_ai.music.server --port 7333 &
   BRIDGE_PID=$!

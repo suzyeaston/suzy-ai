@@ -31,24 +31,29 @@ class LiveSession:
         self._error = None
         self._config = None
         self._sequence = 0
+        self._history = []
 
     def status(self):
         with self._lock:
             return self._status()
 
     def _status(self):
-        return {'id': self._id, 'state': self._state,
+        return {'protocol_version': 2, 'id': self._id, 'state': self._state,
                 'busy': self._worker is not None and self._worker.is_alive(),
                 'captured_bytes': len(self._pcm), 'next_sequence': self._sequence,
-                'error': self._error, 'response': copy.deepcopy(self._manifest)}
+                'error': self._error, 'response': copy.deepcopy(self._manifest),
+                'performance_context': copy.deepcopy(self._history)}
 
     def arm(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction'}:
+        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction', 'section', 'key'}:
             raise ValueError('unsupported capture fields')
         rate, channels = payload.get('sample_rate'), payload.get('channels')
         bpm, mode = payload.get('bpm'), payload.get('mode')
         provider = payload.get('provider', 'deterministic')
         instruction = payload.get('instruction', '')
+        section, key = payload.get('section', ''), payload.get('key', '')
+        if not isinstance(section, str) or len(section) > 64 or not isinstance(key, str) or len(key) > 24:
+            raise ValueError('section/key exceed text limits')
         if type(rate) is not int or rate not in (44100, 48000) or type(channels) is not int or channels not in (1, 2):
             raise ValueError('use 44100/48000 Hz and one or two channels')
         if type(bpm) not in (int, float) or not math.isfinite(bpm) or not 40 <= bpm <= 240:
@@ -62,7 +67,8 @@ class LiveSession:
                 raise Conflict('finish or discard the current phrase; wait for any worker to exit')
             self._id = uuid.uuid4().hex
             self._config = dict(sample_rate=rate, channels=channels, bpm=bpm, mode=mode,
-                                provider=provider, instruction=instruction)
+                                provider=provider, instruction=instruction, section=section, key=key,
+                                performance_context=copy.deepcopy(self._history))
             self._pcm = bytearray()
             self._sequence = 0
             self._wav = self._manifest = self._error = None
@@ -115,7 +121,8 @@ class LiveSession:
             manifest = {'schema_version': '0.1', 'source_sha256': hashlib.sha256(pcm).hexdigest(),
                         'features': features, 'mode': config['mode'], 'provider': config['provider'],
                         'model': model, 'plan': plan, 'rendering': 'deterministic-source-audio-dsp',
-                        'neural_audio_generation': False, 'elapsed_seconds': time.monotonic() - started}
+                        'neural_audio_generation': False, 'section': config['section'], 'key_supplied': config['key'],
+                        'context_used': config['performance_context'], 'elapsed_seconds': time.monotonic() - started}
             with self._lock:
                 if capture_id == self._id and self._state == 'processing':
                     self._wav, self._manifest, self._state = wav, manifest, 'ready'
@@ -127,8 +134,8 @@ class LiveSession:
                     self._state = 'failed'
 
     def action(self, capture_id, action):
-        allowed = {'audition': ('ready',), 'stop-audition': ('auditioning',),
-                   'accept': ('ready', 'auditioning'),
+        allowed = {'audition': ('ready', 'auditioning'), 'stop-audition': ('auditioning',),
+                   'accept': ('ready', 'auditioning', 'accepted'),
                    'discard': ('capturing', 'processing', 'ready', 'auditioning', 'accepted', 'failed')}
         targets = {'audition': 'auditioning', 'stop-audition': 'ready',
                    'accept': 'accepted', 'discard': 'discarded'}
@@ -136,6 +143,14 @@ class LiveSession:
             raise ValueError('unknown response action')
         with self._lock:
             self._check(capture_id, allowed[action])
+            if action == 'accept' and self._state != 'accepted':
+                entries = self._manifest['plan']['slices']
+                self._history.append({'mode': self._manifest['mode'], 'section': self._config['section'],
+                    'key_supplied': self._config['key'], 'bpm': self._config['bpm'],
+                    'slice_order': [e['index'] for e in entries],
+                    'reversed_slices': sum(e['reverse'] for e in entries),
+                    'pitch_class_counts': self._manifest['features']['musical']['pitch_class_counts']})
+                self._history = self._history[-4:]
             self._state = targets[action]
             if action == 'discard':
                 self._pcm.clear()
@@ -146,3 +161,8 @@ class LiveSession:
         with self._lock:
             self._check(capture_id, ('auditioning', 'accepted'))
             return self._wav
+
+    def reset_context(self):
+        with self._lock:
+            self._history.clear()
+            return self._status()

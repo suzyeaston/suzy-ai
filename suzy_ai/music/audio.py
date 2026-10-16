@@ -4,6 +4,7 @@ import io
 import math
 import sys
 import wave
+from .analysis import musical_features
 
 MAX_SECONDS = 8
 MAX_CHUNK = 65536
@@ -30,7 +31,8 @@ def describe(pcm: bytes, rate: int, channels: int, bpm: float) -> dict:
                        'frames': len(segment) // channels, 'rms': round(rms, 5)})
     return {'sample_rate': rate, 'channels': channels, 'frames': frames,
             'duration_seconds': frames / rate, 'bpm_supplied': bpm,
-            'peak': max(abs(v) for v in samples) / 32768, 'slices': slices}
+            'peak': max(abs(v) for v in samples) / 32768, 'slices': slices,
+            'musical': musical_features(samples, rate, channels)}
 
 
 def validate_plan(plan: object, count: int) -> dict:

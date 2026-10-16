@@ -24,7 +24,7 @@ class LiveHandler(Handler):
     def _get(self):
         parts = urlparse(self.path).path.strip('/').split('/')
         if parts == ['health']:
-            self._json({'ok': True, 'experimental': True, 'audio_device_access': False})
+            self._json({'ok': True, 'experimental': True, 'audio_device_access': False, 'protocol_version': 2})
         elif parts == ['v1', 'live']:
             self._json(self.session.status())
         elif len(parts) == 4 and parts[:2] == ['v1', 'live'] and parts[3] == 'audio.wav':
@@ -36,7 +36,11 @@ class LiveHandler(Handler):
 
     def _post(self):
         parts = urlparse(self.path).path.strip('/').split('/')
-        if parts == ['v1', 'live', 'capture']:
+        if parts == ['v1', 'live', 'context', 'reset']:
+            if self._body() != {}:
+                raise ValueError('reset requires an empty object')
+            self._json(self.session.reset_context())
+        elif parts == ['v1', 'live', 'capture']:
             self._json(self.session.arm(self._body()), 201)
         elif len(parts) == 5 and parts[:2] == ['v1', 'live'] and parts[3] == 'chunks':
             self._discard_input = True

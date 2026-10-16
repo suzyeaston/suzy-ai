@@ -1,7 +1,6 @@
 import XCTest
 @testable import CompanionCore
 
-final class CoreTests: XCTestCase {
     func wav(channels: Int = 2, frames: Int = 12000, junk: Bool = false) -> Data {
         var body = Data()
         func le(_ value: Int, _ count: Int) -> Data {
@@ -17,6 +16,7 @@ final class CoreTests: XCTestCase {
         var result = Data("RIFF".utf8); result.append(le(body.count,4)); result.append(body)
         return result
     }
+final class CoreTests: XCTestCase {
     func testPCMChannelSelectionAndExtraChunks() throws {
         let audio = try PCM(wav: wav(junk: true), channel: 1)
         XCTAssertEqual(audio.rate,48000); XCTAssertEqual(audio.channels,1)
@@ -50,5 +50,90 @@ final class CoreTests: XCTestCase {
         """.utf8)
         let status = try JSONDecoder().decode(LiveStatus.self, from: json)
         XCTAssertEqual(status.state,"ready"); XCTAssertEqual(status.response?.provider,"model")
+    }
+}
+
+final class PerformanceSafetyTests: XCTestCase {
+    final class Player: LoopPlayer {
+        var succeeds = true
+        var stopped = false
+        var startTime: Double?
+        func start(at time: Double?) -> Bool { startTime = time; return succeeds }
+        func stop() { stopped = true }
+    }
+    func testFailedReplacementKeepsExistingLoopAndRetryWorks() {
+        let slot = PlaybackSlot(), old = Player(), next = Player()
+        XCTAssertTrue(slot.replace(with: old))
+        next.succeeds = false
+        XCTAssertFalse(slot.replace(with: next))
+        XCTAssertFalse(old.stopped)
+        XCTAssertTrue(slot.current === old)
+        next.succeeds = true
+        XCTAssertTrue(slot.replace(with: next))
+        XCTAssertTrue(old.stopped)
+        XCTAssertTrue(slot.current === next)
+    }
+    func testScheduledReplacementCanBeCancelledWithoutStoppingOldLoop() {
+        let slot = PlaybackSlot(), old = Player(), next = Player()
+        XCTAssertTrue(slot.replace(with: old))
+        XCTAssertTrue(slot.stage(next, at: 10))
+        XCTAssertEqual(next.startTime,10)
+        XCTAssertFalse(old.stopped)
+        slot.cancelPending()
+        XCTAssertTrue(next.stopped)
+        XCTAssertFalse(old.stopped)
+        let retry = Player()
+        XCTAssertTrue(slot.stage(retry, at: 20)); slot.commit()
+        XCTAssertTrue(old.stopped); XCTAssertTrue(slot.current === retry)
+        slot.stop(); XCTAssertTrue(retry.stopped)
+    }
+    func testInboxPreservesFragmentsAndStopAcrossQueuedBatches() {
+        var inbox = MIDIInbox()
+        inbox.push([0x9F,36], at: 1)
+        inbox.push([100,0xFC], at: 2)
+        let batch = inbox.drain()
+        XCTAssertFalse(batch.overflow)
+        XCTAssertEqual(batch.events.map(\.event), [.note(channel:16,note:36),.stop])
+    }
+    func testInboxOverflowExplicitlyInvalidatesRunningStatus() {
+        var inbox = MIDIInbox()
+        inbox.push([0x9F,36], at: 1)
+        inbox.push(Array(repeating: 0xF8, count: 257), at: 2)
+        let batch = inbox.drain()
+        XCTAssertTrue(batch.overflow); XCTAssertTrue(batch.events.isEmpty)
+        inbox.push([100,39,127], at: 3)
+        XCTAssertTrue(inbox.drain().events.isEmpty)
+        inbox.push([0x9F,39,127], at: 4)
+        XCTAssertEqual(inbox.drain().events.map(\.event), [.note(channel:16,note:39)])
+    }
+    func testClockTracksPositionBarBoundaryAndLoss() throws {
+        var clock = MIDIClock()
+        clock.receive(.start, at: 10)
+        for tick in 0...48 { clock.receive(.clock, at: 10+Double(tick)/48) }
+        XCTAssertEqual(try XCTUnwrap(clock.bpm),120,accuracy:0.001)
+        XCTAssertTrue(clock.locked(at:11))
+        XCTAssertEqual(try XCTUnwrap(clock.nextBoundary(at:11,beats:4)),12,accuracy:0.001)
+        XCTAssertFalse(clock.locked(at:11.6))
+        XCTAssertNil(clock.nextBoundary(at:11.6,beats:4))
+        let revision = clock.revision
+        clock.receive(.position(32),at:12)
+        XCTAssertGreaterThan(clock.revision,revision)
+        clock.receive(.resume,at:12)
+        for tick in 0...24 { clock.receive(.clock,at:12+Double(tick)/48) }
+        XCTAssertEqual(try XCTUnwrap(clock.nextBoundary(at:12.5,beats:4)),14,accuracy:0.001)
+        clock.receive(.stop,at:13)
+        XCTAssertNil(clock.nextBoundary(at:13,beats:4))
+    }
+    func testRealtimeDoesNotBreakSongPositionMessage() {
+        var parser = MIDIParser()
+        XCTAssertEqual(parser.feedEvents([0xF2,8,0xF8,1,0xFB]), [.clock,.position(136),.resume])
+    }
+    func testMusicalLengthTrimsRecorderTailButRejectsBadLength() throws {
+        let pcm = try PCM(wav: wav(frames: 48010), targetFrames: 48000)
+        XCTAssertEqual(pcm.seconds,1)
+        let padded = try PCM(wav: wav(frames: 47990), targetFrames: 48000)
+        XCTAssertEqual(padded.seconds,1)
+        XCTAssertThrowsError(try PCM(wav: wav(frames: 40000), targetFrames: 48000))
+        XCTAssertThrowsError(try PCM(wav: wav(frames: 48000), targetFrames: 0))
     }
 }

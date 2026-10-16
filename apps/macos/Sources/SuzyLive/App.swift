@@ -20,7 +20,9 @@ import AppKit
 private struct CompanionView: View {
     @ObservedObject var model: Performance
     @State private var confirmReset = false
+    @FocusState private var editing: Bool
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
                 VStack(alignment: .leading) {
@@ -43,9 +45,29 @@ private struct CompanionView: View {
                 }
             }.disabled(!model.canCapture)
             HStack {
-                Text("BPM")
-                TextField("120", value: $model.bpm, format: .number).frame(width: 65)
-                Picker("Capture", selection: $model.duration) {
+                TextField("Section (e.g. opening)", text: $model.section).focused($editing)
+                TextField("Key, if known", text: $model.musicalKey).focused($editing).frame(width: 130)
+                Button("Clear musical history", action: model.resetMusicalContext)
+            }.disabled(!model.canCapture)
+            TextField("Direction (e.g. sparse, leave room for my voice)", text: $model.direction).focused($editing).disabled(!model.canCapture)
+            HStack {
+                Toggle("Follow Logic clock (experimental)", isOn: $model.syncEnabled)
+                Picker("Clock input", selection: $model.clockSource) {
+                    Text("Off").tag(UInt32(0))
+                    ForEach(model.midiSources) { source in Text(source.name).tag(source.id) }
+                }
+                Text(model.clockLabel).font(.caption)
+            }.disabled(!model.canCapture)
+            HStack {
+                Stepper("\(model.beatsPerBar) quarter-note beats / bar", value: $model.beatsPerBar, in: 1...8)
+                Picker("Musical capture", selection: $model.captureBeats) {
+                    ForEach([1,2,4,8], id: \.self) { Text("\($0) beats").tag($0) }
+                }
+            }.disabled(!model.canCapture || !model.syncEnabled)
+            HStack {
+                Text("Free BPM")
+                TextField("120", value: $model.bpm, format: .number).focused($editing).frame(width: 65)
+                Picker("Free capture", selection: $model.duration) {
                     Text("2 sec").tag(2.0); Text("4 sec").tag(4.0)
                     Text("6 sec").tag(6.0); Text("7.5 sec").tag(7.5)
                 }
@@ -57,13 +79,16 @@ private struct CompanionView: View {
                 ProgressView(value: Double(max(-60, min(0, model.meter)) + 60), total: 60)
                 Text(String(format: "%.1f sec", model.elapsed)).monospacedDigit().frame(width: 65)
             }
+            Toggle("I understand audition uses the SAME output as the audience (no private cue)", isOn: $model.auditionAcknowledged)
+                .font(.caption).foregroundStyle(.orange)
             HStack(spacing: 12) {
                 Button(model.phase == "capturing" ? "Finish capture" : "Capture", action: model.captureOrFinish)
-                    .keyboardShortcut("c", modifiers: [])
+                    .keyboardShortcut(editing ? nil : KeyboardShortcut("c", modifiers: []))
                     .disabled(!model.canCapture && model.phase != "capturing")
-                Button("Audition", action: model.audition).keyboardShortcut("a", modifiers: []).disabled(!model.canRespond)
-                Button("Bring in / loop", action: model.accept).keyboardShortcut("b", modifiers: []).disabled(!model.canRespond)
+                Button("Audition (shared)", action: model.audition).keyboardShortcut(editing ? nil : KeyboardShortcut("a", modifiers: [])).disabled(!model.canRespond)
+                Button("Bring in / loop", action: model.accept).keyboardShortcut(editing ? nil : KeyboardShortcut("b", modifiers: [])).disabled(!model.canRespond)
                 Button("Discard", action: model.discard).disabled(model.phase == "idle" || model.phase == "stopping")
+                Button("Save WAV", action: model.saveResponse).disabled(!model.canSave)
                 Spacer()
                 Button("STOP ALL", action: model.stopAll).keyboardShortcut(.escape, modifiers: []).tint(.red)
             }.controlSize(.large)
@@ -86,13 +111,14 @@ private struct CompanionView: View {
             Text(model.message).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .padding(12).background(.quaternary).cornerRadius(8)
             HStack(alignment: .top) {
-                Text("Dry system input → source-audio response. Playback uses system output.\nManual launch: not bar-synchronized, not inserted into Logic Live Loops.")
+                Text("Dry system input → source-audio response. Playback uses system output.\nFree or experimental MIDI-clock launch. Not inserted into Logic Live Loops.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Reset bridge…") { confirmReset = true }
             }
         }
-        .padding(24).frame(minWidth: 780, minHeight: 570)
+        .padding(24)
+        }.frame(minWidth: 1000, minHeight: 650)
         .preferredColorScheme(.dark)
         .alert("Discard the bridge's current phrase?", isPresented: $confirmReset) {
             Button("Cancel", role: .cancel) {}
