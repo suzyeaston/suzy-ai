@@ -14,7 +14,7 @@ public struct PCM: Sendable {
     public var seconds: Double { Double(data.count) / Double(rate * channels * 2) }
 
     /// RIFF chunk parsing, not an assumed 44-byte WAV header. PCM16 only.
-    public init(wav: Data, channel: Int? = nil) throws {
+    public init(wav: Data, channel: Int? = nil, targetFrames: Int? = nil) throws {
         guard wav.count <= 2_000_000, wav.count >= 44 else {
             throw CompanionError.invalid("Recording is empty or too large.")
         }
@@ -47,8 +47,20 @@ public struct PCM: Sendable {
             p = start + size + size % 2
         }
         guard let (rate, channels) = format, let body, body.count % (channels*2) == 0,
-              body.count >= rate*channels/2, body.count <= rate*channels*2*8 else {
+              body.count >= rate*channels/2, body.count <= rate*channels*2*(targetFrames == nil ? 8 : 9) else {
             throw CompanionError.invalid("Capture must contain 0.25–8 seconds of PCM audio.")
+        }
+        if let targetFrames {
+            guard targetFrames >= rate/4, targetFrames <= rate*8,
+                  abs(body.count/(channels*2)-targetFrames) <= rate/10 else {
+                throw CompanionError.invalid("Capture length differed from the musical grid by more than 100 ms.")
+            }
+        }
+        func fitted(_ data: Data, channels: Int) -> Data {
+            guard let targetFrames else { return data }
+            let count = targetFrames * channels * 2
+            if data.count >= count { return Data(data.prefix(count)) }
+            return data + Data(repeating: 0, count: count-data.count)
         }
         self.rate = rate
         if let channel {
@@ -57,9 +69,9 @@ public struct PCM: Sendable {
             for frame in stride(from: body.lowerBound, to: body.upperBound, by: channels*2) {
                 mono.append(b[frame+channel*2]); mono.append(b[frame+channel*2+1])
             }
-            self.data = mono; self.channels = 1
+            self.data = fitted(mono, channels: 1); self.channels = 1
         } else {
-            self.data = Data(b[body]); self.channels = channels
+            self.data = fitted(Data(b[body]), channels: channels); self.channels = channels
         }
     }
 }

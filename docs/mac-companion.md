@@ -137,3 +137,99 @@ Apple API references:
 - https://developer.apple.com/documentation/avfaudio/avaudiorecorder/record(forduration:)
 - https://developer.apple.com/documentation/avfaudio/avaudioplayer/numberofloops
 - https://developer.apple.com/documentation/coremidi/midiinputportcreatewithblock(_:_:_:_:)
+
+## Performance reliability, clock and musical context
+
+This update is experimental until tested with Suzy's actual Logic/Focusrite setup.
+
+- A failed response preparation/start preserves the existing loop. Retrying Bring in
+  is safe after a lost backend acknowledgment. For scheduled replacement, the old
+  loop remains until the launch boundary; Stop cancels both pending and active audio.
+- MIDI is decoded into a bounded 256-event inbox. Overflow explicitly stops companion
+  audio and clears parser state instead of silently dropping a Stop or corrupting
+  MIDI running status. The mouse Stop remains available if the controller disconnects.
+- **Audition is not a private cue.** It uses the same default output as accepted audio.
+  Acknowledgment is required before either the button or MIDI audition will sound.
+  Use headphones for rehearsal. A private stage cue needs explicit separate output
+  routing and hardware with suitable outputs; it is not implemented here.
+- Save WAV saves a candidate (without sounding it), or the last accepted response when
+  no candidate exists. Choose the destination in the native save dialog. No automatic
+  private audio persistence or repo writes. Saved WAV files can be dragged into Logic
+  for later arrangement; live use still requires no manual file round trip.
+
+### Experimental Logic clock setup
+
+1. In Audio MIDI Setup → MIDI Studio → IAC Driver, enable the driver and create a bus
+   named `SUZY Clock`. This is virtual MIDI, with no new hardware needed.
+2. In Logic → File → Project Settings → Synchronization → MIDI, choose that bus as a
+   destination and enable Clock. Use **Song – SPP at Play Start and Stop/SPP/Continue
+   at Cycle Jump** for the first test. Keep Logic the transmitting clock leader.
+3. In the companion, Refresh MIDI, choose `SUZY Clock` as Clock input, and enable
+   Follow Logic clock. Keep the controller selection separate from this timing input.
+4. Set the quarter-note beats per bar to match the project (4 for ordinary 4/4).
+   MIDI clock does not convey time signature; compound meters require manual setup.
+5. Start Logic from its beginning. Wait for the clock BPM display to lock (at least
+   24 intervals), then choose 1, 2, 4 or 8 beats of capture. Lengths over eight seconds
+   are rejected. Capture schedules for a future bar; it automatically finishes at the
+   selected length. Stop cancels a musical capture; Capture does not shorten it.
+6. Bring in schedules a prepared response for a future bar with at least 150 ms lead.
+   Both capture and playback use Apple's device timeline scheduling. Recorded tails
+   within 100 ms are trimmed/padded to the exact target sample length; larger deviations
+   fail visibly. Nothing is inserted into Logic's Live Loops grid.
+
+**Limits:** fixed tempo only, experimental timing. A missing clock for 0.5 seconds,
+transport/position change, detected timestamp discontinuity, or >1% tempo change
+stops synchronized work. A transport stop does not stop a manually launched free loop.
+There is no continuous time-stretch/drift correction, no MIDI-clock offset calibration,
+and no plug-in delay compensation in this app. The old loop's stop at replacement is
+serviced by a 20 ms UI timer, so a brief overlap is possible (longer under UI stalls).
+Do not claim sample-accurate replacement. Test against an audible Logic click for the
+full 15 minutes; if drift or overlap is audible, keep free one-shot responses for QA
+and do not treat synchronized looping as stage-ready.
+
+### Musical context and analysis
+
+The worker now computes energy-rise onset estimates and up to eight monophonic
+pitch hints using bounded autocorrelation. They are DSP estimates, not neural listening,
+transcription, reliable chord detection or inferred key. Chords, breathy vocals and noise
+can mislead the pitch estimate. A user-supplied key is direction, not a detected fact.
+
+Section, supplied key and artistic direction are sent with a phrase. Only the last four
+**accepted decisions** enter a small, RAM-only musical history. Auditioned/discarded
+candidates do not. The planner sees their slice orders and pitch-class summaries, with
+personal memory recall still off. Clear musical history starts a new musical context;
+restarting the bridge clears it too. No audio is stored in this history. Acceptance is
+recorded when the backend acknowledges the choice, so a later playback failure can
+still leave that chosen decision in history; retry does not duplicate it.
+
+The output vocabulary remains source-slice gain/reordering/reversal and AUGMENT's
+delayed layer. Pitch hints inform decisions but do not add pitch shifting or harmony
+synthesis. Deterministic mode does not invoke the language model or use this history
+for learned decisions. The 8-second model deadline still does not cancel an already
+running inference inside the core; avoid repeatedly retrying a busy model.
+
+### Required Mac QA before using sync in a performance
+
+- Test dry guitar and voice channels individually; permission denial and recorder failure.
+- Start a response loop, then test replacing it with the bridge down, restarting the bridge,
+  repeated audition/accept, and Stop during download and queued launch. Preserve old audio
+  on failed replacement; no late response may start after Stop.
+- Confirm audition stays silent until acknowledged; verify the actual destination audibly.
+- Save an unheard response, reopen the WAV in Logic, then save after stopping an accepted loop.
+- Use the controller while Logic receives its own notes. Test repeated presses, unplug/replug,
+  and channel selection. Avoid double-binding controller notes to unwanted Logic actions.
+- With IAC: test start at zero, nonzero start, Continue, cycle jumps, stop, clock loss, tempo
+  change, cancellation of queued capture/launch, and 15 minutes of click alignment. Test
+  44.1 kHz and 48 kHz Logic/interface configurations; the companion requests 48 kHz capture.
+- Capture monophonic held notes and chords; compare pitch hints in GET /v1/live with what
+  was played. The feature is allowed to be uncertain; musical listening remains decisive.
+- First run without Qwen, then with the existing Qwen instance. Watch Activity Monitor's
+  memory pressure and Logic's CPU meter. One worker/candidate, one accepted loop and
+  bounded descriptors do not guarantee safety from system-wide memory pressure on 8 GB.
+  Stop the model if Logic glitches; do not download another model for these tests.
+
+References:
+- https://support.apple.com/en-us/102005
+- https://support.apple.com/guide/audio-midi-setup/ams1013/mac
+- https://developer.apple.com/documentation/avfaudio/avaudioplayer/play(attime:)
+- https://developer.apple.com/documentation/avfaudio/avaudiorecorder/record(attime:forduration:)

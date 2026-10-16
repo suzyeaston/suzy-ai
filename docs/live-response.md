@@ -155,3 +155,15 @@ Mac acceptance gate: looping Logic backing continues while capturing, processing
 auditioning and deliberately stopping the bridge. Suzy can bring in a useful
 response without Finder/Terminal interaction. Measure actual latency and listen
 for clicks/dropouts. This gate has **not** been run in Linux.
+
+### Musical context extension
+
+Capture accepts optional `section` (64 characters), `key` (24), and `instruction` (500).
+Status includes `performance_context`, limited to four accepted-decision summaries in
+RAM. `POST /v1/live/context/reset {}` clears it without touching personal memory.
+`audition` and `accept` are idempotent for their respective current states, allowing
+clients to retry after a lost acknowledgment. Accept never duplicates a history entry.
+The manifest includes bounded onset and monophonic pitch hints, supplied key/section,
+and the context used for that proposal. These are deterministic analysis, not neural
+waveform generation. The Mac companion now offers experimental clock scheduling;
+see `docs/mac-companion.md` for fixed-tempo limits and required hardware QA.

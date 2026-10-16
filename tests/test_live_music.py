@@ -282,3 +282,40 @@ class PlannerTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+class MusicalContextTests(unittest.TestCase):
+    def test_pitch_and_onsets_are_bounded_hints(self):
+        pcm = b''.join(struct.pack('<h', int(10000*math.sin(2*math.pi*440*i/48000))) for i in range(48000))
+        features = describe(pcm, 48000, 1, 120)['musical']
+        self.assertTrue(features['pitch_hints'])
+        self.assertTrue(all(n['midi_note'] == 69 for n in features['pitch_hints']))
+        self.assertLessEqual(len(features['pitch_hints']), 8)
+        self.assertLessEqual(len(features['onset_seconds']), 64)
+        self.assertIsNone(features['key_detected'])
+        self.assertEqual(describe(bytes(96000), 48000, 1, 120)['musical']['pitch_hints'], [])
+
+    def test_only_accepted_phrases_enter_bounded_context_and_accept_is_retryable(self):
+        seen = []
+        def planner(features, cfg):
+            seen.append(cfg['performance_context'])
+            return deterministic_plan('mirror', len(features['slices'])), 'fake'
+        session = LiveSession(planner)
+        for i in range(6):
+            cid = capture(session, phrase(.25), provider='model', section=str(i), key='A minor')
+            session.finish(cid); self.assertEqual(wait(session)['state'], 'ready')
+            session.action(cid, 'audition'); session.action(cid, 'audition')
+            session.action(cid, 'accept'); session.action(cid, 'accept')
+        self.assertEqual(len(session.status()['performance_context']),4)
+        self.assertEqual(len(seen[0]),0)
+        self.assertEqual(len(seen[-1]),4)
+        self.assertEqual(seen[-1][-1]['section'],'4')
+        cid = capture(session, phrase(.25), section='discard me')
+        session.finish(cid); wait(session); session.action(cid, 'discard')
+        self.assertEqual(len(session.status()['performance_context']),4)
+        session.reset_context()
+        self.assertEqual(session.status()['performance_context'],[])
+
+    def test_context_text_limits(self):
+        for field, value in [('section', 'x'*65), ('key','x'*25), ('section', [])]:
+            cfg=config(); cfg[field]=value
+            with self.assertRaises(ValueError): LiveSession().arm(cfg)

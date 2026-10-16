@@ -36,7 +36,11 @@ class LiveHandler(Handler):
 
     def _post(self):
         parts = urlparse(self.path).path.strip('/').split('/')
-        if parts == ['v1', 'live', 'capture']:
+        if parts == ['v1', 'live', 'context', 'reset']:
+            if self._body() != {}:
+                raise ValueError('reset requires an empty object')
+            self._json(self.session.reset_context())
+        elif parts == ['v1', 'live', 'capture']:
             self._json(self.session.arm(self._body()), 201)
         elif len(parts) == 5 and parts[:2] == ['v1', 'live'] and parts[3] == 'chunks':
             self._discard_input = True

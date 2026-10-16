@@ -1,5 +1,6 @@
 import Foundation
 import CoreMIDI
+import Darwin
 import CompanionCore
 
 final class MIDIController {
@@ -7,42 +8,40 @@ final class MIDIController {
     private var client = MIDIClientRef()
     private var port = MIDIPortRef()
     private var source = MIDIEndpointRef()
-    private let queue = DispatchQueue(label: "ca.suzyeaston.suzylive.midi")
-    private var parser = MIDIParser()
-    private let pending = DispatchSemaphore(value: 1)
-    var onNote: ((Int, Int) -> Void)?
+    private let lock = NSLock()
+    private var inbox = MIDIInbox()
+    var onEvents: (([TimedMIDIEvent], Bool) -> Void)?
+
+    static func seconds(_ stamp: MIDITimeStamp) -> Double {
+        var info = mach_timebase_info_data_t(); mach_timebase_info(&info)
+        return Double(stamp == 0 ? mach_absolute_time() : stamp) * Double(info.numer) / Double(info.denom) / 1_000_000_000
+    }
+    static var now: Double { seconds(mach_absolute_time()) }
 
     init() {
         MIDIClientCreateWithBlock("SUZY Live" as CFString, &client, nil)
-        MIDIInputPortCreateWithBlock(client, "Performance controls" as CFString, &port) { [weak self] list, context in
-            guard let self, self.pending.wait(timeout: .now()) == .success else { return }
-            let pending = self.pending
+        MIDIInputPortCreateWithBlock(client, "Performance input" as CFString, &port) { [weak self] list, context in
+            guard let self else { return }
             let endpoint = UInt32(UInt(bitPattern: context))
-            // Copy packet bytes before CoreMIDI releases the list. Parsing/UI work is off its thread.
-            let first = UnsafeRawPointer(list).advanced(by: MemoryLayout<MIDIPacketList>.offset(of: \.packet)!)
+            self.lock.lock(); defer { self.lock.unlock() }
+            guard self.source == endpoint else { return }
+            var packet = UnsafeRawPointer(list).advanced(by: MemoryLayout<MIDIPacketList>.offset(of: \.packet)!)
                 .assumingMemoryBound(to: MIDIPacket.self)
-            var packet = first
-            var data: [UInt8] = []
+            var total = 0
             for _ in 0..<list.pointee.numPackets {
+                let count = Int(packet.pointee.length); total += count
+                guard total <= 4096 else { self.inbox.invalidate(); return }
                 let bytes = UnsafeRawPointer(packet).advanced(by: MemoryLayout<MIDIPacket>.offset(of: \.data)!)
                     .assumingMemoryBound(to: UInt8.self)
-                let count = Int(packet.pointee.length)
-                // A pathological controller burst is dropped, never allowed to grow without bound.
-                if data.count + count > 4096 { pending.signal(); return }
-                data.append(contentsOf: UnsafeBufferPointer(start: bytes, count: count))
+                self.inbox.push(Array(UnsafeBufferPointer(start: bytes, count: count)), at: Self.seconds(packet.pointee.timeStamp))
                 packet = UnsafePointer(MIDIPacketNext(packet))
             }
-            let packetData = data
-            self.queue.async { [weak self] in
-                guard let self else { pending.signal(); return }
-                let notes = Array(self.parser.feed(packetData).filter { (36...40).contains($0.note) }.prefix(16))
-                DispatchQueue.main.async { [weak self] in
-                    defer { pending.signal() }
-                    guard let self, self.source == endpoint else { return }
-                    for note in notes { self.onNote?(note.channel, note.note) }
-                }
-            }
         }
+    }
+    // Called by one UI timer. No unbounded dispatch-to-main queue or dropped packet fragments.
+    func drain() {
+        lock.lock(); let batch = inbox.drain(); lock.unlock()
+        if !batch.events.isEmpty || batch.overflow { onEvents?(batch.events, batch.overflow) }
     }
     func sources() -> [Source] {
         (0..<MIDIGetNumberOfSources()).map { index in
@@ -54,8 +53,7 @@ final class MIDIController {
     }
     func select(_ endpoint: MIDIEndpointRef) {
         if source != 0 { MIDIPortDisconnectSource(port, source) }
-        source = endpoint
-        queue.sync { parser = MIDIParser() }
+        lock.lock(); source = endpoint; inbox = MIDIInbox(); lock.unlock()
         if endpoint != 0 { MIDIPortConnectSource(port, endpoint, UnsafeMutableRawPointer(bitPattern: UInt(endpoint))) }
     }
     deinit { MIDIPortDispose(port); MIDIClientDispose(client) }

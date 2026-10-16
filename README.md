@@ -275,3 +275,9 @@ See [world-model storage](docs/world-model.md), [teaching surfaces](docs/teachin
 and [timeline/event architecture](docs/architecture.md) for the existing systems.
 
 Code is licensed under Apache-2.0. Thread examples include their source and context.
+
+The Mac companion also supports response WAV saving, explicit shared-output audition,
+experimental Logic/IAC clock scheduling, and a bounded musical history with onset/pitch
+hints. See [the Mac performance QA guide](docs/mac-companion.md#performance-reliability-clock-and-musical-context)
+before using synchronization live. This is still a companion, not an Audio Unit or an
+automatic Live Loops cell inserter.
