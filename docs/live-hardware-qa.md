@@ -32,23 +32,55 @@ Logic's audio and transport remain independent.
    .venv-mac/bin/python -m suzy_ai.music.live_probe --list-devices
    ~~~
 
-   Optional dependency is only the small \`sounddevice\` Python/PortAudio binding;
+   Optional dependency is only the small `sounddevice` Python/PortAudio binding;
    it does not need NumPy when using RawStream. Nothing touches Swift/Xcode.
    If the correct interface isn't the macOS default, select the device index
-   shown in the list using \`--device N\` (it must support 2 inputs + 2 outputs).
+   shown in the list using `--device N` (it must support 2 inputs + 2 outputs).
+
+## Debug audio output before recording
+
+The first hardware runs confirmed a nonzero Scarlett channel 1 input and
+successful response processing, but **no audible output**. GitHub/terminal
+success messages are not proof of audibility.
+
+First verify the selected playback device without singing or opening the
+microphone:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe --test-output --output-device 2
+~~~
+
+This plays a **quiet, faded 440-Hz tone on both stereo channels** to
+`External Headphones` (device 2 on the original device list). Lower the
+listening volume first. If the tone is inaudible, try
+`--test-output --output-device 4` for MacBook Pro Speakers. The preferred
+output is whichever one you really listen to in Logic, which may differ
+from the Mac's internal speaker device. No input is captured in this test.
+
+When a tone is audible, run the full experiment using the **same** output
+index, beginning with `--gain 0.3` and a low physical volume. Look at the
+new `Output levels` line (peak and RMS after DSP/gain), the physical
+output device name, the playback frame counts, and stream-warning count.
+A driver callback writing all frames still doesn't prove the signal was
+audible in the room.
+
+We do not log microphone waveforms or upload audio to GitHub. Share the
+Terminal text only.
 
 ## First hardware run: isolate routing from model quality
 
 ~~~bash
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
-  --input-device 0 --output-device 4 \
-  --bpm 120 --beats 8 --cycles 1 --mode mirror --provider deterministic --gain 0.1
+  --input-device 0 --output-device 2 \
+  --bpm 120 --beats 8 --cycles 1 --mode mirror --provider deterministic --gain 0.3
 ~~~
 
-- Device **0** is Scarlett Solo USB (2 inputs, 2 outputs) on Suzy's Oct 21
-  list. Device **4** is MacBook Pro Speakers. To use the currently listed
-  External Headphones instead, pass `--output-device 2`. Device indices can
+- Device **0** is Scarlett Solo USB input. Device **2** was External
+  Headphones (the Mac's default output) and device **4** was MacBook Pro Speakers
+  on Suzy's Oct 21 list. The test tone identifies which is audible. Pass
+  that device as `--output-device`. Device indices can
   change between sessions, so check `--list-devices` again if needed.
 - Change **120** to your Logic BPM.
 - **No recording in Logic is necessary.** Keep Logic playing normally. The
@@ -67,7 +99,7 @@ cd ~/Projects/suzy-ai
 - `--cycles 0` keeps offering new capture cycles (each requires Return)
   until Ctrl-C. **Ctrl-C** closes this probe's stream and stops its audio; Logic
   is not intentionally stopped.
-- Set \`--gain 0.1\` if needed for safer playback. Default is 0.3;
+- Set `--gain 0.1` if needed for safer playback. Default is 0.3;
   gain above 0.5 is intentionally rejected.
 - On macOS, grant microphone access to your Terminal application if requested.
 
@@ -88,8 +120,8 @@ Leave it running. In a second Terminal:
 ~~~bash
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
-  --input-device 0 --output-device 4 \
-  --bpm 120 --beats 8 --cycles 1 --mode evolve --provider model --gain 0.1
+  --input-device 0 --output-device 2 \
+  --bpm 120 --beats 8 --cycles 1 --mode evolve --provider model --gain 0.3
 ~~~
 
 The model receives measured features, not raw audio, and chooses slice order,
@@ -102,11 +134,11 @@ Personal memory is disabled for model decisions.
 | Case | Record |
 | --- | --- |
 | Input | Which Scarlett channel shows a level? Is the mic clearly audible? |
-| Output | Did the response play from the selected MacBook speaker/headphone output? |
+| Output | Which output-device number produced an audible 440-Hz test tone? Does the response itself play there? |
 | Round trip | Time printed between capture end and response ready |
 | Timing | Does the response align *musically*, despite no Logic clock sync? |
-| Stability | Any "Device warning callbacks", clicks, dropouts or Logic glitches? |
-| AI provenance | Does the log explicitly say \`provider=model\` for model runs? |
+| Stability | Any device warning callbacks, missing playback frames, clicks or Logic glitches? |
+| AI provenance | Does the log explicitly say `provider=model` for model runs? |
 | Stop safety | Does Ctrl-C silence this probe without stopping Logic? |
 
 Do not assume a silent or apparently successful run passed. Capture the
@@ -122,7 +154,7 @@ terminal's device list, error, response time and subjective observations.
 - This is a **phrase capture → model decision → one-shot response** pipeline,
   not continuous neural audio generation. Inference happens after the capture
   closes, so response time can be seconds.
-- No Logic clock sync or sample-accurate alignment. \`--bpm\` sets phrase
+- No Logic clock sync or sample-accurate alignment. `--bpm` sets phrase
   duration and analysis slices, **not** playback transport alignment.
 - Input and output must both support stereo 48 kHz. **Two different physical
   devices may have independent hardware clocks**: PortAudio/Core Audio may

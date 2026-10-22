@@ -9,6 +9,7 @@ import argparse
 from array import array
 import io
 import math
+import struct
 import sys
 import time
 import wave
@@ -111,6 +112,34 @@ def performer_countdown(seconds: int, duration: float, *, read=input,
              flush=True)
 
 
+def diagnostic_tone(duration: float = 0.75, amplitude: float = 0.06) -> bytes:
+    """Low-level two-channel 440-Hz diagnostic tone, with 30-ms end fades."""
+    if not 0.2 <= duration <= 2.0 or not 0 < amplitude <= 0.1:
+        raise ValueError("diagnostic tone outside safe bounds")
+    frames = round(RATE * duration)
+    fade_frames = round(RATE * 0.03)
+    result = bytearray(frames * FRAME_BYTES)
+    for i in range(frames):
+        envelope = min(1.0, i / fade_frames, (frames - 1 - i) / fade_frames)
+        sample = round(32767 * amplitude * envelope
+                       * math.sin(2 * math.pi * 440 * i / RATE))
+        struct.pack_into("<hh", result, i * FRAME_BYTES, sample, sample)
+    return bytes(result)
+
+
+def test_output(sd, output_device):
+    """Independent playback-only test; no microphone or SUZY//AI model involved."""
+    info = sd.query_devices(output_device, "output")
+    print(f"OUTPUT TEST: {info['name']} ({output_device}) at 48 kHz, stereo.")
+    print("Turn speaker/headphone volume DOWN first; playing a quiet 440-Hz tone.")
+    pcm = diagnostic_tone()
+    with sd.RawOutputStream(device=output_device, samplerate=RATE,
+                            channels=CHANNELS, dtype="int16") as stream:
+        stream.write(pcm)
+        time.sleep(0.1)
+    print("Sent tone to output device; audibility still needs your confirmation.")
+
+
 def response_pcm(wav_bytes: bytes, gain: float) -> bytes:
     """Decode the existing AI renderer's WAV in RAM, applying conservative gain."""
     with wave.open(io.BytesIO(wav_bytes), "rb") as audio:
@@ -179,6 +208,8 @@ def resolve_devices(device=None, input_device=None, output_device=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list-devices", action="store_true")
+    parser.add_argument("--test-output", action="store_true",
+                        help="play a low-volume tone to output only, with no mic recording")
     parser.add_argument("--device", help="one PortAudio device used for both input/output")
     parser.add_argument("--input-device", help="input device index, e.g. 0 for Scarlett Solo")
     parser.add_argument("--output-device", help="output device index, e.g. 4 for MacBook speakers")
@@ -203,6 +234,19 @@ def main(argv=None):
     if args.list_devices:
         print(sd.query_devices())
         return
+    if args.test_output:
+        if args.device is not None and args.output_device is not None:
+            parser.error("use either --device or --output-device for --test-output")
+        selected = args.output_device or args.device
+        if selected is None:
+            selected = sd.default.device[1]
+        elif selected.isdecimal():
+            selected = int(selected)
+        try:
+            test_output(sd, selected)
+        except (OSError, ValueError) as exc:
+            parser.error(f"output device test failed: {exc}")
+        return
     if not 40 <= args.bpm <= 240 or not 1 <= args.beats <= 16 or args.cycles < 0 or not 0 <= args.countdown <= 10:
         parser.error("use 40–240 BPM, 1–16 beats, 0–10 second countdown and nonnegative cycles")
     if not 0 < args.gain <= 0.5:
@@ -218,6 +262,14 @@ def main(argv=None):
     session = LiveSession()
     print("EXPERIMENTAL | 48 kHz stereo | choose your Focusrite mic input and desired output.")
     print(f"PortAudio devices (input, output): {device}")
+    if isinstance(device, tuple):
+        input_index, output_index = device
+    elif device is None:
+        input_index, output_index = sd.default.device
+    else:
+        input_index = output_index = device
+    print(f"Input device: {sd.query_devices(input_index, 'input')['name']}")
+    print(f"Output device: {sd.query_devices(output_index, 'output')['name']}")
     print("Headphones, low level, no feedback loops. Logic runs separately.")
     print(f"Capture {frames / RATE:.2f}s after Return + {args.countdown}s countdown, "
           f"{args.provider}/{args.mode}; Ctrl-C stops playback.")
@@ -252,13 +304,27 @@ def main(argv=None):
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
                 pcm = response_pcm(wav_bytes, args.gain)
+                output_levels = capture_levels(pcm)
+                print("Output levels (after gain): "
+                      + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"
+                                  for i, (peak, rms) in enumerate(output_levels)),
+                      flush=True)
+                if max(peak for peak, _ in output_levels) < 0.005:
+                    print("WARNING: response output is very quiet. "
+                          "Try --gain 0.3 after confirming the output route.",
+                          flush=True)
                 duplex.play(pcm)
-                print("Playing response once. No WAV exports.", flush=True)
+                print("Sending response through the selected output device. "
+                      "No WAV exports.", flush=True)
                 while duplex.playing:
                     time.sleep(0.02)
                 session.action(cid, "stop-audition")
                 session.action(cid, "discard")
+                print(f"Playback queued {len(pcm) // FRAME_BYTES} stereo frames; "
+                      f"audio callback copied {duplex.played // FRAME_BYTES} frames.")
                 print(f"Cycle complete. Device warning callbacks: {duplex.audio_flags}")
+                print("Playback copied to the driver, not yet independently "
+                      "confirmed audible. If silent, run --test-output.")
     except KeyboardInterrupt:
         print("\nStopped: local output silenced by closing the audio stream.")
     except EOFError:

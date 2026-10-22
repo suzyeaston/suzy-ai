@@ -3,10 +3,11 @@ import io
 import struct
 import unittest
 import wave
+from unittest.mock import patch
 
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
-    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, performer_countdown,
+    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, diagnostic_tone, performer_countdown, test_output,
     process, resolve_devices, response_pcm,
 )
 
@@ -52,6 +53,47 @@ class LiveProbeTests(unittest.TestCase):
         self.assertEqual(capture_levels(bytes(4 * 100)), [(0.0, 0.0), (0.0, 0.0)])
         with self.assertRaises(ValueError):
             capture_levels(b"\0\0")
+
+    def test_safe_output_tone_is_stereo_nonzero_and_faded(self):
+        pcm = diagnostic_tone()
+        self.assertEqual(len(pcm), round(0.75 * RATE) * FRAME_BYTES)
+        channels = struct.unpack("<" + "h" * (len(pcm) // 2), pcm)
+        self.assertEqual(channels[::2], channels[1::2])
+        self.assertEqual(channels[0], 0)
+        self.assertEqual(channels[-1], 0)
+        self.assertGreater(max(abs(x) for x in channels), 500)
+        self.assertLessEqual(max(abs(x) for x in channels), round(32767 * 0.06) + 1)
+        for duration, gain in ((0.1, 0.06), (0.75, 0), (0.75, 0.5)):
+            with self.assertRaises(ValueError):
+                diagnostic_tone(duration, gain)
+
+    def test_output_only_diagnostic_does_not_open_microphone(self):
+        class FakeStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def write(self, pcm):
+                self.pcm = pcm
+
+        class FakeAudio:
+            def query_devices(self, device, direction):
+                assert (device, direction) == (2, "output")
+                return {"name": "External Headphones"}
+
+            def RawOutputStream(self, **kwargs):
+                assert kwargs["device"] == 2
+                assert kwargs["channels"] == 2
+                assert kwargs["samplerate"] == RATE
+                return self.stream
+
+        fake = FakeAudio()
+        fake.stream = FakeStream()
+        with patch("suzy_ai.music.live_probe.time.sleep"):
+            test_output(fake, 2)
+        self.assertEqual(len(fake.stream.pcm), round(0.75 * RATE) * FRAME_BYTES)
 
     def test_capture_exact_length_and_silent_output(self):
         audio = DuplexBuffer(BLOCKSIZE + 13)
