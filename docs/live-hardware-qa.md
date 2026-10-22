@@ -30,10 +30,10 @@ Logic's audio and transport remain independent.
    .venv-mac/bin/python -m suzy_ai.music.live_probe --list-devices
    ~~~
 
-   Optional dependency is only the small \`sounddevice\` Python/PortAudio binding;
+   Optional dependency is only the small `sounddevice` Python/PortAudio binding;
    it does not need NumPy when using RawStream. Nothing touches Swift/Xcode.
    If the correct interface isn't the macOS default, select the device index
-   shown in the list using \`--device N\` (it must support 2 inputs + 2 outputs).
+   shown in the list using `--device N` (it must support 2 inputs + 2 outputs).
 
 ## First hardware run: isolate routing from model quality
 
@@ -49,10 +49,10 @@ cd ~/Projects/suzy-ai
   the whole test; audio is captured and the response is played automatically.
 - This is **not** quantized to Logic's bar/beat boundaries. The first capture
   starts with a stream callback, not a MIDI clock.
-- Two cycles repeat the capture/AI/audition flow. \`--cycles 0\` keeps cycling
+- Two cycles repeat the capture/AI/audition flow. `--cycles 0` keeps cycling
   until Ctrl-C. **Ctrl-C** closes this probe's stream and stops its audio; Logic
   is not intentionally stopped.
-- Set \`--gain 0.1\` if needed for safer playback. Default is 0.3;
+- Set `--gain 0.1` if needed for safer playback. Default is 0.3;
   gain above 0.5 is intentionally rejected.
 - On macOS, grant microphone access to your Terminal application if requested.
 
@@ -90,7 +90,7 @@ Personal memory is disabled for model decisions.
 | Round trip | Time printed between capture end and response ready |
 | Timing | Does the response align *musically*, despite no Logic clock sync? |
 | Stability | Any "Device warning callbacks", clicks, dropouts or Logic glitches? |
-| AI provenance | Does the log explicitly say \`provider=model\` for model runs? |
+| AI provenance | Does the log explicitly say `provider=model` for model runs? |
 | Stop safety | Does Ctrl-C silence this probe without stopping Logic? |
 
 Do not assume a silent or apparently successful run passed. Capture the
@@ -106,7 +106,7 @@ terminal's device list, error, response time and subjective observations.
 - This is a **phrase capture → model decision → one-shot response** pipeline,
   not continuous neural audio generation. Inference happens after the capture
   closes, so response time can be seconds.
-- No Logic clock sync or sample-accurate alignment. \`--bpm\` sets phrase
+- No Logic clock sync or sample-accurate alignment. `--bpm` sets phrase
   duration and analysis slices, **not** playback transport alignment.
 - Input and output must both support stereo 48 kHz. Some interfaces/devices
   will reject the duplex stream; that's a hardware QA finding, not a pass.
