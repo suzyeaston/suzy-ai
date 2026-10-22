@@ -280,6 +280,28 @@ def resolve_devices(device=None, input_device=None, output_device=None):
     return parse(device)
 
 
+
+def audio_device_names(sd, device):
+    """Validate current input/output capability, not just stale device indices."""
+    if isinstance(device, tuple):
+        input_id, output_id = device
+    elif device is None:
+        input_id, output_id = sd.default.device
+    else:
+        input_id = output_id = device
+    try:
+        input_name = sd.query_devices(input_id, "input")["name"]
+        output_name = sd.query_devices(output_id, "output")["name"]
+    except (ValueError, OSError) as exc:
+        raise ValueError(
+            f"Audio devices changed or are unavailable ({exc}). "
+            "Device numbers can move when headphones connect/disconnect. "
+            "Run --list-devices again, or use --input-device 'Scarlett Solo USB' "
+            "--choose-output to hear and select the correct headphones."
+        ) from exc
+    return input_name, output_name
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list-devices", action="store_true")
@@ -288,8 +310,8 @@ def main(argv=None):
     parser.add_argument("--choose-output", action="store_true",
                         help="choose speaker/headphone output interactively using a test tone")
     parser.add_argument("--device", help="one PortAudio device used for both input/output")
-    parser.add_argument("--input-device", help="input device index, e.g. 0 for Scarlett Solo")
-    parser.add_argument("--output-device", help="output device index, e.g. 4 for MacBook speakers")
+    parser.add_argument("--input-device", help="input device index or name, e.g. 'Scarlett Solo USB'")
+    parser.add_argument("--output-device", help="output device index or name; --choose-output avoids stale indices")
     parser.add_argument("--bpm", type=float, default=120)
     parser.add_argument("--beats", type=int, default=8,
                         help="phrase length in beats (default 8; 4 seconds at 120 BPM)")
@@ -340,7 +362,7 @@ def main(argv=None):
         if args.device is not None or args.output_device is not None:
             parser.error("--choose-output replaces --device/--output-device")
         if args.input_device is None:
-            parser.error("--choose-output requires --input-device (0 for Scarlett Solo)")
+            parser.error("--choose-output requires --input-device (e.g. 'Scarlett Solo USB')")
         try:
             chosen_output = choose_listening_output(sd)
             device = resolve_devices(input_device=args.input_device,
@@ -352,18 +374,16 @@ def main(argv=None):
             device = resolve_devices(args.device, args.input_device, args.output_device)
         except ValueError as exc:
             parser.error(str(exc))
+    try:
+        input_name, output_name = audio_device_names(sd, device)
+    except ValueError as exc:
+        parser.error(str(exc))
     duplex = DuplexBuffer(frames)
     session = LiveSession()
     print("EXPERIMENTAL | 48 kHz stereo | choose your Focusrite mic input and desired output.")
     print(f"PortAudio devices (input, output): {device}")
-    if isinstance(device, tuple):
-        input_index, output_index = device
-    elif device is None:
-        input_index, output_index = sd.default.device
-    else:
-        input_index = output_index = device
-    print(f"Input device: {sd.query_devices(input_index, 'input')['name']}")
-    print(f"Output device: {sd.query_devices(output_index, 'output')['name']}")
+    print(f"Input device: {input_name}")
+    print(f"Output device: {output_name}")
     print("Headphones, low level, no feedback loops. Logic runs separately.")
     print(f"Capture {frames / RATE:.2f}s after Return + {args.countdown}s countdown, "
           f"{args.provider}/{args.mode}; Ctrl-C stops playback.")
