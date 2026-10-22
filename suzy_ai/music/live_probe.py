@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 from array import array
 import io
+import math
 import sys
 import time
 import wave
@@ -77,6 +78,37 @@ class DuplexBuffer:
             self.played += count
             if self.played == len(self.response):
                 self.playing = False
+
+def capture_levels(pcm: bytes) -> list[tuple[float, float]]:
+    """Per-channel (peak, RMS) in dBFS; never saves microphone data."""
+    if not pcm or len(pcm) % FRAME_BYTES:
+        raise ValueError("incomplete stereo PCM capture")
+    samples = array("h")
+    samples.frombytes(pcm)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    levels = []
+    for channel in range(CHANNELS):
+        channel_samples = samples[channel::CHANNELS]
+        peak = max(abs(sample) for sample in channel_samples) / 32768
+        rms = math.sqrt(sum(float(sample) ** 2 for sample in channel_samples)
+                        / len(channel_samples)) / 32768
+        levels.append((round(peak, 5), round(rms, 5)))
+    return levels
+
+
+def performer_countdown(seconds: int, duration: float, *, read=input,
+                        pause=time.sleep, announce=print):
+    """Block outside the audio callback until the performer chooses to begin."""
+    if not 0 <= seconds <= 10:
+        raise ValueError("countdown must be 0–10 seconds")
+    read(f"READY: Press Return for a {seconds}-second countdown "
+         "(Ctrl+C to stop). ")
+    for remaining in range(seconds, 0, -1):
+        announce(f"  {remaining}...", flush=True)
+        pause(1.0)
+    announce(f">>> RECORDING NOW: sing/play for {duration:.1f} seconds <<<",
+             flush=True)
 
 
 def response_pcm(wav_bytes: bytes, gain: float) -> bytes:
@@ -151,7 +183,10 @@ def main(argv=None):
     parser.add_argument("--input-device", help="input device index, e.g. 0 for Scarlett Solo")
     parser.add_argument("--output-device", help="output device index, e.g. 4 for MacBook speakers")
     parser.add_argument("--bpm", type=float, default=120)
-    parser.add_argument("--beats", type=int, default=4)
+    parser.add_argument("--beats", type=int, default=8,
+                        help="phrase length in beats (default 8; 4 seconds at 120 BPM)")
+    parser.add_argument("--countdown", type=int, default=3,
+                        help="seconds after you press Return before capture (default 3)")
     parser.add_argument("--cycles", type=int, default=1,
                         help="capture/AI/audition cycles (0 = repeat until Ctrl-C)")
     parser.add_argument("--mode", choices=("mirror", "augment", "evolve"), default="mirror")
@@ -168,8 +203,8 @@ def main(argv=None):
     if args.list_devices:
         print(sd.query_devices())
         return
-    if not 40 <= args.bpm <= 240 or not 1 <= args.beats <= 16 or args.cycles < 0:
-        parser.error("use 40–240 BPM, 1–16 beats and nonnegative cycles")
+    if not 40 <= args.bpm <= 240 or not 1 <= args.beats <= 16 or args.cycles < 0 or not 0 <= args.countdown <= 10:
+        parser.error("use 40–240 BPM, 1–16 beats, 0–10 second countdown and nonnegative cycles")
     if not 0 < args.gain <= 0.5:
         parser.error("gain must be greater than zero and at most 0.5")
     frames = round(RATE * args.beats * 60 / args.bpm)
@@ -184,7 +219,8 @@ def main(argv=None):
     print("EXPERIMENTAL | 48 kHz stereo | choose your Focusrite mic input and desired output.")
     print(f"PortAudio devices (input, output): {device}")
     print("Headphones, low level, no feedback loops. Logic runs separately.")
-    print(f"Capture {frames / RATE:.2f}s, {args.provider}/{args.mode}; Ctrl-C stops playback.")
+    print(f"Capture {frames / RATE:.2f}s after Return + {args.countdown}s countdown, "
+          f"{args.provider}/{args.mode}; Ctrl-C stops playback.")
     try:
         with sd.RawStream(device=device, samplerate=RATE, blocksize=BLOCKSIZE,
                           channels=(CHANNELS, CHANNELS), dtype="int16",
@@ -192,14 +228,26 @@ def main(argv=None):
             cycle = 0
             while args.cycles == 0 or cycle < args.cycles:
                 cycle += 1
-                print(f"\nCycle {cycle}: recording now...", flush=True)
+                print(f"\nCycle {cycle}: audio is idle until YOU start.", flush=True)
+                performer_countdown(args.countdown, frames / RATE)
                 duplex.arm()
                 while duplex.recording:
                     time.sleep(0.02)
-                print("Captured. AI working while Logic continues...", flush=True)
+                captured = duplex.captured()
+                levels = capture_levels(captured)
+                print("Capture finished. Input peaks: "
+                      + ", ".join(f"channel {i + 1}={peak:.1%} (RMS {rms:.1%})"
+                                  for i, (peak, rms) in enumerate(levels)), flush=True)
+                if max(peak for peak, _ in levels) < 0.005:
+                    print("WARNING: very low input. Check VE-22, Scarlett gain, "
+                          "the input channel and microphone permission.", flush=True)
+                if max(peak for peak, _ in levels) >= 0.98:
+                    print("WARNING: likely clipping. Turn down the Scarlett input gain.",
+                          flush=True)
+                print("AI processing while Logic continues...", flush=True)
                 start = time.monotonic()
                 cid, wav_bytes, metadata = process(
-                    session, duplex.captured(), bpm=args.bpm, mode=args.mode,
+                    session, captured, bpm=args.bpm, mode=args.mode,
                     provider=args.provider, instruction=args.instruction)
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
@@ -213,6 +261,8 @@ def main(argv=None):
                 print(f"Cycle complete. Device warning callbacks: {duplex.audio_flags}")
     except KeyboardInterrupt:
         print("\nStopped: local output silenced by closing the audio stream.")
+    except EOFError:
+        raise SystemExit("Live audio probe needs an interactive Terminal to press Return.")
     except (OSError, ValueError, RuntimeError) as exc:
         raise SystemExit(
             f"Live audio probe stopped: {exc}. If separate input/output devices "

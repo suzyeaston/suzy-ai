@@ -1,4 +1,4 @@
-# Live Focusrite → SUZY//AI → Focusrite probe (experimental)
+# Live Scarlett → SUZY//AI → MacBook audio probe (experimental)
 
 **Goal:** test phrase-based live interaction while Logic keeps playing, without
 exporting or importing WAV files, building Swift, or opening a new model.
@@ -8,7 +8,8 @@ VE-22, Logic setup or 8 GB Mac. This is *not* continuous audio-to-audio neural
 generation and is not ready for stage performance.
 
 This standalone Python prototype opens one 48 kHz, stereo full-duplex PortAudio
-stream, captures a BPM-length phrase in bounded memory, asks the existing
+stream, **waits for you to press Return and counts down three seconds**, captures
+an eight-beat phrase in bounded memory, asks the existing
 SUZY//AI session for a response, and plays the response once at reduced gain.
 Each cycle automatically captures → waits for a proposed response → auditions it.
 Logic's audio and transport remain independent.
@@ -42,7 +43,7 @@ Logic's audio and transport remain independent.
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
   --input-device 0 --output-device 4 \
-  --bpm 120 --beats 4 --cycles 2 --mode mirror --provider deterministic
+  --bpm 120 --beats 8 --cycles 1 --mode mirror --provider deterministic --gain 0.1
 ~~~
 
 - Device **0** is Scarlett Solo USB (2 inputs, 2 outputs) on Suzy's Oct 21
@@ -50,12 +51,20 @@ cd ~/Projects/suzy-ai
   External Headphones instead, pass `--output-device 2`. Device indices can
   change between sessions, so check `--list-devices` again if needed.
 - Change **120** to your Logic BPM.
-- At 120 BPM, each capture lasts two seconds (four quarter-note beats).
-- Begin singing as the terminal prints "recording now". The stream is open for
-  the whole test; audio is captured and the response is played automatically.
+- **No recording in Logic is necessary.** Keep Logic playing normally. The
+  probe listens directly to the Scarlett microphone input. Press **Return in
+  Terminal** when ready, watch the **3, 2, 1 countdown**, then sing **after**
+  `RECORDING NOW`. At 120 BPM, eight beats provide a four-second window.
+  Nothing is captured until the countdown ends; no WAV files are saved.
+- After capture the probe prints input peak and RMS for Scarlett channels 1 and 2.
+  If both are near zero, check the VE-22 audio output, Scarlett input gain,
+  channel and Terminal microphone permission. It also warns about clipping.
+- If you want two tries, change `--cycles 1` to `--cycles 2`: the second cycle
+  waits for your next Return. `--countdown 0` disables the countdown.
+  Playback is automatic after processing.
 - This is **not** quantized to Logic's bar/beat boundaries. The first capture
   starts with a stream callback, not a MIDI clock.
-- Two cycles repeat the capture/AI/audition flow. \`--cycles 0\` keeps cycling
+- `--cycles 0` keeps offering new capture cycles (each requires Return)
   until Ctrl-C. **Ctrl-C** closes this probe's stream and stops its audio; Logic
   is not intentionally stopped.
 - Set \`--gain 0.1\` if needed for safer playback. Default is 0.3;
@@ -80,7 +89,7 @@ Leave it running. In a second Terminal:
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
   --input-device 0 --output-device 4 \
-  --bpm 120 --beats 4 --cycles 2 --mode evolve --provider model
+  --bpm 120 --beats 8 --cycles 1 --mode evolve --provider model --gain 0.1
 ~~~
 
 The model receives measured features, not raw audio, and chooses slice order,
@@ -92,8 +101,8 @@ Personal memory is disabled for model decisions.
 
 | Case | Record |
 | --- | --- |
-| Input | Did it capture the VE-22 mic and correct Focusrite channels? |
-| Output | Did the response play from wired headphones through Focusrite? |
+| Input | Which Scarlett channel shows a level? Is the mic clearly audible? |
+| Output | Did the response play from the selected MacBook speaker/headphone output? |
 | Round trip | Time printed between capture end and response ready |
 | Timing | Does the response align *musically*, despite no Logic clock sync? |
 | Stability | Any "Device warning callbacks", clicks, dropouts or Logic glitches? |
@@ -108,7 +117,7 @@ terminal's device list, error, response time and subjective observations.
 - A Python callback copies audio buffers and uses the GIL. Although no inference,
   networking or disk writes occur in that callback, **this is not guaranteed
   real-time safe**. Don't use this prototype onstage.
-- One stereo dry input, one response at a time, no dry pass-through, no private
+- One stereo input buffer (the Scarlett may have mic on only one channel), one response at a time, no dry pass-through, no private
   audition/cue bus, no MIDI control, no overdub or time-stretch.
 - This is a **phrase capture → model decision → one-shot response** pipeline,
   not continuous neural audio generation. Inference happens after the capture
