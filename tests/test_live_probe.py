@@ -5,10 +5,12 @@ import unittest
 import wave
 from unittest.mock import patch
 
+from suzy_ai.music.planner import ModelPlanningError
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
     BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, choose_listening_output,
     diagnostic_tone, performer_countdown, test_output, process, resolve_devices, response_pcm,
+    smoke_test_model,
     route_output_channels,
 )
 
@@ -302,6 +304,51 @@ class LiveProbeTests(unittest.TestCase):
         session.action(cid, "stop-audition")
         session.action(cid, "discard")
         self.assertEqual(session.status()["state"], "discarded")
+
+    def test_model_smoke_uses_synthetic_phrase_and_validates_real_model_plan(self):
+        calls = []
+
+        def synthetic_planner(features, config):
+            calls.append((features["duration_seconds"], config["provider"]))
+            return {"slices": [
+                {"index": i, "gain": 0.6, "reverse": False}
+                for i in range(len(features["slices"]))
+            ]}, "fake-model-for-offline-test"
+
+        manifest = smoke_test_model(planner=synthetic_planner, beats=2)
+        self.assertEqual(calls, [(1.0, "model")])
+        self.assertEqual(manifest["provider"], "model")
+        self.assertEqual(manifest["model"], "fake-model-for-offline-test")
+        self.assertEqual(len(manifest["plan"]["slices"]), 2)
+
+    def test_model_failures_report_safe_stage_and_reason(self):
+        pcm = struct.pack("<hh", 9000, 0) * (RATE // 2)
+
+        def timeout_planner(*_):
+            raise ModelPlanningError("local model request timed out (8-second deadline)")
+
+        session = LiveSession(planner=timeout_planner)
+        with self.assertRaisesRegex(RuntimeError, "response failed during model planning: .*timed out"):
+            process(session, pcm, bpm=120, mode="evolve",
+                    provider="model", instruction="QA timeout")
+
+        def malformed_plan_planner(*_):
+            return {"slices": []}, "mock-model"
+
+        session = LiveSession(planner=malformed_plan_planner)
+        with self.assertRaisesRegex(RuntimeError, "response failed during plan validation: .*number of source slices"):
+            process(session, pcm, bpm=120, mode="evolve",
+                    provider="model", instruction="QA invalid plan")
+
+        def private_exception_planner(*_):
+            raise RuntimeError("SENSITIVE_PRIVATE_MODEL_RESPONSE_SHOULD_NOT_APPEAR")
+
+        session = LiveSession(planner=private_exception_planner)
+        with self.assertRaises(RuntimeError) as caught:
+            process(session, pcm, bpm=120, mode="evolve",
+                    provider="model", instruction="QA no leakage")
+        self.assertNotIn("SENSITIVE_PRIVATE_MODEL_RESPONSE_SHOULD_NOT_APPEAR", str(caught.exception))
+        self.assertIn("unexpected error", str(caught.exception))
 
     def test_failed_model_is_not_relabelled_as_deterministic(self):
         session = LiveSession(planner=lambda *_: ({"slices": []}, "broken"))
