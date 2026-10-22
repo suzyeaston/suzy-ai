@@ -129,11 +129,27 @@ def process(session: LiveSession, audio: bytes, *, bpm: float, mode: str,
             pass
         raise
 
+def resolve_devices(device=None, input_device=None, output_device=None):
+    """PortAudio device selection: one duplex device or an explicit I/O pair."""
+    if device is not None and (input_device is not None or output_device is not None):
+        raise ValueError("--device cannot be combined with separate input/output devices")
+    if (input_device is None) != (output_device is None):
+        raise ValueError("specify both --input-device and --output-device")
+
+    def parse(value):
+        return int(value) if value is not None and value.isdecimal() else value
+
+    if input_device is not None:
+        return parse(input_device), parse(output_device)
+    return parse(device)
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list-devices", action="store_true")
-    parser.add_argument("--device", help="PortAudio input/output device index or name substring")
+    parser.add_argument("--device", help="one PortAudio device used for both input/output")
+    parser.add_argument("--input-device", help="input device index, e.g. 0 for Scarlett Solo")
+    parser.add_argument("--output-device", help="output device index, e.g. 4 for MacBook speakers")
     parser.add_argument("--bpm", type=float, default=120)
     parser.add_argument("--beats", type=int, default=4)
     parser.add_argument("--cycles", type=int, default=1,
@@ -159,10 +175,14 @@ def main(argv=None):
     frames = round(RATE * args.beats * 60 / args.bpm)
     if not RATE // 4 <= frames <= RATE * 8:
         parser.error("phrase duration must be between 0.25 and eight seconds")
-    device = int(args.device) if args.device and args.device.isdigit() else args.device
+    try:
+        device = resolve_devices(args.device, args.input_device, args.output_device)
+    except ValueError as exc:
+        parser.error(str(exc))
     duplex = DuplexBuffer(frames)
     session = LiveSession()
-    print("EXPERIMENTAL | 48 kHz stereo | Focusrite should be macOS input AND output.")
+    print("EXPERIMENTAL | 48 kHz stereo | choose your Focusrite mic input and desired output.")
+    print(f"PortAudio devices (input, output): {device}")
     print("Headphones, low level, no feedback loops. Logic runs separately.")
     print(f"Capture {frames / RATE:.2f}s, {args.provider}/{args.mode}; Ctrl-C stops playback.")
     try:
@@ -194,7 +214,11 @@ def main(argv=None):
     except KeyboardInterrupt:
         print("\nStopped: local output silenced by closing the audio stream.")
     except (OSError, ValueError, RuntimeError) as exc:
-        raise SystemExit(f"Live audio probe stopped: {exc}") from exc
+        raise SystemExit(
+            f"Live audio probe stopped: {exc}. If separate input/output devices "
+            "fail to open together, report the error; some Core Audio combinations "
+            "cannot share one duplex stream."
+        ) from exc
 
 
 if __name__ == "__main__":

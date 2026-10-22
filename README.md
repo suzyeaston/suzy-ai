@@ -117,10 +117,10 @@ through the interface **without any Logic WAV export**. It uses an optional
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m pip install -e '.[live]'
 .venv-mac/bin/python -m suzy_ai.music.live_probe --list-devices
-.venv-mac/bin/python -m suzy_ai.music.live_probe --bpm 120 --beats 4 --cycles 2
+.venv-mac/bin/python -m suzy_ai.music.live_probe --input-device 0 --output-device 4 --bpm 120 --beats 4 --cycles 2
 ~~~
 
-Start with deterministic processing to isolate routing from inference. For
+Set the input and output device numbers from the list (Scarlett Solo USB = 0, MacBook Pro Speakers = 4 on the first tested machine; External Headphones = 2). Start with deterministic processing to isolate routing from inference. For
 Qwen model-guided responses, start the core on port 7332 in a second Terminal,
 then pass \`--provider model --mode evolve\`.
 
