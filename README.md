@@ -106,6 +106,31 @@ For the Python core alone, install with `pip install -e .` in a virtual environm
 then use `suzy-ai init`, `suzy-ai doctor` and `suzy-ai serve`. Its default API port is
 7331; the musical setup above uses 7332. See the [chat and memory API guide](docs/local-chat.md).
 
+## Live audio QA without Swift (experimental)
+
+To **test real Focusrite audio immediately**, use the separate Python live
+probe, which captures a short phrase and automatically auditions a response
+through the interface **without any Logic WAV export**. It uses an optional
+\`sounddevice\` binding rather than the native Mac companion:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m pip install -e '.[live]'
+.venv-mac/bin/python -m suzy_ai.music.live_probe --list-devices
+.venv-mac/bin/python -m suzy_ai.music.live_probe --bpm 120 --beats 4 --cycles 2
+~~~
+
+Start with deterministic processing to isolate routing from inference. For
+Qwen model-guided responses, start the core on port 7332 in a second Terminal,
+then pass \`--provider model --mode evolve\`.
+
+**Not performance-ready:** this Python callback is not guaranteed real-time
+safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
+It is phrase-based capture/process/one-shot response, **not** continuous
+AI-generated audio or a Logic plug-in. See
+[Live hardware QA](docs/live-hardware-qa.md) for exact commands, safety and
+limitations.
+
 ## How the projects fit together
 
 | Project | Role |
