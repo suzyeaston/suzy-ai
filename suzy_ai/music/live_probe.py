@@ -38,6 +38,7 @@ class DuplexBuffer:
         self.recording = False
         self.response = b""
         self.played = 0
+        self.repeats = 1
         self.playing = False
         self.audio_flags = 0
         self._silence = bytes(BLOCKSIZE * FRAME_BYTES)
@@ -53,11 +54,18 @@ class DuplexBuffer:
             raise RuntimeError("capture is incomplete")
         return bytes(self.source)
 
-    def play(self, pcm: bytes):
+    def play(self, pcm: bytes, *, repeats: int = 1):
+        """Audition the proposal repeatedly so the performer can sing over it.
+
+        Repeat count is finite. The original phrase is kept once in memory.
+        """
         if self.recording or self.playing or len(pcm) % FRAME_BYTES or not pcm:
             raise ValueError("play requires complete stereo PCM16 and idle stream")
+        if type(repeats) is not int or not 1 <= repeats <= 8:
+            raise ValueError("layer repeats must be an integer between 1 and 8")
         self.response = pcm
         self.played = 0
+        self.repeats = repeats
         self.playing = True
 
     def callback(self, indata, outdata, frames, time_info=None, status=None):
@@ -74,10 +82,18 @@ class DuplexBuffer:
             if self.written == self.target_bytes:
                 self.recording = False
         if self.playing:
-            count = min(len(self.response) - self.played, size)
-            outdata[:count] = self.response[self.played:self.played + count]
-            self.played += count
-            if self.played == len(self.response):
+            # Source may wrap inside an audio block; fill the whole buffer.
+            # Never call the AI model or allocate a repeated waveform here.
+            remaining = len(self.response) * self.repeats - self.played
+            offset = 0
+            while offset < size and remaining > 0:
+                start = self.played % len(self.response)
+                count = min(len(self.response) - start, size - offset, remaining)
+                outdata[offset:offset + count] = self.response[start:start + count]
+                offset += count
+                self.played += count
+                remaining -= count
+            if self.played == len(self.response) * self.repeats:
                 self.playing = False
 
 def capture_levels(pcm: bytes) -> list[tuple[float, float]]:
@@ -297,6 +313,8 @@ def main(argv=None):
                         help="seconds after you press Return before capture (default 3)")
     parser.add_argument("--cycles", type=int, default=1,
                         help="capture/AI/audition cycles (0 = repeat until Ctrl-C)")
+    parser.add_argument("--layer-repeats", type=int, default=1,
+                        help="replay a generated response 1-8 times while you perform in Logic (default 1)")
     parser.add_argument("--mode", choices=("mirror", "augment", "evolve"), default="mirror")
     parser.add_argument("--provider", choices=("deterministic", "model"),
                         default="deterministic")
@@ -329,8 +347,8 @@ def main(argv=None):
         except (OSError, ValueError) as exc:
             parser.error(f"output device test failed: {exc}")
         return
-    if not 40 <= args.bpm <= 240 or not 1 <= args.beats <= 16 or args.cycles < 0 or not 0 <= args.countdown <= 10:
-        parser.error("use 40–240 BPM, 1–16 beats, 0–10 second countdown and nonnegative cycles")
+    if not 40 <= args.bpm <= 240 or not 1 <= args.beats <= 16 or args.cycles < 0 or not 0 <= args.countdown <= 10 or not 1 <= args.layer_repeats <= 8:
+        parser.error("use 40–240 BPM, 1–16 beats, 0–10 second countdown, 1–8 layer repeats and nonnegative cycles")
     if not 0 < args.gain <= 0.5:
         parser.error("gain must be greater than zero and at most 0.5")
     frames = round(RATE * args.beats * 60 / args.bpm)
@@ -366,7 +384,8 @@ def main(argv=None):
     print(f"Output device: {sd.query_devices(output_index, 'output')['name']}")
     print("Headphones, low level, no feedback loops. Logic runs separately.")
     print(f"Capture {frames / RATE:.2f}s after Return + {args.countdown}s countdown, "
-          f"{args.provider}/{args.mode}; Ctrl-C stops playback.")
+          f"{args.provider}/{args.mode}; layer repeats={args.layer_repeats}; "
+          "Ctrl-C stops playback.")
     try:
         with sd.RawStream(device=device, samplerate=RATE, blocksize=BLOCKSIZE,
                           channels=(CHANNELS, CHANNELS), dtype="int16",
@@ -409,14 +428,17 @@ def main(argv=None):
                     print("WARNING: response output is very quiet. "
                           "Try --gain 0.3 after confirming the output route.",
                           flush=True)
-                duplex.play(pcm)
-                print("Sending response through the selected output device. "
+                duplex.play(pcm, repeats=args.layer_repeats)
+                print(f"RESPONSE LAYER: playing {args.layer_repeats} times on "
+                      f"{sd.query_devices(output_index, 'output')['name']}. "
+                      "Keep singing/playing in Logic over the response. "
                       "No WAV exports.", flush=True)
                 while duplex.playing:
                     time.sleep(0.02)
                 session.action(cid, "stop-audition")
                 session.action(cid, "discard")
-                print(f"Playback queued {len(pcm) // FRAME_BYTES} stereo frames; "
+                print(f"Playback queued {(len(pcm) // FRAME_BYTES) * args.layer_repeats} "
+                      f"stereo frames across {args.layer_repeats} repeats; "
                       f"audio callback copied {duplex.played // FRAME_BYTES} frames.")
                 print(f"Cycle complete. Device warning callbacks: {duplex.audio_flags}")
                 print("Playback copied to the driver, not yet independently "

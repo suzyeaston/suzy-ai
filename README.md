@@ -124,6 +124,14 @@ Set the input and output device numbers from the list (Scarlett Solo USB = 0, Ma
 Qwen model-guided responses, start the core on port 7332 in a second Terminal,
 then pass \`--provider model --mode evolve\`.
 
+To play an experimental response **under your continued Logic performance**,
+add `--layer-repeats 4` (up to 8). The AI candidate will repeat while you
+sing or play on top, monitored through Logic, but the prototype is not
+clock-synced and cannot capture another phrase until playback ends.
+For real **model-driven** response planning, run the local Qwen core and
+use `--provider model --mode evolve`; the model currently rearranges
+existing audio slices, not new melodies or harmonies.
+
 **Not performance-ready:** this Python callback is not guaranteed real-time
 safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
 The response uses `--output-mix auto` by default to center a one-sided Scarlett mono mic in **both headphone channels** while preserving genuinely stereo audio. Choose `--output-mix mono-center` to force centered monitoring or `--output-mix stereo` to preserve two independent inputs. This is dual-mono for mono input, not stereo widening. It is phrase-based capture/process/one-shot response, **not** continuous

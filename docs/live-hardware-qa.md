@@ -177,6 +177,61 @@ cd ~/Projects/suzy-ai
 If you hear an effect, it is *deterministic* audio processing, not a model.
 That validates input capture, buffer handoff and audio output before we add Qwen.
 
+## Hear a response play *over* your continued performance
+
+The earlier tests only played one response once, after your captured phrase.
+That is not accompaniment. The new optional `--layer-repeats` setting can
+repeat the finished response up to eight times **while you continue singing or
+playing the Logic session**. Logic must already be monitoring your live voice;
+the Python probe does not route or mix your dry microphone signal.
+
+**First prove the layering with deterministic processing**, keeping headphones
+at a low level:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider deterministic \
+  --layer-repeats 4 --cycles 1 --gain 0.3
+~~~
+
+Select the headphones you can hear, confirm the tone, press Return for the
+countdown and sing an initial four-second phrase. Then **keep singing over
+the response as it repeats four times** (16 seconds at 120 BPM), or press
+Ctrl+C to stop the probe. No new input is captured during those repeats.
+This verifies the audio layer and that Logic continues running. These
+deterministic EVOLVE edits are a source-slice rotation, **not AI**.
+
+**Then try model-guided variation** with the existing local Qwen core running
+on port 7332:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider model --layer-repeats 4 \
+  --cycles 1 --gain 0.3 \
+  --instruction "Make a sparse, rhythmic four-beat variation with gaps for my singing."
+~~~
+
+The console must say `provider=model` with a real model name for this test
+to demonstrate model use. Qwen receives audio **features** and chooses
+bounded source-slice reorder/reverse/gain operations. It does not hear the
+raw waveform or synthesize an independent harmony. The new loop plays
+those transformed source slices, not new notes.
+
+**Limitations:** The response begins after the 4s capture and model/render
+delay, without Logic bar/clock synchronization; it may start off-beat.
+The repeat can drift relative to Logic, especially when the speaker and
+Scarlett run on independent hardware clocks. The waveform has short source
+slice fades but it does not promise seamless boundary transitions. The
+probe cannot capture another phrase while the response loops, cannot add
+multiple AI layers or send MIDI notes into Logic, and has no footswitch.
+This is a rehearsal-only first layer test, **not** a validated stage setup.
+
 ## Then test real Qwen model *decisions*
 
 In one Terminal (existing model setup; no additional download):
@@ -207,7 +262,7 @@ Personal memory is disabled for model decisions.
 | Input | Which Scarlett channel shows a level? Is the mic clearly audible? |
 | Output | Which device plays the test tone? Are equal L/R peaks printed after mono-centering, and do both ears hear the response? |
 | Round trip | Time printed between capture end and response ready |
-| Timing | Does the response align *musically*, despite no Logic clock sync? |
+| Timing | Does the response align *musically*, despite no Logic clock sync? Does the 4x repeat play while you keep singing through Logic? |
 | Stability | Any device warning callbacks, missing playback frames, clicks or Logic glitches? |
 | AI provenance | Does the log explicitly say `provider=model` for model runs? |
 | Stop safety | Does Ctrl-C silence this probe without stopping Logic? |
