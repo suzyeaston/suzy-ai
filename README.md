@@ -111,7 +111,7 @@ then use `suzy-ai init`, `suzy-ai doctor` and `suzy-ai serve`. Its default API p
 To **test real Focusrite audio immediately**, use the separate Python live
 probe, which captures a short phrase and automatically auditions a response
 through the interface **without any Logic WAV export**. It uses an optional
-\`sounddevice\` binding rather than the native Mac companion:
+`sounddevice` binding rather than the native Mac companion:
 
 ~~~bash
 cd ~/Projects/suzy-ai
@@ -122,7 +122,7 @@ cd ~/Projects/suzy-ai
 
 Start with deterministic processing to isolate routing from inference. For
 Qwen model-guided responses, start the core on port 7332 in a second Terminal,
-then pass \`--provider model --mode evolve\`.
+then pass `--provider model --mode evolve`.
 
 **Not performance-ready:** this Python callback is not guaranteed real-time
 safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
