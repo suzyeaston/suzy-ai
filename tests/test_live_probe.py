@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
-    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, diagnostic_tone, performer_countdown, test_output,
-    process, resolve_devices, response_pcm,
+    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, choose_listening_output,
+    diagnostic_tone, performer_countdown, test_output, process, resolve_devices, response_pcm,
 )
 
 
@@ -16,6 +16,7 @@ class LiveProbeTests(unittest.TestCase):
     def test_separate_input_output_device_routing(self):
         self.assertEqual(resolve_devices("0"), 0)
         self.assertEqual(resolve_devices(input_device="0", output_device="4"), (0, 4))
+        self.assertEqual(resolve_devices(input_device="0", output_device=2), (0, 2))
         self.assertEqual(resolve_devices(input_device="0", output_device="2"), (0, 2))
         self.assertEqual(resolve_devices(input_device="Scarlett", output_device="MacBook"), ("Scarlett", "MacBook"))
         self.assertIsNone(resolve_devices())
@@ -24,6 +25,51 @@ class LiveProbeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_devices(device="0", input_device="0", output_device="4")
 
+
+    def test_output_selector_previews_until_performer_hears_it(self):
+        class FakeDeviceList:
+            @staticmethod
+            def query_devices():
+                return [
+                    {"name": "Scarlett Solo USB", "max_output_channels": 2},
+                    {"name": "External Microphone", "max_output_channels": 0},
+                    {"name": "External Headphones", "max_output_channels": 2},
+                    {"name": "MacBook Microphone", "max_output_channels": 0},
+                    {"name": "MacBook Pro Speakers", "max_output_channels": 2},
+                ]
+
+        answers = iter(["9", "4", "n", "2", "yes"])
+        messages, previewed = [], []
+        chosen = choose_listening_output(
+            FakeDeviceList(),
+            read=lambda prompt: next(answers),
+            announce=messages.append,
+            preview=lambda sd, device: previewed.append(device),
+        )
+        self.assertEqual(chosen, 2)
+        self.assertEqual(previewed, [4, 2])
+        self.assertTrue(any("External Headphones" in s for s in messages))
+        self.assertTrue(any("Not confirmed" in s for s in messages))
+
+    def test_output_selector_does_not_capture_when_cancelled(self):
+        class FakeDeviceList:
+            @staticmethod
+            def query_devices():
+                return [{"name": "Headphones", "max_output_channels": 2}]
+
+        with self.assertRaises(KeyboardInterrupt):
+            choose_listening_output(FakeDeviceList(), read=lambda _: "q",
+                                    announce=lambda _: None,
+                                    preview=lambda *_: self.fail("should not play"))
+
+    def test_output_selector_requires_stereo_output(self):
+        class FakeDeviceList:
+            @staticmethod
+            def query_devices():
+                return [{"name": "Mic", "max_output_channels": 0}]
+
+        with self.assertRaisesRegex(ValueError, "No stereo output"):
+            choose_listening_output(FakeDeviceList())
 
     def test_countdown_is_ready_before_capture(self):
         prompts, sleeps, lines = [], [], []

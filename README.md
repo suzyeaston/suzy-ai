@@ -120,7 +120,7 @@ cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe --input-device 0 --output-device 4 --bpm 120 --beats 8 --cycles 1 --gain 0.1
 ~~~
 
-Set the input and output device numbers from the list (Scarlett Solo USB = 0, MacBook Pro Speakers = 4 on the first tested machine; External Headphones = 2). The probe waits for you to press Return, counts down 3 seconds, captures 4 seconds at 120 BPM, prints Scarlett input levels, and automatically plays the response. Before recording, run `--test-output --output-device 2` to check the macOS External Headphones route with a low-level tone (try device 4 for MacBook speakers). The probe now logs the physical device names, processed response levels and copied playback frames. Start with deterministic processing to isolate routing from inference. For
+Set the input and output device numbers from the list (Scarlett Solo USB = 0, MacBook Pro Speakers = 4 on the first tested machine; External Headphones = 2). The probe waits for you to press Return, counts down 3 seconds, captures 4 seconds at 120 BPM, prints Scarlett input levels, and automatically plays the response. For a performer-facing choice, pass `--input-device 0 --choose-output` and select headphones or speakers by listening to a test tone before any audio is recorded. Before recording, run `--test-output --output-device 2` to check the macOS External Headphones route with a low-level tone (try device 4 for MacBook speakers). The probe now logs the physical device names, processed response levels and copied playback frames. Start with deterministic processing to isolate routing from inference. For
 Qwen model-guided responses, start the core on port 7332 in a second Terminal,
 then pass \`--provider model --mode evolve\`.
 

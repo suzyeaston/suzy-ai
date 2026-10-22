@@ -140,6 +140,41 @@ def test_output(sd, output_device):
     print("Sent tone to output device; audibility still needs your confirmation.")
 
 
+def choose_listening_output(sd, *, read=input, announce=print, preview=test_output):
+    """Select an output by actual listening test, before any mic capture.
+
+    Device indices are session-local PortAudio indices, not stable identifiers.
+    """
+    choices = {index: info["name"]
+               for index, info in enumerate(sd.query_devices())
+               if info["max_output_channels"] >= CHANNELS}
+    if not choices:
+        raise ValueError("No stereo output devices available at this time")
+    announce("LISTENING OUTPUT: choose where SUZY//AI should be heard.")
+    announce("The microphone will NOT record during this selection.")
+    for index, name in choices.items():
+        announce(f"  {index}: {name}")
+    while True:
+        choice = read("Enter an output number (or q to quit): ").strip().lower()
+        if choice in ("q", "quit"):
+            raise KeyboardInterrupt
+        if not choice.isdecimal() or int(choice) not in choices:
+            announce("Choose one of the output numbers listed above.")
+            continue
+        selected = int(choice)
+        try:
+            preview(sd, selected)
+        except (OSError, ValueError) as exc:
+            announce(f"Could not play a test tone through {choices[selected]}: {exc}")
+            continue
+        heard = read("Did you hear the tone in your intended headphones or "
+                     "speakers? [y/N]: ").strip().lower()
+        if heard in ("y", "yes"):
+            announce(f"Confirmed listening output: {choices[selected]} ({selected}).")
+            return selected
+        announce("Not confirmed. Choose another output or q to quit.")
+
+
 def response_pcm(wav_bytes: bytes, gain: float) -> bytes:
     """Decode the existing AI renderer's WAV in RAM, applying conservative gain."""
     with wave.open(io.BytesIO(wav_bytes), "rb") as audio:
@@ -198,7 +233,7 @@ def resolve_devices(device=None, input_device=None, output_device=None):
         raise ValueError("specify both --input-device and --output-device")
 
     def parse(value):
-        return int(value) if value is not None and value.isdecimal() else value
+        return int(value) if isinstance(value, str) and value.isdecimal() else value
 
     if input_device is not None:
         return parse(input_device), parse(output_device)
@@ -210,6 +245,8 @@ def main(argv=None):
     parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--test-output", action="store_true",
                         help="play a low-volume tone to output only, with no mic recording")
+    parser.add_argument("--choose-output", action="store_true",
+                        help="choose speaker/headphone output interactively using a test tone")
     parser.add_argument("--device", help="one PortAudio device used for both input/output")
     parser.add_argument("--input-device", help="input device index, e.g. 0 for Scarlett Solo")
     parser.add_argument("--output-device", help="output device index, e.g. 4 for MacBook speakers")
@@ -235,6 +272,8 @@ def main(argv=None):
         print(sd.query_devices())
         return
     if args.test_output:
+        if args.choose_output:
+            parser.error("--choose-output cannot be combined with --test-output")
         if args.device is not None and args.output_device is not None:
             parser.error("use either --device or --output-device for --test-output")
         selected = args.output_device or args.device
@@ -254,10 +293,22 @@ def main(argv=None):
     frames = round(RATE * args.beats * 60 / args.bpm)
     if not RATE // 4 <= frames <= RATE * 8:
         parser.error("phrase duration must be between 0.25 and eight seconds")
-    try:
-        device = resolve_devices(args.device, args.input_device, args.output_device)
-    except ValueError as exc:
-        parser.error(str(exc))
+    if args.choose_output:
+        if args.device is not None or args.output_device is not None:
+            parser.error("--choose-output replaces --device/--output-device")
+        if args.input_device is None:
+            parser.error("--choose-output requires --input-device (0 for Scarlett Solo)")
+        try:
+            chosen_output = choose_listening_output(sd)
+            device = resolve_devices(input_device=args.input_device,
+                                     output_device=chosen_output)
+        except ValueError as exc:
+            parser.error(str(exc))
+    else:
+        try:
+            device = resolve_devices(args.device, args.input_device, args.output_device)
+        except ValueError as exc:
+            parser.error(str(exc))
     duplex = DuplexBuffer(frames)
     session = LiveSession()
     print("EXPERIMENTAL | 48 kHz stereo | choose your Focusrite mic input and desired output.")
