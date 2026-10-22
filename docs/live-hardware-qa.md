@@ -70,6 +70,44 @@ Device numbers may change after reconnecting devices. A successful tone on
 one device doesn't guarantee the split-device duplex stream will audibly use
 the same output, so verify with a real phrase afterward.
 
+## Mono mic in both headphones (centered monitoring)
+
+A Scarlett Solo microphone connected to **input channel 1** is a **mono
+source**; the second interface input can legitimately be silent. Earlier
+versions preserved that left-only channel and played silence to the right
+ear. This is not a headphone defect or a model-inference problem.
+
+The new `--output-mix` setting works on the *AI response* after processing,
+**outside** the live audio callback:
+
+- `--output-mix auto` (default): if a response is present in only one
+  channel, duplicate that channel into **both L and R** at the same amplitude.
+  Preserve independent L/R when both channels contain signal.
+- `--output-mix mono-center`: explicitly use the louder channel in **both
+  headphones**. Useful for one mic in either Scarlett socket.
+- `--output-mix stereo`: never fold the channels; keep original independent
+  stereo (including a silent side if your input was mono).
+
+This produces **dual-mono in a stereo headphone stream**, not fake stereo
+width or two different takes. Future stereo vocal FX from the VE-22 can
+remain stereo, and we can add creative panning/width separately.
+
+Example with confirmed external headphones (device 2 on the first Mac test):
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device 0 --output-device 2 \
+  --output-mix mono-center \
+  --bpm 120 --beats 8 --cycles 1 --countdown 3 \
+  --mode mirror --provider deterministic --gain 0.3
+~~~
+
+The Terminal prints `Output mix: centered mono ... into L+R` and
+equal left/right output peaks. Listen to verify both headphone sides.
+Keep listening volume low. When using the interactive `--choose-output`
+option, the same `--output-mix` setting applies after you confirm the tone.
+
 ## Debug audio output before recording
 
 The first hardware runs confirmed a nonzero Scarlett channel 1 input and
@@ -107,7 +145,7 @@ Terminal text only.
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
   --input-device 0 --output-device 2 \
-  --bpm 120 --beats 8 --cycles 1 --mode mirror --provider deterministic --gain 0.3
+  --output-mix auto --bpm 120 --beats 8 --cycles 1 --mode mirror --provider deterministic --gain 0.3
 ~~~
 
 - Device **0** is Scarlett Solo USB input. Device **2** was External
@@ -167,7 +205,7 @@ Personal memory is disabled for model decisions.
 | Case | Record |
 | --- | --- |
 | Input | Which Scarlett channel shows a level? Is the mic clearly audible? |
-| Output | Which output-device number produced an audible 440-Hz test tone? Does the response itself play there? |
+| Output | Which device plays the test tone? Are equal L/R peaks printed after mono-centering, and do both ears hear the response? |
 | Round trip | Time printed between capture end and response ready |
 | Timing | Does the response align *musically*, despite no Logic clock sync? |
 | Stability | Any device warning callbacks, missing playback frames, clicks or Logic glitches? |
