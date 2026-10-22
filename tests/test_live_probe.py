@@ -9,6 +9,7 @@ from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
     BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, choose_listening_output,
     diagnostic_tone, performer_countdown, test_output, process, resolve_devices, response_pcm,
+    route_output_channels,
 )
 
 
@@ -182,6 +183,55 @@ class LiveProbeTests(unittest.TestCase):
             audio.play(b"\x01")
         with self.assertRaises(RuntimeError):
             audio.captured()
+
+    def test_auto_centers_left_only_voice_for_both_headphones(self):
+        mono_left = struct.pack("<hh", 12500, 0) * 64
+        routed, message = route_output_channels(mono_left)
+        self.assertEqual(routed, struct.pack("<hh", 12500, 12500) * 64)
+        self.assertIn("channel 1", message)
+        self.assertIn("L+R", message)
+        self.assertEqual(capture_levels(routed)[0], capture_levels(routed)[1])
+
+    def test_auto_centers_right_only_voice(self):
+        mono_right = struct.pack("<hh", 0, -9400) * 64
+        routed, message = route_output_channels(mono_right)
+        self.assertEqual(routed, struct.pack("<hh", -9400, -9400) * 64)
+        self.assertIn("channel 2", message)
+
+    def test_auto_preserves_genuinely_stereo_audio(self):
+        stereo = struct.pack("<hh", 12345, -8000) * 64
+        routed, message = route_output_channels(stereo)
+        self.assertEqual(routed, stereo)
+        self.assertIn("stereo", message)
+
+    def test_force_modes_and_silent_audio(self):
+        stereo = struct.pack("<hh", 12345, -8000) * 32
+        self.assertEqual(route_output_channels(stereo, "stereo")[0], stereo)
+        mono, _ = route_output_channels(stereo, "mono-center")
+        self.assertEqual(mono, struct.pack("<hh", 12345, 12345) * 32)
+        one_sided = struct.pack("<hh", 12000, 0) * 32
+        self.assertEqual(route_output_channels(one_sided, "stereo")[0], one_sided)
+        silence = bytes(len(one_sided))
+        self.assertEqual(route_output_channels(silence)[0], silence)
+        for bad_mode in ("surround", "", None):
+            with self.assertRaises(ValueError):
+                route_output_channels(stereo, bad_mode)
+        for invalid in (b"", b"\x00", b"\x00\x00"):
+            with self.assertRaises(ValueError):
+                route_output_channels(invalid)
+
+    def test_mono_center_keeps_response_gain_and_frame_count(self):
+        frames = struct.pack("<hh", 16000, 0) * 32
+        stream = io.BytesIO()
+        with wave.open(stream, "wb") as wav:
+            wav.setnchannels(2)
+            wav.setframerate(RATE)
+            wav.setsampwidth(2)
+            wav.writeframes(frames)
+        response = response_pcm(stream.getvalue(), 0.3)
+        routed, _ = route_output_channels(response)
+        self.assertEqual(len(routed), len(response))
+        self.assertEqual(struct.unpack("<hh", routed[:4]), (4800, 4800))
 
     def test_pcm_wav_playback_gain_without_files(self):
         frames = struct.pack("<hh", 12000, -8000) * 64

@@ -193,6 +193,46 @@ def response_pcm(wav_bytes: bytes, gain: float) -> bytes:
     return samples.tobytes()
 
 
+def route_output_channels(pcm: bytes, mix: str = "auto") -> tuple[bytes, str]:
+    """Center a one-sided mono response in both ears, or preserve true stereo.
+
+    Pure post-render audio routing: no effect on the source, AI features or
+    real-time callback. Duplicated mono is dual-mono output, not spatial stereo.
+    """
+    if mix not in ("auto", "stereo", "mono-center"):
+        raise ValueError("output mix must be auto, stereo or mono-center")
+    if not pcm or len(pcm) % FRAME_BYTES:
+        raise ValueError("expected nonempty interleaved stereo PCM16")
+    if mix == "stereo":
+        return pcm, "preserved independent stereo L/R"
+
+    levels = capture_levels(pcm)
+    left, right = levels[0][0], levels[1][0]
+    if mix == "auto":
+        if left > 0.0005 and right <= min(0.001, left * 0.02):
+            source_channel = 0
+        elif right > 0.0005 and left <= min(0.001, right * 0.02):
+            source_channel = 1
+        else:
+            return pcm, "preserved independent stereo L/R (both channels active)"
+    else:
+        source_channel = 0 if left >= right else 1
+
+    samples = array("h")
+    samples.frombytes(pcm)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    for offset in range(0, len(samples), CHANNELS):
+        value = samples[offset + source_channel]
+        samples[offset] = samples[offset + 1] = value
+    if sys.byteorder != "little":
+        samples.byteswap()
+    return samples.tobytes(), (
+        f"centered mono from input channel {source_channel + 1} into L+R "
+        "(same voice in both headphones; not stereo widening)"
+    )
+
+
 def process(session: LiveSession, audio: bytes, *, bpm: float, mode: str,
             provider: str, instruction: str, max_wait: float = 12.0):
     config = dict(sample_rate=RATE, channels=CHANNELS, bpm=bpm, mode=mode,
@@ -260,6 +300,9 @@ def main(argv=None):
     parser.add_argument("--mode", choices=("mirror", "augment", "evolve"), default="mirror")
     parser.add_argument("--provider", choices=("deterministic", "model"),
                         default="deterministic")
+    parser.add_argument("--output-mix", choices=("auto", "stereo", "mono-center"),
+                        default="auto",
+                        help="auto centers a one-sided mono response in both headphones; stereo preserves L/R")
     parser.add_argument("--gain", type=float, default=0.3,
                         help="output amplitude multiplier, 0.0 to 0.5")
     parser.add_argument("--instruction", default="Keep my phrase recognizable; leave room for vocals.")
@@ -354,7 +397,9 @@ def main(argv=None):
                     provider=args.provider, instruction=args.instruction)
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
-                pcm = response_pcm(wav_bytes, args.gain)
+                rendered_pcm = response_pcm(wav_bytes, args.gain)
+                pcm, route = route_output_channels(rendered_pcm, args.output_mix)
+                print(f"Output mix ({args.output_mix}): {route}", flush=True)
                 output_levels = capture_levels(pcm)
                 print("Output levels (after gain): "
                       + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"

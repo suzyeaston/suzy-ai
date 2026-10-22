@@ -126,7 +126,7 @@ then pass \`--provider model --mode evolve\`.
 
 **Not performance-ready:** this Python callback is not guaranteed real-time
 safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
-It is phrase-based capture/process/one-shot response, **not** continuous
+The response uses `--output-mix auto` by default to center a one-sided Scarlett mono mic in **both headphone channels** while preserving genuinely stereo audio. Choose `--output-mix mono-center` to force centered monitoring or `--output-mix stereo` to preserve two independent inputs. This is dual-mono for mono input, not stereo widening. It is phrase-based capture/process/one-shot response, **not** continuous
 AI-generated audio or a Logic plug-in. See
 [Live hardware QA](docs/live-hardware-qa.md) for exact commands, safety and
 limitations.
