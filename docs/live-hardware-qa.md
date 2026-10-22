@@ -15,10 +15,11 @@ Logic's audio and transport remain independent.
 
 ## Before starting
 
-1. In **macOS System Settings → Sound**, select your Focusrite for **both**
-   input and output. In **Logic**, select Focusrite independently and play a
-   simple beat/instrument. Use headphones and a **low monitor level**. Avoid
-   routing playback back into the mic input.
+1. Keep **Logic's normal audio output** selected. Input may be the Scarlett
+   while output is the MacBook speakers or external headphones. The live probe
+   can now select different input/output devices explicitly. At the first test,
+   use low speaker/headphone volume and avoid acoustic or electrical feedback:
+   speakers near a live microphone can cause a feedback loop.
 2. The **mic → VE-22 → Focusrite** is the audio input. The **Keystation USB MIDI**
    goes to Logic, **not** this probe. The probe does not currently listen to
    Logic's MIDI instruments, internal buses, or the VE-22's MIDI.
@@ -40,9 +41,14 @@ Logic's audio and transport remain independent.
 ~~~bash
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device 0 --output-device 4 \
   --bpm 120 --beats 4 --cycles 2 --mode mirror --provider deterministic
 ~~~
 
+- Device **0** is Scarlett Solo USB (2 inputs, 2 outputs) on Suzy's Oct 21
+  list. Device **4** is MacBook Pro Speakers. To use the currently listed
+  External Headphones instead, pass `--output-device 2`. Device indices can
+  change between sessions, so check `--list-devices` again if needed.
 - Change **120** to your Logic BPM.
 - At 120 BPM, each capture lasts two seconds (four quarter-note beats).
 - Begin singing as the terminal prints "recording now". The stream is open for
@@ -73,6 +79,7 @@ Leave it running. In a second Terminal:
 ~~~bash
 cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device 0 --output-device 4 \
   --bpm 120 --beats 4 --cycles 2 --mode evolve --provider model
 ~~~
 
@@ -108,8 +115,11 @@ terminal's device list, error, response time and subjective observations.
   closes, so response time can be seconds.
 - No Logic clock sync or sample-accurate alignment. \`--bpm\` sets phrase
   duration and analysis slices, **not** playback transport alignment.
-- Input and output must both support stereo 48 kHz. Some interfaces/devices
-  will reject the duplex stream; that's a hardware QA finding, not a pass.
+- Input and output must both support stereo 48 kHz. **Two different physical
+  devices may have independent hardware clocks**: PortAudio/Core Audio may
+  refuse this duplex combination, or drift may degrade longer runs. An
+  Aggregate Device or independent streams with resampling may eventually be
+  needed. A stream-opening error is a hardware QA finding, not a pass.
 - CPU/memory contention from Qwen could still make Logic glitch on an 8 GB Mac.
 - The current response processor can reorder/reverse/attenuate *source slices*;
   it does not synthesize new melodies or harmonies.
