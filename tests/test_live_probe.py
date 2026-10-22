@@ -6,7 +6,8 @@ import wave
 
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
-    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, process, resolve_devices, response_pcm,
+    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, performer_countdown,
+    process, resolve_devices, response_pcm,
 )
 
 
@@ -22,6 +23,35 @@ class LiveProbeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_devices(device="0", input_device="0", output_device="4")
 
+
+    def test_countdown_is_ready_before_capture(self):
+        prompts, sleeps, lines = [], [], []
+
+        def fake_read(message):
+            prompts.append(message)
+            return ""
+
+        performer_countdown(3, 4.0, read=fake_read,
+                            pause=sleeps.append,
+                            announce=lambda message, **kwargs: lines.append(message))
+        self.assertEqual(len(prompts), 1)
+        self.assertIn("Press Return", prompts[0])
+        self.assertEqual(sleeps, [1.0, 1.0, 1.0])
+        self.assertEqual(lines[:3], ["  3...", "  2...", "  1..."])
+        self.assertIn("RECORDING NOW", lines[-1])
+        self.assertIn("4.0 seconds", lines[-1])
+        with self.assertRaises(ValueError):
+            performer_countdown(11, 4.0, read=fake_read)
+
+    def test_levels_identify_input_channels_and_silence(self):
+        pcm = struct.pack("<hh", 16384, 0) * 16
+        levels = capture_levels(pcm)
+        self.assertAlmostEqual(levels[0][0], 0.5)
+        self.assertAlmostEqual(levels[0][1], 0.5)
+        self.assertEqual(levels[1], (0.0, 0.0))
+        self.assertEqual(capture_levels(bytes(4 * 100)), [(0.0, 0.0), (0.0, 0.0)])
+        with self.assertRaises(ValueError):
+            capture_levels(b"\0\0")
 
     def test_capture_exact_length_and_silent_output(self):
         audio = DuplexBuffer(BLOCKSIZE + 13)
