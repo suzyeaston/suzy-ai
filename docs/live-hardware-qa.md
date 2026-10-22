@@ -37,6 +37,39 @@ Logic's audio and transport remain independent.
    If the correct interface isn't the macOS default, select the device index
    shown in the list using `--device N` (it must support 2 inputs + 2 outputs).
 
+## Pick your headphones or speakers before recording
+
+The live prototype supports **separate Scarlett microphone input and listening
+output**. If Logic is playing through your headphones but SUZY//AI seems to
+come through speakers, don't guess which Core Audio device is active.
+
+Use the **interactive output selector**:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device 0 --choose-output \
+  --bpm 120 --beats 8 --cycles 1 \
+  --mode mirror --provider deterministic --gain 0.3
+~~~
+
+The program lists available output devices (for example, **2 = External
+Headphones**, **4 = MacBook Pro Speakers** on the original Mac setup). Enter a
+number. It plays a quiet test tone on that device, then asks if you heard it
+through the headphones or speakers you actually intend to use. Answer
+**y** to confirm; **n** returns to the device list. Enter **q** to exit
+without capturing anything.
+
+Only after confirming the listening destination will it open the live
+microphone stream and offer the normal **press Return → 3, 2, 1 → record**
+workflow. Logic's selected audio output is not changed.
+
+You can also continue using `--input-device 0 --output-device 2` (headphones)
+or `--input-device 0 --output-device 4` (MacBook speakers) without the menu.
+Device numbers may change after reconnecting devices. A successful tone on
+one device doesn't guarantee the split-device duplex stream will audibly use
+the same output, so verify with a real phrase afterward.
+
 ## Debug audio output before recording
 
 The first hardware runs confirmed a nonzero Scarlett channel 1 input and
