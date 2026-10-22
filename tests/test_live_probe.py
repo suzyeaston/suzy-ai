@@ -174,6 +174,38 @@ class LiveProbeTests(unittest.TestCase):
         audio.callback(bytes(len(output)), output, BLOCKSIZE)
         self.assertEqual(bytes(output), bytes(len(output)))
 
+    def test_repeating_response_overlaps_continued_performance(self):
+        duplex = DuplexBuffer(100)
+        # Deliberately not a multiple of audio block size: must wrap mid-block.
+        phrase = struct.pack("<hh", 1400, -1400) * 600
+        duplex.play(phrase, repeats=3)
+        observed = bytearray()
+        block = bytearray(BLOCKSIZE * FRAME_BYTES)
+        while duplex.playing:
+            duplex.callback(bytes(len(block)), block, BLOCKSIZE)
+            observed.extend(block)
+        expected = phrase * 3
+        self.assertEqual(observed[:len(expected)], expected)
+        self.assertEqual(observed[len(expected):], bytes(len(observed) - len(expected)))
+        self.assertEqual(duplex.played, len(expected))
+        # The audible layer is playing independently of the artist's dry mic
+        # (the Python probe intentionally leaves live monitoring to Logic).
+        self.assertFalse(duplex.recording)
+
+    def test_repeating_response_default_and_boundaries(self):
+        for count in (1, 2, 8):
+            duplex = DuplexBuffer(100)
+            payload = struct.pack("<hh", 1100, 1100) * 7
+            duplex.play(payload, repeats=count)
+            block = bytearray(BLOCKSIZE * FRAME_BYTES)
+            duplex.callback(bytes(len(block)), block, BLOCKSIZE)
+            self.assertEqual(duplex.played, len(payload) * count)
+            self.assertFalse(duplex.playing)
+        for bad in (0, 9, -1, 1.2, True):
+            duplex = DuplexBuffer(100)
+            with self.assertRaises(ValueError):
+                duplex.play(struct.pack("<hh", 100, 100), repeats=bad)
+
     def test_cannot_arm_during_playback(self):
         audio = DuplexBuffer(100)
         audio.play(struct.pack("<hh", 100, 100))
