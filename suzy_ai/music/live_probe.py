@@ -296,9 +296,41 @@ def resolve_devices(device=None, input_device=None, output_device=None):
     return parse(device)
 
 
+
+def smoke_test_model(*, planner=None, beats=8):
+    """Try real model planning with synthetic sound, no microphone or audio output.
+
+    This tests exactly the same LiveSession model/render path as the live probe,
+    but never exposes or saves the performer's audio.
+    """
+    if not 1 <= beats <= 16:
+        raise ValueError("smoke beats must be 1-16")
+    source = diagnostic_tone(duration=1.0)
+    frames = round(RATE * beats * 60 / 120)
+    phrase = (source * math.ceil(frames / RATE))[:frames * FRAME_BYTES]
+    session = LiveSession(planner=planner)
+    started = time.monotonic()
+    print(f"MODEL SMOKE: {frames / RATE:.1f}s synthetic tone, "
+          "no microphone access and no speakers; requesting a real model plan.",
+          flush=True)
+    capture_id, _, manifest = process(
+        session, phrase, bpm=120, mode="evolve", provider="model",
+        instruction="Reorder the phrase lightly; preserve the beat.", max_wait=12)
+    try:
+        print(f"MODEL SMOKE PASS: provider={manifest['provider']} "
+              f"model={manifest['model']} slices={len(manifest['plan']['slices'])} "
+              f"elapsed={time.monotonic() - started:.2f}s", flush=True)
+        return manifest
+    finally:
+        session.action(capture_id, "stop-audition")
+        session.action(capture_id, "discard")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list-devices", action="store_true")
+    parser.add_argument("--test-model", action="store_true",
+                        help="test local Qwen with a synthetic phrase, no mic recording or playback")
     parser.add_argument("--test-output", action="store_true",
                         help="play a low-volume tone to output only, with no mic recording")
     parser.add_argument("--choose-output", action="store_true",
@@ -331,6 +363,12 @@ def main(argv=None):
         parser.error(f"sounddevice unavailable: {exc}. Install with python -m pip install -e '.[live]'")
     if args.list_devices:
         print(sd.query_devices())
+        return
+    if args.test_model:
+        try:
+            smoke_test_model()
+        except (ValueError, RuntimeError, OSError) as exc:
+            raise SystemExit(f"MODEL SMOKE FAILED: {exc}") from None
         return
     if args.test_output:
         if args.choose_output:
@@ -448,11 +486,7 @@ def main(argv=None):
     except EOFError:
         raise SystemExit("Live audio probe needs an interactive Terminal to press Return.")
     except (OSError, ValueError, RuntimeError) as exc:
-        raise SystemExit(
-            f"Live audio probe stopped: {exc}. If separate input/output devices "
-            "fail to open together, report the error; some Core Audio combinations "
-            "cannot share one duplex stream."
-        ) from exc
+        raise SystemExit(f"Live audio probe stopped: {exc}") from None
 
 
 if __name__ == "__main__":

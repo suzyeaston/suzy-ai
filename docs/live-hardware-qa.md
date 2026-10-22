@@ -232,6 +232,49 @@ probe cannot capture another phrase while the response loops, cannot add
 multiple AI layers or send MIDI notes into Logic, and has no footswitch.
 This is a rehearsal-only first layer test, **not** a validated stage setup.
 
+## Diagnose a model error *without singing again*
+
+The local Core API may reply to a quick chat request successfully, yet a
+musical arrangement can still fail if Qwen exceeds the eight-second planning
+deadline, returns non-JSON output, or proposes an invalid slice plan. Audio
+routing and microphone levels can be fine while model planning fails.
+
+With the **existing** local SUZY//AI core on `127.0.0.1:7332` and
+`llama-server` on `127.0.0.1:8082`, run:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model
+~~~
+
+This uses a **synthetic four-second test tone**, the same eight beat-slices
+as a vocal capture. It does **not open the microphone, make sound or export
+audio**, and still requires the local Qwen service. It submits musical
+features with personal memory disabled, validates the returned plan and
+prints a clear success or a safe failure category.
+
+Example failures, not necessarily what happened on Suzy's Mac:
+
+- `response failed during model planning: local model request timed out
+  (8-second deadline)`: inference didn't finish quickly enough.
+- `response failed during model planning: model replied with non-JSON
+  arrangement`: model responded, but not in the required JSON format.
+- `response failed during plan validation: plan must preserve the number
+  of source slices`: model-generated JSON parsed but violates the strict
+  arrangement contract.
+- `local core busy (HTTP 429)`: don't send another request while the
+  existing one is still occupying the core's single inference slot.
+
+All model-debug output is restricted to fixed failure categories. No raw
+model text, private prompts, mic recordings or tokens are printed. The
+existing live-probe exception message also no longer incorrectly blames
+Core Audio on a model-planning failure.
+
+Only return to `--provider model --layer-repeats 4` **after the synthetic
+test passes**. Do not restart an already-working local SUZY//AI service
+just because a musical arrangement fails.
+
 ## Then test real Qwen model *decisions*
 
 In one Terminal (existing model setup; no additional download):

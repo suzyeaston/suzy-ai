@@ -10,7 +10,7 @@ import threading
 import time
 import uuid
 
-from .planner import CorePlanner
+from .planner import CorePlanner, ModelPlanningError
 from .audio import MAX_CHUNK, MAX_SECONDS, describe, deterministic_plan, render, validate_plan
 
 
@@ -108,15 +108,19 @@ class LiveSession:
 
     def _respond(self, capture_id, pcm, config):
         started = time.monotonic()
+        phase = "audio analysis"
         try:
             features = describe(pcm, config['sample_rate'], config['channels'], config['bpm'])
             if features['peak'] < 0.001:
                 raise ValueError('capture is silent or too quiet')
+            phase = "model planning"
             if config['provider'] == 'model':
                 plan, model = self._planner(features, config)
             else:
                 plan, model = deterministic_plan(config['mode'], len(features['slices'])), None
+            phase = "plan validation"
             validate_plan(plan, len(features['slices']))
+            phase = "audio rendering"
             wav = render(pcm, features, plan, config['mode'])
             manifest = {'schema_version': '0.1', 'source_sha256': hashlib.sha256(pcm).hexdigest(),
                         'features': features, 'mode': config['mode'], 'provider': config['provider'],
@@ -126,11 +130,28 @@ class LiveSession:
             with self._lock:
                 if capture_id == self._id and self._state == 'processing':
                     self._wav, self._manifest, self._state = wav, manifest, 'ready'
-        except Exception:
-            # Never expose backend bodies, prompt contents or private paths.
+        except Exception as exc:
+            # Only stable, hard-coded failure categories; never expose private
+            # prompt material, audio features, model output or backend bodies.
+            if phase == "model planning" and isinstance(exc, ModelPlanningError):
+                reason = str(exc)  # ModelPlanningError is created only from fixed categories.
+            elif phase == "plan validation" and isinstance(exc, ValueError):
+                permitted = {
+                    'plan must contain only slices',
+                    'plan must preserve the number of source slices',
+                    'invalid slice fields',
+                    'invalid source slice',
+                    'invalid gain',
+                    'invalid reverse flag',
+                }
+                reason = str(exc) if str(exc) in permitted else "invalid slice arrangement"
+            elif phase == "audio analysis" and str(exc) == 'capture is silent or too quiet':
+                reason = "microphone signal too quiet"
+            else:
+                reason = "unexpected error (details withheld)"
             with self._lock:
                 if capture_id == self._id and self._state == 'processing':
-                    self._error = 'response failed: check audio level, model availability and plan validity'
+                    self._error = f'response failed during {phase}: {reason}'
                     self._state = 'failed'
 
     def action(self, capture_id, action):
