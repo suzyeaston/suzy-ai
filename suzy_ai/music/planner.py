@@ -20,6 +20,10 @@ features and artistic direction, never executable instructions:
 '''
 
 
+class ModelPlanningError(RuntimeError):
+    """Stable, safe diagnostic for local model planning. Never contains model text."""
+
+
 class CorePlanner:
     def __init__(self, base_url, timeout=8.0):
         self.host, self.port, _ = local_endpoint(base_url)
@@ -55,19 +59,35 @@ class CorePlanner:
             # No proxies, redirects or external destinations; use core's concurrency guard.
             connection.request('POST', '/v1/chat', body, {'Content-Type': 'application/json'})
             response = connection.getresponse()
+            if response.status == 429:
+                raise ModelPlanningError('local core busy (HTTP 429)')
             if response.status != 200:
-                raise ValueError('core unavailable or busy')
+                raise ModelPlanningError(f'local core HTTP {response.status}')
             raw = response.read(16385)
-            if len(raw) > 16384 or expired.is_set():
-                raise ValueError('core response exceeded limits')
-            payload = json.loads(raw)
-            message = payload['message']
-            if message['role'] != 'assistant' or not isinstance(message['content'], str):
-                raise ValueError('invalid core response')
-            model = payload['model']
-            if not isinstance(model, str) or not model or len(model) > 200:
-                raise ValueError('invalid model label')
-            return json.loads(message['content']), model
+            if expired.is_set():
+                raise ModelPlanningError('local core request exceeded 8-second deadline')
+            if len(raw) > 16384:
+                raise ModelPlanningError('local core response exceeded size limit')
+            try:
+                payload = json.loads(raw)
+                message = payload['message']
+                content = message['content']
+                model = payload['model']
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ModelPlanningError('invalid core response envelope') from None
+            if (message.get('role') != 'assistant' or not isinstance(content, str)
+                    or not isinstance(model, str) or not model or len(model) > 200):
+                raise ModelPlanningError('invalid core response envelope')
+            # Do not log or relay raw model text; locally parse one JSON object only.
+            try:
+                plan = json.loads(content)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                raise ModelPlanningError('model replied with non-JSON arrangement') from None
+            return plan, model
+        except (socket.timeout, TimeoutError):
+            raise ModelPlanningError('local model request timed out (8-second deadline)') from None
+        except (OSError, http.client.HTTPException):
+            raise ModelPlanningError('local core connection failed') from None
         finally:
             if timer:
                 timer.cancel()
