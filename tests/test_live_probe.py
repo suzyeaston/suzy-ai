@@ -9,6 +9,7 @@ from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
     BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, capture_levels, choose_listening_output,
     diagnostic_tone, performer_countdown, test_output, process, resolve_devices, response_pcm,
+    audio_device_names,
     route_output_channels,
 )
 
@@ -26,6 +27,31 @@ class LiveProbeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_devices(device="0", input_device="0", output_device="4")
 
+
+    def test_device_names_validate_input_output_roles(self):
+        class FakeAudio:
+            default = type("Default", (), {"device": (0, 1)})()
+            def query_devices(self, device, direction):
+                devices = {
+                    0: {"name": "Scarlett Solo USB", "input": True, "output": True},
+                    1: {"name": "External Headphones", "input": False, "output": True},
+                    2: {"name": "MacBook Pro Microphone", "input": True, "output": False},
+                }
+                if isinstance(device, str) and device == "Scarlett Solo USB":
+                    device = 0
+                if device not in devices or not devices[device][direction]:
+                    raise ValueError("Not an output device: 'MacBook Pro Microphone'")
+                return {"name": devices[device]["name"]}
+
+        sd = FakeAudio()
+        self.assertEqual(audio_device_names(sd, (0, 1)),
+                         ("Scarlett Solo USB", "External Headphones"))
+        self.assertEqual(audio_device_names(sd, ("Scarlett Solo USB", 1)),
+                         ("Scarlett Solo USB", "External Headphones"))
+        self.assertEqual(audio_device_names(sd, None),
+                         ("Scarlett Solo USB", "External Headphones"))
+        with self.assertRaisesRegex(ValueError, "Device numbers can move"):
+            audio_device_names(sd, (0, 2))
 
     def test_output_selector_previews_until_performer_hears_it(self):
         class FakeDeviceList:
