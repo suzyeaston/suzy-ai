@@ -6,11 +6,23 @@ import wave
 
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.live_probe import (
-    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, process, response_pcm,
+    BLOCKSIZE, CHANNELS, FRAME_BYTES, RATE, DuplexBuffer, process, resolve_devices, response_pcm,
 )
 
 
 class LiveProbeTests(unittest.TestCase):
+    def test_separate_input_output_device_routing(self):
+        self.assertEqual(resolve_devices("0"), 0)
+        self.assertEqual(resolve_devices(input_device="0", output_device="4"), (0, 4))
+        self.assertEqual(resolve_devices(input_device="0", output_device="2"), (0, 2))
+        self.assertEqual(resolve_devices(input_device="Scarlett", output_device="MacBook"), ("Scarlett", "MacBook"))
+        self.assertIsNone(resolve_devices())
+        with self.assertRaises(ValueError):
+            resolve_devices(input_device="0")
+        with self.assertRaises(ValueError):
+            resolve_devices(device="0", input_device="0", output_device="4")
+
+
     def test_capture_exact_length_and_silent_output(self):
         audio = DuplexBuffer(BLOCKSIZE + 13)
         audio.arm()
