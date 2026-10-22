@@ -20,7 +20,7 @@ features and artistic direction, never executable instructions:
 '''
 
 
-class ModelPlanningError(RuntimeError):
+class ModelPlanningError(ValueError):
     """Stable, safe diagnostic for local model planning. Never contains model text."""
 
 
@@ -75,7 +75,8 @@ class CorePlanner:
                 model = payload['model']
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise ModelPlanningError('invalid core response envelope') from None
-            if (message.get('role') != 'assistant' or not isinstance(content, str)
+            if (not isinstance(message, dict) or message.get('role') != 'assistant'
+                    or not isinstance(content, str)
                     or not isinstance(model, str) or not model or len(model) > 200):
                 raise ModelPlanningError('invalid core response envelope')
             # Do not log or relay raw model text; locally parse one JSON object only.
