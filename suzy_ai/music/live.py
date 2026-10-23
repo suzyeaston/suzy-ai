@@ -12,6 +12,7 @@ import uuid
 
 from .planner import CorePlanner, ModelPlanningError
 from .note_reply import NOTE_GESTURES
+from .vocal_reply import VOCAL_GESTURES
 from .audio import MAX_CHUNK, MAX_SECONDS, describe, deterministic_plan, render, validate_plan
 
 
@@ -62,8 +63,8 @@ class LiveSession:
             raise ValueError('host BPM must be between 40 and 240')
         if mode not in ('mirror', 'augment', 'evolve') or provider not in ('deterministic', 'model'):
             raise ValueError('invalid mode or provider')
-        if response_style not in ('source', 'notes') or (response_style == 'notes' and provider != 'model'):
-            raise ValueError('note reply needs provider=model; response_style must be source or notes')
+        if response_style not in ('source', 'notes', 'vocal') or (response_style != 'source' and provider != 'model'):
+            raise ValueError('AI replies need provider=model; response_style must be source, notes or vocal')
         if not isinstance(instruction, str) or len(instruction) > 500:
             raise ValueError('instruction must be at most 500 characters')
         with self._lock:
@@ -128,6 +129,8 @@ class LiveSession:
                     reply_gesture = result[2]
                 if config['response_style'] == 'notes' and reply_gesture not in NOTE_GESTURES:
                     raise ModelPlanningError('model did not choose a valid note answer')
+                if config['response_style'] == 'vocal' and reply_gesture not in VOCAL_GESTURES:
+                    raise ModelPlanningError('model did not choose a valid vocal response')
             else:
                 plan, model = deterministic_plan(config['mode'], len(features['slices'])), None
             phase = "plan validation"
