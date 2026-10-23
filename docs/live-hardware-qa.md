@@ -177,6 +177,55 @@ cd ~/Projects/suzy-ai
 If you hear an effect, it is *deterministic* audio processing, not a model.
 That validates input capture, buffer handoff and audio output before we add Qwen.
 
+## Listen to the vocal layer on its own (same-take comparison)
+
+If `QWEN VOCAL ANSWER: vocal-canon` prints but you only hear four
+repetitions of your original humming, the software may be working but
+the second voice can be masked by its source and by Logic monitoring.
+A one-beat canon is a delayed **copy of the same melody**, not a new
+harmony, and the current implementation cannot hear the next phrase.
+
+Run the normal vocal mode with **`--vocal-audition compare`**:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider model --ai-reply vocal \
+  --vocal-audition compare --layer-repeats 4 \
+  --cycles 1 --gain 0.3
+~~~
+
+One four-second recording produces these three consecutive auditions:
+
+1. **ORIGINAL:** 4 seconds of your recorded source alone at the same level
+   it has in the duet.
+2. **LAYER ONLY:** 4 seconds of the Qwen-selected delayed/stuttered/reversed
+   real-voice track, **with no original underneath**. For a canon at 120
+   BPM, the isolated voice is silent for its first 0.5 seconds.
+3. **DUET:** original + processed voice, repeated 4 times (16 seconds).
+
+Don't sing over the first two auditions so you can tell them apart; you
+can resume performing with Logic during the duet. Monitor at low headphone
+volume. The program prints separate peak and RMS L/R meters for original,
+layer and duet plus exactly how many frames it passed to the output
+driver. All three are constructed in memory from **the same take**, and
+the isolated layer uses the identical amplitude it has in the duet.
+Thus any difference is from the effect, not artificially turning up the
+solo preview. A very quiet layer will be visible in its RMS meter.
+
+Alternatively pass `--vocal-audition layer` to hear **only** the
+selected vocal treatment repeated four times, or omit the option for
+the original duet behavior.
+
+Passing CI does not prove that any of the tracks are audible on the Mac,
+or that the canon has enough musical contrast. If the solo layer is
+audible but the duet sounds unchanged, the issue is audibility/arrangement;
+we should adjust the musical effect or source balance, not rebuild the
+Qwen core or sound devices. Neither mode is a neural singing-voice clone.
+
 ## Experimental vocal duet: use your *actual humming*, not a synth
 
 The Frère Jacques rehearsal confirmed real Qwen note decisions and a

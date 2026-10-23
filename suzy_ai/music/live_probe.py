@@ -251,6 +251,23 @@ def route_output_channels(pcm: bytes, mix: str = "auto") -> tuple[bytes, str]:
     )
 
 
+def vocal_audition_buffers(captured: bytes, response: bytes, features: dict,
+                          gesture: str) -> dict[str, bytes]:
+    """Prepare a level-matched A/B demonstration of the real-voice layer.
+
+    Original is the same reduced source used in the full duet.
+    The isolated sample is the SAME sample heard in the duet; it is
+    not additionally amplified or remixed, so comparison is truthful.
+    """
+    if not captured or len(captured) != len(response) or len(response) % FRAME_BYTES:
+        raise ValueError("vocal audition needs equal-length stereo captured/response audio")
+    centered_capture, _ = route_output_channels(captured, "mono-center")
+    layer = render_vocal_layer(centered_capture, features, gesture)
+    original = mix_note_reply(response, bytes(len(response)), source_gain=0.5)
+    duet = mix_note_reply(response, layer, source_gain=0.5)
+    return {"original": original, "layer": layer, "duet": duet}
+
+
 def process(session: LiveSession, audio: bytes, *, bpm: float, mode: str,
             provider: str, instruction: str, max_wait: float = 12.0,
             response_style: str = "source"):
@@ -369,6 +386,9 @@ def main(argv=None):
                         default="deterministic")
     parser.add_argument("--ai-reply", choices=("off", "notes", "vocal"), default="off",
                         help="vocal: Qwen arranges your recorded humming as an overlapping voice layer; notes: synth answer")
+    parser.add_argument("--vocal-audition", choices=("duet", "layer", "compare"),
+                        default="duet",
+                        help="for --ai-reply vocal: duet only, isolated second voice, or original/layer/duet A/B comparison")
     parser.add_argument("--output-mix", choices=("auto", "stereo", "mono-center"),
                         default="auto",
                         help="auto centers a one-sided mono response in both headphones; stereo preserves L/R")
@@ -385,6 +405,8 @@ def main(argv=None):
         return
     if args.ai_reply != "off" and args.provider != "model":
         parser.error("--ai-reply notes/vocal requires --provider model")
+    if args.vocal_audition != "duet" and args.ai_reply != "vocal":
+        parser.error("--vocal-audition layer/compare requires --ai-reply vocal")
     if args.test_model:
         try:
             smoke_test_model(response_style=("source" if args.ai_reply == "off" else args.ai_reply))
@@ -497,38 +519,54 @@ def main(argv=None):
                         print("NO NOTE ANSWER: no confident single-note pitch hints. "
                               "Try a clean, sustained vocal tone without accompaniment "
                               "during the capture.", flush=True)
+                audition = [("response", pcm, args.layer_repeats)]
                 if args.ai_reply == "vocal":
-                    # Use the ACTUAL recorded waveform, not oscillator notes.
-                    source_voice, _ = route_output_channels(captured, "mono-center")
-                    response_layer = render_vocal_layer(source_voice,
-                                                        metadata['features'],
-                                                        metadata['reply_gesture'])
-                    pcm = mix_note_reply(pcm, response_layer, source_gain=0.5)
+                    parts = vocal_audition_buffers(captured, pcm, metadata['features'],
+                                                   metadata['reply_gesture'])
                     print(f"QWEN VOCAL ANSWER: {metadata['reply_gesture']}; "
-                          "second layer uses your real recorded voice, "
-                          "mixed with the first phrase. No neural voice cloning.",
+                          "the second voice is a delayed or edited sample of your "
+                          "actual recording, not neural voice cloning.", flush=True)
+                    for name in ("original", "layer", "duet"):
+                        levels = capture_levels(parts[name])
+                        print(f"  {name} peak L/R: "
+                              f"{levels[0][0]:.2%} / {levels[1][0]:.2%}, "
+                              f"RMS L/R: {levels[0][1]:.2%} / {levels[1][1]:.2%}",
+                              flush=True)
+                    if args.vocal_audition == "compare":
+                        audition = [
+                            ("original (source only)", parts["original"], 1),
+                            ("isolated Qwen-chosen vocal layer", parts["layer"], 1),
+                            ("duet (both voices)", parts["duet"], args.layer_repeats),
+                        ]
+                        print("COMPARISON: listen without singing for ORIGINAL, "
+                              "then LAYER ONLY; start singing again during DUET.",
+                              flush=True)
+                    elif args.vocal_audition == "layer":
+                        audition = [("isolated Qwen-chosen vocal layer",
+                                     parts["layer"], args.layer_repeats)]
+                    else:
+                        audition = [("duet (both voices)", parts["duet"], args.layer_repeats)]
+                else:
+                    output_levels = capture_levels(pcm)
+                    print("Output levels (after gain): "
+                          + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"
+                                      for i, (peak, rms) in enumerate(output_levels)),
                           flush=True)
-                output_levels = capture_levels(pcm)
-                print("Output levels (after gain): "
-                      + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"
-                                  for i, (peak, rms) in enumerate(output_levels)),
-                      flush=True)
-                if max(peak for peak, _ in output_levels) < 0.005:
-                    print("WARNING: response output is very quiet. "
-                          "Try --gain 0.3 after confirming the output route.",
-                          flush=True)
-                duplex.play(pcm, repeats=args.layer_repeats)
-                print(f"RESPONSE LAYER: playing {args.layer_repeats} times on "
-                      f"{sd.query_devices(output_index, 'output')['name']}. "
-                      "Keep singing/playing in Logic over the response. "
-                      "No WAV exports.", flush=True)
-                while duplex.playing:
-                    time.sleep(0.02)
+                for label, audio, repeat_count in audition:
+                    levels = capture_levels(audio)
+                    if max(peak for peak, _ in levels) < 0.005:
+                        print(f"WARNING: {label} output is very quiet.", flush=True)
+                    print(f"PLAYING {label.upper()} x{repeat_count} on "
+                          f"{sd.query_devices(output_index, 'output')['name']}. "
+                          "No WAV exports.", flush=True)
+                    duplex.play(audio, repeats=repeat_count)
+                    while duplex.playing:
+                        time.sleep(0.02)
+                    print(f"Playback queued {(len(audio) // FRAME_BYTES) * repeat_count} "
+                          f"stereo frames; audio callback copied "
+                          f"{duplex.played // FRAME_BYTES} frames.", flush=True)
                 session.action(cid, "stop-audition")
                 session.action(cid, "discard")
-                print(f"Playback queued {(len(pcm) // FRAME_BYTES) * args.layer_repeats} "
-                      f"stereo frames across {args.layer_repeats} repeats; "
-                      f"audio callback copied {duplex.played // FRAME_BYTES} frames.")
                 print(f"Cycle complete. Device warning callbacks: {duplex.audio_flags}")
                 print("Playback copied to the driver, not yet independently "
                       "confirmed audible. If silent, run --test-output.")

@@ -12,7 +12,10 @@ from suzy_ai.music.audio import describe
 from suzy_ai.music.live import LiveSession
 from suzy_ai.music.planner import CorePlanner, ModelPlanningError
 from suzy_ai.music.vocal_reply import VOCAL_GESTURES, render_vocal_layer
-from suzy_ai.music.live_probe import route_output_channels, smoke_test_model, process
+from suzy_ai.music.live_probe import (
+    route_output_channels, smoke_test_model, process, vocal_audition_buffers,
+    capture_levels, DuplexBuffer, RATE, BLOCKSIZE, FRAME_BYTES,
+)
 
 
 def hummed_phrase(frames=48000 * 2, rate=48000):
@@ -42,6 +45,52 @@ class VocalReplyTests(unittest.TestCase):
         self.assertEqual(canon[:48000 * 2], bytes(48000 * 2))
         echo = outputs["vocal-echo"]
         self.assertEqual(echo[:48000 * 4], bytes(48000 * 4))
+
+    def test_isolated_audio_vs_original_vs_duet_use_same_vocal_layer(self):
+        raw = hummed_phrase()
+        centered, _ = route_output_channels(raw, "mono-center")
+        features = describe(raw, 48000, 2, 120)
+        # Simulate the existing source renderer's conservative gain.
+        response = bytes(centered)
+        parts = vocal_audition_buffers(raw, response, features, "vocal-canon")
+        original, layer, duet = (parts[name] for name in ("original", "layer", "duet"))
+        self.assertEqual(len(original), len(layer))
+        self.assertEqual(len(duet), len(raw))
+        self.assertEqual(layer[:48000 * 2], bytes(48000 * 2))
+        self.assertTrue(any(layer[48000 * 2:]))
+        self.assertNotEqual(original, layer)
+        self.assertNotEqual(duet, original)
+        self.assertNotEqual(duet, layer)
+        levels = capture_levels(layer)
+        self.assertGreater(levels[0][0], 0.01)
+        self.assertEqual(levels[0], levels[1])
+        # Before the canon delay, the mixed output contains only the
+        # attenuated original. Afterward, the actual delayed voice enters.
+        self.assertEqual(original[:48000 * 2], duet[:48000 * 2])
+        self.assertNotEqual(original[48000 * 2:], duet[48000 * 2:])
+
+    def test_same_capture_can_audition_all_three_outputs_sequentially(self):
+        raw = hummed_phrase(frames=48000)
+        features = describe(raw, 48000, 2, 120)
+        centered, _ = route_output_channels(raw, "mono-center")
+        parts = vocal_audition_buffers(raw, centered, features, "vocal-stutter")
+        duplex = DuplexBuffer(RATE)
+        for name, repeat_count in (("original", 1), ("layer", 1), ("duet", 4)):
+            audio = parts[name]
+            duplex.play(audio, repeats=repeat_count)
+            block = bytearray(BLOCKSIZE * FRAME_BYTES)
+            copied = 0
+            while duplex.playing:
+                duplex.callback(bytes(len(block)), block, BLOCKSIZE)
+                copied = duplex.played
+            self.assertEqual(copied, len(audio) * repeat_count)
+        self.assertEqual(duplex.audio_flags, 0)
+
+    def test_vocal_comparison_rejects_invalid_frame_sizes(self):
+        raw = hummed_phrase()
+        features = describe(raw, 48000, 2, 120)
+        with self.assertRaises(ValueError):
+            vocal_audition_buffers(raw, raw[:-4], features, "vocal-canon")
 
     def test_rejects_unapproved_gestures_or_mismatched_pcm(self):
         voice, _ = route_output_channels(hummed_phrase(), "mono-center")
