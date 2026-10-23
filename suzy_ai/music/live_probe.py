@@ -16,6 +16,7 @@ import wave
 
 from .live import LiveSession
 from .note_reply import render_note_reply, mix_note_reply
+from .vocal_reply import render_vocal_layer
 
 RATE = 48000
 CHANNELS = 2
@@ -330,6 +331,12 @@ def smoke_test_model(*, planner=None, beats=8, response_style="source"):
             if not notes or not any(synth):
                 print("WARNING: no reliable monophonic pitch found in test phrase.",
                       flush=True)
+        elif response_style == "vocal":
+            vocal_reply = render_vocal_layer(phrase, manifest['features'],
+                                             manifest['reply_gesture'])
+            print(f"Qwen vocal choice: {manifest['reply_gesture']}; "
+                  f"source-audio reply frames={len(vocal_reply) // FRAME_BYTES}; "
+                  "no microphone or playback.", flush=True)
         return manifest
     finally:
         session.action(capture_id, "stop-audition")
@@ -360,8 +367,8 @@ def main(argv=None):
     parser.add_argument("--mode", choices=("mirror", "augment", "evolve"), default="mirror")
     parser.add_argument("--provider", choices=("deterministic", "model"),
                         default="deterministic")
-    parser.add_argument("--ai-reply", choices=("off", "notes"), default="off",
-                        help="notes: let Qwen choose a new pitched call-and-response line")
+    parser.add_argument("--ai-reply", choices=("off", "notes", "vocal"), default="off",
+                        help="vocal: Qwen arranges your recorded humming as an overlapping voice layer; notes: synth answer")
     parser.add_argument("--output-mix", choices=("auto", "stereo", "mono-center"),
                         default="auto",
                         help="auto centers a one-sided mono response in both headphones; stereo preserves L/R")
@@ -376,11 +383,11 @@ def main(argv=None):
     if args.list_devices:
         print(sd.query_devices())
         return
-    if args.ai_reply == "notes" and args.provider != "model":
-        parser.error("--ai-reply notes requires --provider model")
+    if args.ai_reply != "off" and args.provider != "model":
+        parser.error("--ai-reply notes/vocal requires --provider model")
     if args.test_model:
         try:
-            smoke_test_model(response_style=("notes" if args.ai_reply == "notes" else "source"))
+            smoke_test_model(response_style=("source" if args.ai_reply == "off" else args.ai_reply))
         except (ValueError, RuntimeError, OSError) as exc:
             raise SystemExit(f"MODEL SMOKE FAILED: {exc}") from None
         return
@@ -466,7 +473,7 @@ def main(argv=None):
                 cid, wav_bytes, metadata = process(
                     session, captured, bpm=args.bpm, mode=args.mode,
                     provider=args.provider, instruction=args.instruction,
-                    response_style=("notes" if args.ai_reply == "notes" else "source"))
+                    response_style=("source" if args.ai_reply == "off" else args.ai_reply))
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
                 if metadata['provider'] == 'model':
@@ -490,6 +497,17 @@ def main(argv=None):
                         print("NO NOTE ANSWER: no confident single-note pitch hints. "
                               "Try a clean, sustained vocal tone without accompaniment "
                               "during the capture.", flush=True)
+                if args.ai_reply == "vocal":
+                    # Use the ACTUAL recorded waveform, not oscillator notes.
+                    source_voice, _ = route_output_channels(captured, "mono-center")
+                    response_layer = render_vocal_layer(source_voice,
+                                                        metadata['features'],
+                                                        metadata['reply_gesture'])
+                    pcm = mix_note_reply(pcm, response_layer, source_gain=0.5)
+                    print(f"QWEN VOCAL ANSWER: {metadata['reply_gesture']}; "
+                          "second layer uses your real recorded voice, "
+                          "mixed with the first phrase. No neural voice cloning.",
+                          flush=True)
                 output_levels = capture_levels(pcm)
                 print("Output levels (after gain): "
                       + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"
