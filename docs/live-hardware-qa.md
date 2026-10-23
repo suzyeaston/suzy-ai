@@ -177,6 +177,61 @@ cd ~/Projects/suzy-ai
 If you hear an effect, it is *deterministic* audio processing, not a model.
 That validates input capture, buffer handoff and audio output before we add Qwen.
 
+## Experimental vocal duet: use your *actual humming*, not a synth
+
+The Frère Jacques rehearsal confirmed real Qwen note decisions and a
+four-repeat layer, but the synthesizer produced only four fixed-gesture
+tones rather than a copy of the singer's sound. A text-only Qwen3 1.7B
+model **cannot imitate a raw vocal waveform or invent a new sung phrase**.
+
+Try the new optional **sampled-vocal layer** instead:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model \
+  --provider model --ai-reply vocal
+~~~
+
+This calls real local Qwen with a synthetic phrase, no microphone or
+speakers. It validates that Qwen chooses exactly one real-voice gesture:
+`vocal-canon` (a one-beat delayed copy of the singer), `vocal-echo`
+(two-beat delayed copy), `vocal-stutter` (short hummed fragments) or
+`vocal-reverse` (each beat backwards). The audio engine uses **the
+recorded vocal samples themselves**, with short fades and fixed limits.
+The resulting response has an independent voice layer over a quieter
+copy of the original phrase and repeats for the requested number of
+cycles. It is sampled-audio editing, **not neural voice cloning**.
+
+Once that smoke test passes, sing a Frère Jacques phrase through the
+Focusrite, with your headphones kept at low volume and Logic monitoring
+your new singing:
+
+~~~bash
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider model --ai-reply vocal \
+  --layer-repeats 4 --cycles 1 --gain 0.3
+~~~
+
+Look for `QWEN VOCAL ANSWER: vocal-...` and the repeated 4-second
+response. It should sound like **your actual humming arranged in a
+second part**, not only four synthesized notes. The chosen texture
+might still be quite simple; the model chooses the edit, and DSP
+makes the audio.
+
+**Crucial limits:** the Python probe *does not continue recording*
+while its candidate repeats, so your new singing is heard via Logic
+but is not fed back into Qwen until you start another cycle. It has
+no separate persistent accepted layer, real-time pitch-preserving
+voice transformation, new lyric generation, MIDI clock sync or
+neural audio generation. Treat it as a prototype only. The repo's
+native [Mac looper](local-looper.md) has real repeat, overdub and
+layer acceptance, but needs suitable same-device I/O and hardware
+rehearsal before performance. Do not confuse this Python texture
+with continuous AI listening.
+
 ## NEW: Hear Qwen add *new notes* to your voice (experimental)
 
 The successful source-loop test showed `AI-directed source beat order:
