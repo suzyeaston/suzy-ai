@@ -75,3 +75,39 @@ def render_vocal_layer(pcm: bytes, features: dict, gesture: str) -> bytes:
     if sys.byteorder != "little":
         result.byteswap()
     return result.tobytes()
+
+
+def cultural_voice_stems(source: bytes, layer: bytes, role: str) -> dict[str, bytes]:
+    """Apply the model's *mix role* to the sampled voice, off callback.
+
+    This is a mix/dynamic choice, NOT newly composed counterpoint or
+    an artist voice imitation. The isolated previews exactly match
+    their contribution to the final stereo duet.
+    """
+    from .culture import VOCAL_ROLES
+    if role not in VOCAL_ROLES:
+        raise ValueError("unknown cultural vocal role")
+    if not source or len(source) != len(layer) or len(source) % 4:
+        raise ValueError("cultural voice stems require equal stereo PCM16")
+    source_gain, layer_gain = VOCAL_ROLES[role]
+    s = array("h")
+    t = array("h")
+    s.frombytes(source)
+    t.frombytes(layer)
+    if sys.byteorder != "little":
+        s.byteswap()
+        t.byteswap()
+    original, isolated, duet = array("h"), array("h"), array("h")
+    limit = round(32767 * .5)
+    for a, b in zip(s, t):
+        dry = round(a * source_gain)
+        wet = round(b * layer_gain)
+        original.append(dry)
+        isolated.append(wet)
+        duet.append(max(-limit, min(limit, dry + wet)))
+    if sys.byteorder != "little":
+        original.byteswap()
+        isolated.byteswap()
+        duet.byteswap()
+    return {"original": original.tobytes(), "layer": isolated.tobytes(),
+            "duet": duet.tobytes()}
