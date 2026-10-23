@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from suzy_ai.music.audio import describe, render, deterministic_plan, validate_plan
 from suzy_ai.music.live import LiveSession, Conflict
-from suzy_ai.music.planner import CorePlanner
+from suzy_ai.music.planner import CorePlanner, ModelPlanningError, expand_pattern, summary_for_model
 from suzy_ai.music.server import make_server
 
 
@@ -283,6 +283,75 @@ class PlannerTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+
+class CompactPlannerTests(unittest.TestCase):
+    def test_expand_model_patterns_to_exact_size_with_audio_schema(self):
+        expected = {
+            'mirror': [0, 1, 2, 3, 4, 5, 6, 7],
+            'rotate': [1, 2, 3, 4, 5, 6, 7, 0],
+            'stutter': [0, 0, 2, 2, 4, 4, 6, 6],
+            'reverse': [7, 6, 5, 4, 3, 2, 1, 0],
+        }
+        for name, indices in expected.items():
+            plan = expand_pattern({'pattern': name}, 8)
+            self.assertEqual([e['index'] for e in plan['slices']], indices)
+            self.assertEqual(len(plan['slices']), 8)
+            validate_plan(plan, 8)
+            self.assertTrue(all(e['gain'] == .8 for e in plan['slices']))
+        for count in (1, 2, 15, 16):
+            for name in expected:
+                self.assertEqual(len(expand_pattern({'pattern': name}, count)['slices']), count)
+
+    def test_invalid_compact_choices_fail_without_fake_deterministic_fallback(self):
+        for decision in (None, [], {'pattern':'jazz'}, {'pattern':'rotate', 'extra':0},
+                         {'pattern':2}, {'slices':[]}, {'pattern':'ROTATE'}):
+            with self.assertRaises(ModelPlanningError):
+                expand_pattern(decision, 8)
+        for count in (0, 17, 8.0, True):
+            with self.assertRaises(ModelPlanningError):
+                expand_pattern({'pattern':'rotate'}, count)
+
+    def test_local_model_response_compact_schema_expanded_by_real_planner(self):
+        calls = []
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+            def do_POST(self):
+                raw = self.rfile.read(int(self.headers['Content-Length']))
+                calls.append(json.loads(raw))
+                output = {'message': {'role':'assistant',
+                    'content': json.dumps({'pattern':'stutter'})}, 'model':'fake-local'}
+                payload = json.dumps(output).encode()
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            planner = CorePlanner(f'http://127.0.0.1:{server.server_address[1]}/v1')
+            features = describe(phrase(4), 48000, 1, 120)
+            plan, model = planner(features, {'mode':'evolve','instruction':'Make an echo'})
+            self.assertEqual(model, 'fake-local')
+            self.assertEqual([e['index'] for e in plan['slices']],
+                             [0, 0, 2, 2, 4, 4, 6, 6])
+            self.assertFalse(calls[0]['use_memory'])
+            self.assertEqual(calls[0]['max_tokens'], 128)
+            self.assertNotIn('waveform', json.dumps(calls[0]['history']))
+            self.assertIn('"slice_count": 8', calls[0]['message'])
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
+    def test_summary_is_compact_and_does_not_include_audio_or_pitch_waveforms(self):
+        features = describe(phrase(4), 48000, 1, 120)
+        sample = summary_for_model(features, dict(mode='evolve', instruction='Stutter'))
+        self.assertEqual(sample['slice_count'], 8)
+        self.assertEqual(len(sample['beat_energy']), 8)
+        self.assertNotIn('pcm', sample)
+        self.assertNotIn('pitch_hints', sample)
+
 
 class MusicalContextTests(unittest.TestCase):
     def test_pitch_and_onsets_are_bounded_hints(self):
