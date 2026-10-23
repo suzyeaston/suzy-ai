@@ -16,7 +16,7 @@ import wave
 
 from .live import LiveSession
 from .note_reply import render_note_reply, mix_note_reply
-from .vocal_reply import render_vocal_layer
+from .vocal_reply import render_vocal_layer, cultural_voice_stems
 
 RATE = 48000
 CHANNELS = 2
@@ -252,7 +252,7 @@ def route_output_channels(pcm: bytes, mix: str = "auto") -> tuple[bytes, str]:
 
 
 def vocal_audition_buffers(captured: bytes, response: bytes, features: dict,
-                          gesture: str) -> dict[str, bytes]:
+                          gesture: str, *, role=None) -> dict[str, bytes]:
     """Prepare a level-matched A/B demonstration of the real-voice layer.
 
     Original is the same reduced source used in the full duet.
@@ -263,6 +263,8 @@ def vocal_audition_buffers(captured: bytes, response: bytes, features: dict,
         raise ValueError("vocal audition needs equal-length stereo captured/response audio")
     centered_capture, _ = route_output_channels(captured, "mono-center")
     layer = render_vocal_layer(centered_capture, features, gesture)
+    if role is not None:
+        return cultural_voice_stems(response, layer, role)
     original = mix_note_reply(response, bytes(len(response)), source_gain=0.5)
     duet = mix_note_reply(response, layer, source_gain=0.5)
     return {"original": original, "layer": layer, "duet": duet}
@@ -270,9 +272,10 @@ def vocal_audition_buffers(captured: bytes, response: bytes, features: dict,
 
 def process(session: LiveSession, audio: bytes, *, bpm: float, mode: str,
             provider: str, instruction: str, max_wait: float = 12.0,
-            response_style: str = "source"):
+            response_style: str = "source", music_culture: bool = False):
     config = dict(sample_rate=RATE, channels=CHANNELS, bpm=bpm, mode=mode,
                   provider=provider, response_style=response_style,
+                  music_culture=music_culture,
                   instruction=instruction, section="live-probe", key="")
     capture_id = session.arm(config)["id"]
     try:
@@ -317,7 +320,8 @@ def resolve_devices(device=None, input_device=None, output_device=None):
 
 
 
-def smoke_test_model(*, planner=None, beats=8, response_style="source"):
+def smoke_test_model(*, planner=None, beats=8, response_style="source",
+                     music_culture=False):
     """Try real model planning with synthetic sound, no microphone or audio output.
 
     This tests exactly the same LiveSession model/render path as the live probe,
@@ -335,8 +339,8 @@ def smoke_test_model(*, planner=None, beats=8, response_style="source"):
           flush=True)
     capture_id, _, manifest = process(
         session, phrase, bpm=120, mode="evolve", provider="model",
-        instruction="Make an audible musical answer to the phrase.", max_wait=12,
-        response_style=response_style)
+        instruction="Make a sparse vocal response inspired by an approved musical round.",
+        max_wait=12, response_style=response_style, music_culture=music_culture)
     try:
         print(f"MODEL SMOKE PASS: provider={manifest['provider']} "
               f"model={manifest['model']} slices={len(manifest['plan']['slices'])} "
@@ -354,6 +358,10 @@ def smoke_test_model(*, planner=None, beats=8, response_style="source"):
             print(f"Qwen vocal choice: {manifest['reply_gesture']}; "
                   f"source-audio reply frames={len(vocal_reply) // FRAME_BYTES}; "
                   "no microphone or playback.", flush=True)
+            if music_culture:
+                print(f"CULTURAL PLAN: role={manifest['cultural_role']}; "
+                      f"approved music teachings={len(manifest['culture_used'])}; "
+                      "no microphone or playback.", flush=True)
         return manifest
     finally:
         session.action(capture_id, "stop-audition")
@@ -386,6 +394,8 @@ def main(argv=None):
                         default="deterministic")
     parser.add_argument("--ai-reply", choices=("off", "notes", "vocal"), default="off",
                         help="vocal: Qwen arranges your recorded humming as an overlapping voice layer; notes: synth answer")
+    parser.add_argument("--music-culture", action="store_true",
+                        help="opt in to up to three explicitly live-use human music teachings for model-directed vocal role")
     parser.add_argument("--vocal-audition", choices=("duet", "layer", "compare"),
                         default="duet",
                         help="for --ai-reply vocal: duet only, isolated second voice, or original/layer/duet A/B comparison")
@@ -407,9 +417,12 @@ def main(argv=None):
         parser.error("--ai-reply notes/vocal requires --provider model")
     if args.vocal_audition != "duet" and args.ai_reply != "vocal":
         parser.error("--vocal-audition layer/compare requires --ai-reply vocal")
+    if args.music_culture and not (args.ai_reply == "vocal" and args.provider == "model"):
+        parser.error("--music-culture requires --provider model --ai-reply vocal")
     if args.test_model:
         try:
-            smoke_test_model(response_style=("source" if args.ai_reply == "off" else args.ai_reply))
+            smoke_test_model(response_style=("source" if args.ai_reply == "off" else args.ai_reply),
+                             music_culture=args.music_culture)
         except (ValueError, RuntimeError, OSError) as exc:
             raise SystemExit(f"MODEL SMOKE FAILED: {exc}") from None
         return
@@ -495,7 +508,8 @@ def main(argv=None):
                 cid, wav_bytes, metadata = process(
                     session, captured, bpm=args.bpm, mode=args.mode,
                     provider=args.provider, instruction=args.instruction,
-                    response_style=("source" if args.ai_reply == "off" else args.ai_reply))
+                    response_style=("source" if args.ai_reply == "off" else args.ai_reply),
+                    music_culture=args.music_culture)
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
                 if metadata['provider'] == 'model':
@@ -522,10 +536,18 @@ def main(argv=None):
                 audition = [("response", pcm, args.layer_repeats)]
                 if args.ai_reply == "vocal":
                     parts = vocal_audition_buffers(captured, pcm, metadata['features'],
-                                                   metadata['reply_gesture'])
+                                                   metadata['reply_gesture'],
+                                                   role=metadata.get('cultural_role'))
                     print(f"QWEN VOCAL ANSWER: {metadata['reply_gesture']}; "
                           "the second voice is a delayed or edited sample of your "
                           "actual recording, not neural voice cloning.", flush=True)
+                    if args.music_culture:
+                        names = [item['idea'] for item in metadata['culture_used']]
+                        print(f"CULTURAL PLAN: role={metadata['cultural_role']}; "
+                              f"approved teachings={names}. "
+                              "Culture guides the chosen effect and its mix, "
+                              "not song recognition or neural voice synthesis.",
+                              flush=True)
                     for name in ("original", "layer", "duet"):
                         levels = capture_levels(parts[name])
                         print(f"  {name} peak L/R: "
