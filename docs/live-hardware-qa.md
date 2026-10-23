@@ -177,6 +177,72 @@ cd ~/Projects/suzy-ai
 If you hear an effect, it is *deterministic* audio processing, not a model.
 That validates input capture, buffer handoff and audio output before we add Qwen.
 
+## NEW: Hear Qwen add *new notes* to your voice (experimental)
+
+The successful source-loop test showed `AI-directed source beat order:
+[1, 2, 3, 4, 5, 6, 7, 0]` and four repeats. The model chose a
+one-beat rotation of your recording; there were **no new notes**.
+
+The new opt-in `--ai-reply notes` mode asks Qwen to choose one compact
+**call-and-response interval gesture** (`answer-fifth`, `answer-third`,
+`answer-below` or `answer-octave`). The Python DSP detects a *rough,
+monophonic* sung pitch, creates sparse, quiet new synthesizer notes around
+that pitch and mixes them with your recorded phrase. The model selects
+the gesture; it **does not hear raw audio or synthesize waveform samples**.
+
+First validate the model on a generated tone, without your mic or speakers:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --test-model --ai-reply notes --provider model
+~~~
+
+Pass criteria: `MODEL SMOKE PASS`, plus a `Qwen note choice:` and
+nonempty `synthesized MIDI notes=` list. The model and audio engine must
+pass the new note-specific contract, not just the original beat reorder.
+
+Then try a clean, **sustained, single-note** opening phrase with the
+existing Scarlett + VE-22 mic, Logic live monitoring and quiet headphones:
+
+~~~bash
+cd ~/Projects/suzy-ai
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider model --ai-reply notes \
+  --layer-repeats 4 --cycles 1 --gain 0.3
+~~~
+
+Select the headphones, confirm the test tone, press Return, sing for
+four seconds, and continue singing over the repeating **original plus
+new-note response**. The log says `QWEN ANSWER: answer-...`,
+lists the resulting MIDI note numbers and confirms the new note audio
+is mixed. The notes should be different from a plain replay.
+
+If `NO NOTE ANSWER` appears, the input didn't give reliable
+single-note pitch estimates; **no note is guessed or injected**. Try
+one held vowel away from Logic playback (headphones prevent bleed),
+moderate Scarlett input gain, and avoid strong vocal effects during
+capture. If Qwen doesn't return an allowed gesture, the operation
+fails explicitly rather than secretly playing a canned melody.
+
+The pitch detector is heuristic and can mishear vibrato, harmonies,
+chords, strong VE-22 processing and noisy takes. The synth is a
+simple low-level two-harmonic sound with short fades and a -6 dBFS
+mix ceiling, generated *outside the audio callback*. Its notes are
+placed on alternate supplied beat slots, but the resulting audio
+is **not synchronized** to Logic's transport. Don't turn up
+headphone volume to overcome quiet responses without checking peaks.
+
+**Not continuous real-time interaction:** one four-second capture leads
+to one model decision and a finite repeated layer. The model **cannot
+hear your continuing vocals while that layer plays**, and it does not
+replace an established loop on the fly. Continuous listening and
+boundary-quantized layer exchange need a separate performance-safe
+audio/MIDI integration. This is a rehearsal-only experiment.
+
 ## Hear a response play *over* your continued performance
 
 The earlier tests only played one response once, after your captured phrase.
