@@ -107,6 +107,14 @@ There is no time-stretching.
   It can repeat/reorder source material. Strict validation runs before rendering.
   No generated code, commands, paths or filter expressions are executed.
 
+For the local CorePlanner path, the on-device model now chooses a
+single bounded pattern in compact JSON (`rotate`, `stutter`, `reverse`,
+`mirror`), rather than listing every beat-slice. The program expands that
+model-authored choice into a full validated plan at fixed conservative gain.
+The model still does not receive or synthesize waveforms, and errors
+remain explicit if it fails to supply a recognized choice. Other planner
+adapters can still propose validated full slice arrays.
+
 Model choices are neural text inference over measured features. Rendering remains
 deterministic sample processing; this is **not neural audio generation** and the
 model has not directly listened to the waveform. Provenance identifies the provider,
