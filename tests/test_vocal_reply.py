@@ -73,7 +73,7 @@ class VocalReplyTests(unittest.TestCase):
             self.assertEqual(config["response_style"], "vocal")
             return ({"slices": [
                 {"index": i, "gain": .8, "reverse": False}
-                for i in range(len(features["slices"])]},
+                for i in range(len(features["slices"]))]},
                 "fake-Qwen", "vocal-canon")
         result = smoke_test_model(planner=planner, response_style="vocal")
         self.assertEqual(result["provider"], "model")
