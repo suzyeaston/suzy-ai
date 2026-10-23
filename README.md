@@ -149,6 +149,16 @@ musical direction, while deterministic DSP synthesizes the actual notes.
 It does not hear the performance continuously, predict chords, compose
 a complete melody or automatically sync its responses to Logic.
 
+To hear a model-directed reply made from **your actual vocal recording**
+instead of the four-note synthesizer, use `--provider model --ai-reply vocal
+--layer-repeats 4` in the experimental Python probe. Qwen chooses a
+voice canon, echo, stutter or reversed-beat gesture; DSP makes a second
+sampled-vocal part from the mic audio. Run `--test-model --provider model
+--ai-reply vocal` without a mic first. The effect is a voice *sample*
+arrangement, not a new neural singing voice, and does not keep listening
+while the reply repeats. For persistent loops and overdubs see the native
+[local looper](docs/local-looper.md).
+
 **Not performance-ready:** this Python callback is not guaranteed real-time
 safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
 The response uses `--output-mix auto` by default to center a one-sided Scarlett mono mic in **both headphone channels** while preserving genuinely stereo audio. Choose `--output-mix mono-center` to force centered monitoring or `--output-mix stereo` to preserve two independent inputs. This is dual-mono for mono input, not stereo widening. It is phrase-based capture/process/one-shot response, **not** continuous
