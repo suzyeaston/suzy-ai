@@ -52,9 +52,8 @@ class VocalReplyTests(unittest.TestCase):
         features = describe(raw, 48000, 2, 120)
         # Simulate the existing source renderer's conservative gain.
         response = bytes(centered)
-        original, layer, duet = (
-            vocal_audition_buffers(raw, response, features, "vocal-canon")[name]
-            for name in ("original", "layer", "duet"))
+        parts = vocal_audition_buffers(raw, response, features, "vocal-canon")
+        original, layer, duet = (parts[name] for name in ("original", "layer", "duet"))
         self.assertEqual(len(original), len(layer))
         self.assertEqual(len(duet), len(raw))
         self.assertEqual(layer[:48000 * 2], bytes(48000 * 2))
