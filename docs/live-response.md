@@ -124,6 +124,25 @@ Output preserves sample rate, channels and duration, adds short edge fades and
 caps sample magnitude at -3 dBFS. That ceiling is not a true-peak guarantee or a
 mix limiter. Listening evaluation is still required. Nothing is auto-played.
 
+## Experimental model-selected note answers (Python probe only)
+
+As an opt-in extension, an adapter may arm with
+`response_style: "notes"` **only** when `provider: "model"`.
+The local planner then requests one of four strict JSON note gestures,
+and the response manifest includes `reply_gesture` and
+`response_style`. A validated model gesture drives an independent
+lightweight synthesizer in the Python live probe. The underlying
+protocol's WAV remains the captured-source arrangement. Existing
+native companion clients default to `response_style: "source"`
+and are **not** wired to play synthesized notes yet.
+
+A note reply uses confident monophonic pitch hints from the source,
+with fixed sparse timing/contour, two-harmonic synthesis, a conservative
+mix ceiling and no generated model waveform. Invalid/missing model
+gestures fail explicitly and uncertain pitch means **no note answer**.
+The model does not continuously listen or respond over Logic playback;
+new capture and layer replacement remain unfinished.
+
 ## Failure and resource boundaries
 
 Audio and results remain in bounded process memory, never in the private memory
