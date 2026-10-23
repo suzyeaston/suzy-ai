@@ -63,9 +63,9 @@ def music_culture_brief(query="", *, fetcher=None):
 # Bounded, musically meaningful *mix choices*. Each choice keeps a headroom
 # ceiling in the existing mixer, and adjusts actual PCM rather than only UI copy.
 VOCAL_ROLES = {
-    "support": (0.65, 0.30),
-    "counterpoint": (0.40, 0.70),
-    "texture": (0.28, 0.42),
+    "support": (0.80, 0.12),
+    "counterpoint": (0.45, 0.42),
+    "texture": (0.30, 0.20),
 }
 
 
@@ -73,7 +73,9 @@ def validate_cultural_decision(decision, choices):
     """Require both model choices; never invent a cultural decision on failure."""
     if (not isinstance(decision, dict)
             or set(decision) != {"pattern", "role"}
+            or not isinstance(decision["pattern"], str)
             or decision["pattern"] not in choices
+            or not isinstance(decision["role"], str)
             or decision["role"] not in VOCAL_ROLES):
         raise ValueError("model did not choose a valid cultural vocal arrangement")
     return decision["pattern"], decision["role"]
