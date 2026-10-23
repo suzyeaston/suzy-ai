@@ -138,6 +138,17 @@ For real **model-driven** response planning, run the local Qwen core and
 use `--provider model --mode evolve`; the model currently rearranges
 existing audio slices, not new melodies or harmonies.
 
+**New model-guided note-answer experiment:** instead of only shifting a
+vocal recording, Qwen can now choose one interval gesture and trigger a
+lightweight synthesized counterline based on an *uncertain detected vocal pitch*.
+Start with `.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model
+--ai-reply notes --provider model`. If it passes, add
+`--provider model --ai-reply notes --layer-repeats 4` to the live
+headphone test. This is **opt-in** and prototype-only: the AI chooses a
+musical direction, while deterministic DSP synthesizes the actual notes.
+It does not hear the performance continuously, predict chords, compose
+a complete melody or automatically sync its responses to Logic.
+
 **Not performance-ready:** this Python callback is not guaranteed real-time
 safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
 The response uses `--output-mix auto` by default to center a one-sided Scarlett mono mic in **both headphone channels** while preserving genuinely stereo audio. Choose `--output-mix mono-center` to force centered monitoring or `--output-mix stereo` to preserve two independent inputs. This is dual-mono for mono input, not stereo widening. It is phrase-based capture/process/one-shot response, **not** continuous
