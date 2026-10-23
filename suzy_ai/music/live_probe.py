@@ -15,6 +15,7 @@ import time
 import wave
 
 from .live import LiveSession
+from .note_reply import render_note_reply, mix_note_reply
 
 RATE = 48000
 CHANNELS = 2
@@ -250,10 +251,11 @@ def route_output_channels(pcm: bytes, mix: str = "auto") -> tuple[bytes, str]:
 
 
 def process(session: LiveSession, audio: bytes, *, bpm: float, mode: str,
-            provider: str, instruction: str, max_wait: float = 12.0):
+            provider: str, instruction: str, max_wait: float = 12.0,
+            response_style: str = "source"):
     config = dict(sample_rate=RATE, channels=CHANNELS, bpm=bpm, mode=mode,
-                  provider=provider, instruction=instruction, section="live-probe",
-                  key="")
+                  provider=provider, response_style=response_style,
+                  instruction=instruction, section="live-probe", key="")
     capture_id = session.arm(config)["id"]
     try:
         for seq, offset in enumerate(range(0, len(audio), 65536)):
@@ -297,7 +299,7 @@ def resolve_devices(device=None, input_device=None, output_device=None):
 
 
 
-def smoke_test_model(*, planner=None, beats=8):
+def smoke_test_model(*, planner=None, beats=8, response_style="source"):
     """Try real model planning with synthetic sound, no microphone or audio output.
 
     This tests exactly the same LiveSession model/render path as the live probe,
@@ -311,15 +313,23 @@ def smoke_test_model(*, planner=None, beats=8):
     session = LiveSession(planner=planner)
     started = time.monotonic()
     print(f"MODEL SMOKE: {frames / RATE:.1f}s synthetic tone, "
-          "no microphone access and no speakers; requesting a real model plan.",
+          f"response={response_style}; no microphone or speakers; requesting Qwen.",
           flush=True)
     capture_id, _, manifest = process(
         session, phrase, bpm=120, mode="evolve", provider="model",
-        instruction="Reorder the phrase lightly; preserve the beat.", max_wait=12)
+        instruction="Make an audible musical answer to the phrase.", max_wait=12,
+        response_style=response_style)
     try:
         print(f"MODEL SMOKE PASS: provider={manifest['provider']} "
               f"model={manifest['model']} slices={len(manifest['plan']['slices'])} "
               f"elapsed={time.monotonic() - started:.2f}s", flush=True)
+        if response_style == "notes":
+            synth, notes = render_note_reply(manifest['features'], manifest['reply_gesture'])
+            print(f"Qwen note choice: {manifest['reply_gesture']}; "
+                  f"synthesized MIDI notes={notes}; no audio played.", flush=True)
+            if not notes or not any(synth):
+                print("WARNING: no reliable monophonic pitch found in test phrase.",
+                      flush=True)
         return manifest
     finally:
         session.action(capture_id, "stop-audition")
@@ -350,6 +360,8 @@ def main(argv=None):
     parser.add_argument("--mode", choices=("mirror", "augment", "evolve"), default="mirror")
     parser.add_argument("--provider", choices=("deterministic", "model"),
                         default="deterministic")
+    parser.add_argument("--ai-reply", choices=("off", "notes"), default="off",
+                        help="notes: let Qwen choose a new pitched call-and-response line")
     parser.add_argument("--output-mix", choices=("auto", "stereo", "mono-center"),
                         default="auto",
                         help="auto centers a one-sided mono response in both headphones; stereo preserves L/R")
@@ -364,9 +376,11 @@ def main(argv=None):
     if args.list_devices:
         print(sd.query_devices())
         return
+    if args.ai_reply == "notes" and args.provider != "model":
+        parser.error("--ai-reply notes requires --provider model")
     if args.test_model:
         try:
-            smoke_test_model()
+            smoke_test_model(response_style=("notes" if args.ai_reply == "notes" else "source"))
         except (ValueError, RuntimeError, OSError) as exc:
             raise SystemExit(f"MODEL SMOKE FAILED: {exc}") from None
         return
@@ -451,7 +465,8 @@ def main(argv=None):
                 start = time.monotonic()
                 cid, wav_bytes, metadata = process(
                     session, captured, bpm=args.bpm, mode=args.mode,
-                    provider=args.provider, instruction=args.instruction)
+                    provider=args.provider, instruction=args.instruction,
+                    response_style=("notes" if args.ai_reply == "notes" else "source"))
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
                 if metadata['provider'] == 'model':
@@ -462,6 +477,19 @@ def main(argv=None):
                 rendered_pcm = response_pcm(wav_bytes, args.gain)
                 pcm, route = route_output_channels(rendered_pcm, args.output_mix)
                 print(f"Output mix ({args.output_mix}): {route}", flush=True)
+                if args.ai_reply == "notes":
+                    gesture = metadata.get('reply_gesture')
+                    notes_pcm, midi_notes = render_note_reply(metadata['features'], gesture)
+                    print(f"QWEN ANSWER: {gesture}; synthesized MIDI notes={midi_notes}",
+                          flush=True)
+                    if midi_notes:
+                        pcm = mix_note_reply(pcm, notes_pcm, source_gain=0.5)
+                        print("Playing newly synthesized note answers with quiet "
+                              "recorded voice underneath.", flush=True)
+                    else:
+                        print("NO NOTE ANSWER: no confident single-note pitch hints. "
+                              "Try a clean, sustained vocal tone without accompaniment "
+                              "during the capture.", flush=True)
                 output_levels = capture_levels(pcm)
                 print("Output levels (after gain): "
                       + ", ".join(f"channel {i + 1}={peak:.2%} peak / {rms:.2%} RMS"

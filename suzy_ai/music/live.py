@@ -11,6 +11,7 @@ import time
 import uuid
 
 from .planner import CorePlanner, ModelPlanningError
+from .note_reply import NOTE_GESTURES
 from .audio import MAX_CHUNK, MAX_SECONDS, describe, deterministic_plan, render, validate_plan
 
 
@@ -45,11 +46,12 @@ class LiveSession:
                 'performance_context': copy.deepcopy(self._history)}
 
     def arm(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction', 'section', 'key'}:
+        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction', 'section', 'key', 'response_style'}:
             raise ValueError('unsupported capture fields')
         rate, channels = payload.get('sample_rate'), payload.get('channels')
         bpm, mode = payload.get('bpm'), payload.get('mode')
         provider = payload.get('provider', 'deterministic')
+        response_style = payload.get('response_style', 'source')
         instruction = payload.get('instruction', '')
         section, key = payload.get('section', ''), payload.get('key', '')
         if not isinstance(section, str) or len(section) > 64 or not isinstance(key, str) or len(key) > 24:
@@ -60,6 +62,8 @@ class LiveSession:
             raise ValueError('host BPM must be between 40 and 240')
         if mode not in ('mirror', 'augment', 'evolve') or provider not in ('deterministic', 'model'):
             raise ValueError('invalid mode or provider')
+        if response_style not in ('source', 'notes') or (response_style == 'notes' and provider != 'model'):
+            raise ValueError('note reply needs provider=model; response_style must be source or notes')
         if not isinstance(instruction, str) or len(instruction) > 500:
             raise ValueError('instruction must be at most 500 characters')
         with self._lock:
@@ -67,7 +71,7 @@ class LiveSession:
                 raise Conflict('finish or discard the current phrase; wait for any worker to exit')
             self._id = uuid.uuid4().hex
             self._config = dict(sample_rate=rate, channels=channels, bpm=bpm, mode=mode,
-                                provider=provider, instruction=instruction, section=section, key=key,
+                                provider=provider, response_style=response_style, instruction=instruction, section=section, key=key,
                                 performance_context=copy.deepcopy(self._history))
             self._pcm = bytearray()
             self._sequence = 0
@@ -114,8 +118,16 @@ class LiveSession:
             if features['peak'] < 0.001:
                 raise ValueError('capture is silent or too quiet')
             phase = "model planning"
+            reply_gesture = None
             if config['provider'] == 'model':
-                plan, model = self._planner(features, config)
+                result = self._planner(features, config)
+                if not isinstance(result, tuple) or len(result) not in (2, 3):
+                    raise ValueError('invalid model planner return')
+                plan, model = result[:2]
+                if len(result) == 3:
+                    reply_gesture = result[2]
+                if config['response_style'] == 'notes' and reply_gesture not in NOTE_GESTURES:
+                    raise ModelPlanningError('model did not choose a valid note answer')
             else:
                 plan, model = deterministic_plan(config['mode'], len(features['slices'])), None
             phase = "plan validation"
@@ -125,7 +137,9 @@ class LiveSession:
             manifest = {'schema_version': '0.1', 'source_sha256': hashlib.sha256(pcm).hexdigest(),
                         'features': features, 'mode': config['mode'], 'provider': config['provider'],
                         'model': model, 'plan': plan, 'rendering': 'deterministic-source-audio-dsp',
-                        'neural_audio_generation': False, 'section': config['section'], 'key_supplied': config['key'],
+                        'neural_audio_generation': False, 'response_style': config['response_style'],
+                        'reply_gesture': reply_gesture,
+                        'section': config['section'], 'key_supplied': config['key'],
                         'context_used': config['performance_context'], 'elapsed_seconds': time.monotonic() - started}
             with self._lock:
                 if capture_id == self._id and self._state == 'processing':

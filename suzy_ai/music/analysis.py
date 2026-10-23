@@ -4,10 +4,29 @@ from collections import Counter
 
 
 def musical_features(samples, rate, channels):
-    # Average channels, box-filter before decimating to ~8 kHz. At most 64k values.
+    # Collapse to mono, box-filter before decimating to ~8 kHz.
+    # On Scarlett, a vocal often occupies only one input (L), while R is
+    # silent. Averaging two inputs would halve the already-quiet signal and
+    # suppress pitch detection. Pick the dominant mono input *only* when the
+    # other channel's measured energy is at least 20x lower.
+    selected = None
+    if channels == 2:
+        stride = max(1, (len(samples) // 2) // 4096)
+        energy_l = sum(float(samples[2 * i]) ** 2
+                       for i in range(0, len(samples) // 2, stride))
+        energy_r = sum(float(samples[2 * i + 1]) ** 2
+                       for i in range(0, len(samples) // 2, stride))
+        if energy_l > 400 * energy_r:
+            selected = 0
+        elif energy_r > 400 * energy_l:
+            selected = 1
     hop = rate // 8000
-    mono = [sum(samples[i:i + hop * channels]) / (hop * channels * 32768)
-            for i in range(0, len(samples) - hop * channels + 1, hop * channels)]
+    if selected is None:
+        mono = [sum(samples[i:i + hop * channels]) / (hop * channels * 32768)
+                for i in range(0, len(samples) - hop * channels + 1, hop * channels)]
+    else:
+        mono = [sum(samples[i + selected:i + hop * channels:channels]) / (hop * 32768)
+                for i in range(0, len(samples) - hop * channels + 1, hop * channels)]
     sr = rate / hop
     window = round(sr * .02)
     energy = [math.sqrt(sum(x*x for x in mono[i:i+window]) / len(mono[i:i+window]))
