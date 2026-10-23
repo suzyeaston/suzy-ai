@@ -128,6 +128,12 @@ To play an experimental response **under your continued Logic performance**,
 add `--layer-repeats 4` (up to 8). The AI candidate will repeat while you
 sing or play on top, monitored through Logic, but the prototype is not
 clock-synced and cannot capture another phrase until playback ends.
+If a quick local chat works but musical planning fails, first use
+`.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model`, which checks
+the real Qwen plan with a synthetic phrase and no mic or speakers.
+Qwen now chooses one validated rhythmic pattern, expanded locally into a
+complete beat-slice arrangement instead of needing to enumerate all slices.
+This remains source-audio editing rather than new note or harmony synthesis.
 For real **model-driven** response planning, run the local Qwen core and
 use `--provider model --mode evolve`; the model currently rearranges
 existing audio slices, not new melodies or harmonies.
