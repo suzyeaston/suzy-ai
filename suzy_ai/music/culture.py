@@ -5,6 +5,7 @@ No private memory search, album reviews by default, external services, audio,
 or arbitrary world facts are sent to the local model.
 """
 import re
+import sqlite3
 
 ALLOWED_KINDS = frozenset({"musical_idea"})
 EXCERPT_KEYS = ("style", "technique", "production", "mood", "note", "voicing")
@@ -28,7 +29,7 @@ def music_culture_brief(query="", *, fetcher=None):
         fetcher = list_teachings
     try:
         rows = fetcher(domain="music", teaching_kind="musical_idea", limit=100)
-    except (OSError, ValueError, RuntimeError):
+    except (OSError, ValueError, RuntimeError, sqlite3.Error):
         # A missing or damaged optional world store must never stop the
         # already-working audio and model path.
         return []
