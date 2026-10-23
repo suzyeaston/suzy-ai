@@ -232,6 +232,40 @@ probe cannot capture another phrase while the response loops, cannot add
 multiple AI layers or send MIDI notes into Logic, and has no footswitch.
 This is a rehearsal-only first layer test, **not** a validated stage setup.
 
+## Compact Qwen music choices
+
+The first real `--test-model` failed in **plan validation**: Qwen supplied
+an arrangement whose slice list was not as long as the eight beat-slices in
+the input. Previous prompts incorrectly demonstrated one slice in JSON
+while asking for eight, which made the model's bookkeeping needlessly hard.
+
+Now Qwen only needs to pick **one rhythmic pattern**, as a single tiny JSON
+object, e.g. `{"pattern":"stutter"}`. Its accepted choices are `rotate`,
+`stutter`, `reverse` and `mirror`. The local engine converts that explicit
+model choice into all eight beat-slice instructions and validates every one
+before rendering. It **never pads an invalid legacy array**, invents a model
+choice after a failed response, or silently replaces Qwen with deterministic
+mode. Unrecognized model output still fails safely.
+
+Only a compact, measured musical sketch (beat energy and onset count plus
+the performer's instruction) is supplied to Qwen, without the audio
+waveform, lyrics or personal memory. This makes the prompt smaller for
+the 8 GB Mac's local model. After a successful live model run, the probe
+prints the actual source beat order that was rendered. These are edited
+source slices, **not neural synthesis or newly composed harmony**.
+
+With your existing local service already running:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model
+~~~
+
+If `MODEL SMOKE PASS` prints, try the existing live `--provider model
+--layer-repeats 4` command. If not, paste the *new specific diagnostic*
+rather than repeating microphone captures.
+
 ## Diagnose a model error *without singing again*
 
 The local Core API may reply to a quick chat request successfully, yet a

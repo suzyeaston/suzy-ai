@@ -454,6 +454,11 @@ def main(argv=None):
                     provider=args.provider, instruction=args.instruction)
                 print(f"Response ready in {time.monotonic()-start:.2f}s "
                       f"(provider={metadata['provider']}, model={metadata['model']})")
+                if metadata['provider'] == 'model':
+                    order = [entry['index'] for entry in metadata['plan']['slices']]
+                    print(f"AI-directed source beat order: {order}. "
+                          "These are edits of your recording, not new notes.",
+                          flush=True)
                 rendered_pcm = response_pcm(wav_bytes, args.gain)
                 pcm, route = route_output_channels(rendered_pcm, args.output_mix)
                 print(f"Output mix ({args.output_mix}): {route}", flush=True)
