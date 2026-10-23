@@ -177,6 +177,78 @@ cd ~/Projects/suzy-ai
 If you hear an effect, it is *deterministic* audio processing, not a model.
 That validates input capture, buffer handoff and audio output before we add Qwen.
 
+## Artist-approved musical culture in Qwen's live vocal decisions
+
+The next experiment is about musical *direction*, not just effects.
+With `--music-culture` (explicit opt-in), the live worker retrieves
+up to three human-entered `musical_idea` teachings from SUZY//AI's
+**local** world model. Only teachings with **`live_use: true`** are
+eligible. No personal memory search, albums, other world facts, raw
+recordings or lyrics go into the model prompt. Without the flag, the
+existing one-choice model and sound are unchanged.
+
+Teach one musical idea from another Terminal, using the already-running
+local SUZY//AI service on port 7332:
+
+~~~bash
+curl -fsS -X POST http://127.0.0.1:7332/v1/teach/music \
+  -H 'Content-Type: application/json' \
+  -d '{"idea":"Traditional rounds","source":"human",
+       "style":"vocal canon","technique":"staggered entrances and overlapping phrases",
+       "mood":"playful","live_use":true}'
+~~~
+
+Optionally teach another production approach you genuinely want the model
+to consider. These are *your chosen artistic references*, not recognized
+songs or automatically verified cultural history. The entry is stored in
+the existing local world-model database; you can inspect it via
+`GET /v1/world/teachings?domain=music`. An existing music teaching
+without explicit `live_use: true` is **not** included.
+
+First, smoke-test the model's full two-choice output without microphone or
+speaker. Existing Qwen process stays running:
+
+~~~bash
+cd ~/Projects/suzy-ai
+git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --test-model --provider model --ai-reply vocal --music-culture
+~~~
+
+Expect `MODEL SMOKE PASS`, `Qwen vocal choice`, and
+`CULTURAL PLAN: role=..., approved music teachings=...`.
+A successful output with 0 approved teachings means the model is
+working but **wasn't culturally grounded** yet. Don't claim it recognized
+Frère Jacques from the humming.
+
+For an optional real musical comparison, retain the working hardware path:
+
+~~~bash
+.venv-mac/bin/python -m suzy_ai.music.live_probe \
+  --input-device "Scarlett Solo USB" --choose-output \
+  --output-mix mono-center --bpm 120 --beats 8 \
+  --mode evolve --provider model --ai-reply vocal --music-culture \
+  --instruction "Use the traditional round idea for an airy, sparse vocal duet." \
+  --vocal-audition compare --layer-repeats 4 --cycles 1 --gain 0.3
+~~~
+
+Qwen now chooses **both** the sampled-vocal transformation
+(canon, echo, stutter, reverse) and a mix **role**:
+`support` (quieter companion), `counterpoint` (prominent sampled
+answer, not a newly composed counter-melody), or `texture` (soft
+ghost-like presence). These roles change *actual audio levels* and
+the probe prints the names of the artist-approved teachings included
+in Qwen's context. Compare original, isolated layer, and duet from the
+same take. No claims of voice cloning, song/genre recognition or new
+lyrics. This is still sampled-audio arrangement, not AI audio synthesis,
+and the Python probe still cannot hear new phrases while playback runs.
+
+If the local DB is absent or empty, the brief is empty; no private data
+is silently substituted. An invalid Qwen pattern/role fails visibly
+and **never falls back to a fake model decision**. Music-culture retrieval
+and all model work happen after recording, off the audio callback.
+This feature is for rehearsal, not stage-safe continuous AI.
+
 ## Listen to the vocal layer on its own (same-take comparison)
 
 If `QWEN VOCAL ANSWER: vocal-canon` prints but you only hear four

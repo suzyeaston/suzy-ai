@@ -13,6 +13,7 @@ import uuid
 from .planner import CorePlanner, ModelPlanningError
 from .note_reply import NOTE_GESTURES
 from .vocal_reply import VOCAL_GESTURES
+from .culture import VOCAL_ROLES, music_culture_brief
 from .audio import MAX_CHUNK, MAX_SECONDS, describe, deterministic_plan, render, validate_plan
 
 
@@ -47,12 +48,13 @@ class LiveSession:
                 'performance_context': copy.deepcopy(self._history)}
 
     def arm(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction', 'section', 'key', 'response_style'}:
+        if not isinstance(payload, dict) or set(payload) - {'sample_rate', 'channels', 'bpm', 'mode', 'provider', 'instruction', 'section', 'key', 'response_style', 'music_culture'}:
             raise ValueError('unsupported capture fields')
         rate, channels = payload.get('sample_rate'), payload.get('channels')
         bpm, mode = payload.get('bpm'), payload.get('mode')
         provider = payload.get('provider', 'deterministic')
         response_style = payload.get('response_style', 'source')
+        music_culture = payload.get('music_culture', False)
         instruction = payload.get('instruction', '')
         section, key = payload.get('section', ''), payload.get('key', '')
         if not isinstance(section, str) or len(section) > 64 or not isinstance(key, str) or len(key) > 24:
@@ -65,6 +67,8 @@ class LiveSession:
             raise ValueError('invalid mode or provider')
         if response_style not in ('source', 'notes', 'vocal') or (response_style != 'source' and provider != 'model'):
             raise ValueError('AI replies need provider=model; response_style must be source, notes or vocal')
+        if type(music_culture) is not bool or (music_culture and (provider != 'model' or response_style != 'vocal')):
+            raise ValueError('music culture requires explicit opt-in with provider=model and response_style=vocal')
         if not isinstance(instruction, str) or len(instruction) > 500:
             raise ValueError('instruction must be at most 500 characters')
         with self._lock:
@@ -72,7 +76,7 @@ class LiveSession:
                 raise Conflict('finish or discard the current phrase; wait for any worker to exit')
             self._id = uuid.uuid4().hex
             self._config = dict(sample_rate=rate, channels=channels, bpm=bpm, mode=mode,
-                                provider=provider, response_style=response_style, instruction=instruction, section=section, key=key,
+                                provider=provider, response_style=response_style, music_culture=music_culture, instruction=instruction, section=section, key=key,
                                 performance_context=copy.deepcopy(self._history))
             self._pcm = bytearray()
             self._sequence = 0
@@ -120,13 +124,22 @@ class LiveSession:
                 raise ValueError('capture is silent or too quiet')
             phase = "model planning"
             reply_gesture = None
+            cultural_role = None
+            culture_brief = []
+            if config['music_culture']:
+                culture_brief = music_culture_brief(config['instruction'])
+                config['culture_brief'] = culture_brief
             if config['provider'] == 'model':
                 result = self._planner(features, config)
-                if not isinstance(result, tuple) or len(result) not in (2, 3):
+                if not isinstance(result, tuple) or len(result) not in (2, 3, 4):
                     raise ValueError('invalid model planner return')
                 plan, model = result[:2]
-                if len(result) == 3:
+                if len(result) >= 3:
                     reply_gesture = result[2]
+                if len(result) == 4:
+                    cultural_role = result[3]
+                if config['music_culture'] and (len(result) != 4 or cultural_role not in VOCAL_ROLES):
+                    raise ModelPlanningError('model did not choose a valid cultural vocal arrangement')
                 if config['response_style'] == 'notes' and reply_gesture not in NOTE_GESTURES:
                     raise ModelPlanningError('model did not choose a valid note answer')
                 if config['response_style'] == 'vocal' and reply_gesture not in VOCAL_GESTURES:
@@ -141,7 +154,8 @@ class LiveSession:
                         'features': features, 'mode': config['mode'], 'provider': config['provider'],
                         'model': model, 'plan': plan, 'rendering': 'deterministic-source-audio-dsp',
                         'neural_audio_generation': False, 'response_style': config['response_style'],
-                        'reply_gesture': reply_gesture,
+                        'reply_gesture': reply_gesture, 'cultural_role': cultural_role,
+                        'culture_used': copy.deepcopy(culture_brief),
                         'section': config['section'], 'key_supplied': config['key'],
                         'context_used': config['performance_context'], 'elapsed_seconds': time.monotonic() - started}
             with self._lock:

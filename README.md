@@ -16,6 +16,19 @@ responses from SUZY//AI.
 
 > The technology was always meant to serve the art, not the other way around.
 
+### Experimental music-culture planning
+
+Artist-approved teachings in the existing local world model can now
+guide model-selected **vocal gesture + accompaniment role** in the
+Python rehearsal probe. Enable `--provider model --ai-reply vocal
+--music-culture` *only* after marking a musical idea `live_use:true`
+in the local `/v1/teach/music` API. The default, non-cultural route
+does not read world teachings or personal memory. Qwen receives a short
+curated musical brief, not raw audio; its decision changes real
+sampled-vocal mixing, not pitch generation, song recognition, or neural
+voice cloning. See [live hardware QA](docs/live-hardware-qa.md) for
+a safe no-microphone smoke test and a same-take A/B rehearsal command.
+
 ## Play first. Let AI evolve alongside you.
 
 1. **Record and loop your own phrase.** Original playback starts locally without
