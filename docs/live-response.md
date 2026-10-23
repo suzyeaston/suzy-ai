@@ -143,6 +143,23 @@ gestures fail explicitly and uncertain pitch means **no note answer**.
 The model does not continuously listen or respond over Logic playback;
 new capture and layer replacement remain unfinished.
 
+## Sampled-vocal responses in the Python probe
+
+The experimental adapter may arm with `response_style:"vocal"`
+only when `provider:"model"`. The local Qwen text model receives
+compact measured features and chooses one JSON gesture among
+`vocal-canon`, `vocal-echo`, `vocal-stutter` or `vocal-reverse`.
+The model doesn't receive raw audio. The **Python live probe** uses
+the real mic waveform to build a bounded second vocal track, mixed
+with the edited source phrase before finite repeat playback.
+The gesture is recorded in the response manifest and invalid
+model answers fail explicitly.
+
+This does **not** synthesize human speech, sing a new melody or
+continuously listen while the layer plays. It is not yet connected
+to the Mac companion's persistent accept/overdub layer architecture;
+source and notes modes are unchanged.
+
 ## Failure and resource boundaries
 
 Audio and results remain in bounded process memory, never in the private memory
