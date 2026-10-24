@@ -121,6 +121,46 @@ PACKS = (
              "tags": ("lauryn", "miseducation", "rap", "sing", "rnb", "vocal", "space"), "source_index": 0},
         ),
     },
+    {
+        "id": "cash-crop-1997",
+        "title": "Cash Crop (1997): Rascalz, Vancouver hip-hop",
+        "year": 1997,
+        "historical_context": (
+            "Vancouver's Rascalz featured Red1 and Misfit as MCs with DJ Kemo "
+            "as producer. Their 1997 Cash Crop album was named Best Rap Recording "
+            "at the 1998 Junos; they declined the award to protest Black music "
+            "being excluded from the televised ceremony. Their collaborative "
+            "single Northern Touch came in 1998 and was only added to LATER "
+            "Cash Crop pressings, not the original 1997 album. Accounts by Red1 "
+            "and Kemo place their musical development in Vancouver's local "
+            "radio, DJ, skateboard and hip-hop communities."
+        ),
+        "sources": (
+            {"label": "Georgia Straight: Red1 and DJ Kemo interview (2023)",
+             "url": "https://www.straight.com/music/vancity-calling-how-rascalz-made-history"},
+            {"label": "Canada Black Music Archives: Rascalz biography",
+             "url": "https://thecbma.com/artists/rascalz/"},
+            {"label": "NOW Magazine: Northern Touch and later Cash Crop pressings",
+             "url": "https://nowtoronto.com/music/why-northern-touch-still-matters/"},
+        ),
+        "ideas": (
+            {"id": "vancouver-mc-pocket",
+             "cue": "Original Vancouver boom-bap with vocal space",
+             "action": "Make an original restrained 4-bar drum/bass loop, leaving beat four clear for the human MC or R&B lead; answer only after her line.",
+             "tags": ("rascalz", "cash crop", "vancouver", "canadian", "hip hop", "boom bap", "pocket", "vocal", "red1", "misfit"),
+             "source_index": 0},
+            {"id": "kemo-producer-economy",
+             "cue": "Producer-led hip-hop groove and short musical motifs",
+             "action": "Develop a new two-note bass or keyboard response against Suzy's own beat, vary one accent per cycle, and preserve the lead's phrasing.",
+             "tags": ("rascalz", "cash crop", "dj kemo", "beat", "producer", "bass", "motif", "sample culture"),
+             "source_index": 0},
+            {"id": "north-coast-call-response",
+             "cue": "Canadian cross-scene hip-hop exchange, not a track recreation",
+             "action": "Make two original contrasting call-and-response phrases for different vocal or synth tracks, with staggered entrances and silence between them.",
+             "tags": ("rascalz", "northern touch", "vancouver", "toronto", "canadian hip hop", "collaboration", "call response"),
+             "source_index": 2},
+        ),
+    },
 )
 
 
