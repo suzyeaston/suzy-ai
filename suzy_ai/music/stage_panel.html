@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUZY//AI · Live Control</title>
+<style>
+:root{color-scheme:dark;--bg:#090a0e;--panel:#11131a;--line:#303541;--ink:#f2f4f7;--muted:#9da6b6;--acid:#bbff54;--cyan:#62dbfa;--pink:#ff8fbd;--purple:#ae9bff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 90% 0%,#261733 0%,transparent 35%),var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Arial}
+main{max-width:1100px;margin:auto;padding:28px 20px 70px}
+header{display:flex;justify-content:space-between;gap:20px;align-items:start;padding:14px 0 24px;border-bottom:1px solid var(--line)}
+.eyebrow{color:var(--acid);font:700 11px/1.6 ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase}
+h1{font:900 clamp(38px,6vw,70px)/.95 Arial Black,Impact,sans-serif;letter-spacing:-.065em;margin:8px 0 12px}h1 em{font-style:normal;color:var(--purple)}
+.sub{color:var(--muted);max-width:650px}.topState{text-align:right;min-width:150px;font:700 14px ui-monospace,monospace;color:var(--cyan)}
+.dot{display:inline-block;width:9px;height:9px;background:var(--pink);border-radius:50%;margin-right:8px}.dot.on{background:var(--acid)}
+.layout{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:20px}.panel{border:1px solid var(--line);border-radius:14px;background:rgba(17,19,26,.88);padding:22px}
+.panel h2{font:800 17px system-ui;margin:0 0 16px}.small{font-size:12px;color:var(--muted)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{display:block;color:var(--muted);font-size:12px;font-weight:650;letter-spacing:.04em;margin-bottom:6px}
+select,input,textarea{background:#090b10;border:1px solid #42495a;color:var(--ink);width:100%;padding:11px;border-radius:7px;font:inherit}
+textarea{min-height:90px;resize:vertical}select:focus,input:focus,textarea:focus{outline:1px solid var(--cyan)}
+.full{grid-column:1/-1}.help{color:var(--muted);font-size:11px;margin:5px 0 0}
+.btnRow{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 4px}button{border:1px solid #485161;color:var(--ink);background:#1c2029;padding:12px 17px;border-radius:8px;font-weight:800;cursor:pointer;min-height:43px}
+button:hover:not(:disabled){border-color:var(--acid)}button:focus-visible{outline:2px solid var(--cyan)}
+button:disabled{opacity:.42;cursor:not-allowed}button.primary{background:var(--acid);border-color:var(--acid);color:#111509}
+button.stop{background:#42202c;border-color:var(--pink);color:#fff}
+button.test{border-color:var(--cyan)}
+.controlHero{background:linear-gradient(125deg,rgba(187,255,84,.1),rgba(174,155,255,.12));padding:20px;border:1px solid #48515e;border-radius:12px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.metric{padding:13px;background:#0d0f15;border:1px solid var(--line);border-radius:8px}
+.metric strong{display:block;font:800 23px ui-monospace,monospace;margin:4px 0}.metric span{font-size:11px;color:var(--muted)}
+progress{width:100%;height:12px;accent-color:var(--acid);margin-top:8px}
+.error{color:#ff98b0;white-space:pre-wrap;min-height:20px;font-size:13px}
+.output{font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap;max-height:220px;overflow:auto;background:#080a0e;padding:12px;border-radius:8px;border:1px solid var(--line)}
+.toggle{display:flex;align-items:center;gap:8px;background:#171b21;padding:12px;border:1px solid var(--line);border-radius:7px}
+.toggle input{width:auto;margin:0;accent-color:var(--acid)}
+footer{margin:22px 0;color:var(--muted);font-size:12px;line-height:1.6}
+.kbd{border:1px solid var(--line);border-radius:3px;padding:2px 5px;font:11px ui-monospace,monospace}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.topState{min-width:auto}}
+@media(max-width:490px){.fields{grid-template-columns:1fr}.full{grid-column:auto}header{display:block}.topState{text-align:left;margin-top:12px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><div class="eyebrow">Futureproof · Local Music Laboratory</div>
+    <h1>SUZY<em>//</em>AI</h1>
+    <div class="sub">Your beats. Your voice. Qwen's next idea. No exports, no cloud, no surprise automation.</div>
+  </div>
+  <div class="topState"><span class="dot" id="dot"></span><span id="state">DISCONNECTED</span></div>
+</header>
+<div class="layout">
+  <div>
+    <section class="panel">
+      <h2>01 / Audio hardware</h2>
+      <div class="fields">
+        <div class="full"><label for="inputDevice">Microphone input · Focusrite Scarlett / VE-22</label><select id="inputDevice"></select></div>
+        <div><label for="channel">Physical input</label><select id="channel"><option value="1">Channel 1 · XLR mic</option><option value="2">Channel 2</option></select></div>
+        <div><label for="outputDevice">Where to hear AI</label><select id="outputDevice"></select></div>
+      </div>
+      <div class="btnRow">
+        <button id="connect" class="primary">Connect audio</button>
+        <button id="test" class="test" disabled>Test output (quiet tone)</button>
+      </div>
+      <p class="help">Use headphones and start at low volume. This is separate from Logic's audio settings. Device indices can change when unplugging hardware.</p>
+    </section>
+    <section class="panel" style="margin-top:16px">
+      <h2>02 / The musical conversation</h2>
+      <div class="fields">
+        <div><label for="bpm">Logic tempo · BPM</label><input id="bpm" type="number" min="40" max="240" step="1" value="92"></div>
+        <div><label for="beats">Phrase length</label><select id="beats"><option value="4">4 beats</option><option value="8" selected>8 beats</option><option value="12">12 beats</option><option value="16">16 beats</option></select></div>
+        <div><label for="chord">Chord (optional, yours)</label><input id="chord" maxlength="20" placeholder="Am9 · leave blank if unknown"></div>
+        <div><label for="countdown">Before capture</label><select id="countdown"><option value="0">Instant</option><option value="3" selected>3-second countdown</option></select></div>
+        <div class="full"><label for="instruction">What should your AI bandmate do?</label>
+        <textarea id="instruction" maxlength="250">Baduizm-influenced vocal conversation, Illmatic-era space and Rascalz Cash Crop Vancouver groove. Compose a fresh melodic answer after my sung phrase, not an echo.</textarea></div>
+        <div class="full"><label class="toggle"><input id="research" type="checkbox" checked> Retrieve cited musical knowledge for local Qwen</label></div>
+      </div>
+      <div class="controlHero" style="margin-top:18px">
+        <div class="small" id="captureHint">Choose audio devices and connect before playing.</div>
+        <div class="btnRow">
+          <button class="primary" id="capture" disabled>● Capture my phrase</button>
+          <button id="play" disabled>▶ Hear AI answer</button>
+          <button class="stop" id="stop">■ STOP AI</button>
+        </div>
+        <progress id="progress" value="0" max="1"></progress>
+        <div class="help">Capture runs for the selected number of beats, then Qwen composes asynchronously. Logic continues independently. <span class="kbd">Space</span> capture, <span class="kbd">Esc</span> stop, when not typing.</div>
+      </div>
+    </section>
+  </div>
+  <div>
+    <section class="panel">
+      <h2>03 / What's really happening</h2>
+      <div class="metrics">
+        <div class="metric"><span>Selected mic peak</span><strong id="peak">—</strong></div>
+        <div class="metric"><span>AI planning time</span><strong id="elapsed">—</strong></div>
+        <div class="metric"><span>Composed notes</span><strong id="noteCount">0</strong></div>
+        <div class="metric"><span>Phrase duration</span><strong id="seconds">—</strong></div>
+      </div>
+      <p class="error" id="error" role="alert"></p>
+      <h2 style="margin-top:28px">Qwen's actual MIDI decisions</h2>
+      <div class="output" id="notes">Nothing generated yet. This will show actual model note events.</div>
+      <h2 style="margin-top:22px">Culture that reached Qwen</h2>
+      <div class="output" id="refs">No cards yet.</div>
+      <p class="help">Card IDs show what was offered, not proof the model understood the albums.</p>
+    </section>
+    <section class="panel" style="margin-top:16px">
+      <h2>What the system can hear</h2>
+      <p class="small">It captures your selected Scarlett microphone input directly in RAM, measures approximate vocal notes, and sends those note observations and your chosen BPM/chord to Qwen on localhost.</p>
+      <p class="small"><strong style="color:var(--pink)">Not yet connected:</strong> Logic's internal beat/MIDI bus, bar-clock synchronization or an expressive R&B instrument. The AI reply uses our basic synthesized note sound. This is a rehearsal panel, not a stage-ready mixer.</p>
+      <p class="small">If anything sounds wrong, press <strong>STOP AI</strong>. Only the AI stream stops. Your Logic track keeps playing.</p>
+    </section>
+  </div>
+</div>
+<footer>SUZY//AI experimental local control surface · All microphone captures stay in volatile process memory · localhost:7344 · Close the Terminal process to release hardware.</footer>
+</main>
+<script>
+"use strict";
+const token="__SUZY_PANEL_TOKEN__";
+const $=id=>document.getElementById(id);
+let status={state:"disconnected",connected:false},countdownId=null;
+async function get(path){const r=await fetch(path,{cache:"no-store"});if(!r.ok)throw Error("Local panel unavailable");return r.json();}
+async function post(path,data={}){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Panel-Token":token},body:JSON.stringify(data)});
+  const ans=await r.json();if(!r.ok)throw Error(ans.error||"Request failed");return ans;}
+function reportError(e){$("error").textContent=String(e.message||e);}
+async function command(path,data={}){try{const x=await post(path,data);$("error").textContent="";update(x);}catch(e){reportError(e);}}
+function fill(id,list){const x=$(id);x.replaceChildren();for(const d of list){const option=document.createElement("option");option.value=d.id;option.textContent=d.name+" ["+d.id+"]";x.append(option);}}
+async function devices(){try{const d=await get("/api/devices");fill("inputDevice",d.inputs);fill("outputDevice",d.outputs);
+  for(const opt of $("inputDevice").options)if(/Scarlett|Focusrite/i.test(opt.textContent)){$("inputDevice").value=opt.value;break;}
+  const outputs=Array.from($("outputDevice").options);
+  const headphone=outputs.find(x=>/headphone|external|built-in/i.test(x.textContent));if(headphone)$("outputDevice").value=headphone.value;
+}catch(e){reportError(e);}}
+function controls(){const chord=$("chord").value.trim();return{
+ bpm:Number($("bpm").value),beats:Number($("beats").value),
+ instruction:$("instruction").value,chord:chord||null,research:$("research").checked};}
+function update(s){status=s;const busy=["capturing","captured","processing","playing"].includes(s.state);
+ $("state").textContent=s.state.toUpperCase();
+ $("dot").className="dot"+(s.connected?" on":"");
+ $("capture").disabled=!s.connected||busy||countdownId!==null;
+ $("play").disabled=s.state!=="ready";
+ $("connect").disabled=busy||countdownId!==null;
+ $("test").disabled=!s.connected||busy;
+ $("progress").value=s.progress||0;
+ $("peak").textContent=s.peak===null?"—":Math.round(s.peak*100)+"%";
+ $("elapsed").textContent=s.elapsed_seconds===null?"—":s.elapsed_seconds+"s";
+ $("noteCount").textContent=(s.notes||[]).length;
+ $("seconds").textContent=s.capture_seconds?s.capture_seconds+"s":"—";
+ $("captureHint").textContent=s.state==="capturing"?"RECORDING: Sing your phrase now":
+   s.state==="processing"?"Thinking locally... Logic is still playing.":
+   s.state==="ready"?"The AI generated an answer. Audition or capture again.":
+   s.state==="playing"?"Playing the AI's response. Stop at any time.":
+   s.connected?"Ready. Your microphone will capture only after you press Capture.":"Connect your Focusrite mic and listening output first.";
+ if(s.error)$("error").textContent=s.error;
+ $("notes").textContent=(s.notes||[]).length?JSON.stringify({model:s.model,notes:s.notes},null,2):"No composed note events yet.";
+ $("refs").textContent=(s.references_offered||[]).length?
+   JSON.stringify({offered:s.references_offered,used:s.reference_used},null,2):"No research cards were offered.";
+}
+$("connect").onclick=()=>command("/api/connect",{
+ input_id:Number($("inputDevice").value),output_id:Number($("outputDevice").value),
+ mic_channel:Number($("channel").value)});
+$("test").onclick=()=>command("/api/test");
+$("play").onclick=()=>command("/api/audition",{repeats:2});
+$("stop").onclick=async()=>{if(countdownId!==null){clearTimeout(countdownId);countdownId=null;}
+ await command("/api/stop");};
+$("capture").onclick=()=>{
+ if(countdownId!==null)return;
+ let remaining=Number($("countdown").value);
+ const execute=async()=>{countdownId=null;await command("/api/arm",controls());};
+ if(!remaining){execute();return;}
+ $("capture").disabled=true;
+ const tick=()=>{if(remaining<=0){execute();return;}
+   $("captureHint").textContent="Recording begins in "+remaining+"…";
+   remaining--;countdownId=setTimeout(tick,1000);};
+ tick();
+};
+document.addEventListener("keydown",e=>{
+ if(["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName))return;
+ if(e.key==="Escape"){e.preventDefault();$("stop").click();}
+ if(e.code==="Space"){e.preventDefault();if(!$("capture").disabled)$("capture").click();}
+});
+async function poll(){try{const s=await get("/api/status");if(countdownId===null)update(s);}catch(e){reportError(e);}}
+devices();poll();setInterval(poll,250);
+</script>
+</body>
+</html>
