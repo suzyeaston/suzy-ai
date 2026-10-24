@@ -24,9 +24,18 @@ accompanist, not an imitation of Nas, Erykah Badu or another artist.
 5. Lauryn Hill, *The Miseducation of Lauryn Hill* (1998): sung and rapped
    lines, collaborative credits, live instrumentation, and preservation
    of musical texture and human imperfections.
-6. Optional cross-links: Gang Starr and DJ Premier, Pete Rock & C.L. Smooth,
-   De La Soul, Digable Planets, The Roots, Mary J. Blige, Maxwell.
-   Respect the records' dates; label *Mama's Gun* and *Voodoo* as 2000.
+6. Rascalz, *Cash Crop* (1997): Vancouver's Black Canadian and Caribbean
+   musical context, radio/mixtape distribution, DJ Kemo production, reggae
+   and funk influences, connections to hip-hop's MC/DJ/breaking/graffiti
+   traditions, and the 1998 Juno protest over the marginalization of Black
+   music. Distinguish the original 1997 album from later pressings that
+   added *Northern Touch*, a 1998 collaboration. Investigate actual song
+   credits and producer equipment through independent primary sources;
+   do not invent drum timings, riffs, samples, or chord transcriptions.
+7. Optional cross-links: Gang Starr and DJ Premier, Pete Rock & C.L. Smooth,
+   De La Soul, Digable Planets, The Roots, Mary J. Blige, Maxwell, as well
+   as Vancouver DJs, Red1, Misfit, Checkmate and regional radio/mixtape
+   networks. Respect record dates; label *Mama's Gun* and *Voodoo* as 2000.
 
 ## Research rules
 
