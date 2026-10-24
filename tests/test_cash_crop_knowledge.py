@@ -25,8 +25,8 @@ class CashCropKnowledgeTests(unittest.TestCase):
     def test_no_copying_music_in_reference_corpus(self):
         pack=next(p for p in PACKS if p["id"]=="cash-crop-1997")
         self.assertEqual(pack["year"],1997)
-        self.assertEqual(len(pack["sources"]),3)
-        self.assertEqual(len(pack["ideas"]),3)
+        self.assertEqual(len(pack["sources"]),4)
+        self.assertEqual(len(pack["ideas"]),4)
         for item in pack["ideas"]:
             self.assertTrue(0 <= item["source_index"] < len(pack["sources"]))
             self.assertNotIn("audio",item)
