@@ -16,6 +16,7 @@ dependencies = []
 
 [project.optional-dependencies]
 live = ["sounddevice>=0.5,<0.6"]
+live-midi = ["sounddevice>=0.5,<0.6", "python-rtmidi>=1.5.8,<2"]
 
 [project.scripts]
 suzy-ai = "suzy_ai.cli:main"
