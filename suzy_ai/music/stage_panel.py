@@ -126,6 +126,9 @@ class StageEngine:
                 "references_offered": self.plan.get("references_offered", []) if self.plan else [],
                 "reference_used": self.plan.get("reference_used") if self.plan else None,
                 "routing_note": "Mic only. Logic backing is NOT routed into Qwen.",
+                "capture_saved": False,
+                "logic_recording": "not_observed",
+                "ai_audio_recorded_in_logic": "not_observed",
             }
 
     def _close_stream(self):
