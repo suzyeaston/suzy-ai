@@ -22,3 +22,6 @@ suzy-ai = "suzy_ai.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["suzy_ai*"]
+
+[tool.setuptools.package-data]
+"suzy_ai.music" = ["stage_panel.html"]
