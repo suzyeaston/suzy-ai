@@ -16,6 +16,26 @@ responses from SUZY//AI.
 
 > The technology was always meant to serve the art, not the other way around.
 
+### Experimental local performance panel (Focusrite + Qwen)
+
+SUZY//AI now has a **localhost browser control panel** for manual
+phrase-by-phrase interaction, alongside the existing command-line
+Focusrite probe. It controls audio input/output selection, a safe
+test tone, capture timing, research-aware Qwen directions, audition and
+instant AI STOP, without exporting WAVs or interrupting Logic:
+
+```bash
+.venv-mac/bin/python -m pip install -e ".[live]"
+.venv-mac/bin/python -m suzy_ai.music.stage_panel
+# Open http://127.0.0.1:7344/ in a local browser
+```
+
+Start your existing SUZY//AI Qwen service on port 7332 first.
+**Hardware QA pending.** The panel sees the selected Focusrite microphone,
+not Logic's internal beat/MIDI bus. This first iteration is not DAW
+clock-synchronized and produces basic synthesized notes, not a neural R&B
+voice. See [local panel instructions](docs/local-performance-control-panel.md).
+
 ### Experimental music-culture planning
 
 Artist-approved teachings in the existing local world model can now
