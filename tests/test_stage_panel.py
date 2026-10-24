@@ -82,10 +82,8 @@ class StagePanelTests(unittest.TestCase):
     def test_live_capture_to_local_model_and_audition_without_files(self):
         self.connect()
         self.engine.arm(settings())
-        capture(self.engine,self.audio.stream)
         with patch("suzy_ai.music.stage_panel.extract_phrase",return_value=phrase()):
-            # worker can begin before we patch if the monitor races;
-            # use a bound thread wait with this patch in place in test.
+            capture(self.engine,self.audio.stream)
             deadline=time.monotonic()+3
             while self.engine.status()["state"] in ("captured","processing") and time.monotonic()<deadline:
                 time.sleep(.015)
@@ -136,8 +134,12 @@ class StagePanelTests(unittest.TestCase):
     def test_selected_mic_channel_is_not_mixed_with_silence(self):
         pcm=(array("h",[1000,0,2000,0])).tobytes()
         mono=_mic_mono(pcm,2,0)
-        self.assertEqual(array("h",mono).tolist(),[1000,2000])
-        self.assertEqual(array("h",_mic_mono(pcm,2,1)).tolist(),[0,0])
+        decoded = array("h")
+        decoded.frombytes(mono)
+        self.assertEqual(decoded.tolist(),[1000,2000])
+        silent = array("h")
+        silent.frombytes(_mic_mono(pcm,2,1))
+        self.assertEqual(silent.tolist(),[0,0])
 
     def test_browser_post_requires_origin_and_random_token(self):
         class Handler(PanelHandler):
