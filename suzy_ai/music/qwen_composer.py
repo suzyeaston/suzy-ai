@@ -15,6 +15,7 @@ import time
 
 from ..inference import local_endpoint
 from .era_knowledge import knowledge_brief
+from .research_cards import research_brief
 
 PROMPT = """You are a locally running musical collaborator accompanying a human
 singer who creates original 1990s hip-hop/R&B with prepared beats.
@@ -111,13 +112,19 @@ class LocalQwenComposer:
             raise ValueError("Qwen deadline must be between zero and eight seconds")
         self.timeout=timeout
 
-    def __call__(self,phrase,*,instruction="",use_era_knowledge=False):
+    def __call__(self,phrase,*,instruction="",use_era_knowledge=False,use_deep_research=False):
         context=_phrase_context(phrase)
         if not isinstance(instruction,str) or len(instruction)>300:
             raise CompositionError("short performance instruction required")
-        if type(use_era_knowledge) is not bool:
-            raise CompositionError("era knowledge requires an explicit boolean")
-        cards=knowledge_brief(instruction,limit=3) if use_era_knowledge else []
+        if type(use_era_knowledge) is not bool or type(use_deep_research) is not bool:
+            raise CompositionError("knowledge selection must be explicit boolean flags")
+        if use_era_knowledge and use_deep_research:
+            raise CompositionError("choose one knowledge corpus at a time")
+        # The new report-derived source-backed cards have independent IDs
+        # and require explicit opt-in. No private music teachings are read.
+        cards = (research_brief(instruction, limit=2) if use_deep_research
+                 else knowledge_brief(instruction, limit=3) if use_era_knowledge
+                 else [])
         prompt={
             "performance_instruction":instruction,
             "captured_phrase":context,
@@ -185,6 +192,7 @@ if __name__=="__main__":
     parser=argparse.ArgumentParser(description="Offline local-Qwen melody test; does not touch stage audio")
     parser.add_argument("--query",default="Sparse hip hop and neo soul R&B vocal call response")
     parser.add_argument("--with-knowledge",action="store_true")
+    parser.add_argument("--with-deep-research",action="store_true")
     parser.add_argument("--wav",help="optional path for an expressly requested audition WAV")
     args=parser.parse_args()
     # Synthetic lead melody. For actual audio supply extract_phrase() instead.
@@ -193,7 +201,8 @@ if __name__=="__main__":
              "notes":[{"midi_note":60,"confidence":.99,"start_beats":0},
                       {"midi_note":64,"confidence":.99,"start_beats":1.5},
                       {"midi_note":67,"confidence":.99,"start_beats":3}]}
-    result=LocalQwenComposer()(example,instruction=args.query,use_era_knowledge=args.with_knowledge)
+    result=LocalQwenComposer()(example,instruction=args.query,use_era_knowledge=args.with_knowledge,
+                               use_deep_research=args.with_deep_research)
     print(json.dumps(result,indent=2))
     if args.wav:
         Path(args.wav).write_bytes(audition_wav(result))
