@@ -276,8 +276,8 @@ class StageEngine:
 
     def test(self):
         with self.lock:
-            if self.stream is None or self.state not in ("idle","ready","failed"):
-                raise ValueError("connect audio hardware, then stop other actions")
+            if self.stream is None or self.state not in ("idle","failed"):
+                raise ValueError("test output before capture, or stop the current AI response first")
             from .live_probe import diagnostic_tone
             self.playback = diagnostic_tone(duration=.6,amplitude=.035)
             self.repeats,self.play_offset = 1,0
