@@ -95,9 +95,10 @@ def arrangement_preview(voice, backing, plan):
     rate=voice["rate"]
     ai=audition_wav(plan,rate=rate)
     with wave.open(io.BytesIO(ai),"rb") as reader:
-        if reader.getnframes()!=voice["frames"] or reader.getnchannels()!=2:
+        ai_frames=reader.getnframes()
+        if abs(ai_frames-voice["frames"]) > round(rate*.01) or reader.getnchannels()!=2:
             raise ValueError("AI reply does not match the supplied vocal region")
-        ai_pcm=reader.readframes(reader.getnframes())
+        ai_pcm=reader.readframes(ai_frames)
     ai_samples=array("h")
     ai_samples.frombytes(ai_pcm)
     if sys.byteorder!="little":ai_samples.byteswap()
@@ -107,7 +108,7 @@ def arrangement_preview(voice, backing, plan):
         for c in (0,1):
             x=(0.26*_stereo_sample(backing,b,i,c)+
                0.30*_stereo_sample(voice,v,i,c)+
-               1.35*ai_samples[2*i+c])
+               (1.35*ai_samples[2*i+c] if i<ai_frames else 0))
             out.append(int(max(-28000,min(28000,round(x)))))
     if sys.byteorder!="little":out.byteswap()
     target=io.BytesIO()
