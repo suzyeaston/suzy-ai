@@ -319,7 +319,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             ("Cache-Control","no-store"),("X-Frame-Options","DENY"),
             ("X-Content-Type-Options","nosniff"),("Referrer-Policy","no-referrer"),
             ("Content-Security-Policy",
-             "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none"),
+             "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"),
         ):
             self.send_header(key,value)
         self.end_headers()
