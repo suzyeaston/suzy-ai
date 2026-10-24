@@ -142,6 +142,8 @@ PACKS = (
              "url": "https://thecbma.com/artists/rascalz/"},
             {"label": "NOW Magazine: Northern Touch and later Cash Crop pressings",
              "url": "https://nowtoronto.com/music/why-northern-touch-still-matters/"},
+            {"label": "AllMusic: Cash Crop review by Jon Azpiri",
+             "url": "https://www.allmusic.com/album/cash-crop-mw0000958248"},
         ),
         "ideas": (
             {"id": "vancouver-mc-pocket",
@@ -159,6 +161,11 @@ PACKS = (
              "action": "Make two original contrasting call-and-response phrases for different vocal or synth tracks, with staggered entrances and silence between them.",
              "tags": ("rascalz", "northern touch", "vancouver", "toronto", "canadian hip hop", "collaboration", "call response"),
              "source_index": 2},
+            {"id": "reggae-funk-offbeat-space",
+             "cue": "Reggae and funk rhythmic contrast within 1990s Vancouver hip-hop",
+             "action": "Try an original offbeat keyboard accent against a restrained funk bass response; avoid copied rhythms or riffs and keep the MC lead clear.",
+             "tags": ("rascalz", "cash crop", "dreaded fist", "fitnredi", "reggae", "funk", "offbeat", "vancouver", "groove"),
+             "source_index": 3},
         ),
     },
 )
