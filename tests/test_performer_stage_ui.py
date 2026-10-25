@@ -35,10 +35,16 @@ class PerformerPanelTests(unittest.TestCase):
 
     def test_musician_shortcuts_and_safe_cancel(self):
         html=stage_panel.PAGE.read_text(encoding="utf8")
-        for shortcut in ('e.key==="1"','e.key==="2"','e.key==="3"',
-                         'e.code==="Space"','e.key==="Enter"',
-                         'e.key==="Escape"'):
+        for shortcut in ('e.code==="Digit1"','e.code==="Digit2"',
+                         'e.code==="Digit3"','e.code==="KeyL"',
+                         'e.code==="KeyP"','e.key==="Escape"'):
             self.assertIn(shortcut,html)
+        self.assertIn("if(!e.shiftKey)return;",html)
+        self.assertNotIn('else if(e.code==="Space")',html)
+        self.assertNotIn('else if(e.key==="Enter")',html)
+        self.assertIn('STOP AI · QWEN ONLY',html)
+        self.assertIn('commandTail=task.then',html)
+        self.assertIn('epoch===stopEpoch&&!stopRequested',html)
         self.assertIn('clearTimeout(countdown)',html)
         self.assertIn('if(countdown===null)draw(x)',html)
         self.assertIn('s.state==="ready"',html)
