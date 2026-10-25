@@ -102,7 +102,7 @@ test("Escape during countdown cancels all scheduled capture and still sends STOP
   await p.settle();
   for(const fn of p.timers.values())fn();
   await p.settle();
-  assert.deepEqual(p.calls,["/api/stop"]);
+  assert.deepEqual(p.calls,["/api/stop","/api/stop"]);
   assert.equal(p.state().state,"idle");
 });
 
@@ -111,9 +111,9 @@ test("STOP queues after an in-flight arm; no delayed capture remains active",asy
   p.node("capture").click();await p.settle();
   assert.deepEqual(p.calls,["/api/arm"]);
   p.node("stop").click();await p.settle();
-  assert.deepEqual(p.calls,["/api/arm"],"STOP must not race past the in-flight arm");
+  assert.deepEqual(p.calls,["/api/arm","/api/stop"],"Fast STOP must fire while arm is in-flight");
   p.releaseArm();await p.settle();
-  assert.deepEqual(p.calls,["/api/arm","/api/stop"]);
+  assert.deepEqual(p.calls,["/api/arm","/api/stop","/api/stop"],"Ordered final STOP must follow the late arm");
   assert.equal(p.state().state,"idle");
   assert.equal(p.node("capture").disabled,false);
 });
