@@ -65,13 +65,14 @@ footer{color:var(--muted);font-size:12px;line-height:1.7;margin:20px 0}
   <div class="controls">
     <button type="button" class="capture" id="capture" disabled>● LISTEN TO PHRASE</button>
     <button type="button" id="play" disabled>▶ HEAR AI</button>
-    <button type="button" class="stop" id="stop">■ STOP AI</button>
+    <button type="button" class="stop" id="stop">■ STOP AI · QWEN ONLY</button>
   </div>
   <progress id="progress" class="progress" max="1" value="0" aria-label="Phrase capture progress"></progress>
   <div id="feedback" role="status">Open Audio setup below to connect your Scarlett.</div>
   <p class="note" id="recordingTruth" role="note"><strong>NOT RECORDING TO DISK.</strong> This listens to a short microphone phrase in memory. To save your performance, arm and record tracks separately in Logic. This panel cannot verify Logic recording or capture Magenta audio.</p>
   <div id="error" role="alert"></div>
-  <p class="small"><kbd>1</kbd> space · <kbd>2</kbd> answer · <kbd>3</kbd> counterline · <kbd>Space</kbd> capture · <kbd>Enter</kbd> hear · <kbd>Esc</kbd> stop</p>
+  <p class="small"><kbd>Shift+1/2/3</kbd> musical role · <kbd>Shift+L</kbd> listen · <kbd>Shift+P</kbd> hear · <kbd>Esc</kbd> stop Qwen audition. Bare <kbd>Space</kbd> / <kbd>Enter</kbd> remain available for normal transport and button behavior.</p>
+  <p class="note">STOP here silences only this legacy Qwen audition. It does <strong>not</strong> mute the Magenta AU in Logic. Use the separate Logic AI-track mute for actual neural audio.</p>
 </section>
 
 <section class="section">
@@ -119,9 +120,26 @@ const roles={
  counter:"Compose an ORIGINAL flowing MONOPHONIC counterline with contrasting motion and clearly different pitches from my vocal. Leave room before my next vocal entry."
 };
 let role="space",last={state:"disconnected",connected:false},countdown=null;
+let commandTail=Promise.resolve(),stopEpoch=0,armPending=false,stopRequested=false;
 async function get(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw Error("Local panel unavailable");return r.json();}
 async function post(url,payload={}){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Panel-Token":token},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw Error(data.error||"Request failed");return data;}
-async function send(url,payload={}){try{const x=await post(url,payload);el("error").textContent="";draw(x);}catch(e){el("error").textContent=e.message||String(e);}}
+// Browser commands execute in request order. A STOP increments stopEpoch so a
+// delayed countdown or not-yet-sent arm may not revive the old capture.
+function queuedPost(url,payload={},allowed=()=>true){
+ const task=commandTail.then(()=>allowed()?post(url,payload):null);
+ commandTail=task.then(()=>{},()=>{});
+ return task;
+}
+async function send(url,payload={},allowed=()=>true,epoch=stopEpoch){
+ try{
+  const x=await queuedPost(url,payload,allowed);
+  if(x!==null&&epoch===stopEpoch){el("error").textContent="";last=x;draw(x);}
+  return x!==null;
+ }catch(e){
+  if(epoch===stopEpoch)el("error").textContent=e.message||String(e);
+  return false;
+ }
+}
 function selectRole(x){role=x;for(const b of document.querySelectorAll("[data-role]"))b.setAttribute("aria-pressed",String(b.dataset.role===role));}
 for(const b of document.querySelectorAll("[data-role]"))b.addEventListener("click",()=>selectRole(b.dataset.role));
 function selectDevices(id,items){const select=el(id);select.replaceChildren();for(const item of items){const opt=document.createElement("option");opt.value=item.id;opt.textContent=item.name;select.add(opt);}}
@@ -129,10 +147,10 @@ async function devices(){try{const data=await get("/api/devices");selectDevices(
 function musicalControls(){const chord=el("chord").value.trim();return {bpm:Number(el("bpm").value),beats:Number(el("beats").value),instruction:roles[role],chord:chord||null,research:el("research").checked};}
 function draw(s){last=s;el("state").dataset.state=s.state;el("state").textContent=s.state.toUpperCase();const busy=["capturing","captured","processing","playing"].includes(s.state);
  el("recordingTruth").hidden=false; // No Logic transport or disk recorder is connected to this panel.
- el("capture").disabled=!s.connected||busy||countdown!==null;
- el("play").disabled=s.state!=="ready";
- el("connect").disabled=busy||countdown!==null;
- el("test").disabled=!s.connected||busy||s.state==="ready";
+ el("capture").disabled=!s.connected||busy||countdown!==null||armPending||stopRequested;
+ el("play").disabled=s.state!=="ready"||stopRequested;
+ el("connect").disabled=busy||countdown!==null||armPending||stopRequested;
+ el("test").disabled=!s.connected||busy||s.state==="ready"||stopRequested;
  el("progress").value=s.progress||0;
  el("peak").textContent=s.peak==null?"—":(s.peak*100).toFixed(1)+"%";
  el("elapsed").textContent=s.elapsed_seconds==null?"—":s.elapsed_seconds+"s";
@@ -151,15 +169,56 @@ function draw(s){last=s;el("state").dataset.state=s.state;el("state").textConten
 el("connect").onclick=()=>send("/api/connect",{input_id:Number(el("inputDevice").value),output_id:Number(el("outputDevice").value),mic_channel:Number(el("channel").value)});
 el("test").onclick=()=>send("/api/test");
 el("play").onclick=()=>send("/api/audition",{repeats:2});
-el("stop").onclick=async()=>{if(countdown!==null){clearTimeout(countdown);countdown=null;}await send("/api/stop");};
-el("capture").onclick=()=>{if(countdown!==null)return;let remaining=Number(el("countdown").value);const begin=async()=>{countdown=null;await send("/api/arm",musicalControls());};if(!remaining){begin();return;}el("capture").disabled=true;
- const tick=()=>{if(remaining<=0){begin();return;}el("feedback").textContent="Listening in "+remaining+"…";remaining--;countdown=setTimeout(tick,1000);};tick();};
-document.addEventListener("keydown",e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.repeat||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
-if(e.key==="1")selectRole("space");else if(e.key==="2")selectRole("answer");else if(e.key==="3")selectRole("counter");
-else if(e.key==="Escape"){e.preventDefault();el("stop").click();}
-else if(e.code==="Space"){e.preventDefault();if(!el("capture").disabled)el("capture").click();}
-else if(e.key==="Enter"){e.preventDefault();if(!el("play").disabled)el("play").click();}
+el("stop").onclick=async()=>{
+ const epoch=++stopEpoch;
+ if(countdown!==null){clearTimeout(countdown);countdown=null;}
+ stopRequested=true;
+ draw(last);
+ el("feedback").textContent="Stopping Qwen audition… This does not mute the Logic AI track.";
+ // Even if arm/connect was already in flight, STOP will be sent AFTER it.
+ const ok=await send("/api/stop",{},()=>true,epoch);
+ if(epoch!==stopEpoch)return;
+ stopRequested=!ok; // fail closed until STOP is acknowledged or retried
+ if(ok)draw(last);
+ else el("error").textContent="STOP NOT CONFIRMED. Mute the Logic AI track directly, then retry STOP.";
+};
+el("capture").onclick=()=>{
+ if(countdown!==null||armPending||stopRequested)return;
+ const epoch=stopEpoch;
+ let remaining=Number(el("countdown").value);
+ const begin=async()=>{
+  countdown=null;
+  if(epoch!==stopEpoch||stopRequested)return;
+  armPending=true;draw(last);
+  const payload=musicalControls();
+  await send("/api/arm",payload,()=>epoch===stopEpoch&&!stopRequested,epoch);
+  armPending=false;
+  if(!stopRequested)draw(last);
+ };
+ if(!remaining){void begin();return;}
+ el("capture").disabled=true;
+ const tick=()=>{
+  if(epoch!==stopEpoch||stopRequested)return;
+  if(remaining<=0){void begin();return;}
+  el("feedback").textContent="Listening in "+remaining+"…";
+  remaining--;countdown=setTimeout(tick,1000);
+ };
+ tick();
+};
+document.addEventListener("keydown",e=>{
+ if(e.isComposing||e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;
+ // Escape is an intentional local-Qwen stop, even while a text field has focus.
+ if(e.key==="Escape"){e.preventDefault();el("stop").click();return;}
+ // Shift is required: never hijack the bare Space/Enter a DAW user expects.
+ if(!e.shiftKey)return;
+ const focus=e.target||document.activeElement;
+ if(focus&&(focus.isContentEditable||["INPUT","SELECT","TEXTAREA","BUTTON","A","SUMMARY"].includes(focus.tagName)))return;
+ if(e.code==="Digit1"){e.preventDefault();selectRole("space");}
+ else if(e.code==="Digit2"){e.preventDefault();selectRole("answer");}
+ else if(e.code==="Digit3"){e.preventDefault();selectRole("counter");}
+ else if(e.code==="KeyL"){e.preventDefault();if(!el("capture").disabled)el("capture").click();}
+ else if(e.code==="KeyP"){e.preventDefault();if(!el("play").disabled)el("play").click();}
 });
-async function poll(){try{const x=await get("/api/status");if(countdown===null)draw(x);}catch(e){el("error").textContent=e.message;}}
+async function poll(){try{const x=await get("/api/status");if(countdown===null&&!stopRequested&&!armPending)draw(x);}catch(e){el("error").textContent=e.message;}}
 devices();poll();setInterval(poll,300);
 </script></body></html>
