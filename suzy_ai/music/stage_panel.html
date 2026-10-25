@@ -63,23 +63,24 @@ footer{color:var(--muted);font-size:12px;line-height:1.7;margin:20px 0}
     <button class="role" type="button" data-role="counter" aria-pressed="false"><b>COUNTERLINE</b><small>Moving melody, separate from mine.</small></button>
   </div>
   <div class="controls">
-    <button type="button" class="capture" id="capture" disabled>● CAPTURE VOICE</button>
+    <button type="button" class="capture" id="capture" disabled>● LISTEN TO PHRASE</button>
     <button type="button" id="play" disabled>▶ HEAR AI</button>
     <button type="button" class="stop" id="stop">■ STOP AI</button>
   </div>
   <progress id="progress" class="progress" max="1" value="0" aria-label="Phrase capture progress"></progress>
   <div id="feedback" role="status">Open Audio setup below to connect your Scarlett.</div>
+  <p class="note" id="recordingTruth" role="note"><strong>NOT RECORDING TO DISK.</strong> This listens to a short microphone phrase in memory. To save your performance, arm and record tracks separately in Logic. This panel cannot verify Logic recording or capture Magenta audio.</p>
   <div id="error" role="alert"></div>
   <p class="small"><kbd>1</kbd> space · <kbd>2</kbd> answer · <kbd>3</kbd> counterline · <kbd>Space</kbd> capture · <kbd>Enter</kbd> hear · <kbd>Esc</kbd> stop</p>
 </section>
 
 <section class="section">
- <div class="eyebrow">02 · One groove, one voice</div>
+ <div class="eyebrow">02 · Phrase listening settings (not Logic recording)</div>
  <div class="two" style="margin-top:12px">
    <div class="setting"><label for="bpm">Tempo from your Logic session · BPM</label><input id="bpm" type="number" min="40" max="240" step="1" value="92"></div>
-   <div class="setting"><label for="beats">Capture length</label><select id="beats"><option value="4">4 beats</option><option value="8" selected>8 beats</option><option value="12">12 beats</option><option value="16">16 beats</option></select></div>
+   <div class="setting"><label for="beats">Listening window</label><select id="beats"><option value="4">4 beats</option><option value="8" selected>8 beats</option><option value="12">12 beats</option><option value="16">16 beats</option></select></div>
    <div class="setting"><label for="chord">Known chord, if you have one</label><input id="chord" maxlength="20" placeholder="Optional (e.g. Am9)"></div>
-   <div class="setting"><label for="countdown">Arm delay</label><select id="countdown"><option value="0">Immediately</option><option value="3" selected>3 seconds</option></select></div>
+   <div class="setting"><label for="countdown">Listen delay</label><select id="countdown"><option value="0">Immediately</option><option value="3" selected>3 seconds</option></select></div>
  </div>
  <label class="checkbox"><input id="research" type="checkbox" checked> Use our researched 90s hip-hop/R&B knowledge cards</label>
  <p class="note">These are cultural references, not a guarantee that Qwen understands the beat. At present it only hears the Scarlett microphone, not Logic's internal backing track.</p>
@@ -97,7 +98,7 @@ footer{color:var(--muted);font-size:12px;line-height:1.7;margin:20px 0}
 </details>
 
 <details id="details"><summary>Diagnostics · What did the AI actually do?</summary>
-<div class="detailsBody"><p class="note">Visible for rehearsal QA, hidden during performance.</p>
+<div class="detailsBody"><p class="note">Visible for rehearsal QA, hidden during performance. The panel has no Logic transport or recorded-track connection.</p>
 <div class="two">
  <div><label>Mic peak</label><strong id="peak">—</strong></div>
  <div><label>Model time</label><strong id="elapsed">—</strong></div>
@@ -127,6 +128,7 @@ function selectDevices(id,items){const select=el(id);select.replaceChildren();fo
 async function devices(){try{const data=await get("/api/devices");selectDevices("inputDevice",data.inputs);selectDevices("outputDevice",data.outputs);for(const o of el("inputDevice").options)if(/Scarlett|Focusrite/i.test(o.textContent)){el("inputDevice").value=o.value;break;}}catch(e){el("error").textContent=e.message;}}
 function musicalControls(){const chord=el("chord").value.trim();return {bpm:Number(el("bpm").value),beats:Number(el("beats").value),instruction:roles[role],chord:chord||null,research:el("research").checked};}
 function draw(s){last=s;el("state").dataset.state=s.state;el("state").textContent=s.state.toUpperCase();const busy=["capturing","captured","processing","playing"].includes(s.state);
+ el("recordingTruth").hidden=false; // No Logic transport or disk recorder is connected to this panel.
  el("capture").disabled=!s.connected||busy||countdown!==null;
  el("play").disabled=s.state!=="ready";
  el("connect").disabled=busy||countdown!==null;
@@ -139,11 +141,11 @@ function draw(s){last=s;el("state").dataset.state=s.state;el("state").textConten
  if(s.error)el("error").textContent=s.error;
  el("notes").textContent=(s.notes||[]).length?JSON.stringify({model:s.model,events:s.notes},null,2):"No generated notes.";
  el("refs").textContent=(s.references_offered||[]).length?JSON.stringify({offered:s.references_offered,claimed:s.reference_used},null,2):"None.";
- if(s.state==="capturing")el("feedback").textContent="RECORDING · Sing or play your phrase.";
+ if(s.state==="capturing")el("feedback").textContent="LISTENING IN MEMORY · Sing or play your phrase. Logic recording is separate.";
  else if(s.state==="processing")el("feedback").textContent="Qwen is composing. Your Logic backing continues.";
  else if(s.state==="ready")el("feedback").textContent="AI answer ready. HEAR AI or CAPTURE again.";
  else if(s.state==="playing")el("feedback").textContent="Playing AI notes. STOP AI immediately if needed.";
- else if(s.connected)el("feedback").textContent="Audio connected. Press CAPTURE VOICE when ready.";
+ else if(s.connected)el("feedback").textContent="Audio connected. Press LISTEN TO PHRASE when ready. Save takes in Logic.";
  else el("feedback").textContent="Open Audio setup below to connect your Scarlett.";
 }
 el("connect").onclick=()=>send("/api/connect",{input_id:Number(el("inputDevice").value),output_id:Number(el("outputDevice").value),mic_channel:Number(el("channel").value)});
@@ -151,7 +153,7 @@ el("test").onclick=()=>send("/api/test");
 el("play").onclick=()=>send("/api/audition",{repeats:2});
 el("stop").onclick=async()=>{if(countdown!==null){clearTimeout(countdown);countdown=null;}await send("/api/stop");};
 el("capture").onclick=()=>{if(countdown!==null)return;let remaining=Number(el("countdown").value);const begin=async()=>{countdown=null;await send("/api/arm",musicalControls());};if(!remaining){begin();return;}el("capture").disabled=true;
- const tick=()=>{if(remaining<=0){begin();return;}el("feedback").textContent="Recording in "+remaining+"…";remaining--;countdown=setTimeout(tick,1000);};tick();};
+ const tick=()=>{if(remaining<=0){begin();return;}el("feedback").textContent="Listening in "+remaining+"…";remaining--;countdown=setTimeout(tick,1000);};tick();};
 document.addEventListener("keydown",e=>{if(e.altKey||e.ctrlKey||e.metaKey||e.repeat||["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
 if(e.key==="1")selectRole("space");else if(e.key==="2")selectRole("answer");else if(e.key==="3")selectRole("counter");
 else if(e.key==="Escape"){e.preventDefault();el("stop").click();}

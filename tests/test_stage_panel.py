@@ -100,6 +100,9 @@ class StagePanelTests(unittest.TestCase):
         self.assertTrue(any(result))
         self.engine.stop()
         self.assertEqual(self.engine.status()["state"],"idle")
+        self.assertIs(self.engine.status()["capture_saved"],False)
+        self.assertEqual(self.engine.status()["logic_recording"],"not_observed")
+        self.assertEqual(self.engine.status()["ai_audio_recorded_in_logic"],"not_observed")
         self.assertEqual(self.audio.stream.tick(bytes(512*4)),bytes(512*4))
 
     def test_stop_during_inference_prevents_late_response(self):
@@ -119,6 +122,14 @@ class StagePanelTests(unittest.TestCase):
             time.sleep(.25)
         self.assertEqual(self.engine.status()["state"],"idle")
         self.assertEqual(self.engine.status()["notes"],[])
+
+    def test_browser_copy_does_not_claim_logic_recording(self):
+        from suzy_ai.music.stage_panel import PAGE
+        page=PAGE.read_text(encoding="utf8")
+        self.assertIn("LISTEN TO PHRASE",page)
+        self.assertIn("NOT RECORDING TO DISK",page)
+        self.assertIn("arm and record tracks separately in Logic",page)
+        self.assertNotIn("RECORDING · Sing",page)
 
     def test_invalid_controls_never_arm_audio(self):
         self.connect()
