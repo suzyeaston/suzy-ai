@@ -46,7 +46,7 @@ class PerformerPanelTests(unittest.TestCase):
         self.assertIn('commandTail=task.then',html)
         self.assertIn('epoch===stopEpoch&&!stopRequested',html)
         self.assertIn('clearTimeout(countdown)',html)
-        self.assertIn('if(countdown===null)draw(x)',html)
+        self.assertIn('if(countdown===null&&!stopRequested&&!armPending)draw(x)',html)
         self.assertIn('s.state==="ready"',html)
         self.assertIn('s.state==="capturing"',html)
         self.assertIn('el("play").disabled=s.state!=="ready"',html)
