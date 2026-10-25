@@ -175,7 +175,9 @@ el("stop").onclick=async()=>{
  stopRequested=true;
  draw(last);
  el("feedback").textContent="Stopping Qwen audition… This does not mute the Logic AI track.";
- // Even if arm/connect was already in flight, STOP will be sent AFTER it.
+ // Fast safety path first: cancel current sound even when a capture request stalls.
+ // Follow with an ordered STOP so a late /api/arm cannot restart afterward.
+ void post("/api/stop").catch(()=>{});
  const ok=await send("/api/stop",{},()=>true,epoch);
  if(epoch!==stopEpoch)return;
  stopRequested=!ok; // fail closed until STOP is acknowledged or retried
