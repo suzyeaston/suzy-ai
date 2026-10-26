@@ -16,6 +16,22 @@ responses from SUZY//AI.
 
 > The technology was always meant to serve the art, not the other way around.
 
+### Play with Magenta RealTime 2 Small (real neural MIDI instrument)
+
+The **MRT2 - Jam** app has been confirmed to audibly respond to a Keystation Mini 32 MK3 on an 8 GB Apple Silicon performance Mac. This does *not* mean the SUZY bridge below has passed physical QA yet.
+
+A separate, opt-in **SUZY//AI Magenta MIDI stage** now exposes a performer-facing virtual CoreMIDI route with DIRECT / OCTAVE DOWN / OCTAVE UP, PAUSE/RESUME MIDI, TEST CHORD and RELEASE MIDI controls. It does not start Qwen, open an audio input, control Magenta's generated audio or Logic, or record music.
+
+```sh
+.venv-mac/bin/python -m pip install -e '.[live-midi]'
+.venv-mac/bin/python -m suzy_ai.music.magenta_stage
+# open http://127.0.0.1:7345/
+```
+
+Select the **Keystation Mini 32 MK3** inside SUZY//AI, then select **SUZY AI MIDI** (not physical Keystation) as **Jam MIDI INPUT**. Click TEST CHORD or play your keys to check actual Magenta response. Leave the bridge running. To recover, quit the bridge and select Keystation directly in Jam.
+
+**RELEASE MIDI cannot guarantee neural audio silence**. Use Jam's own volume/stop or the independent Magenta track mute in Logic. Full setup and QA: [Magenta MIDI stage guide](docs/magenta-midi-stage.md). The older Qwen panel below is a separate research workflow.
+
 ### Experimental local performance panel (Focusrite + Qwen)
 
 SUZY//AI now has a **localhost browser control panel** for manual
