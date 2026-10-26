@@ -1,354 +1,205 @@
 # SUZY//AI
 
-**A local musical collaborator. You keep playing; AI works in the background.**
+**A human-led, local-first musical collaborator.** Play the instrument. Shape the AI. Keep control of the sound.
 
-SUZY//AI is an open-source project by [Suzy Easton](https://www.suzyeaston.ca/),
-built around live music, memory, cultural references and creative interaction.
-The current focus is **EVOLVE WITH ME**: performing with prepared loops, live
-nylon-string guitar and layered vocals while AI develops variations of the
-musician's own sounds.
+SUZY//AI is an open-source project by [Suzy Easton](https://www.suzyeaston.ca/) exploring live human–AI performance, musical interaction, original accompaniment, looping, memory, and cultural context. The current performance work is **The Appliance Latent Space** for Futureproof Festival in Vancouver on **October 29, 2026**.
 
-This work is being developed for **The Appliance Latent Space**, a 15-minute
-performance at Futureproof Festival in Vancouver on October 29, 2026.
-Logic Pro handles the prepared Live Loops backing, beats and instruments. The
-native Mac companion adds an experimental local looper and optional background
-responses from SUZY//AI.
+The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own musical lineage, experimental electronics and live vocal layering. The goal is a responsive bandmate, **not** an imitation of another recording artist.
 
-> The technology was always meant to serve the art, not the other way around.
+> The technology serves the music. The musician decides what enters the mix.
 
-### Play with Magenta RealTime 2 Small (real neural MIDI instrument)
+## Current state · October 25, 2026
 
-The **MRT2 - Jam** app has been confirmed to audibly respond to a Keystation Mini 32 MK3 on an 8 GB Apple Silicon performance Mac. This does *not* mean the SUZY bridge below has passed physical QA yet.
+**The most important milestone:** On an 8 GB Apple Silicon Mac, **Google Magenta RealTime 2 Small** has been heard generating music as a **software instrument inside Logic Pro**, with a **Keystation Mini 32 MK3**, a **48 kHz Logic project**, **Scarlett Solo USB selected for Logic input and output**, and **headphones connected to the Scarlett**. The separate **MRT2 - Jam** app has also been heard responding to the Keystation.
 
-A separate, opt-in **SUZY//AI Magenta MIDI stage** now exposes a performer-facing virtual CoreMIDI route with DIRECT / OCTAVE DOWN / OCTAVE UP, PAUSE/RESUME MIDI, TEST CHORD and RELEASE MIDI controls. It does not start Qwen, open an audio input, control Magenta's generated audio or Logic, or record music.
+**That neural instrument is Google's MRT2 Audio Unit, not a custom SUZY//AI Audio Unit.** This repository currently adds experimental MIDI steering, music-response research, and native looping tools around the creative workflow. The next engineering milestone is a **separately identified SUZY//AI AUv3 instrument/UI**, not an in-place modification of Google's working plug-in.
 
-```sh
+### Confirmed versus still being tested
+
+| Area | Status | What that means |
+| --- | --- | --- |
+| MRT2 Small inside Logic | **Audibly confirmed on the performance Mac** | Google's MRT2 instrument generates music through Logic and the Scarlett headphones |
+| Standalone MRT2 - Jam + Keystation | **Audibly confirmed** | The physical MIDI controller influences generated music |
+| Logic audio routing | **Confirmed for this test** | Project at 48 kHz; Scarlett Solo selected as input and output; headphones audible |
+| Mic → BOSS VE-22 → Scarlett | **Cables connected; complete vocal test pending** | The singer's Logic input monitoring, effects and actual vocal recording have not yet been independently verified |
+| SUZY MIDI stage at `127.0.0.1:7345` | **Implemented; integration hardware QA pending** | Browser reports incoming Keystation events and creates virtual MIDI source `SUZY AI MIDI`; audible virtual-MIDI-to-Jam/Logic delivery has not been confirmed |
+| Audio + Logic Setup UI | **Implemented as read-only discovery** | Lists CoreAudio inputs/outputs, including Scarlett candidates; **does not** switch Logic or MRT2 audio devices |
+| Logic Live Loops / VE-22 looping | **Planned performance workflow** | Usable host/pedal features, but synchronized live set, overdubs and saved AI audio prints are not yet proven end-to-end |
+| Custom SUZY//AI AUv3 | **Not built** | The proposed React-in-AU performance UI does not yet exist as a loadable SUZY instrument |
+| Whole-set reliability | **Not yet certified** | Offline cold start, independent AI mute, audio print/save/reopen, and full 15-minute stress test remain |
+
+**Do not interpret MIDI activity as proof of audible AI output.** MIDI, neural audio, vocal monitoring, and DAW recording are separate signal paths.
+
+## The performance signal path
+
+```text
+Keystation Mini 32 MK3 ── MIDI ──► Logic software-instrument track
+                                      │
+                              Google MRT2 (AUv3)
+                              mrt2_small neural audio
+                                      │
+                                      ▼
+                              AI track / Logic mixer ──────┐
+                                                          │
+Dynamic microphone → BOSS VE-22 → Scarlett mic input ──► Logic vocal track
+                                                          │
+Prepared drums, synths, Live Loops ────────────────────────┤
+                                                          ▼
+                                                   Logic master output
+                                                          │
+                                             Scarlett Solo USB → headphones / PA
+```
+
+The **VE-22 is for vocal processing and optional foot-controlled vocal loops**. Magenta does **not** need to pass through the VE-22. Logic owns the main mix, the AI instrument fader/mute, the vocal track's monitoring, and recording.
+
+An **optional** MIDI-steering experiment is:
+
+```text
+Keystation → SUZY//AI MIDI server → "SUZY AI MIDI" (virtual CoreMIDI)
+                                            → manually selected MIDI input in Jam
+```
+
+This second path is **not** the confirmed Logic performance path. It does not output audio, read Logic's transport, control the MRT2 plug-in's volume, or guarantee an audio mute.
+
+## Quick start: hear neural music in Logic
+
+Use the already downloaded **official MRT2 bundle** and `mrt2_small`. See the [official Magenta repository](https://github.com/magenta/magenta-realtime) and our [Logic/MRT2 studio runbook](docs/studio-mrt2-logic-runbook.md).
+
+1. Install **MRT2 (AU).app** in Applications and launch it once so macOS registers the Audio Unit. Keep the original Google plug-in as a known-good fallback.
+2. Connect the Keystation and Scarlett Solo. Plug your headphones into the **Scarlett**, not the MacBook, if Scarlett is Logic's output.
+3. In **Logic Pro → Settings → Audio → Devices**, select **Scarlett Solo USB** for input/output. In **File → Project Settings → Audio**, confirm **48,000 Hz**.
+4. Create a **Software Instrument** track. Insert **AU Instruments → Google → MRT2 → Stereo**. Load `mrt2_small` if necessary. Start MRT2 generation, select/arm the instrument track and play the Keystation. Start with a low level.
+5. Verify that Logic's AI track meter moves and audio comes from the Scarlett headphones. **Mute that track** to stop its audible contribution without silencing the rest of the Logic mix.
+6. For vocals, use **mic → VE-22 → Scarlett microphone input** and create a separate **mono Audio** track in Logic. Select the correct physical input for your Scarlett generation. Set gains conservatively and monitor either through Logic **or** Scarlett Direct Monitor as appropriate, avoiding a doubled vocal signal.
+
+For a dynamic microphone, don't enable phantom power unnecessarily. A processor's XLR output may be hotter than a bare microphone: lower the VE-22 output and Scarlett preamp gain if the input clips.
+
+**Recording reminder:** A MIDI region steering a generative instrument is not necessarily an exact recording of the generated audio. Make and **listen to** a separate AI audio print or carefully verified Bounce in Place; save, close, reopen, and verify playback before relying on it during a set. Logic's own AI track mute is the immediate safety control.
+
+**8 GB Mac tip:** For the live Logic test, quit the separate Jam and MRT2 standalone windows and leave Qwen stopped. Running multiple neural engines simultaneously consumes resources unnecessarily.
+
+## SUZY//AI MIDI stage · experimental
+
+This repository's own browser interface steers **MIDI only**. It intentionally runs separately from the Qwen audition and does not start an audio engine.
+
+On the Mac, after setting up the repository Python environment:
+
+```bash
+cd ~/Projects/suzy-ai
 .venv-mac/bin/python -m pip install -e '.[live-midi]'
 .venv-mac/bin/python -m suzy_ai.music.magenta_stage
-# open http://127.0.0.1:7345/
+# Open http://127.0.0.1:7345/
 ```
 
-Select the **Keystation Mini 32 MK3** inside SUZY//AI, then select **SUZY AI MIDI** (not physical Keystation) as **Jam MIDI INPUT**. Click TEST CHORD or play your keys to check actual Magenta response. Leave the bridge running. To recover, quit the bridge and select Keystation directly in Jam.
+Choose **Keystation Mini 32 MK3** under MIDI Setup in SUZY//AI. For a **standalone Jam** test, choose **SUZY AI MIDI** as Jam's MIDI input (instead of the physical Keystation), press Play in Jam, and audition the **TEST CHORD** or your own keys. If silent, switch Jam back to the physical Keystation to isolate a MIDI-routing issue from an audio-output issue.
 
-**RELEASE MIDI cannot guarantee neural audio silence**. Use Jam's own volume/stop or the independent Magenta track mute in Logic. Full setup and QA: [Magenta MIDI stage guide](docs/magenta-midi-stage.md). The older Qwen panel below is a separate research workflow.
-
-### Experimental local performance panel (Focusrite + Qwen)
-
-SUZY//AI now has a **localhost browser control panel** for manual
-phrase-by-phrase interaction, alongside the existing command-line
-Focusrite probe. It controls audio input/output selection, a safe
-test tone, capture timing, research-aware Qwen directions, audition and
-instant AI STOP, without exporting WAVs or interrupting Logic:
-
-```bash
-.venv-mac/bin/python -m pip install -e ".[live]"
-.venv-mac/bin/python -m suzy_ai.music.stage_panel
-# Open http://127.0.0.1:7344/ in a local browser
-```
-
-Start your existing SUZY//AI Qwen service on port 7332 first.
-**Hardware QA pending.** The panel sees the selected Focusrite microphone,
-not Logic's internal beat/MIDI bus. This first iteration is not DAW
-clock-synchronized and produces basic synthesized notes, not a neural R&B
-voice. See [local panel instructions](docs/local-performance-control-panel.md).
-
-### Experimental music-culture planning
-
-Artist-approved teachings in the existing local world model can now
-guide model-selected **vocal gesture + accompaniment role** in the
-Python rehearsal probe. Enable `--provider model --ai-reply vocal
---music-culture` *only* after marking a musical idea `live_use:true`
-in the local `/v1/teach/music` API. The default, non-cultural route
-does not read world teachings or personal memory. Qwen receives a short
-curated musical brief, not raw audio; its decision changes real
-sampled-vocal mixing, not pitch generation, song recognition, or neural
-voice cloning. See [live hardware QA](docs/live-hardware-qa.md) for
-a safe no-microphone smoke test and a same-take A/B rehearsal command.
-
-## Play first. Let AI evolve alongside you.
-
-1. **Record and loop your own phrase.** Original playback starts locally without
-   waiting for a model or server.
-2. **Keep playing.** Overdub, undo the last overdub, mute, stop, resume and save
-   your loop using the app or a MIDI controller.
-3. **Let AI work on a copy.** When enabled and connected, the background response
-   service receives a snapshot of the loop. Your original keeps playing.
-4. **Choose what enters the performance.** Audition a variation or add it as a
-   separate layer at the next original-loop boundary. Ignoring it changes nothing.
-
-The local looper remains usable with the AI bridge disconnected. Changing the
-original invalidates stale proposals while accepted AI layers keep playing. A slow or failed AI request does not need
-to interrupt recording or playback.
-
-Audio is the musical material: the Godin guitar and microphone feed the audio
-interface. MIDI is optional for controller actions and experimental clock sync;
-it is not required to capture or transform the sound.
-
-## What is implemented
-
-| Component | Current capabilities |
+| Browser action | Actual operation |
 | --- | --- |
-| **Mac looper** | One loop up to eight seconds, one-cycle overdubs, one-level undo, mute, stop/resume, clear and WAV saving |
-| **Background responses** | One bounded capture/proposal at a time, optional local-model decisions, audition, discard and an optional response layer |
-| **Musical analysis and context** | Onset estimates, uncertain monophonic pitch hints, section/key/direction inputs and the last four accepted decisions in RAM |
-| **Performance controls** | MIDI note mappings, local Stop All and experimental Logic/IAC clock scheduling |
-| **Local AI core** | Text inference, explicitly approved private memory, bounded recall, teaching APIs, JSON events and timelines |
+| DIRECT | Forward incoming MIDI notes unchanged |
+| OCTAVE DOWN / UP | Transpose notes by 12 semitones |
+| PAUSE / RESUME MIDI | Gate incoming notes; release held notes when pausing |
+| TEST CHORD | Send a short Am7 MIDI-conditioning chord |
+| RELEASE MIDI | Send note-off/all-notes-off messages; **not** neural-audio mute |
+| Audio + Logic Setup | **Read-only** device discovery and host-routing instructions |
 
-The response modes are **MIRROR**, **AUGMENT** and **EVOLVE**. Today they operate
-on the source audio through slice order, gain, reversal and a delayed layer.
-Deterministic mode uses fixed processing rules. Local-model mode uses neural text
-inference to choose a validated arrangement from measured features and musical
-context; rendering still uses deterministic audio processing. The model does not
-hear the waveform directly, generate neural audio or synthesize inferred harmonies.
+Seeing a Keystation event count only confirms that SUZY received notes. Even an active virtual MIDI port does not prove that Jam or Logic has selected it or that generated audio is audible. The MIDI bridge does **not** offer an output-device switch for Logic. Set output in the DAW or relevant standalone audio host.
 
-**This is an experimental instrument.** Original-loop capture, repeat, overdub and
-undo now run in a continuous CoreAudio callback with timestamp-based overdub alignment.
-It requires the same stereo 44.1/48 kHz interface for macOS input/output. Actual hardware
-alignment still needs measurement; there is no continuous Logic clock drift correction.
-AI-layer replacement still uses the separate player and UI-timer path. Audition shares the audience output; there is no private
-cue bus. The companion runs alongside Logic and does not yet provide an Audio Unit
-or insert Live Loops cells automatically.
+Detailed instructions: [Magenta MIDI stage](docs/magenta-midi-stage.md) · [Studio routing and recording runbook](docs/studio-mrt2-logic-runbook.md).
 
-See the [local looper guide](docs/local-looper.md) for controls and listening tests,
-the [Mac companion guide](docs/mac-companion.md) for routing and clock setup, and
-the [response protocol](docs/live-response.md) for the backend.
+## Live looping: practical separation of responsibilities
 
-## Run on a Mac
+- **BOSS VE-22:** hands/feet-free vocal effects and phrase overdubs. Its vocal loop is not automatically aligned to Logic's bar grid and is not a permanent recorder; capture the output into Logic if you need to keep the take.
+- **Logic Live Loops:** prepared drums, synths, quantized audio/MIDI clips, and live arrangement. Record vocals as audio cells or regions, and retain a separate audio print of any generative AI output you want to repeat exactly.
+- **MRT2 Small (Google AU):** real-time AI musical generation conditioned by MIDI and its own model/prompt controls. The current custom SUZY browser does not directly control its audio or native parameter state.
+- **SUZY native Mac looper (experimental):** a *separate* CoreAudio looper with capture, overdub, undo and optional DSP/model-guided variants. It does not become a Logic Live Loops track and does not replace the pedal. See [local looper](docs/local-looper.md).
 
-The companion requires macOS 13+ and Xcode Command Line Tools with Swift 5.9+.
-The response bridge also requires Python 3.11+. Start with local looping:
+The intended performance is **human vocals + prepared grooves + optional live AI response**, with the ability to remove the AI without interrupting the human music. Full musical synchronization and crash recovery are still QA tasks.
 
-```bash
-git clone https://github.com/suzyeaston/suzy-ai.git
-cd suzy-ai
-bash scripts/start-mac-companion.sh --looper-only
-```
+## Other research and tools in this repository
 
-This builds and opens the native app without starting Python or downloading a
-model. Select your interface as the macOS sound input/output; Logic has its own
-audio settings. Begin with headphones and verify the input channel.
+These are implemented experiments, not additional show-critical engines that must be running alongside Logic.
 
-For the companion plus the background response bridge, quit the app and run:
+| Component | Purpose | Status and documentation |
+| --- | --- | --- |
+| Legacy Qwen performance panel | Scarlett mic phrase capture in memory, Qwen note-planning, basic synthesized audition | **Experimental, not a DAW plug-in or neural audio**. [Guide](docs/local-performance-control-panel.md) |
+| Focusrite Python probe | Mic capture / DSP variation / vocal-sample rehearsal and approximate pitch analysis | **Experimental**. [Hardware QA](docs/live-hardware-qa.md) |
+| Native SUZY Live Mac companion | Local CoreAudio looping, overdub/undo, optional response bridge and MIDI mappings | Separate app; host and latency QA remain. [Guide](docs/mac-companion.md) |
+| Local Qwen3 AI core | On-device text inference, explicitly approved memory, musical teaching and cultural research | Separate service, **not** MRT2's neural audio engine. [Local chat](docs/local-chat.md) |
+| Music culture packs | Research on 1990s hip-hop/R&B, jazz-rap and Vancouver/Rascalz history for original creative decisions | Inform optional text-based musical decisions; **do not** mean the audio model has learned these artists |
+| Creative writing, reviews and threads | World model, album reviews, jokes and curated Top Ten material | Not part of the real-time audio signal path. [Top Ten workflow](docs/top-ten.md) |
 
-```bash
-bash scripts/start-mac-companion.sh
-```
+### Optional older workflows
 
-The bridge uses port **7333**. In the app, Connect and choose deterministic DSP or
-local-model decisions. Deterministic responses require no model. For model mode,
-start the existing SUZY//AI core in another terminal on **7332**:
+**Qwen phrase audition** (needs a separately running Qwen service):
 
 ```bash
 bash scripts/start-mac.sh --api-port 7332 --model-port 8082
+.venv-mac/bin/python -m pip install -e '.[live]'
+.venv-mac/bin/python -m suzy_ai.music.stage_panel
+# http://127.0.0.1:7344/
 ```
 
-The local inference setup uses Qwen3 1.7B through llama.cpp. If you have not set
-it up before, follow [Mac setup](docs/mac-setup.md); `scripts/setup-mac.sh` installs
-tools and downloads the model. Existing installations can reuse their verified
-weights. The companion launcher does not download or start a model itself.
+The older panel's **STOP AI** only stops its *own* Qwen audition. It does **not** mute the MRT2 instrument inside Logic.
 
-To update an existing checkout, quit the app and old services, then run
-`git pull --ff-only` and relaunch. A running process does not pick up new code.
-If you are in the core's `you >` chat prompt, use `/quit` before running shell commands.
+**Native Mac looper, without a model:**
 
-For the Python core alone, install with `pip install -e .` in a virtual environment,
-then use `suzy-ai init`, `suzy-ai doctor` and `suzy-ai serve`. Its default API port is
-7331; the musical setup above uses 7332. See the [chat and memory API guide](docs/local-chat.md).
+```bash
+bash scripts/start-mac-companion.sh --looper-only
+```
 
-## Live audio QA without Swift (experimental)
+For the optional background DSP/model bridge, see [Mac companion setup](docs/mac-companion.md). The bridge normally uses port **7333**; Qwen core/model services use **7332/8082** in the example above. These are separate from the **7345** MIDI-stage server. Do not start every subsystem just to perform with MRT2.
 
-To **test real Focusrite audio immediately**, use the separate Python live
-probe, which captures a short phrase and automatically auditions a response
-through the interface **without any Logic WAV export**. It uses an optional
-\`sounddevice\` binding rather than the native Mac companion:
+For the Python AI core alone, `pip install -e .` installs the CLI; see [Mac setup](docs/mac-setup.md) and [local chat](docs/local-chat.md).
 
-~~~bash
-cd ~/Projects/suzy-ai
-.venv-mac/bin/python -m pip install -e '.[live]'
-.venv-mac/bin/python -m suzy_ai.music.live_probe --list-devices
-.venv-mac/bin/python -m suzy_ai.music.live_probe --input-device 0 --output-device 4 --bpm 120 --beats 8 --cycles 1 --gain 0.1
-~~~
+## What we're building next
 
-Set the input and output device numbers from the list (Scarlett Solo USB = 0, MacBook Pro Speakers = 4 on the first tested machine; External Headphones = 2). The probe waits for you to press Return, counts down 3 seconds, captures 4 seconds at 120 BPM, prints Scarlett input levels, and automatically plays the response. For a performer-facing choice, pass `--input-device 0 --choose-output` and select headphones or speakers by listening to a test tone before any audio is recorded. Before recording, run `--test-output --output-device 2` to check the macOS External Headphones route with a low-level tone (try device 4 for MacBook speakers). The probe now logs the physical device names, processed response levels and copied playback frames. Start with deterministic processing to isolate routing from inference. For
-Qwen model-guided responses, start the core on port 7332 in a second Terminal,
-then pass \`--provider model --mode evolve\`.
+**Near-term, for The Appliance Latent Space:**
 
-To play an experimental response **under your continued Logic performance**,
-add `--layer-repeats 4` (up to 8). The AI candidate will repeat while you
-sing or play on top, monitored through Logic, but the prototype is not
-clock-synced and cannot capture another phrase until playback ends.
-If a quick local chat works but musical planning fails, first use
-`.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model`, which checks
-the real Qwen plan with a synthetic phrase and no mic or speakers.
-Qwen now chooses one validated rhythmic pattern, expanded locally into a
-complete beat-slice arrangement instead of needing to enumerate all slices.
-This remains source-audio editing rather than new note or harmony synthesis.
-For real **model-driven** response planning, run the local Qwen core and
-use `--provider model --mode evolve`; the model currently rearranges
-existing audio slices, not new melodies or harmonies.
+1. [#46 · Confirm Logic MRT2 audio, separate recording, and reopening](https://github.com/suzyeaston/suzy-ai/issues/46)
+2. [#47 · Verify an actual independent AI audio mute](https://github.com/suzyeaston/suzy-ai/issues/47)
+3. [#48 · Offline / dropout / 15-minute show stress test](https://github.com/suzyeaston/suzy-ai/issues/48)
+4. [#49 · Hands-free controls](https://github.com/suzyeaston/suzy-ai/issues/49)
 
-**New model-guided note-answer experiment:** instead of only shifting a
-vocal recording, Qwen can now choose one interval gesture and trigger a
-lightweight synthesized counterline based on an *uncertain detected vocal pitch*.
-Start with `.venv-mac/bin/python -m suzy_ai.music.live_probe --test-model
---ai-reply notes --provider model`. If it passes, add
-`--provider model --ai-reply notes --layer-repeats 4` to the live
-headphone test. This is **opt-in** and prototype-only: the AI chooses a
-musical direction, while deterministic DSP synthesizes the actual notes.
-It does not hear the performance continuously, predict chords, compose
-a complete melody or automatically sync its responses to Logic.
+**Custom instrument work:**
 
-To hear a model-directed reply made from **your actual vocal recording**
-instead of the four-note synthesizer, use `--provider model --ai-reply vocal
---layer-repeats 4` in the experimental Python probe. Qwen chooses a
-voice canon, echo, stutter or reversed-beat gesture; DSP makes a second
-sampled-vocal part from the mic audio. Run `--test-model --provider model
---ai-reply vocal` without a mic first. The effect is a voice *sample*
-arrangement, not a new neural singing voice, and does not keep listening
-while the reply repeats. For persistent loops and overdubs see the native
-[local looper](docs/local-looper.md).
+- [#59 · Build a distinct SUZY//AI MRT2 Audio Unit with embedded performer UI](https://github.com/suzyeaston/suzy-ai/issues/59). **Not yet implemented**; the installed AU is Google's.
+- [#50 · Audible SPACE / ANSWER / TEXTURE behaviour](https://github.com/suzyeaston/suzy-ai/issues/50)
+- [#51 · Performance vs Lab UX](https://github.com/suzyeaston/suzy-ai/issues/51)
+- [#52 · Musical phrase timing and durable AI print](https://github.com/suzyeaston/suzy-ai/issues/52)
 
-**Not performance-ready:** this Python callback is not guaranteed real-time
-safe, has no Logic clock sync and has not been tested on Focusrite + Logic.
-The response uses `--output-mix auto` by default to center a one-sided Scarlett mono mic in **both headphone channels** while preserving genuinely stereo audio. Choose `--output-mix mono-center` to force centered monitoring or `--output-mix stereo` to preserve two independent inputs. This is dual-mono for mono input, not stereo widening. It is phrase-based capture/process/one-shot response, **not** continuous
-AI-generated audio or a Logic plug-in. See
-[Live hardware QA](docs/live-hardware-qa.md) for exact commands, safety and
-limitations.
+The architecture of Google's AU uses an embedded React interface and a native MLX music engine. We are researching a distinct, properly identified AU rather than changing the already-installed Google component. Official reference: [Magenta MRT2 AU](https://github.com/magenta/magenta-realtime/tree/main/examples/mrt2/auv3). Also relevant: [community AU template](https://github.com/audiohacking/magenta-au-template). Development/build/registration and real performance QA are still required.
 
-## How the projects fit together
+## Related projects
 
-| Project | Role |
+| Project | Relationship |
 | --- | --- |
-| **SUZY//AI — this repository** | Local AI core, memory, music-response service and native Mac looper |
-| **[The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live)** | Browser instrument with sequencing, synthesis, scenes, deterministic variations and visuals |
-| **[POP//CONTEXT](https://github.com/suzyeaston/pop-context)** | Audiovisual input pipeline with media windows, transcripts, frames and timestamps |
-| **[SUZY//WORLD](https://github.com/suzyeaston/suzy-world)** | Published album reviews and structured cultural knowledge |
-| **[suzyeaston.ca](https://www.suzyeaston.ca/)** | Public creative lab and music experiments |
+| [The Appliance Latent Space](https://github.com/suzyeaston/appliance-latent-space-live) | Earlier experimental browser sequencing and visuals |
+| [POP//CONTEXT](https://github.com/suzyeaston/pop-context) | Audiovisual/media-context research |
+| [SUZY//WORLD](https://github.com/suzyeaston/suzy-world) | Published reviews and structured cultural material |
+| [suzyeaston.ca](https://www.suzyeaston.ca/) | Public creative lab |
 
-These projects share a creative direction, but they are not a fully integrated
-system. The Mac looper and response service live here. Connecting the browser
-instrument, approved audiovisual observations and cultural knowledge to the live
-workflow remains development work. The [app registry](config/apps.json) records
-the related repositories; `scripts/sync-apps.sh` manages sibling checkouts.
+These projects share a creative direction but **are not all integrated into a single live performer system**. The [app registry](config/apps.json) and `scripts/sync-apps.sh` track related checkouts.
 
-## Musical taste, memory and humour
-
-The wider project explores how album reviews, musical ideas, listening observations,
-wordplay and cultural associations can inform a creative collaborator. Suzy's
-threads are part of that collection: music knowledge with a sense of humour.
-
-Saved examples can be retrieved into local conversations. They do not change model
-weights or automatically establish a learned musical style. Live response planning
-currently uses its own small musical session history, with personal-memory recall
-disabled. Bringing the broader collection into musical decisions is future work.
-
-### From threads to Top Ten countdowns
-
-The next comedy direction is original AI parodies of David Letterman’s Top Ten
-list format: a dry setup, ten musical punchlines, and a countdown to number one.
-These first curated drafts adapt Suzy’s threads and add new jokes; the original
-threads remain available as source material.
-
-#### Top Ten Acts on the Mormon Music Festival Lineup
-
-The lineup is subject to revelation.
-
-**10.** Latter Day Gaga.
-
-**9.** The Tabernacle of Sound.
-
-**8.** The Book of More Bass.
-
-**7.** Salt Lake, Emerson & Palmer.
-
-**6.** Mission of Burma. They took the assignment literally.
-
-**5.** Better Than Ezra. Just ask him.
-
-**4.** Mennonite at Work. Booked by the interfaith committee.
-
-**3.** Detroit Salt City.
-
-**2.** The (latter day) Saints.
-
-**1.** The Joseph Smiths. The Mormonissey years, of course.
-
-
-#### Top Ten Songs to Take a Crap To
-
-Tonight’s playlist comes with its own listening booth.
-
-**10.** Carly Simon — Anticipation. We have all been here before.
-
-**9.** The Kinks — Tired of Waiting for You. So is everyone outside.
-
-**8.** U2 — Stuck in a Moment You Can’t Get Out Of. A concept album, apparently.
-
-**7.** The House at Pooh Corner. Location, location, location.
-
-**6.** Buzzcocks — Oh Shit. Finally, an honest review.
-
-**5.** Spinal Tap — Big Bottom. Turn the fan up to eleven.
-
-**4.** The Clash — Cut the Crap. Management has requested a shorter set.
-
-**3.** Salt-N-Pepa — Push It. No further notes.
-
-**2.** Snoop Dogg — Drop It Like It’s Hot. Please remain seated.
-
-**1.** Screamin’ Jay Hawkins — Constipation Blues. The residency has been extended.
-
-
-The [Top Ten workflow](docs/top-ten.md) supports curated lists and new local-model
-drafts. Generation is separate from live audio and never automatically saves a
-parody as an original thread or private memory.
-
-More threads, album reviews and musical examples will join the collection as the
-project develops.
-
-## Local data
-
-Approved memory and world state are stored locally under `~/.suzy-ai/` by default.
-The public examples are separate from that private store and are not automatically
-ingested by a fresh clone. Chat history and musical session context stay in process.
-
-Loop audio is held in bounded memory buffers; recording no longer creates temporary WAV files.
-Use the save controls to keep a WAV; unsaved loops are lost on exit. Model weights
-are managed separately from the public source code.
-
-## Next priorities
-
-1. Rehearse with real guitar and vocals; measure the first-repeat gap, overdub
-   alignment and sustained timing alongside Logic.
-2. Calibrate hardware alignment, improve loop seams and move AI-layer replacement
-   off its remaining UI timer while keeping inference outside the audio callback.
-3. Evaluate whether MIRROR, AUGMENT and EVOLVE produce useful musical responses.
-4. Develop richer musical transformations and connect the wider collection and
-   audiovisual tools where they serve the performance.
-
-Development targets include an M2 MacBook Pro with 8 GB unified memory, so audio
-buffers, session history and concurrent work are bounded. Actual CPU load and
-memory pressure still need testing with Logic and the model running together.
-
-## Development
+## Development, testing and data
 
 Python core and backend tests:
 
 ```bash
 bash scripts/test.sh
+python -m unittest -v tests.test_magenta_midi tests.test_magenta_stage tests.test_audio_routing
 ```
 
-Native companion tests and local app build, on macOS:
+Native Mac companion tests (macOS with build tools):
 
 ```bash
 (cd apps/macos && swift test)
 bash scripts/build-mac-companion.sh
 ```
 
-CI covers Linux and macOS. Automated tests use synthetic audio and model services;
-passing them does not establish musical quality or performance-ready hardware timing.
+Hardware-free tests verify contracts, not the sound, DAW audio routing, or MIDI hardware on a real Mac. Read [studio preflight](docs/studio-mrt2-logic-runbook.md) before declaring the performance ready.
 
-Further reading: [architecture](docs/architecture.md), [world-model storage](docs/world-model.md),
-[teaching surfaces](docs/teaching-surfaces.md) and [build notes](docs/build-in-public/).
+Private, explicitly approved world/memory state lives under `~/.suzy-ai/` by default and is **not** populated when someone clones this public repository. Mac looper audio is in memory until explicitly saved. Magenta model assets are managed separately from this repository.
 
-Code is licensed under [Apache-2.0](LICENSE).
+Further reading: [architecture](docs/architecture.md) · [world-model storage](docs/world-model.md) · [teaching surfaces](docs/teaching-surfaces.md) · [build notes](docs/build-in-public/).
+
+**License:** [Apache-2.0](LICENSE). External Magenta model assets, native plug-ins and source have their own documentation and applicable terms.
