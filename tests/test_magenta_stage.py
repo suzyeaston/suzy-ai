@@ -58,6 +58,36 @@ class StageHttpTests(unittest.TestCase):
         self.assertEqual(data["magenta_connection"], "not_observed")
         self.assertEqual(self.request("GET", "/other")[0], 404)
 
+    def test_toaster_preview_is_served_without_fake_logic_controls(self):
+        status, html = self.request("GET", "/toaster")
+        self.assertEqual(status, 200)
+        self.assertIn("SUZY//TOAST", html)
+        self.assertIn("unit-test-local-token", html)
+        self.assertNotIn("__MAGENTA_TOKEN__", html)
+        self.assertIn('id="lever"', html)
+        self.assertIn('id="heat"', html)
+        self.assertIn('data-mode="direct"', html)
+        self.assertIn('"/api/test"', html)
+        self.assertIn('"/api/gate"', html)
+        self.assertIn('"/api/release"', html)
+        self.assertIn("CC 21", html)
+        self.assertIn("CC 26", html)
+        self.assertIn("not yet a loadable Logic AUv3", html)
+        self.assertIn("mute the", html.lower())
+        self.assertNotIn("MRT2 AUDIO CONNECTED", html)
+        self.assertNotIn('e.code==="Space"', html)
+
+    def test_toaster_uses_existing_protected_midi_commands(self):
+        status, _ = self.request("GET", "/toaster")
+        self.assertEqual(status, 200)
+        self.assertEqual(self.request("POST", "/api/test", token=False)[0], 403)
+        self.assertEqual(self.request("POST", "/api/test", origin="https://evil.example")[0], 403)
+        self.assertEqual(self.request("POST", "/api/test")[0], 200)
+        self.assertGreater(self.bridge.status()["midi_messages_sent"], 0)
+        self.assertEqual(self.request("POST", "/api/gate", {"open": False})[0], 200)
+        self.assertEqual(self.request("POST", "/api/test")[0], 400)
+        self.assertEqual(self.request("POST", "/api/release")[0], 200)
+
     def test_token_and_origin_required_for_commands(self):
         self.assertEqual(self.request("POST", "/api/test", token=False)[0], 403)
         self.assertEqual(self.request("POST", "/api/test", origin="https://evil.example")[0], 403)

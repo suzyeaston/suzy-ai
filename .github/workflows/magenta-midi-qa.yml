@@ -7,6 +7,8 @@ on:
       - "suzy_ai/music/magenta_stage.py"
       - "suzy_ai/music/audio_routing.py"
       - "suzy_ai/music/magenta_stage.html"
+      - "suzy_ai/music/toaster_stage.html"
+      - "tests/toaster_stage_frontend.test.cjs"
       - "tests/test_magenta_midi.py"
       - "tests/test_magenta_stage.py"
       - "tests/test_audio_routing.py"
@@ -30,3 +32,5 @@ jobs:
         run: python -m compileall -q suzy_ai/music/magenta_midi.py suzy_ai/music/magenta_stage.py suzy_ai/music/audio_routing.py
       - name: Exercise mock MIDI + HTTP API
         run: python -m unittest -v tests.test_magenta_midi tests.test_magenta_stage tests.test_audio_routing
+      - name: Exercise toaster frontend behavior (no hardware)
+        run: node --test tests/toaster_stage_frontend.test.cjs

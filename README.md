@@ -78,6 +78,12 @@ For a dynamic microphone, don't enable phantom power unnecessarily. A processor'
 
 **8 GB Mac tip:** For the live Logic test, quit the separate Jam and MRT2 standalone windows and leave Qwen stopped. Running multiple neural engines simultaneously consumes resources unnecessarily.
 
+## 🍞 SUZY//TOAST · research-grounded stage preview
+
+**Draft PR #60; not a Logic plug-in yet.** The original *Appliance Latent Space* now has a little CSS toaster interface on the existing localhost MIDI stage at **[127.0.0.1:7345/toaster](http://127.0.0.1:7345/toaster)**. With the `magenta_stage` server running on macOS, its lever sends the already-supported Am7 MIDI test chord; LOW/DIRECT/HIGH, MIDI pause and MIDI release use the same safe bridge. Browning is a visual preview only. It never claims to control Google's AU neural parameters, Logic's track volume, or a durable recording.
+
+See [the toaster architecture, original control mappings and live Mac QA checklist](docs/suzy-toaster-roadmap.md). The October 26 research handoff explicitly recommends retaining the known-good Google's MRT2 Small AU inside Logic, keeping the human show path independent, and deferring a *separately identified custom SUZY AU* until after October 29.
+
 ## SUZY//AI MIDI stage · experimental
 
 This repository's own browser interface steers **MIDI only**. It intentionally runs separately from the Qwen audition and does not start an audio engine.
