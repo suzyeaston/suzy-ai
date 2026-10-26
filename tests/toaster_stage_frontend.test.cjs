@@ -126,6 +126,7 @@ test("rejected test chord produces no success animation", async () => {
 
 test("MIDI gate and release preserve honest safety messaging", async () => {
   const app = boot();
+  await new Promise(setImmediate); // let the initial /api/status poll establish current state
   await app.getNode("gate").onclick();
   assert.equal(app.status.gate_open, false);
   assert.equal(app.getNode("test").disabled, true);
