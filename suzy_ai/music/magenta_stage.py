@@ -14,6 +14,7 @@ import platform
 import secrets
 
 from .magenta_midi import MagentaMidiBridge
+from .audio_routing import inspect_audio_routing
 
 PAGE = Path(__file__).with_name("magenta_stage.html")
 
@@ -50,6 +51,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             return self.reply(200, self.bridge.status())
         if self.path == "/api/inputs":
             return self.reply(200, {"inputs": self.bridge.inputs()})
+        if self.path == "/api/audio-routing":
+            return self.reply(200, inspect_audio_routing())
         return self.reply(404, {"error": "unknown route"})
 
     def do_POST(self):

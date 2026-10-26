@@ -2,6 +2,29 @@
 
 Date: 2026-10-25. **This is a test plan, not a claim that the show Mac has passed.**
 
+## Critical distinction: MIDI response is NOT audible AI confirmation
+
+On October 25 the SUZY MIDI page displayed **Keystation Mini 32 MK3** with 14 incoming note events, but the musician could not hear AI audio. That means the **Keystation → SUZY** half works, *not* that **SUZY virtual MIDI → Jam/Logic → Scarlett audio** works. The browser process creates no audio stream.
+
+### Find the missing link in standalone Jam
+
+1. Leave SUZY running at `http://127.0.0.1:7345/`. In Magenta **MRT2 - Jam**, change the bottom **MIDI INPUT** from `Keystation Mini 32 MK3` to `SUZY AI MIDI`. If absent, reopen Jam with the bridge running.
+2. Select **Jam**, press the top-right Play control, begin at low volume, and play Keystation notes or the SUZY test chord.
+3. If still silent, temporarily select the physical Keystation as Jam input again. If that works, focus on virtual MIDI source selection. If not, focus on Jam transport/volume, headphones and macOS output/sample-rate settings.
+4. The standalone Jam app owns its own audio output. **SUZY cannot select that audio device** merely by listing macOS devices. Set the intended macOS default output in System Settings → Sound / Audio MIDI Setup and verify **48,000 Hz**. The separately built MRT2 standalone has Settings for explicit output-device selection; don't assume Jam has an equivalent control.
+5. An increased SUZY note counter does not verify Magenta audio. Document what actually comes out of the headphones.
+
+### Move to actual Logic performance
+
+- Close the standalone Jam test to reduce competing audio/memory use before running Logic on the 8 GB Mac.
+- Put `MRT2 (AU).app` in `/Applications` **before its first launch**; open it once to register. Restart or rescan Logic if the AU isn't listed.
+- Logic Pro → **Settings → Audio → Devices**: select Scarlett as both input and output, with headphones connected to Scarlett. Ensure the Logic **project** and audio device are **48 kHz**.
+- Add a **software instrument** track, insert the Google/MRT2 AU, and verify it plays **first with the physical Keystation**. Only then reintroduce SUZY virtual MIDI steering, checking Logic's source/channel selection to prevent duplicate note paths.
+- Add a **separate audio vocal track** fed by BOSS VE-22 → Scarlett microphone input. Audio input monitoring is enabled on the *vocal track* (or via Scarlett Direct Monitor if supported); avoid doubled monitoring.
+- **Actual audible mute** is the Logic AI track mute. Test it while vocals and backing keep playing. Save and re-open a printed AI audio region before claiming the take was recorded.
+
+The **Audio + Logic setup** section in SUZY discovers Scarlett and system device candidates without opening streams. It cannot inspect or set Logic track monitoring, DAW device selection, plugin validation or audio output. Those are manual host actions until a verified integration exists.
+
 ## Independent signal paths
 
 - Dynamic mic → BOSS VE-22 → Scarlett Solo → Logic vocal track.

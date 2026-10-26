@@ -5,9 +5,11 @@ on:
     paths:
       - "suzy_ai/music/magenta_midi.py"
       - "suzy_ai/music/magenta_stage.py"
+      - "suzy_ai/music/audio_routing.py"
       - "suzy_ai/music/magenta_stage.html"
       - "tests/test_magenta_midi.py"
       - "tests/test_magenta_stage.py"
+      - "tests/test_audio_routing.py"
       - "tests/__init__.py"
       - ".github/workflows/magenta-midi-qa.yml"
   workflow_dispatch:
@@ -25,6 +27,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile MIDI modules
-        run: python -m compileall -q suzy_ai/music/magenta_midi.py suzy_ai/music/magenta_stage.py
+        run: python -m compileall -q suzy_ai/music/magenta_midi.py suzy_ai/music/magenta_stage.py suzy_ai/music/audio_routing.py
       - name: Exercise mock MIDI + HTTP API
-        run: python -m unittest -v tests.test_magenta_midi tests.test_magenta_stage
+        run: python -m unittest -v tests.test_magenta_midi tests.test_magenta_stage tests.test_audio_routing

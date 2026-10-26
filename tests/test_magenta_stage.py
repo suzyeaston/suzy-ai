@@ -2,6 +2,7 @@
 import http.client
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 
 from suzy_ai.music.magenta_stage import MagentaStageHandler, PAGE
@@ -82,12 +83,35 @@ class StageHttpTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/mode", {"mode": "fake"})[0], 400)
         self.assertEqual(self.request("POST", "/api/mode", {"mode": "low", "unused": True})[0], 400)
 
+    def test_audio_routing_api_is_read_only_and_cannot_claim_logic_selection(self):
+        with patch("suzy_ai.music.magenta_stage.inspect_audio_routing", return_value={
+            "available": True,
+            "devices": [{"id": 0, "name": "Scarlett Solo USB",
+                         "input_channels": 2, "output_channels": 2,
+                         "system_default_input": True, "system_default_output": True,
+                         "scarlett_candidate": True}],
+            "logic_audio_device_observed": False,
+            "magenta_audio_observed": False,
+            "can_change_host_audio_output": False,
+        }):
+            status, data = self.request("GET", "/api/audio-routing")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["devices"][0]["name"], "Scarlett Solo USB")
+        self.assertFalse(data["logic_audio_device_observed"])
+        self.assertFalse(data["can_change_host_audio_output"])
+        self.assertEqual(self.request("POST", "/api/audio-routing", {"device": 0})[0], 404)
+
     def test_static_ui_refuses_fictional_audio_controls(self):
         html = PAGE.read_text(encoding="utf8")
         self.assertIn('id="gate"', html)
         self.assertIn('id="release"', html)
         self.assertIn('data-mode="direct"', html)
         self.assertIn("does not", html.lower())
+        self.assertIn('id="audioSetup"', html)
+        self.assertIn('id="refreshAudio"', html)
+        self.assertIn('"/api/audio-routing"', html)
+        self.assertIn("Logic Pro", html)
+        self.assertIn("Scarlett", html)
         self.assertNotIn('e.code==="Space"', html)
         self.assertNotIn('e.key==="Enter"', html)
 
