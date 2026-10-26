@@ -31,11 +31,35 @@ details{border-top:1px solid #ffffff35;padding-top:16px;margin-top:20px}summary{
 .future{margin-top:24px;background:#ffffff09;border:1px dashed #aa819d;border-radius:17px;padding:19px}.future ul{padding-left:19px;color:var(--soft);margin:10px 0}.future code{color:#ffe2ac}.future .eyebrow{color:#ffd6a8}
 footer{font-size:12px;color:#cdb9c7;margin:22px 0;line-height:1.7}a{color:var(--mint)}
 @media(max-width:800px){.layout{grid-template-columns:1fr}.appliance{min-height:395px}.top{align-items:flex-start}}@media(max-width:480px){main{padding:16px 12px}.panel{padding:15px}.appliance{min-height:330px}.toaster-wrap{transform:scale(.78)}.buttons{grid-template-columns:1fr}.status{font-size:10px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+
+/* Audio/loop setup stays outside the performance sound path. */
+.jump{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.jump a{border:1px solid #8f7187;background:#302536;border-radius:999px;padding:9px 15px;font-weight:800;text-decoration:none;color:#fff6f0}
+.jump a:hover{background:#584059}
+.setup-panels{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}
+.setup-panels .panel{scroll-margin-top:20px}
+.io-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.device{background:#17121d;border:1px solid #645266;padding:13px;border-radius:12px;min-width:0}
+.device h3{font-size:13px;margin:0 0 9px;letter-spacing:.02em}
+.device ul{list-style:none;padding:0;margin:0;min-height:65px}
+.device li{border-top:1px solid #ffffff24;padding:7px 0;font-size:12px;overflow-wrap:anywhere}
+.device .default{color:#bff4ca}
+.caption-box{border-radius:12px;background:#251c2c;padding:12px 15px;margin-top:14px}
+.caption-box strong{color:#ffd8ae}
+.settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.settings label{font-weight:750;font-size:13px}
+.settings select,.settings input{display:block;width:100%;margin-top:6px;min-height:41px}
+.settings input{padding:9px;background:#1b1822;color:var(--ink);border:1px solid #8e748b;border-radius:10px}
+.big-timing{font-size:32px;font-weight:900;color:#ffdbab;line-height:1.1;margin-top:12px}
+#loopInstructions{min-height:65px}
+@media(max-width:800px){.setup-panels{grid-template-columns:1fr}}
+@media(max-width:500px){.io-columns,.settings{grid-template-columns:1fr}}
 </style>
 </head>
 <body><main>
 <header class="top"><div><div class="eyebrow">THE APPLIANCE LATENT SPACE · SUZY//AI</div><h1>SUZY<span>//TOAST</span></h1><div class="small">A very small appliance for very large musical ideas.</div></div><div class="status" id="status" role="status">MIDI STATUS UNKNOWN</div></header>
-<div class="layout">
+<nav class="jump" aria-label="Toaster sections"><a href="#play">🍞 Play</a><a href="#audio-io">🎚️ Audio I/O</a><a href="#looping">🔁 Looping</a></nav>
+<div class="layout" id="play">
 <div>
 <section class="panel" aria-label="Toaster performance controls">
 <div class="eyebrow">01 · WARM UP THE BANDMATE</div><h2>Give the AI a little toast.</h2>
@@ -68,7 +92,41 @@ footer{font-size:12px;color:#cdb9c7;margin:22px 0;line-height:1.7}a{color:var(--
 <div class="notice"><strong>Proof required:</strong> a visible note event confirms only MIDI receipt. Listen in Magenta/Logic to verify generated audio; separately test real audio mute, print, reopen and offline operation.</div>
 <p class="hint"><a href="/">Open the original Magenta MIDI stage</a> · Keyboard: Shift+1/2/3 = octave, Shift+G = gate, Esc = release MIDI.</p>
 </section>
+
 </div></div>
+<div class="setup-panels">
+<section class="panel" id="audio-io" aria-label="Audio input and output">
+<div class="eyebrow">04 · AUDIO I/O</div><h2>Where does the sound go?</h2>
+<p class="hint"><strong>Detected devices, not device selectors.</strong> This toaster can inspect CoreAudio capabilities without opening a stream. In Logic, the host owns the actual input, output, gain and monitoring.</p>
+<button id="scanAudio" class="mini" type="button">SCAN AUDIO DEVICES</button>
+<div id="audioScanStatus" class="hint" role="status" aria-live="polite">Not scanned yet.</div>
+<div class="io-columns">
+<div class="device"><h3>🎤 INPUTS DISCOVERED</h3><ul id="audioInputs"><li>Scan to list microphone/interface inputs.</li></ul></div>
+<div class="device"><h3>🎧 OUTPUTS DISCOVERED</h3><ul id="audioOutputs"><li>Scan to list headphone/interface outputs.</li></ul></div>
+</div>
+<div class="caption-box"><strong>For your current Logic setup:</strong>
+<p class="hint">Mic → BOSS VE-22 → Scarlett input → separate mono vocal track. Keystation → Google's MRT2 Small AU on a separate instrument track. Logic master → Scarlett headphones/PA.</p>
+<p class="hint">In <strong>Logic Pro → Settings → Audio → Devices</strong> choose Scarlett Solo USB for input and output. In <strong>Project Settings → Audio</strong> confirm <strong>48 kHz</strong>. Use Logic's track monitoring or Scarlett direct monitoring deliberately, not both unintentionally.</p></div>
+<p class="notice">The scan does not read Logic's chosen route or change it. System default ≠ Logic selected. Actual neural audio mute remains on the Logic <strong>AI - MRT2</strong> channel.</p>
+</section>
+<section class="panel" id="looping" aria-label="Loop rehearsal settings">
+<div class="eyebrow">05 · LOOPS / REHEARSAL RECIPE</div><h2>Who's holding the loop?</h2>
+<p class="hint">Set a <strong>loop-length reference</strong> to practice against your prepared song. These controls calculate timing and show the correct workflow; they do <strong>not</strong> record, launch, quantize or overdub Logic/VE-22 audio.</p>
+<div class="settings">
+<label for="loopOwner">Loop engine
+<select id="loopOwner"><option value="logic">Logic Live Loops · prepared/quantized</option><option value="ve22">BOSS VE-22 · vocal pedal</option><option value="companion">SUZY Live · experimental native looper</option></select></label>
+<label for="loopBars">Length (bars)
+<select id="loopBars"><option value="1">1 bar</option><option value="2">2 bars</option><option value="4" selected>4 bars</option><option value="8">8 bars</option></select></label>
+<label for="loopBpm">Reference tempo (BPM)
+<input id="loopBpm" type="number" min="40" max="240" step="1" value="120" inputmode="numeric"></label>
+<label for="loopBeats">Time signature (beats/bar)
+<select id="loopBeats"><option value="3">3 beats</option><option value="4" selected>4 beats</option><option value="5">5 beats</option><option value="6">6 beats</option></select></label>
+</div>
+<div class="caption-box"><div class="eyebrow">ESTIMATED LOOP DURATION · ¼ NOTE BPM</div><div class="big-timing"><output id="loopSeconds" for="loopBpm loopBars loopBeats">8.00 seconds</output></div><div class="hint">Reference duration only. Not a recording, metronome, MIDI-clock lock or sample-accurate synchronization.</div></div>
+<div id="loopInstructions" class="caption-box" role="status" aria-live="polite">Logic owns the clock, loop capture/launch and overdub. Configure quantization in Live Loops and record to an audio region if you need a durable take.</div>
+<p class="notice">AI printed audio, BOSS vocal pedal loops and the standalone SUZY native looper are <strong>three different kinds of looping</strong>. This page does not link them together. Keep your Logic-only show functioning if the experiment stops.</p>
+</section>
+</div>
 <footer>SUZY//TOAST is a local browser prototype, <strong>not yet a loadable Logic AUv3</strong>. No model, microphone, Qwen, audio routing, Logic transport, AI audio mute, or recording is driven by this page. The original Magenta instrument stays untouched.</footer>
 </main>
 <script>
@@ -123,6 +181,57 @@ async function refresh(){
   else{const preferred=d.inputs.find(x=>/Keystation/i.test(x));if(preferred)select.value=preferred;}
  }catch(e){showError(e);}
 }
+
+function renderDevices(id,devices,isInput) {
+ const host=el(id);host.replaceChildren();
+ const filtered=devices.filter(d=>isInput?d.input_channels>0:d.output_channels>0);
+ if(!filtered.length){const li=document.createElement("li");li.textContent="No compatible devices found.";host.appendChild(li);return;}
+ for(const d of filtered) {
+   const li=document.createElement("li");
+   const count=isInput?d.input_channels:d.output_channels;
+   const def=isInput?d.system_default_input:d.system_default_output;
+   li.textContent=d.name+" · "+count+" "+(isInput?"in":"out")+
+      (d.scarlett_candidate?" · SCARLETT CANDIDATE":"")+(def?" · system default":"");
+   if(def)li.className="default";
+   host.appendChild(li);
+ }
+}
+async function scanAudio() {
+ el("audioScanStatus").textContent="Scanning read-only CoreAudio capabilities…";
+ try{
+  const d=await get("/api/audio-routing");
+  if(!d.available){
+   el("audioScanStatus").textContent="Discovery unavailable: "+d.message;
+   renderDevices("audioInputs",[],true);renderDevices("audioOutputs",[],false);
+   return;
+  }
+  renderDevices("audioInputs",d.devices,true);
+  renderDevices("audioOutputs",d.devices,false);
+  el("audioScanStatus").textContent="Found "+d.devices.length+" device(s). Host routing not observed; nothing changed.";
+ }catch(e){el("audioScanStatus").textContent="Audio scan failed: "+(e.message||String(e));}
+}
+const loopInstructions={
+ logic:"Logic Live Loops: choose your cell/grid quantization and set the project tempo in Logic. Record or overdub vocal and synth loops into Logic. The toaster does not start cells or read the transport.",
+ ve22:"BOSS VE-22: operate vocal phrase record/overdub/stop using the pedal itself. Its loop is not automatically bar-synchronized to Logic and is not a durable Logic audio region until recorded.",
+ companion:"SUZY Live native looper: start its separate Mac app with bash scripts/start-mac-companion.sh --looper-only. Its own Record/Overdub/Undo controls and audio I/O are inside that app. Treat clock sync as experimental; do not use the toaster to control it."
+};
+function updateLoopRecipe(){
+ const bpm=Number(el("loopBpm").value);
+ const bars=Number(el("loopBars").value);
+ const beats=Number(el("loopBeats").value);
+ if(!Number.isFinite(bpm)||bpm<40||bpm>240||!Number.isInteger(bpm)){
+  el("loopSeconds").textContent="Check BPM (40–240)";
+ } else {
+  el("loopSeconds").textContent=(60*bars*beats/bpm).toFixed(2)+" seconds";
+ }
+ el("loopInstructions").textContent=loopInstructions[el("loopOwner").value];
+}
+el("scanAudio").onclick=scanAudio;
+for(const id of ["loopOwner","loopBars","loopBpm","loopBeats"]) {
+ el(id).onchange=updateLoopRecipe;el(id).oninput=updateLoopRecipe;
+}
+updateLoopRecipe();
+
 el("test").onclick=chord;el("lever").onclick=chord;
 el("release").onclick=release;
 el("gate").onclick=()=>current&&command("/api/gate",{open:!current.gate_open},current.gate_open?"MIDI paused (not neural audio).":"MIDI resumed.");
