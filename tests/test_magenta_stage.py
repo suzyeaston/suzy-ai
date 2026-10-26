@@ -1,0 +1,96 @@
+"""HTTP safety contract for separate Magenta MIDI-only stage surface."""
+import http.client
+import threading
+import unittest
+from http.server import ThreadingHTTPServer
+
+from suzy_ai.music.magenta_stage import MagentaStageHandler, PAGE
+from tests.test_magenta_midi import FakeRtMidi
+from suzy_ai.music.magenta_midi import MagentaMidiBridge
+
+
+class StageHttpTests(unittest.TestCase):
+    def setUp(self):
+        class Handler(MagentaStageHandler):
+            pass
+        self.bridge = MagentaMidiBridge(FakeRtMidi())
+        Handler.bridge = self.bridge
+        Handler.token = "unit-test-local-token"
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+        self.bridge.close()
+
+    def request(self, method, route, data=None, token=True, origin=None):
+        import json
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=2)
+        headers = {}
+        if method == "POST":
+            headers["Content-Type"] = "application/json"
+            if token:
+                headers["X-Suzy-Token"] = "unit-test-local-token"
+            if origin is not None:
+                headers["Origin"] = origin
+        conn.request(method, route, body=json.dumps(data or {}) if method == "POST" else None,
+                     headers=headers)
+        response = conn.getresponse()
+        raw = response.read()
+        status = response.status
+        conn.close()
+        return status, json.loads(raw) if raw.startswith(b"{") else raw.decode("utf8")
+
+    def test_route_and_content_security(self):
+        status, html = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertIn("SUZY//AI", html)
+        self.assertIn("unit-test-local-token", html)
+        self.assertIn("RELEASE MIDI", html)
+        self.assertNotIn("MRT2 AUDIO CONNECTED", html)
+        status, data = self.request("GET", "/api/status")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["magenta_connection"], "not_observed")
+        self.assertEqual(self.request("GET", "/other")[0], 404)
+
+    def test_token_and_origin_required_for_commands(self):
+        self.assertEqual(self.request("POST", "/api/test", token=False)[0], 403)
+        self.assertEqual(self.request("POST", "/api/test", origin="https://evil.example")[0], 403)
+        self.assertEqual(self.bridge.status()["midi_events_forwarded"], 0)
+        allowed = f"http://127.0.0.1:{self.server.server_port}"
+        self.assertEqual(self.request("POST", "/api/mode",
+                                      {"mode": "high"}, origin=allowed)[0], 200)
+        self.assertEqual(self.bridge.status()["mode"], "high")
+
+    def test_connect_gate_release_and_validation(self):
+        status, inputs = self.request("GET", "/api/inputs")
+        self.assertEqual(status, 200)
+        self.assertEqual(inputs["inputs"], ["Keystation Mini 32 MK3"])
+        self.assertEqual(self.request("POST", "/api/select",
+                                      {"input": "Keystation Mini 32 MK3"})[0], 200)
+        status, gate = self.request("POST", "/api/gate", {"open": False})
+        self.assertEqual(status, 200)
+        self.assertFalse(gate["gate_open"])
+        self.assertEqual(self.request("POST", "/api/test")[0], 400)
+        self.assertEqual(self.request("POST", "/api/gate", {"open": True})[0], 200)
+        self.assertEqual(self.request("POST", "/api/release")[0], 200)
+        self.assertEqual(self.request("POST", "/api/disconnect")[0], 200)
+        self.assertEqual(self.request("POST", "/api/mode", {"mode": "fake"})[0], 400)
+        self.assertEqual(self.request("POST", "/api/mode", {"mode": "low", "unused": True})[0], 400)
+
+    def test_static_ui_refuses_fictional_audio_controls(self):
+        html = PAGE.read_text(encoding="utf8")
+        self.assertIn('id="gate"', html)
+        self.assertIn('id="release"', html)
+        self.assertIn('data-mode="direct"', html)
+        self.assertIn("does not", html.lower())
+        self.assertNotIn('e.code==="Space"', html)
+        self.assertNotIn('e.key==="Enter"', html)
+
+
+if __name__ == "__main__":
+    unittest.main()
