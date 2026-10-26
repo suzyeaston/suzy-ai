@@ -108,7 +108,7 @@ async function send(path,payload={}){
 }
 function draw(s){
  current=s;
- el("status").textContent=s.enabled?"MIDI BRIDGE ACTIVE":"MIDI BRIDGE CLOSED";
+ el("status").textContent=s.enabled?"MIDI ACTIVE · AUDIO UNVERIFIED":"MIDI BRIDGE CLOSED";
  el("keyboard").textContent=s.input_name||"Not connected";
  el("mode").textContent=(s.mode||"direct").toUpperCase();
  el("activity").textContent=s.keyboard_note_events+" note events";
