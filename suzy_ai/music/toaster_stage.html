@@ -219,12 +219,13 @@ function updateLoopRecipe(){
  const bpm=Number(el("loopBpm").value);
  const bars=Number(el("loopBars").value);
  const beats=Number(el("loopBeats").value);
- if(!Number.isFinite(bpm)||bpm<40||bpm>240||!Number.isInteger(bpm)){
-  el("loopSeconds").textContent="Check BPM (40–240)";
- } else {
-  el("loopSeconds").textContent=(60*bars*beats/bpm).toFixed(2)+" seconds";
- }
- el("loopInstructions").textContent=loopInstructions[el("loopOwner").value];
+ const valid=Number.isFinite(bpm)&&bpm>=40&&bpm<=240&&Number.isInteger(bpm);
+ const seconds=valid?60*bars*beats/bpm:null;
+ el("loopSeconds").textContent=valid?seconds.toFixed(2)+" seconds":"Check BPM (40–240)";
+ const owner=el("loopOwner").value;
+ const warning=owner==="companion"&&seconds!==null&&seconds>8
+   ?" This recipe exceeds the native looper's current 8-second recording limit. Choose fewer bars or a faster tempo.":"";
+ el("loopInstructions").textContent=loopInstructions[owner]+warning;
 }
 el("scanAudio").onclick=scanAudio;
 for(const id of ["loopOwner","loopBars","loopBpm","loopBeats"]) {
