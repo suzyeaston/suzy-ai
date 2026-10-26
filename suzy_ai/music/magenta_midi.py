@@ -28,6 +28,9 @@ class MagentaMidiBridge:
         self.test_timer = None
         self.forwarded = 0
         self.last_event = None
+        self.input_events = 0
+        self.last_keyboard_note = None
+        self.last_keyboard_event = None
         self.closed = False
 
     def inputs(self):
@@ -47,7 +50,11 @@ class MagentaMidiBridge:
                 "mode": self.mode,
                 "gate_open": self.gate_open,
                 "held_notes": len(self.held) + len(self.test_notes),
-                "midi_events_forwarded": self.forwarded,
+                "midi_messages_sent": self.forwarded,
+                "keyboard_note_events": self.input_events,
+                "last_keyboard_note": self.last_keyboard_note,
+                "last_keyboard_seconds_ago": round(time.monotonic() - self.last_keyboard_event, 1)
+                    if self.last_keyboard_event is not None else None,
                 "last_midi_seconds_ago": round(time.monotonic() - self.last_event, 1)
                     if self.last_event is not None else None,
                 "magenta_connection": "not_observed",
@@ -129,7 +136,12 @@ class MagentaMidiBridge:
         if command not in (0x80, 0x90) or not 0 <= note < 128:
             return
         with self.lock:
-            if self.closed or self.source is None or not self.gate_open:
+            if self.closed or self.source is None:
+                return
+            self.input_events += 1
+            self.last_keyboard_note = note
+            self.last_keyboard_event = time.monotonic()
+            if not self.gate_open:
                 return
             key = ch, note
             is_on = command == 0x90 and velocity > 0
