@@ -60,7 +60,7 @@ class StageHttpTests(unittest.TestCase):
     def test_token_and_origin_required_for_commands(self):
         self.assertEqual(self.request("POST", "/api/test", token=False)[0], 403)
         self.assertEqual(self.request("POST", "/api/test", origin="https://evil.example")[0], 403)
-        self.assertEqual(self.bridge.status()["midi_events_forwarded"], 0)
+        self.assertEqual(self.bridge.status()["midi_messages_sent"], 0)
         allowed = f"http://127.0.0.1:{self.server.server_port}"
         self.assertEqual(self.request("POST", "/api/mode",
                                       {"mode": "high"}, origin=allowed)[0], 200)
