@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUZY//TOAST · The Appliance Latent Space</title>
+<style>
+:root{color-scheme:dark;--bg:#14131b;--surface:#25202a;--edge:#655466;--ink:#fff7ef;--soft:#d7c4ce;--peach:#ffb18b;--pink:#ff8fbe;--mint:#c4f3c0;--warning:#ffe0a0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font:16px/1.45 system-ui,-apple-system,sans-serif;color:var(--ink);background:radial-gradient(ellipse at 15% 10%,#60354f 0,transparent 52%),radial-gradient(ellipse at 90% 60%,#233737 0,transparent 50%),var(--bg)}
+button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--mint);outline-offset:4px}button:disabled{opacity:.5;cursor:not-allowed}
+main{max-width:1140px;margin:auto;padding:22px 22px 60px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #ffffff31;padding-bottom:18px}
+.eyebrow{font:800 12px ui-monospace,monospace;letter-spacing:.16em;color:var(--mint)}h1{font-size:clamp(31px,6vw,58px);line-height:1;letter-spacing:-.07em;margin:5px 0}h1 span{color:var(--pink)}.small{font-size:13px;color:var(--soft)}.status{border:1px solid var(--edge);border-radius:99px;padding:12px 16px;font:800 12px ui-monospace,monospace;letter-spacing:.04em;background:#201c27}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(330px,1fr);gap:24px;margin-top:24px;align-items:start}
+.panel{background:#ffffff0d;border:1px solid #ffffff29;border-radius:24px;padding:24px;box-shadow:0 24px 80px #0003}h2{font-size:21px;margin:0 0 8px;letter-spacing:-.03em}p{margin:8px 0 16px}.hint{color:var(--soft);font-size:13px}
+.appliance{position:relative;min-height:430px;display:grid;place-items:center;overflow:hidden;border-radius:22px;background:radial-gradient(circle at 55% 40%,#bd7c9463,transparent 55%),linear-gradient(130deg,#fbe5d61a,#5a38571d);border:1px solid #ffffff1b;padding:22px 15px}
+.toaster-wrap{position:relative;width:min(370px,85%);margin-top:38px;padding-top:40px}
+.toast-slot{position:absolute;left:13%;right:18%;height:46px;top:6px;border-radius:50%;background:#382529;border:10px solid #f3b6ad;box-shadow:inset 0 5px 14px #0007,0 4px 0 #ffffff42;z-index:1}
+.slice{position:absolute;z-index:2;top:-54px;left:30%;width:48%;height:124px;border:10px solid #b36b47;background:linear-gradient(#fff1cf,#f5bd7c);border-radius:35% 35% 18% 18%;box-shadow:inset 0 5px 8px #fff7d6,0 8px 9px #6e35476b;transition:transform .32s ease,filter .2s ease}
+.slice:before{content:"";position:absolute;inset:6px;border-radius:34% 34% 12% 12%;border:2px dashed #dd925c66}.slice .eyes{position:absolute;left:27%;top:42%;font-size:17px;letter-spacing:12px;color:#683832}.slice .mouth{position:absolute;left:49%;top:64%;width:17px;height:9px;border-radius:0 0 50% 50%;background:#9c4965;transform:translateX(-50%)}
+.toaster-wrap.pop .slice{transform:translateY(-28px)}.toaster{height:270px;position:relative;z-index:3;background:linear-gradient(118deg,#fff0da 0%,#f8b9b5 36%,#e18da5 74%,#b46a8c 100%);border:7px solid #f8d8c4;border-radius:65px 65px 47px 47px;box-shadow:inset -20px -14px 20px #93446d4f,inset 8px 10px 16px #fff8ea8c,0 24px 0 -11px #513547,0 35px 40px #1b07148c}
+.toaster:before,.toaster:after{content:"";position:absolute;bottom:-26px;width:38px;height:21px;background:#6f455b;border-radius:0 0 12px 12px}.toaster:before{left:26px}.toaster:after{right:30px}
+.cheeks{position:absolute;left:23%;top:27%;font-size:28px;color:#663850;letter-spacing:60px;white-space:nowrap}.smile{position:absolute;left:49%;top:42%;width:31px;height:19px;border-radius:0 0 50% 50%;background:#8b4260;border-bottom:5px solid #ffdde0;transform:translateX(-50%)}.brand{position:absolute;left:0;bottom:31px;width:100%;text-align:center;letter-spacing:.11em;color:#713f5f;font:900 13px ui-monospace,monospace}.light{position:absolute;right:30px;bottom:27px;width:13px;height:13px;background:var(--mint);border-radius:50%;box-shadow:0 0 14px var(--mint)}
+.lever{position:absolute;z-index:5;right:-52px;top:84px;width:61px;height:128px;border:0;background:none;padding:0;display:flex;justify-content:center;align-items:flex-start}.lever:before{content:"";width:13px;height:114px;position:absolute;top:0;left:18px;border-radius:15px;background:linear-gradient(90deg,#643d51,#ded7cf,#78536d)}.lever span{position:relative;display:block;margin-top:15px;width:58px;height:35px;border-radius:12px;background:linear-gradient(#ffefcc,#f1acb2);border:4px solid #f4d9c4;color:#5e2f49;font-size:11px;font-weight:900;padding-top:5px;box-shadow:0 5px 9px #0005;transition:transform .18s}.lever:active span,.lever.firing span{transform:translateY(55px)}
+.appliance-caption{position:absolute;left:16px;bottom:12px;color:#f5dbe9;font:800 11px ui-monospace,monospace;letter-spacing:.09em}
+.subline{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}.subline strong{color:var(--peach)}
+.heat{display:grid;gap:8px;margin-top:18px}.heat label{font-weight:800}.heat input{width:100%;accent-color:#ffa982}.heat small{color:var(--soft)}
+.action{width:100%;border:1px solid #ffffff3b;border-radius:16px;background:#47364d;color:var(--ink);min-height:60px;font-weight:900;padding:11px 15px}.action:hover:not(:disabled){background:#5e4664}.action.main{background:linear-gradient(120deg,#ffd49b,#ff8fae);color:#592943;border:0;font-size:20px}.action.danger{background:#69424a;border-color:#ffc19f}
+.rail{display:grid;gap:18px}.pillset{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:15px 0}.pillset button{background:#302934;border:1px solid #8e748b;color:#fff1e9;border-radius:13px;padding:14px 6px;font-weight:900}.pillset button[aria-pressed=true]{background:#c4f3c0;color:#253528;border-color:var(--mint)}.pillset button small{display:block;font-size:11px;font-weight:500}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.readouts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:17px}.readout{border-radius:12px;background:#130e18;border:1px solid #655466;padding:11px}.readout small{display:block;color:var(--soft);font:700 11px ui-monospace,monospace}.readout b{display:block;font-size:14px;margin-top:5px;overflow-wrap:anywhere}
+.notice{border-left:3px solid #ffd1a1;background:#392d30;padding:13px;border-radius:0 9px 9px 0;font-size:13px;color:#ffe9d0;margin-top:13px}.feedback{color:var(--mint);font-size:13px;min-height:32px}#error{color:#ffb2bb;white-space:pre-wrap}
+details{border-top:1px solid #ffffff35;padding-top:16px;margin-top:20px}summary{cursor:pointer;font-weight:900}.setup{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:12px}select{width:100%;min-width:0;background:#1b1822;color:var(--ink);border:1px solid #8e748b;border-radius:10px;padding:9px}.mini{border-radius:10px;border:1px solid #8e748b;background:#3e3543;color:var(--ink);padding:10px;font-weight:750}.setup .buttons{grid-column:1/-1;margin-top:0}.setup .buttons button{min-height:42px}
+.future{margin-top:24px;background:#ffffff09;border:1px dashed #aa819d;border-radius:17px;padding:19px}.future ul{padding-left:19px;color:var(--soft);margin:10px 0}.future code{color:#ffe2ac}.future .eyebrow{color:#ffd6a8}
+footer{font-size:12px;color:#cdb9c7;margin:22px 0;line-height:1.7}a{color:var(--mint)}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.appliance{min-height:395px}.top{align-items:flex-start}}@media(max-width:480px){main{padding:16px 12px}.panel{padding:15px}.appliance{min-height:330px}.toaster-wrap{transform:scale(.78)}.buttons{grid-template-columns:1fr}.status{font-size:10px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body><main>
+<header class="top"><div><div class="eyebrow">THE APPLIANCE LATENT SPACE · SUZY//AI</div><h1>SUZY<span>//TOAST</span></h1><div class="small">A very small appliance for very large musical ideas.</div></div><div class="status" id="status" role="status">MIDI STATUS UNKNOWN</div></header>
+<div class="layout">
+<div>
+<section class="panel" aria-label="Toaster performance controls">
+<div class="eyebrow">01 · WARM UP THE BANDMATE</div><h2>Give the AI a little toast.</h2>
+<p class="hint">Pull the lever to send an Am7 MIDI cue through SUZY AI MIDI. If Magenta is listening on that port, you may hear it respond.</p>
+<div class="appliance">
+<div class="toaster-wrap" id="toasterArt"><div class="toast-slot"></div><div class="slice" id="slice" aria-hidden="true"><span class="eyes">• •</span><span class="mouth"></span></div>
+<div class="toaster"><span class="cheeks">• •</span><span class="smile"></span><span class="brand">SUZY//AI · 001</span><span class="light"></span></div>
+<button id="lever" class="lever" type="button" aria-label="Pull toaster lever to send an Am7 MIDI test chord" title="TEST CHORD (MIDI only)"><span>↓ PUSH</span></button></div>
+<div class="appliance-caption">AUDIO IS OWNED BY LOGIC · MIDI PROTOTYPE</div></div>
+<div class="subline"><div><strong id="toastMessage">UNTOASTED</strong><div class="hint" id="toastDetail">Pull the lever or press TEST CHORD.</div></div><span class="eyebrow">MRT2 SMALL · EXTERNAL</span></div>
+<div class="heat"><label for="heat">Browning <span id="heatValue">35%</span> <span class="hint">(visual preview)</span></label><input id="heat" type="range" min="0" max="100" value="35" aria-describedby="heatHint"><small id="heatHint">Original CC 21 concept. This control colors the toast illustration only; it does not change Magenta audio or MIDI.</small></div>
+</section>
+<div class="future"><div class="eyebrow">FUTURE PLUGIN CONTROLS · NOT CONNECTED</div><h2>What belongs on the real instrument?</h2><p class="hint">Keep the original semantic IDs for the AU version. These are design targets, not live Magenta controls.</p>
+<ul><li><code>CC 21</code> Browning · warmth / post-model tone</li><li><code>CC 22</code> Destruction · saturation / glitch</li><li><code>CC 23–24</code> Latent X/Y · style-space movement</li><li><code>CC 25</code> Neural mix · AI level</li><li><code>CC 26</code> Memory · hold or evolve state</li></ul></div>
+</div>
+<div class="rail">
+<section class="panel"><div class="eyebrow">02 · PLAY IT</div><h2>How do you want the notes?</h2>
+<div class="pillset" role="group" aria-label="Actual MIDI octave transform"><button type="button" data-mode="low" aria-pressed="false">LOW<small>−12</small></button><button type="button" data-mode="direct" aria-pressed="true">DIRECT<small>±0</small></button><button type="button" data-mode="high" aria-pressed="false">HIGH<small>+12</small></button></div>
+<p class="hint">These buttons really transpose MIDI in the bridge. They do not control Magenta's model style.</p>
+<button id="test" class="action main" type="button">🍞 TOAST A CHORD <span class="hint" style="color:#694352">· Am7 MIDI</span></button>
+<div class="buttons"><button id="gate" class="action" type="button">PAUSE MIDI</button><button id="release" class="action danger" type="button">EJECT / RELEASE MIDI</button></div>
+<div class="readouts"><div class="readout"><small>KEYBOARD INPUT</small><b id="keyboard">Not connected</b></div><div class="readout"><small>MIDI NOTE EVENTS</small><b id="notes">0</b></div><div class="readout"><small>HELD NOTES</small><b id="held">0</b></div><div class="readout"><small>LAST NOTE</small><b id="lastNote">—</b></div></div>
+<div id="feedback" class="feedback" role="status" aria-live="polite">Checking local MIDI bridge…</div><div id="error" role="alert"></div>
+<div class="notice"><strong>Emergency silence:</strong> mute the <strong>AI - MRT2</strong> track in Logic. EJECT, PAUSE MIDI and the toaster lever do <em>not</em> mute neural audio. No Logic audio control or recording is claimed here.</div>
+</section>
+<section class="panel"><div class="eyebrow">03 · CONNECT</div><h2>One-time MIDI setup</h2>
+<p class="hint">Connect your Keystation here. In MRT2 Jam, manually select <strong>SUZY AI MIDI</strong> instead of the physical keyboard. In Logic, keep the direct keyboard → official MRT2 AU as the known-good show fallback.</p>
+<details id="setup" open><summary>Keyboard and routing</summary>
+<div class="setup"><select id="input" aria-label="Physical MIDI input"><option value="">Scan for keyboard</option></select><button id="refresh" class="mini" type="button">REFRESH</button><div class="buttons"><button id="connect" class="mini" type="button">CONNECT INPUT</button><button id="disconnect" class="mini" type="button">DISCONNECT</button></div></div></details>
+<div class="notice"><strong>Proof required:</strong> a visible note event confirms only MIDI receipt. Listen in Magenta/Logic to verify generated audio; separately test real audio mute, print, reopen and offline operation.</div>
+<p class="hint"><a href="/">Open the original Magenta MIDI stage</a> · Keyboard: Shift+1/2/3 = octave, Shift+G = gate, Esc = release MIDI.</p>
+</section>
+</div></div>
+<footer>SUZY//TOAST is a local browser prototype, <strong>not yet a loadable Logic AUv3</strong>. No model, microphone, Qwen, audio routing, Logic transport, AI audio mute, or recording is driven by this page. The original Magenta instrument stays untouched.</footer>
+</main>
+<script>
+"use strict";
+const el = id => document.getElementById(id), token = "__MAGENTA_TOKEN__";
+let current=null, busy=false, popTimeout=null;
+async function get(path){const r=await fetch(path,{cache:"no-store"});if(!r.ok)throw Error("Local MIDI bridge unavailable");return r.json();}
+async function post(path,body={}){
+  const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:JSON.stringify(body)});
+  const data=await r.json();if(!r.ok)throw Error(data.error||"MIDI command failed");return data;
+}
+function showError(e){el("error").textContent=(e.message||String(e))+" · Use Logic's own AI track mute for audio safety.";}
+function draw(s){
+ current=s;
+ el("status").textContent=s.enabled?"LOCAL MIDI BRIDGE · AUDIO UNVERIFIED":"MIDI BRIDGE CLOSED";
+ el("keyboard").textContent=s.input_name||"No input selected";
+ el("notes").textContent=String(s.keyboard_note_events);
+ el("held").textContent=String(s.held_notes);
+ el("lastNote").textContent=s.last_keyboard_note===null?"—":String(s.last_keyboard_note);
+ el("gate").textContent=s.gate_open?"PAUSE MIDI":"RESUME MIDI";
+ el("test").disabled=!s.gate_open;
+ el("lever").disabled=!s.gate_open;
+ for(const b of document.querySelectorAll("[data-mode]"))b.setAttribute("aria-pressed",String(b.dataset.mode===s.mode));
+}
+async function command(path,body={},notice){
+ if(busy)return;busy=true;
+ try{const s=await post(path,body);draw(s);el("error").textContent="";if(notice)el("feedback").textContent=notice;}
+ catch(e){showError(e);}finally{busy=false;}
+}
+async function chord(){
+ if(busy)return;
+ await command("/api/test",{},"Am7 MIDI test sent. Listen in Magenta to verify actual audio.");
+ // A smile and a pop confirm a browser request, NOT AI audio.
+ if(el("feedback").textContent.startsWith("Am7 MIDI test sent")){
+   el("toasterArt").classList.add("pop");el("lever").classList.add("firing");
+   el("toastMessage").textContent="MIDI SENT!";
+   el("toastDetail").textContent="Audio still unverified. Use your ears.";
+   clearTimeout(popTimeout);popTimeout=setTimeout(()=>{el("toasterArt").classList.remove("pop");el("lever").classList.remove("firing");},700);
+ }
+}
+async function release(){
+ // Emergency MIDI release must not be blocked by pending setup commands.
+ try{const s=await post("/api/release");draw(s);el("feedback").textContent="MIDI notes released. Neural audio may continue.";el("error").textContent="";}
+ catch(e){el("error").textContent="MIDI RELEASE NOT CONFIRMED. "+(e.message||String(e))+". Mute AI audio in Logic.";}
+}
+async function refresh(){
+ try{const d=await get("/api/inputs"),select=el("input"),old=select.value;select.replaceChildren();
+  const blank=document.createElement("option");blank.value="";blank.textContent="Select a physical keyboard";select.add(blank);
+  for(const name of d.inputs){const o=document.createElement("option");o.value=name;o.textContent=name;select.add(o);}
+  if(d.inputs.includes(old))select.value=old;
+  else{const preferred=d.inputs.find(x=>/Keystation/i.test(x));if(preferred)select.value=preferred;}
+ }catch(e){showError(e);}
+}
+el("test").onclick=chord;el("lever").onclick=chord;
+el("release").onclick=release;
+el("gate").onclick=()=>current&&command("/api/gate",{open:!current.gate_open},current.gate_open?"MIDI paused (not neural audio).":"MIDI resumed.");
+el("connect").onclick=()=>command("/api/select",{input:el("input").value},"Physical MIDI input selected; now choose SUZY AI MIDI in Jam.");
+el("disconnect").onclick=()=>command("/api/disconnect",{},"Physical keyboard disconnected from bridge.");
+el("refresh").onclick=refresh;
+for(const b of document.querySelectorAll("[data-mode]"))b.onclick=()=>command("/api/mode",{mode:b.dataset.mode},"MIDI octave changed; neural style unchanged.");
+el("heat").oninput=()=>{
+ const value=Number(el("heat").value),slice=el("slice");
+ el("heatValue").textContent=value+"%";
+ slice.style.filter="sepia("+(value/100)+") saturate("+(0.85+value/100)+")";
+};
+document.addEventListener("keydown",e=>{
+ if(e.repeat||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+ const t=e.target||document.activeElement;
+ if(e.key==="Escape"){e.preventDefault();release();return;}
+ if(!e.shiftKey||t&&(t.isContentEditable||["INPUT","SELECT","TEXTAREA","BUTTON","A","SUMMARY"].includes(t.tagName)))return;
+ const modes={Digit1:"low",Digit2:"direct",Digit3:"high"};
+ if(modes[e.code]){e.preventDefault();document.querySelector('[data-mode="'+modes[e.code]+'"]').click();}
+ else if(e.code==="KeyG"){e.preventDefault();el("gate").click();}
+});
+async function poll(){
+ if(busy)return;
+ try{draw(await get("/api/status"));}
+ catch(e){el("status").textContent="MIDI BRIDGE OFFLINE";el("error").textContent="Bridge unreachable. Use the original Logic AI track mute for sound.";}
+}
+refresh();poll();setInterval(poll,700);
+</script>
+</body></html>
