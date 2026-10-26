@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUZY//AI · MAGENTA MIDI STAGE</title>
+<style>
+:root{color-scheme:dark;--bg:#080b10;--panel:#161b25;--edge:#3b4656;--ink:#f6f7f4;--muted:#b7c1cf;--lime:#bef67c;--violet:#b8a0fa;--warn:#ffd080}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% 0,#28223f,transparent 50%),var(--bg);font:16px/1.45 system-ui,-apple-system,sans-serif;color:var(--ink)}
+main{max-width:1000px;margin:auto;padding:28px 20px 68px}header{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:14px;border-bottom:1px solid var(--edge);padding-bottom:24px}
+.eyebrow{font:700 12px ui-monospace,monospace;letter-spacing:.13em;color:var(--lime)}
+h1{font:900 clamp(35px,8vw,72px)/1 Arial,sans-serif;letter-spacing:-.065em;margin:8px 0}h1 span{color:var(--violet)}
+p{margin:8px 0}.muted{color:var(--muted)}.small{font-size:13px}
+.tag{border:1px solid var(--edge);border-radius:30px;padding:9px 13px;font:700 13px ui-monospace,monospace;color:var(--lime)}
+section{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:24px;margin-top:20px}
+h2{margin:0 0 12px;font-size:21px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+button{min-height:72px;background:#292f3c;color:var(--ink);border:1px solid var(--edge);border-radius:11px;font:800 17px system-ui;cursor:pointer;padding:12px}
+button:hover:not(:disabled){filter:brightness(1.15)}button:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--violet);outline-offset:3px}
+button[aria-pressed="true"]{border:2px solid var(--lime);background:#273725;color:var(--lime)}
+button:disabled{opacity:.5;cursor:not-allowed}.sub{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}.actions button{flex:1;min-width:185px}
+.primary{background:var(--lime);color:#132012}.primary .sub{color:#263820}.rest{background:#4c3147;border-color:#cf92ca}
+.release{border-color:#e3b974;background:#45371e}
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.data{background:#0d1119;border:1px solid var(--edge);border-radius:10px;padding:14px}.data strong{display:block;font-size:18px;word-break:break-word}.data span{font-size:12px;color:var(--muted)}
+.note{border-left:3px solid var(--warn);padding:9px 14px;background:#282519;color:#f3e5c4;margin-top:18px;font-size:14px}
+details{margin-top:20px;background:#10151e;border:1px solid var(--edge);border-radius:12px;padding:15px 20px}
+summary{cursor:pointer;font-weight:700}.setup{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px;align-items:center}
+select{background:#090e16;border:1px solid #677384;border-radius:9px;color:var(--ink);font:16px system-ui;padding:12px;min-height:48px;flex:1;min-width:200px}
+.setup button{min-height:48px;font-size:14px}
+#error{color:#ff9da9;white-space:pre-wrap;min-height:0}
+footer{color:var(--muted);font-size:12px;margin:24px 0}
+kbd{font:12px ui-monospace,monospace;background:#323a47;padding:2px 5px;border-radius:4px}
+@media(max-width:640px){.grid,.readout{grid-template-columns:1fr}.actions button{min-width:100%}}
+</style></head><body><main>
+<header><div><div class="eyebrow">THE APPLIANCE LATENT SPACE / INSTRUMENT</div>
+<h1>SUZY<span>//</span>AI</h1><p class="muted">MIDI steering for Magenta RealTime 2 Small</p></div>
+<div class="tag" id="status">CONNECTING...</div></header>
+<section>
+<div class="eyebrow">01 · PLAY THE BANDMATE</div><h2>Where should your notes sit?</h2>
+<p class="muted small">These controls really transpose MIDI before it reaches Magenta. They do not change its model prompt or independently mute its audio.</p>
+<div class="grid" role="group" aria-label="MIDI steering mode">
+<button type="button" data-mode="low" aria-pressed="false">OCTAVE DOWN<span class="sub">Lower your notes by 12 semitones</span></button>
+<button type="button" data-mode="direct" aria-pressed="true">DIRECT<span class="sub">Play the notes as performed</span></button>
+<button type="button" data-mode="high" aria-pressed="false">OCTAVE UP<span class="sub">Raise your notes by 12 semitones</span></button>
+</div>
+<div class="actions">
+<button id="gate" type="button" class="primary">PAUSE MIDI<span class="sub">Release notes, stop forwarding new keys</span></button>
+<button id="test" type="button">TEST CHORD<span class="sub">Send a short original Am7 MIDI cue</span></button>
+<button id="release" type="button" class="release">RELEASE MIDI<span class="sub">All notes off, not AI audio mute</span></button>
+</div>
+<div class="readout">
+<div class="data"><span>KEYBOARD INPUT</span><strong id="keyboard">None selected</strong></div>
+<div class="data"><span>STEERING</span><strong id="mode">DIRECT</strong></div>
+<div class="data"><span>MIDI</span><strong id="activity">No notes yet</strong></div>
+</div>
+<p class="small muted" id="feedback" role="status" aria-live="polite">Select your Keystation in Setup, then choose SUZY AI MIDI in Jam.</p>
+<p id="error" role="alert" aria-live="assertive"></p>
+<p class="note"><strong>Audio safety:</strong> RELEASE MIDI / PAUSE MIDI cannot guarantee silence from a continuously generating neural music model. For immediate audible mute use Magenta's own volume/stop or, when installed, the separate Magenta track mute in Logic.</p>
+</section>
+<details id="setup" open><summary>02 · MIDI setup (once per rehearsal)</summary>
+<p class="muted small">Connect the Keystation here FIRST. Then change Jam's bottom MIDI INPUT from physical Keystation to <strong>SUZY AI MIDI</strong> to avoid duplicate input. Keep this server running while playing.</p>
+<div class="setup"><select id="input" aria-label="MIDI keyboard input"><option value="">Refresh to find a MIDI keyboard</option></select>
+<button type="button" id="refresh">Refresh devices</button>
+<button type="button" class="primary" id="connect">Connect</button>
+<button type="button" id="disconnect">Disconnect</button></div>
+<p class="small muted">Virtual CoreMIDI source created: <strong>SUZY AI MIDI</strong>. Seeing the source does not prove Magenta selected it. Check by actually playing a chord.</p></details>
+<footer>LOCAL / OFFLINE · MIDI only · No Qwen process, microphone capture, audio samples, Logic automation or recording. Shift+1/2/3 selects octave mode, Shift+G pauses/resumes, Escape releases MIDI notes. Bare Space and Enter remain untouched. Human music remains in Logic.</footer>
+<script>
+"use strict";
+const el=id=>document.getElementById(id),token="__MAGENTA_TOKEN__";
+let current=null,pending=false;
+async function get(path){const r=await fetch(path,{cache:"no-store"});if(!r.ok)throw Error("Stage server unavailable");return r.json();}
+async function send(path,payload={}){
+ if(pending)return;
+ pending=true;
+ try{
+  const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:JSON.stringify(payload)});
+  const d=await r.json();if(!r.ok)throw Error(d.error||"MIDI command failed");
+  current=d;draw(d);el("error").textContent="";
+ }catch(e){el("error").textContent=e.message||String(e);}
+ finally{pending=false;}
+}
+function draw(s){
+ current=s;
+ el("status").textContent=s.enabled?"MIDI BRIDGE ACTIVE":"MIDI BRIDGE CLOSED";
+ el("keyboard").textContent=s.input_name||"Not connected";
+ el("mode").textContent=(s.mode||"direct").toUpperCase();
+ el("activity").textContent=s.held_notes+" note(s) held";
+ el("gate").firstChild.textContent=s.gate_open?"PAUSE MIDI":"RESUME MIDI";
+ el("gate").classList.toggle("rest",!s.gate_open);
+ el("test").disabled=!s.gate_open;
+ for(const b of document.querySelectorAll("[data-mode]"))b.setAttribute("aria-pressed",String(b.dataset.mode===s.mode));
+ el("feedback").textContent=s.input_name?(s.gate_open?"Keyboard ready. Play into Jam via SUZY AI MIDI.":"MIDI paused. Magenta audio might keep generating."):"Connect a MIDI input or try TEST CHORD after selecting SUZY AI MIDI in Jam.";
+}
+async function refresh(){
+ try{const d=await get("/api/inputs"),select=el("input"),old=select.value;select.replaceChildren();
+  for(const name of d.inputs){const opt=document.createElement("option");opt.value=name;opt.textContent=name;select.add(opt);}
+  if(d.inputs.includes(old))select.value=old;
+  else if(d.inputs.some(x=>/Keystation/i.test(x)))select.value=d.inputs.find(x=>/Keystation/i.test(x));
+  el("error").textContent="";
+ }catch(e){el("error").textContent=e.message;}
+}
+el("refresh").onclick=refresh;
+el("connect").onclick=()=>send("/api/select",{input:el("input").value});
+el("disconnect").onclick=()=>send("/api/disconnect");
+el("gate").onclick=()=>current&&send("/api/gate",{open:!current.gate_open});
+el("test").onclick=()=>send("/api/test");
+el("release").onclick=()=>send("/api/release");
+for(const b of document.querySelectorAll("[data-mode]"))b.onclick=()=>send("/api/mode",{mode:b.dataset.mode});
+document.addEventListener("keydown",e=>{
+ if(e.repeat||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+ if(e.key==="Escape"){e.preventDefault();el("release").click();return;}
+ if(!e.shiftKey)return;
+ const target=e.target||document.activeElement;
+ if(target&&(target.isContentEditable||["INPUT","SELECT","TEXTAREA","BUTTON","A","SUMMARY"].includes(target.tagName)))return;
+ if(e.code==="Digit1"){e.preventDefault();document.querySelector('[data-mode="low"]').click();}
+ else if(e.code==="Digit2"){e.preventDefault();document.querySelector('[data-mode="direct"]').click();}
+ else if(e.code==="Digit3"){e.preventDefault();document.querySelector('[data-mode="high"]').click();}
+ else if(e.code==="KeyG"){e.preventDefault();el("gate").click();}
+});
+async function poll(){if(pending)return;try{draw(await get("/api/status"));}catch(e){el("status").textContent="BRIDGE UNREACHABLE";el("error").textContent="Connection to localhost lost. Use Magenta/Logic audio mute if needed.";}}
+refresh();poll();setInterval(poll,500);
+</script></main></body></html>
