@@ -186,7 +186,7 @@ test("audio discovery failure does not claim selected output", async () => {
 test("loop controls compute a rehearsal reference but never record or touch Logic", async () => {
   const app = boot();
   assert.match(markup, /id="looping"/);
-  assert.match(markup, /not.*record, launch, quantize or overdub Logic\/VE-22 audio/);
+  assert.match(markup, /do <strong>not<\/strong> record, launch, quantize or overdub Logic\/VE-22 audio/);
   assert.equal(app.getNode("loopSeconds").textContent, "8.00 seconds");
   app.getNode("loopBpm").value = "100";
   app.getNode("loopBpm").oninput();
