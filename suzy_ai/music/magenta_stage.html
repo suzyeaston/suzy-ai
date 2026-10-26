@@ -27,8 +27,11 @@ select{background:#090e16;border:1px solid #677384;border-radius:9px;color:var(-
 .setup button{min-height:48px;font-size:14px}
 #error{color:#ff9da9;white-space:pre-wrap;min-height:0}
 footer{color:var(--muted);font-size:12px;margin:24px 0}
+#audioIn,#audioOut{font-size:14px;line-height:1.7;white-space:pre-line;font-weight:600;margin-top:9px}
+#audioSetup .data{min-width:0}
+a{color:var(--lime)}
 kbd{font:12px ui-monospace,monospace;background:#323a47;padding:2px 5px;border-radius:4px}
-@media(max-width:640px){.grid,.readout{grid-template-columns:1fr}.actions button{min-width:100%}}
+@media(max-width:640px){.grid,.readout,#audioSetup .readout{grid-template-columns:1fr!important}.actions button{min-width:100%}}
 </style></head><body><main>
 <header><div><div class="eyebrow">THE APPLIANCE LATENT SPACE / INSTRUMENT</div>
 <h1>SUZY<span>//</span>AI</h1><p class="muted">MIDI steering for Magenta RealTime 2 Small</p></div>
@@ -62,6 +65,31 @@ kbd{font:12px ui-monospace,monospace;background:#323a47;padding:2px 5px;border-r
 <button type="button" class="primary" id="connect">Connect</button>
 <button type="button" id="disconnect">Disconnect</button></div>
 <p class="small muted">Virtual CoreMIDI source created: <strong>SUZY AI MIDI</strong>. Seeing the source does not prove Magenta selected it. Check by actually playing a chord.</p></details>
+<details id="audioSetup" open><summary>03 · Audio + Logic setup · Scarlett and monitoring</summary>
+<p class="muted small">The MIDI bridge receives keyboard notes but does <strong>not</strong> create sound, select an audio output, or listen to the microphone. The audio host is either <strong>Jam</strong> for a quick test or <strong>Logic Pro</strong> for the performance.</p>
+<div class="setup"><button id="refreshAudio" type="button">↻ Scan audio devices (read-only)</button><span class="small muted" id="audioScanStatus">Not scanned yet</span></div>
+<div class="readout" style="grid-template-columns:repeat(2,minmax(0,1fr))" aria-label="Discovered CoreAudio device capabilities">
+ <div class="data"><span>AVAILABLE MIC / AUDIO INPUTS</span><strong id="audioIn">Scan to discover devices</strong></div>
+ <div class="data"><span>AVAILABLE HEADPHONES / AUDIO OUTPUTS</span><strong id="audioOut">Scan to discover devices</strong></div>
+</div>
+<p class="muted small">These are macOS CoreAudio/PortAudio device candidates, <strong>not</strong> confirmation of what Logic or Jam is using. Selecting an output in SUZY would not reroute their audio; configure the output in the host below.</p>
+<div class="readout" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+ <div class="data"><span>TEST NOW · MRT2 JAM</span>
+  <p class="small">1. In Jam choose MIDI INPUT <strong>SUZY AI MIDI</strong>, not the Keystation.</p>
+  <p class="small">2. Select <strong>Jam</strong> mode, press Play and check Jam's volume.</p>
+  <p class="small">3. Choose the output your headphones actually use in macOS / Audio MIDI Setup; check <strong>48 kHz</strong>.</p>
+  <p class="small">4. Play a note or press TEST CHORD here. If only this page's count rises, Magenta routing remains unproven.</p>
+ </div>
+ <div class="data"><span>PERFORM IN LOGIC · MRT2 AUDIO UNIT</span>
+  <p class="small">1. Move <strong>MRT2 (AU).app</strong> to Applications <strong>before opening</strong>; then launch once to register.</p>
+  <p class="small">2. In Logic set project to <strong>48 kHz</strong>. Settings → Audio → Devices: choose <strong>Scarlett</strong> for input and output.</p>
+  <p class="small">3. Create a software instrument track <strong>AI - MRT2</strong>; insert the Google/MRT2 Audio Unit, turn down its fader, and play the Keystation.</p>
+  <p class="small">4. Add a <strong>separate vocal audio track</strong> for the VE-22 → Scarlett mic input. Use Logic Input Monitoring or interface direct monitoring as appropriate, without doubling them.</p>
+  <p class="small">5. Verify the AI track mute removes AI sound while vocals/beats continue. Record and listen to an AI audio print; don't trust MIDI alone.</p>
+ </div>
+</div>
+<p class="note" role="note"><strong>Monitoring ownership:</strong> AI track, vocals and backing are heard through the Logic mix and Scarlett headphone output. Individual track monitor/mute and levels live in <strong>Logic</strong>, not this MIDI bridge. Audio-device readouts here never mean “sound confirmed.”</p>
+</details>
 <footer>LOCAL / OFFLINE · MIDI only · No Qwen process, microphone capture, audio samples, Logic automation or recording. Shift+1/2/3 selects octave mode, Shift+G pauses/resumes, Escape releases MIDI notes. Bare Space and Enter remain untouched. Human music remains in Logic.</footer>
 <script>
 "use strict";
@@ -99,6 +127,24 @@ async function refresh(){
   el("error").textContent="";
  }catch(e){el("error").textContent=e.message;}
 }
+async function refreshAudio(){
+ el("audioScanStatus").textContent="Scanning (no audio stream opened)…";
+ try{
+  const data=await get("/api/audio-routing");
+  el("audioScanStatus").textContent=data.available?"Devices found · read-only":"Audio discovery unavailable";
+  if(!data.available){el("audioIn").textContent=data.message;el("audioOut").textContent=data.message;return;}
+  const label=d=>d.name+(d.scarlett_candidate?" · SCARLETT":"");
+  const input=data.devices.filter(d=>d.input_channels>0).map(d=>label(d)+" · "+d.input_channels+" in"+(d.system_default_input?" · macOS default":""));
+  const output=data.devices.filter(d=>d.output_channels>0).map(d=>label(d)+" · "+d.output_channels+" out"+(d.system_default_output?" · macOS default":""));
+  el("audioIn").textContent=input.join("\n")||"No audio input devices detected";
+  el("audioOut").textContent=output.join("\n")||"No audio output devices detected";
+ }catch(e){
+  el("audioScanStatus").textContent="Audio discovery failed";
+  el("audioIn").textContent="Cannot query device capabilities";
+  el("audioOut").textContent="Cannot query device capabilities";
+ }
+}
+el("refreshAudio").onclick=refreshAudio;
 el("refresh").onclick=refresh;
 el("connect").onclick=()=>send("/api/select",{input:el("input").value});
 el("disconnect").onclick=()=>send("/api/disconnect");
@@ -126,5 +172,5 @@ document.addEventListener("keydown",e=>{
  else if(e.code==="KeyG"){e.preventDefault();el("gate").click();}
 });
 async function poll(){if(pending)return;try{draw(await get("/api/status"));}catch(e){el("status").textContent="BRIDGE UNREACHABLE";el("error").textContent="Connection to localhost lost. Use Magenta/Logic audio mute if needed.";}}
-refresh();poll();setInterval(poll,500);
+refresh();refreshAudio();poll();setInterval(poll,500);
 </script></main></body></html>
