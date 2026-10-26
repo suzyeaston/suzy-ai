@@ -66,14 +66,14 @@ public:
 
     // Called once per channel for the current sample frame, then advanceFrame().
     // Only stores processed source samples; does not call external APIs or allocate.
-    float sample(int channel, float source, float loopLevel) noexcept {
-        if (channel < 0 || channel >= channels_) return source;
+    float sample(int channel, float source, float loopLevel, float liveLevel = 1.0f) noexcept {
+        if (channel < 0 || channel >= channels_) return source * liveLevel;
         if (state_ == LoopState::recording) {
             audio_[channel][cursor_] = source;
-            return source;
+            return source * liveLevel;
         }
         if (state_ != LoopState::playing && state_ != LoopState::overdubbing)
-            return source;
+            return source * liveLevel;
         const float previous = audio_[channel][cursor_];
         if (state_ == LoopState::overdubbing) {
             // Conservative feedback/overdub mix. This is not Undo: the old
@@ -82,7 +82,7 @@ public:
                                                    -1.0f, 1.0f);
         }
         // Dry generator continues behind the independently controllable loop.
-        return source + previous * std::clamp(loopLevel, 0.0f, 1.0f) * 0.5f;
+        return source * std::clamp(liveLevel, 0.0f, 1.0f) + previous * std::clamp(loopLevel, 0.0f, 1.0f);
     }
     void advanceFrame() noexcept {
         if (state_ != LoopState::recording && state_ != LoopState::playing &&
