@@ -27,6 +27,16 @@ This PR follows the *Rehearsal and Future-Proofing Research: SUZY//AI, Magenta R
 - Escape MIDI release, Shift+1/2/3 for octaves, Shift+G for MIDI gate, and reduced-motion styling. Unmodified global Space/Enter to avoid hijacking Logic/browser shortcuts.
 - Existing localhost origin/token/JSON safety policy and no external dependencies.
 
+### Audio I/O and loop setup now present on the page
+
+The toaster exposes two prominent navigation anchors: **Audio I/O** and **Looping**.
+
+- **Audio I/O** calls the existing read-only `GET /api/audio-routing` route and shows input and output capabilities, Scarlett candidates and macOS defaults separately. No stream starts and no setting changes. Even a listed Scarlett or system default is **not verification** that Logic selected it. In Logic's **Settings → Audio → Devices**, set Scarlett input and output; in **Project Settings → Audio**, confirm **48 kHz**.
+- **Looping** provides a **rehearsal duration reference** (BPM, beats/bar, bars) and practical instructions for three actual loop owners: **Logic Live Loops** for synchronized/quantized musical clips, **BOSS VE-22** for independent vocal pedal capture, or the experimental **SUZY Live native looper**. This is intentionally **not a recorder or a DAW sync/control layer**.
+- The actual capture/overdub/undo controls belong to Logic, the pedal, or the separate native app. The native looper supports one loop with overdub and undo and requires separate Mac/audio QA. Its clock-sync mode is experimental. See `docs/local-looper.md`.
+
+We should **not** implement pretend input/output dropdowns that never change the host, nor simulated recording controls labelled CAPTURE that do not capture sound. Actual routing and looping controls for the future custom Audio Unit require a host integration design, tested state and explicit recording/monitoring contracts.
+
 ### Canonical control mappings (reserved, not secretly implemented)
 
 | Control ID | MIDI | Meaning / proposed custom AU implementation |
