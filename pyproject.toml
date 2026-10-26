@@ -25,4 +25,4 @@ suzy-ai = "suzy_ai.cli:main"
 include = ["suzy_ai*"]
 
 [tool.setuptools.package-data]
-"suzy_ai.music" = ["stage_panel.html"]
+"suzy_ai.music" = ["stage_panel.html", "magenta_stage.html"]
