@@ -197,6 +197,9 @@ test("loop controls compute a rehearsal reference but never record or touch Logi
   app.getNode("loopOwner").value = "companion";
   app.getNode("loopOwner").onchange();
   assert.match(app.getNode("loopInstructions").textContent, /--looper-only/);
+  app.getNode("loopBars").value = "8";
+  app.getNode("loopBars").onchange();
+  assert.match(app.getNode("loopInstructions").textContent, /exceeds the native looper's current 8-second/);
   app.getNode("loopBpm").value = "999";
   app.getNode("loopBpm").oninput();
   assert.match(app.getNode("loopSeconds").textContent, /Check BPM/);
