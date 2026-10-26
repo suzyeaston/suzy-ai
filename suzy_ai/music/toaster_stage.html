@@ -96,13 +96,14 @@ function draw(s){
 async function command(path,body={},notice){
  if(busy)return;busy=true;
  try{const s=await post(path,body);draw(s);el("error").textContent="";if(notice)el("feedback").textContent=notice;}
- catch(e){showError(e);}finally{busy=false;}
+ catch(e){showError(e);return false;}finally{busy=false;}
+ return true;
 }
 async function chord(){
  if(busy)return;
- await command("/api/test",{},"Am7 MIDI test sent. Listen in Magenta to verify actual audio.");
+ const succeeded=await command("/api/test",{},"Am7 MIDI test sent. Listen in Magenta to verify actual audio.");
  // A smile and a pop confirm a browser request, NOT AI audio.
- if(el("feedback").textContent.startsWith("Am7 MIDI test sent")){
+ if(succeeded){
    el("toasterArt").classList.add("pop");el("lever").classList.add("firing");
    el("toastMessage").textContent="MIDI SENT!";
    el("toastDetail").textContent="Audio still unverified. Use your ears.";
