@@ -23,6 +23,7 @@ class MagentaMidiBridge:
         self.source_name = None
         self.mode = "direct"
         self.held = {}
+        self.gate_open = True
         self.test_notes = ()
         self.test_timer = None
         self.forwarded = 0
@@ -44,6 +45,7 @@ class MagentaMidiBridge:
                 "virtual_source": VIRTUAL_PORT,
                 "input_name": self.source_name,
                 "mode": self.mode,
+                "gate_open": self.gate_open,
                 "held_notes": len(self.held) + len(self.test_notes),
                 "midi_events_forwarded": self.forwarded,
                 "last_midi_seconds_ago": round(time.monotonic() - self.last_event, 1)
@@ -127,7 +129,7 @@ class MagentaMidiBridge:
         if command not in (0x80, 0x90) or not 0 <= note < 128:
             return
         with self.lock:
-            if self.closed or self.source is None:
+            if self.closed or self.source is None or not self.gate_open:
                 return
             key = ch, note
             is_on = command == 0x90 and velocity > 0
@@ -140,11 +142,35 @@ class MagentaMidiBridge:
                     self._send([0x90 | ch, target, max(1, min(127, velocity))])
                     self.held[key] = target
 
+    def set_gate(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("enabled must be true or false")
+        with self.lock:
+            if self.closed:
+                raise ValueError("MIDI bridge is closed")
+            if not enabled and self.gate_open:
+                self._release_locked()
+            self.gate_open = enabled
+            return self.status()
+
+    def disconnect(self):
+        with self.lock:
+            if self.closed:
+                raise ValueError("MIDI bridge is closed")
+            self._release_locked()
+            if self.source is not None:
+                self.source.close_port()
+                self.source = None
+            self.source_name = None
+            return self.status()
+
     def test_chord(self):
         """One short MIDI conditioning chord, automatically released."""
         with self.lock:
             if self.closed:
                 raise ValueError("MIDI bridge is closed")
+            if not self.gate_open:
+                raise ValueError("resume MIDI before sending a test chord")
             if self.held or self.test_notes:
                 raise ValueError("release keyboard notes before the test chord")
             notes = tuple(note + MODES[self.mode] for note in TEST_CHORD)
