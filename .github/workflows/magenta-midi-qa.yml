@@ -1,0 +1,30 @@
+name: SUZY MIDI bridge unit QA
+
+on:
+  pull_request:
+    paths:
+      - "suzy_ai/music/magenta_midi.py"
+      - "suzy_ai/music/magenta_stage.py"
+      - "suzy_ai/music/magenta_stage.html"
+      - "tests/test_magenta_midi.py"
+      - "tests/test_magenta_stage.py"
+      - "tests/__init__.py"
+      - ".github/workflows/magenta-midi-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  midi-fake-hardware-qa:
+    name: Virtual MIDI + Local UI contracts (no hardware)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile MIDI modules
+        run: python -m compileall -q suzy_ai/music/magenta_midi.py suzy_ai/music/magenta_stage.py
+      - name: Exercise mock MIDI + HTTP API
+        run: python -m unittest -v tests.test_magenta_midi tests.test_magenta_stage
