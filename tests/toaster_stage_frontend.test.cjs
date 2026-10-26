@@ -24,14 +24,16 @@ function boot(overrides = {}) {
   const getNode = id => {
     if (!nodes.has(id)) {
       nodes.set(id, {
-        value: "", textContent: "", disabled: false, style: {},
-        options: [], classList: {
+        value: ({
+          loopOwner: "logic", loopBpm: "120", loopBars: "4", loopBeats: "4"
+        })[id] || "", textContent: "", disabled: false, style: {},
+        options: [], children: [], appendChild(child) { this.children.push(child); }, classList: {
           items: new Set(),
           add(value) { this.items.add(value); },
           remove(value) { this.items.delete(value); },
           contains(value) { return this.items.has(value); }
         },
-        replaceChildren() { this.options = []; },
+        replaceChildren() { this.options = []; this.children = []; },
         add(option) { this.options.push(option); },
         click() { return this.onclick(); }
       });
@@ -53,8 +55,8 @@ function boot(overrides = {}) {
       return m && modes.find(button => button.dataset.mode === m[1]);
     },
     createElement(tag) {
-      assert.equal(tag, "option");
-      return { value: "", textContent: "" };
+      assert.ok(["option","li"].includes(tag));
+      return { value: "", textContent: "", className: "" };
     },
     addEventListener(name, callback) {
       if (name === "keydown") this.keydown = callback;
@@ -80,6 +82,16 @@ function boot(overrides = {}) {
     }
     if (url === "/api/inputs") {
       return { ok: true, json: async () => ({ inputs: ["Keystation Mini 32 MK3"] }) };
+    }
+    if (url === "/api/audio-routing") {
+      return { ok: true, json: async () => overrides.audioUnavailable
+        ? { available: false, devices: [], message: "unavailable", logic_audio_device_observed: false }
+        : { available: true, devices: [
+          { name: "Scarlett Solo USB", input_channels: 2, output_channels: 2,
+            system_default_input: true, system_default_output: true, scarlett_candidate: true },
+          { name: "Built-in Output", input_channels: 0, output_channels: 2,
+            system_default_input: false, system_default_output: false, scarlett_candidate: false }
+        ], logic_audio_device_observed: false, can_change_host_audio_output: false } };
     }
     assert.equal(url, "/api/status");
     return { ok: true, json: async () => ({ ...status }) };
@@ -148,4 +160,45 @@ test("browning is visual only; mode buttons call only existing MIDI mode API", a
   const cmd = app.events.find(x => x.url === "/api/mode");
   assert.deepEqual(JSON.parse(cmd.opts.body), { mode: "low" });
   assert.equal(app.status.mode, "low");
+});
+
+test("Audio I/O panel discovers devices without any write or false Logic selection", async () => {
+  const app = boot();
+  assert.match(markup, /id="audio-io"/);
+  assert.match(markup, /id="scanAudio"/);
+  assert.match(markup, /In Logic, the host owns/);
+  await app.getNode("scanAudio").onclick();
+  assert.ok(app.events.some(x => x.url === "/api/audio-routing" && !x.opts.method));
+  assert.equal(app.getNode("audioInputs").children.length, 1);
+  assert.equal(app.getNode("audioOutputs").children.length, 2);
+  assert.match(app.getNode("audioInputs").children[0].textContent, /Scarlett Solo USB/);
+  assert.match(app.getNode("audioScanStatus").textContent, /Host routing not observed/);
+  assert.ok(!app.events.some(x => x.opts.method === "POST"));
+});
+
+test("audio discovery failure does not claim selected output", async () => {
+  const app = boot({audioUnavailable:true});
+  await app.getNode("scanAudio").onclick();
+  assert.match(app.getNode("audioScanStatus").textContent, /Discovery unavailable/);
+  assert.match(app.getNode("audioInputs").children[0].textContent, /No compatible devices/);
+});
+
+test("loop controls compute a rehearsal reference but never record or touch Logic", async () => {
+  const app = boot();
+  assert.match(markup, /id="looping"/);
+  assert.match(markup, /not.*record, launch, quantize or overdub Logic\/VE-22 audio/);
+  assert.equal(app.getNode("loopSeconds").textContent, "8.00 seconds");
+  app.getNode("loopBpm").value = "100";
+  app.getNode("loopBpm").oninput();
+  assert.equal(app.getNode("loopSeconds").textContent, "9.60 seconds");
+  app.getNode("loopOwner").value = "ve22";
+  app.getNode("loopOwner").onchange();
+  assert.match(app.getNode("loopInstructions").textContent, /pedal itself/);
+  app.getNode("loopOwner").value = "companion";
+  app.getNode("loopOwner").onchange();
+  assert.match(app.getNode("loopInstructions").textContent, /--looper-only/);
+  app.getNode("loopBpm").value = "999";
+  app.getNode("loopBpm").oninput();
+  assert.match(app.getNode("loopSeconds").textContent, /Check BPM/);
+  assert.ok(!app.events.some(x => x.opts.method === "POST"));
 });
