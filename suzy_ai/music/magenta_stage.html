@@ -49,7 +49,7 @@ kbd{font:12px ui-monospace,monospace;background:#323a47;padding:2px 5px;border-r
 <div class="readout">
 <div class="data"><span>KEYBOARD INPUT</span><strong id="keyboard">None selected</strong></div>
 <div class="data"><span>STEERING</span><strong id="mode">DIRECT</strong></div>
-<div class="data"><span>MIDI</span><strong id="activity">No notes yet</strong></div>
+<div class="data"><span>KEYBOARD ACTIVITY</span><strong id="activity">No notes yet</strong><span id="held">0 notes held</span></div>
 </div>
 <p class="small muted" id="feedback" role="status" aria-live="polite">Select your Keystation in Setup, then choose SUZY AI MIDI in Jam.</p>
 <p id="error" role="alert" aria-live="assertive"></p>
@@ -83,7 +83,8 @@ function draw(s){
  el("status").textContent=s.enabled?"MIDI BRIDGE ACTIVE":"MIDI BRIDGE CLOSED";
  el("keyboard").textContent=s.input_name||"Not connected";
  el("mode").textContent=(s.mode||"direct").toUpperCase();
- el("activity").textContent=s.held_notes+" note(s) held";
+ el("activity").textContent=s.keyboard_note_events+" note events";
+ el("held").textContent=s.held_notes+" note(s) held"+(s.last_keyboard_note===null?"":" · last MIDI "+s.last_keyboard_note);
  el("gate").firstChild.textContent=s.gate_open?"PAUSE MIDI":"RESUME MIDI";
  el("gate").classList.toggle("rest",!s.gate_open);
  el("test").disabled=!s.gate_open;
@@ -103,7 +104,15 @@ el("connect").onclick=()=>send("/api/select",{input:el("input").value});
 el("disconnect").onclick=()=>send("/api/disconnect");
 el("gate").onclick=()=>current&&send("/api/gate",{open:!current.gate_open});
 el("test").onclick=()=>send("/api/test");
-el("release").onclick=()=>send("/api/release");
+// RELEASE remains callable when a slower setup command is pending.
+// It stops MIDI-held notes, not generated neural audio.
+el("release").onclick=async()=>{
+ try{
+  const r=await fetch("/api/release",{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:"{}"});
+  const d=await r.json();if(!r.ok)throw Error(d.error||"Release failed");
+  current=d;draw(d);el("error").textContent="";
+ }catch(e){el("error").textContent="MIDI RELEASE NOT CONFIRMED: "+(e.message||String(e))+". Stop audio in Magenta/Logic directly.";}
+};
 for(const b of document.querySelectorAll("[data-mode]"))b.onclick=()=>send("/api/mode",{mode:b.dataset.mode});
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
