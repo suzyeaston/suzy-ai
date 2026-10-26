@@ -17,6 +17,7 @@ from .magenta_midi import MagentaMidiBridge
 from .audio_routing import inspect_audio_routing
 
 PAGE = Path(__file__).with_name("magenta_stage.html")
+TOASTER_PAGE = Path(__file__).with_name("toaster_stage.html")
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
@@ -46,6 +47,9 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             page = PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
+            return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
+        if self.path == "/toaster":
+            page = TOASTER_PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
         if self.path == "/api/status":
             return self.reply(200, self.bridge.status())
@@ -126,6 +130,7 @@ def main(argv=None):
         with ThreadingHTTPServer(("127.0.0.1", args.port), Handler) as server:
             server.daemon_threads = True
             print(f"SUZY//AI MAGENTA MIDI STAGE http://127.0.0.1:{args.port}/", flush=True)
+            print(f"SUZY//TOAST prototype http://127.0.0.1:{args.port}/toaster", flush=True)
             print("Choose 'SUZY AI MIDI' as Jam's MIDI INPUT. Deselect physical Keystation in Jam.", flush=True)
             print("This app only steers MIDI. For real audio mute, use Magenta/Logic controls.", flush=True)
             server.serve_forever()
