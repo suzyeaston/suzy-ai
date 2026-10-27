@@ -31,6 +31,7 @@ function rig(){
  class AudioContext{
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+  createBufferSource(){return new AudioNode()}
   createMediaStreamSource(){return new AudioNode()}
   createScriptProcessor(){const n=new AudioNode(); n.onaudioprocess=null;calls.processor=n;return n;}
   createBuffer(ch,len,sr){return new AudioBuffer(ch,len,sr)}
