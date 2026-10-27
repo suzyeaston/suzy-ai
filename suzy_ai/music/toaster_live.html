@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUZY//TOAST LIVE · Futureproof</title>
+<style>
+:root{color-scheme:dark;--bg:#121019;--panel:#26202f;--muted:#bfb0c7;--pink:#ffc2d5;--mint:#b9f3d4;--peach:#ffd3ad;--edge:#6a576f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 20% 0%,#4d2d48,transparent 48%),var(--bg);color:#fff6ef;font:16px/1.45 system-ui,-apple-system,sans-serif}
+main{max-width:1180px;margin:auto;padding:20px 20px 45px}
+header{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;margin:0 0 20px}
+h1{font-size:clamp(30px,5vw,53px);letter-spacing:-.06em;line-height:1;margin:4px 0}
+h2{font-size:21px;margin:0 0 8px}h3{font-size:15px;margin:0}
+.tiny{font:700 12px ui-monospace,monospace;letter-spacing:.09em;color:var(--mint)}
+.muted,small{color:var(--muted);font-size:12px}.status{border:1px solid var(--edge);border-radius:30px;padding:12px 17px;font:800 12px ui-monospace,monospace}
+.grid{display:grid;grid-template-columns:1.3fr .85fr;gap:18px}.stack{display:grid;gap:16px}
+.panel{background:#ffffff0b;border:1px solid #ffffff28;border-radius:20px;padding:20px}
+button,select,input{font:inherit}button{cursor:pointer;background:#47394e;border:1px solid #8b758e;border-radius:13px;padding:13px;color:#fff8f1;font-weight:850;touch-action:manipulation}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+button:disabled{opacity:.5;cursor:not-allowed}button[aria-pressed="true"]{background:var(--mint);color:#1d2b25}
+.scene{display:flex;gap:10px;margin:12px 0}.scene button{flex:1;min-height:55px}
+.pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}
+.pad{padding:22px 5px;min-height:122px;border:2px solid #f4baca;background:linear-gradient(155deg,#5f3b54,#322639);display:flex;flex-direction:column;justify-content:center;gap:9px;transition:transform .07s}
+.pad:active{transform:scale(.97)}.pad[aria-pressed=true]{background:linear-gradient(140deg,#ffdbb4,#ffafd0);color:#4f283c;border-color:#fff3d7}
+.pad b{font-size:clamp(15px,2.4vw,27px)}.pad kbd{display:block;font:800 14px ui-monospace,monospace}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:13px}
+.control{display:grid;gap:6px}.control label{font-weight:700;font-size:13px}
+select,input[type=number]{width:100%;background:#1c1923;color:white;border:1px solid #857189;border-radius:10px;padding:12px}
+input[type=range]{width:100%;accent-color:var(--mint)}
+.actions{display:flex;gap:10px;margin-top:13px;flex-wrap:wrap}.actions button{flex:1;min-width:130px}
+.main{background:var(--peach);color:#4c283b;border:0}.stop{background:#773c4e;border-color:#ffc5d0}
+hr{border:0;border-top:1px solid #ffffff29;margin:16px 0}
+.meter{background:#100d15;border-radius:12px;overflow:hidden;height:13px;margin:12px 0}.bar{height:100%;background:var(--mint);width:0%;transition:width .1s}
+#message{min-height:40px;color:var(--mint);font:700 13px ui-monospace,monospace}#error{color:#ffb2bd;white-space:pre-wrap}
+.voice-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}
+.voice-buttons button{min-height:54px}
+.notice{border-left:3px solid var(--peach);background:#40323d;padding:12px;border-radius:0 10px 10px 0;margin-top:14px;font-size:13px;color:#ffe8dc}
+footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}@media(max-width:520px){main{padding:12px}.panel{padding:15px}.pads{gap:6px}.pad{min-height:95px}button{padding:9px}.controls{grid-template-columns:1fr}}
+</style></head>
+<body><main>
+<header><div><div class="tiny">FUTUREPROOF 2026 · APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST <span style="color:var(--pink)">LIVE</span> 🍞</h1><div class="muted">Your computer keys are the chord instrument. Magenta is the accompanying neural voice.</div></div><div class="status" id="status">CONNECTING MIDI…</div></header>
+<div class="grid"><div class="stack">
+<section class="panel"><div class="tiny">01 · THE ARRANGEMENT</div>
+<h2>Pick the song. Play the harmony.</h2>
+<div class="scene" role="group" aria-label="Song scene">
+<button id="pyramid" aria-pressed="true">◁ PYRAMID SONG</button>
+<button id="fishes" aria-pressed="false">WEIRD FISHES ▷</button>
+</div>
+<p class="muted" id="guide">PYRAMID: 1 → 2 → 3 → 2 → 4. Trigger the chords yourself, without a mechanical backing rhythm.</p>
+<div class="pads" id="pads">
+<button class="pad" data-pad="0" aria-pressed="false"><kbd>1</kbd><b>F♯</b></button>
+<button class="pad" data-pad="1" aria-pressed="false"><kbd>2</kbd><b>Gmaj7</b></button>
+<button class="pad" data-pad="2" aria-pressed="false"><kbd>3</kbd><b>A6</b></button>
+<button class="pad" data-pad="3" aria-pressed="false"><kbd>4</kbd><b>F♯</b></button>
+</div>
+<div class="tiny" id="chordNow">CHOOSE PAD 1–4 · NOTES LATCH UNTIL NEXT PAD OR MIDI RELEASE</div>
+<div class="notice">Pyramid rhythm: you trigger the changes, not the old MIDI file. For the five-accent shape use 1, 2, 3, 2, 4 with your own breathing/phrasing. Four on-screen chord buttons are mapped to computer keys <b>1–4</b>.</div>
+</section>
+<section class="panel"><div class="tiny">02 · THE RHYTHM IS YOURS</div>
+<h2>Change the pulse while you play.</h2>
+<div class="controls">
+<div class="control"><label for="rhythm">MIDI groove</label><select id="rhythm">
+<option value="off">OFF · free rubato</option>
+<option value="float" selected>FLOAT · 3+3+4+3+3</option>
+<option value="pulse">PULSE · quarters</option>
+<option value="arpeggio">ARPEGGIO · cycling thirds</option>
+</select></div>
+<div class="control"><label for="tempo">Tempo (MIDI clock only)</label><input type="number" id="tempo" min="60" max="190" step="1" value="105"></div>
+<div class="control" style="grid-column:1/-1"><label for="intensity">MIDI attack · <span id="intensityValue">55</span>%</label><input type="range" id="intensity" min="0" max="100" value="55"></div>
+</div>
+<div class="actions"><button class="main" id="start">▶ START RHYTHM <span class="muted">(Q)</span></button><button id="stop" class="stop">■ STOP RHYTHM</button><button id="panic" class="stop">EJECT MIDI · ESC</button></div>
+<div class="tiny" id="clockStatus">MIDI rhythm stopped</div>
+<div class="muted">No Logic sync yet. This groove sends chord-tone note pulses over virtual CoreMIDI; it does not change Magenta's audio mix or model style.</div>
+</section>
+</div>
+<div class="stack">
+<section class="panel"><div class="tiny">03 · VOCAL INPUT / OUTPUT</div><h2>Sing, capture, repeat.</h2>
+<p class="muted">The browser captures your VE-22/Scarlett input. Headphones required to prevent feedback. Its loop plays through the browser audio output, separately from Magenta.</p>
+<div class="control"><label for="mic">Microphone input</label><select id="mic"><option value="">Click ENABLE MIC to discover inputs</option></select></div>
+<div class="control" style="margin-top:10px"><label for="speaker">Audio output (browser support varies)</label><select id="speaker"><option value="">System default · use Scarlett headphones</option></select></div>
+<div class="voice-buttons"><button id="enableMic" class="main">ENABLE MIC</button><button id="monitor" aria-pressed="false">MONITOR OFF</button></div>
+<div class="meter"><div id="vu" class="bar"></div></div>
+<div class="tiny" id="voiceStatus">MIC OFF · NO VOCAL LOOP</div>
+<div class="controls">
+<div class="control"><label for="bars">Capture length</label><select id="bars"><option value="1">1 bar</option><option value="2" selected>2 bars</option><option value="4">4 bars</option></select></div>
+<div class="control"><label for="voiceLevel">Loop level · <span id="voiceLevelValue">55</span>%</label><input id="voiceLevel" type="range" min="0" max="100" value="55"></div>
+</div>
+<div class="voice-buttons">
+<button id="record" class="main">● CAPTURE VOICE</button>
+<button id="overdub">+ OVERDUB</button>
+<button id="playLoop">▶ LOOP ON/OFF</button>
+<button id="clearLoop" class="stop">CLEAR VOICE</button>
+</div>
+<div class="actions"><button id="saveVoice">↓ SAVE VOICE WAV</button></div>
+<div class="notice">The vocal loop is <strong>local browser audio</strong>, not a Magenta input and not sample-synced to the MIDI groove. Captures are limited to 4 bars. Use Logic/VE-22 for show-critical vocal recording until hardware QA is complete.</div>
+</section>
+<section class="panel"><div class="tiny">04 · FEEDBACK & SAFETY</div>
+<div id="message" role="status" aria-live="polite">Waiting for localhost MIDI bridge…</div><div id="error" role="alert"></div>
+<p class="muted" id="routing">MIDI path: TOASTER computer pads → SUZY AI MIDI virtual port → selected Magenta MIDI INPUT. No hardware Keystation necessary.</p>
+<div class="notice"><strong>Actual AI panic:</strong> use MRT2 Jam's Stop/Mute or Logic's dedicated MRT2 track mute. Esc/EJECT stops **MIDI notes only**; neural audio might keep streaming.</div>
+<div class="muted">Shortcut guide: 1–4 chords · P Pyramid · F Fishes · Q rhythm · [ / ] tempo · Esc MIDI release. No shortcuts when typing in fields.</div>
+</section></div></div>
+<footer>No Qwen, no extra Python audio device, no model download. Browser audio output depends on the system/default selection. Mic permission and Magenta audible response need real rehearsal verification.</footer>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id), token="__MAGENTA_TOKEN__";
+let state=null, serial=Promise.resolve(), ctx=null, micStream=null, source=null, monitorGain=null, vuNode=null, meterHandle=null;
+let recorder=null, chunks=[], recordTimer=null, captured=null, loopSource=null, loopGain=null, overdubbing=false;
+const pads=[...document.querySelectorAll("[data-pad]")];
+function say(m){$("message").textContent=m;$("error").textContent="";}
+function error(e){$("error").textContent=(e.message||String(e))+" · Magenta audio must be muted in its own host.";}
+async function post(route,body={}){
+ const r=await fetch(route,{method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:JSON.stringify(body)});
+ const j=await r.json();if(!r.ok)throw Error(j.error||"MIDI command failed");return j;
+}
+const send=(route,body={})=>{
+ serial=serial.catch(()=>{}).then(()=>post("/api/perform/"+route,body)).then(j=>{draw(j);return j;});
+ return serial.catch(e=>{error(e);return null;});
+};
+function draw(s){
+ state=s;$("status").textContent="SUZY AI MIDI · "+(s.running?"RHYTHM RUNNING":"READY (AUDIO UNVERIFIED)");
+ $("pyramid").setAttribute("aria-pressed",String(s.scene==="pyramid"));
+ $("fishes").setAttribute("aria-pressed",String(s.scene==="fishes"));
+ $("tempo").value=s.bpm;$("rhythm").value=s.rhythm;$("intensity").value=s.intensity;
+ $("intensityValue").textContent=s.intensity;
+ const names=s.chords||[];
+ for(let i=0;i<4;i++){
+   const b=pads[i];b.querySelector("b").textContent=names[i]||"—";
+   b.setAttribute("aria-pressed",String(s.chord_index===i));
+ }
+ $("clockStatus").textContent=s.running?"RHYTHM LIVE · step "+s.step+" · "+s.bpm+" BPM":"RHYTHM STOPPED · "+s.bpm+" BPM";
+ $("chordNow").textContent=s.chord_index===null?"CHOOSE PAD 1–4":"HOLDING "+names[s.chord_index]+" · PAD "+(s.chord_index+1);
+ $("start").disabled=s.rhythm==="off";
+ $("guide").textContent=s.scene==="pyramid"?
+ "PYRAMID: 1 → 2 → 3 → 2 → 4. Use a rubato breath first; the groove is optional.":
+ "FISHES: 1 → 2 → 3 → 4. Turn on ARPEGGIO for three-note rotation against 4/4.";
+}
+async function pad(i){
+ const s=await send("chord",{index:i});
+ if(s)say("PAD "+(i+1)+" · "+s.chords[i]+" MIDI sent. Listen for Magenta's actual response.");
+}
+async function scene(which){
+ const s=await send("scene",{scene:which});
+ if(s)say((which==="pyramid"?"PYRAMID":"WEIRD FISHES")+" ready. Press 1–4.");
+}
+async function settings(){
+ const s=await send("settings",{bpm:Number($("tempo").value),rhythm:$("rhythm").value,intensity:Number($("intensity").value)});
+ if(s)say("MIDI rhythm settings updated · "+s.bpm+" BPM");
+}
+async function release(){
+ // Bypass the serialized UI command queue for urgent note-off.
+ try{
+   const r=await post("/api/perform/stop");draw(r);
+   await post("/api/release");say("All TOASTER MIDI notes released. Magenta may continue audio!");
+ }catch(e){error(e);}
+}
+$("pyramid").onclick=()=>scene("pyramid");$("fishes").onclick=()=>scene("fishes");
+pads.forEach((b,i)=>b.onclick=()=>pad(i));
+$("rhythm").onchange=settings;$("tempo").onchange=settings;$("intensity").onchange=settings;
+$("start").onclick=async()=>{const s=await send("start");if(s)say("Rhythm MIDI started. Audio response needs ears.");};
+$("stop").onclick=async()=>{const s=await send("stop");if(s)say("Rhythm and chord MIDI released.");};
+$("panic").onclick=release;
+document.addEventListener("keydown",e=>{
+ if(e.repeat||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+ const t=e.target;
+ if(t&&(t.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(t.tagName)))return;
+ if(t&&t.tagName==="BUTTON"&&[" ","Enter"].includes(e.key))return;
+ if(/^[1-4]$/.test(e.key)){e.preventDefault();pad(Number(e.key)-1);}
+ else if(e.key.toLowerCase()==="p"){e.preventDefault();scene("pyramid");}
+ else if(e.key.toLowerCase()==="f"){e.preventDefault();scene("fishes");}
+ else if(e.key.toLowerCase()==="q"){e.preventDefault();(state&&state.running?$("stop"):$("start")).click();}
+ else if(e.key==="Escape"){e.preventDefault();release();}
+ else if(e.key==="["||e.key==="]"){e.preventDefault();$("tempo").value=Math.max(60,Math.min(190,Number($("tempo").value)+(e.key==="]"?5:-5)));settings();}
+});
+async function poll(){
+ try{const r=await fetch("/api/perform/status",{cache:"no-store"});if(!r.ok)throw Error("MIDI server offline");const j=await r.json();
+  // Do not overwrite settings during an in-flight local edit.
+  if(!state || (document.activeElement!==$("tempo")&&document.activeElement!==$("intensity")))draw(j);
+ }catch(e){$("status").textContent="MIDI SERVER OFFLINE";error(e);}
+}
+poll();setInterval(poll,550);
+// BROWSER VOCALS: entirely independent of the backend MIDI bridge and Magenta.
+async function audio(){
+ if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();loopGain=ctx.createGain();loopGain.gain.value=.55;loopGain.connect(ctx.destination);}
+ if(ctx.state!=="running")await ctx.resume();
+ return ctx;
+}
+async function enumerate(){
+ const devices=await navigator.mediaDevices.enumerateDevices();
+ for(const [id,kind] of [["mic","audioinput"],["speaker","audiooutput"]]){
+   const sel=$(id),last=sel.value;
+   sel.replaceChildren();
+   const opt=document.createElement("option");opt.value="";opt.textContent=kind==="audioinput"?"System default microphone":"System default output";sel.add(opt);
+   devices.filter(d=>d.kind===kind).forEach(d=>{const x=document.createElement("option");x.value=d.deviceId;x.textContent=d.label||kind;sel.add(x);});
+   if([...sel.options].some(o=>o.value===last))sel.value=last;
+   else if(kind==="audioinput"){const preferred=[...sel.options].find(o=>/scarlett|focusrite/i.test(o.textContent));if(preferred)sel.value=preferred.value;}
+ }
+}
+async function enableMic(){
+ try{
+   if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone access unavailable in this browser");
+   if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+   await audio();
+   const id=$("mic").value;
+   micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:id?{ideal:id}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+   if(source)source.disconnect();
+   source=ctx.createMediaStreamSource(micStream);
+   if(monitorGain)monitorGain.disconnect();
+   monitorGain=ctx.createGain();monitorGain.gain.value=0;source.connect(monitorGain);monitorGain.connect(ctx.destination);
+   vuNode=ctx.createAnalyser();vuNode.fftSize=512;source.connect(vuNode);
+   if(meterHandle)cancelAnimationFrame(meterHandle);
+   function meter(){const a=new Uint8Array(vuNode.frequencyBinCount);vuNode.getByteTimeDomainData(a);let p=0;for(const v of a){const n=(v-128)/128;p+=n*n;}
+    $("vu").style.width=Math.min(100,Math.sqrt(p/a.length)*280)+"%";meterHandle=requestAnimationFrame(meter);}
+   meter();
+   await enumerate();$("voiceStatus").textContent="MIC CONNECTED · MONITOR OFF";
+   say("Microphone ready. Listen through Scarlett headphones; monitor is initially OFF.");
+ }catch(e){error(e);}
+}
+$("enableMic").onclick=enableMic;$("mic").onchange=enableMic;
+$("speaker").onchange=async()=>{
+ try{await audio();if(!ctx.setSinkId)throw Error("Browser does not support output switching. Choose Scarlett as macOS system output");
+  await ctx.setSinkId($("speaker").value||"");say("Browser output selected.");}catch(e){error(e);}
+};
+$("monitor").onclick=()=>{
+ if(!monitorGain)return error(Error("Enable microphone first"));
+ const next=monitorGain.gain.value===0?0.7:0;monitorGain.gain.value=next;
+ $("monitor").textContent=next?"MONITOR ON":"MONITOR OFF";
+ $("monitor").setAttribute("aria-pressed",String(!!next));
+ $("voiceStatus").textContent=next?"MONITORING · HEADPHONES ONLY":"MIC CONNECTED · MONITOR OFF";
+};
+$("voiceLevel").oninput=()=>{
+ $("voiceLevelValue").textContent=$("voiceLevel").value;
+ if(loopGain)loopGain.gain.value=Number($("voiceLevel").value)/100;
+};
+function haltLoop(){if(loopSource){try{loopSource.stop();}catch{}loopSource.disconnect();loopSource=null;}}
+async function playLoop(){
+ await audio();
+ if(!captured)return error(Error("Capture a voice loop first"));
+ haltLoop();loopSource=ctx.createBufferSource();loopSource.buffer=captured;loopSource.loop=true;loopSource.connect(loopGain);loopSource.start();
+ $("voiceStatus").textContent="VOCAL LOOP PLAYING · separate browser output";
+}
+async function overdubBuffers(base,added){
+ const channels=Math.min(2,base.numberOfChannels);
+ const offline=new OfflineAudioContext(channels,base.length,base.sampleRate);
+ for(const [buffer,gain] of [[base,1],[added,.65]]){
+   const s=offline.createBufferSource();s.buffer=buffer;s.loop=true;
+   const v=offline.createGain();v.gain.value=gain;s.connect(v);v.connect(offline.destination);s.start();
+ }
+ return offline.startRendering();
+}
+async function capture(extra=false){
+ try{
+   if(recorder&&recorder.state==="recording")throw Error("Already recording");
+   if(!micStream)throw Error("Enable microphone first");
+   if(typeof MediaRecorder==="undefined")throw Error("MediaRecorder unsupported here");
+   await audio();overdubbing=extra&&!!captured;
+   chunks=[];recorder=new MediaRecorder(micStream);
+   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+   recorder.onerror=e=>error(Error(e.error?.message||"Audio capture error"));
+   recorder.onstop=async()=>{
+     try{
+       const raw=await new Blob(chunks,{type:recorder.mimeType}).arrayBuffer();
+       const decoded=await ctx.decodeAudioData(raw);
+       captured=overdubbing?await overdubBuffers(captured,decoded):decoded;
+       await playLoop();
+       say(overdubbing?"Voice overdub added to browser loop.":"Voice phrase captured and looping.");
+     }catch(e){error(e);}finally{recorder=null;}
+   };
+   recorder.start();
+   const seconds=extra&&captured?captured.duration:Number($("bars").value)*4*60/Number($("tempo").value);
+   if(seconds>17)throw Error("Maximum capture length exceeded");
+   $("voiceStatus").textContent=(overdubbing?"OVERDUB":"CAPTURING")+" · "+seconds.toFixed(1)+" s";
+   recordTimer=setTimeout(()=>{if(recorder&&recorder.state==="recording")recorder.stop();},seconds*1000);
+ }catch(e){error(e);}
+}
+$("record").onclick=()=>capture(false);$("overdub").onclick=()=>capture(true);
+$("playLoop").onclick=async()=>{if(loopSource){haltLoop();$("voiceStatus").textContent="VOCAL LOOP PAUSED";}else await playLoop();};
+$("clearLoop").onclick=()=>{if(recordTimer)clearTimeout(recordTimer);if(recorder&&recorder.state==="recording")recorder.stop();
+ haltLoop();captured=null;$("voiceStatus").textContent="VOCAL LOOP CLEARED";say("Browser vocal loop cleared; MIDI and Magenta unaffected.");};
+$("saveVoice").onclick=()=>{
+ if(!captured)return error(Error("No captured vocal phrase"));
+ const channels=captured.numberOfChannels,samples=captured.length,sr=captured.sampleRate;
+ const b=new ArrayBuffer(44+samples*channels*2),d=new DataView(b);
+ function word(at,text){for(let i=0;i<text.length;i++)d.setUint8(at+i,text.charCodeAt(i));}
+ word(0,"RIFF");d.setUint32(4,36+samples*channels*2,true);word(8,"WAVE");word(12,"fmt ");d.setUint32(16,16,true);
+ d.setUint16(20,1,true);d.setUint16(22,channels,true);d.setUint32(24,sr,true);
+ d.setUint32(28,sr*channels*2,true);d.setUint16(32,channels*2,true);d.setUint16(34,16,true);
+ word(36,"data");d.setUint32(40,samples*channels*2,true);
+ for(let i=0;i<samples;i++)for(let ch=0;ch<channels;ch++){
+   const x=Math.max(-1,Math.min(1,captured.getChannelData(ch)[i]));
+   d.setInt16(44+2*(i*channels+ch),x<0?Math.round(x*32768):Math.round(x*32767),true);
+ }
+ const url=URL.createObjectURL(new Blob([b],{type:"audio/wav"}));
+ const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_VOICE_LOOP.wav";a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+};
+window.addEventListener("beforeunload",()=>{if(micStream)micStream.getTracks().forEach(t=>t.stop());});
+</script></body></html>
