@@ -34,7 +34,8 @@ class ToasterLocalInstrumentTests(unittest.TestCase):
         self.assertIn('MODEL AND MIDI NOT REQUIRED FOR SOUND', html)
         self.assertIn('The Magenta / Collider volume must be controlled in its own app', html)
         self.assertNotIn('MRT2 AUDIO CONNECTED', html)
-        self.assertNotIn('<script src=', html)
+        self.assertIn('<script src="/toaster/loop-rack.js"></script>', html)
+        self.assertNotIn('<script src="https:', html)
         self.assertNotIn('tone.js', html.lower())
         self.assertNotIn('https://cdn.', html)
 
