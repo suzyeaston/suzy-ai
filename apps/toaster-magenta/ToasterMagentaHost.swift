@@ -21,7 +21,7 @@ final class MRT2Host {
     private var level: Float = 0.28
     private var reverbAmount: Float = 0.18
     private var muted = false
-    private let logger = NSLock()
+    private var outputSignalDetected = false
     private let prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
         "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
@@ -38,7 +38,10 @@ final class MRT2Host {
             "audio_engine_running": engine?.isRunning ?? false,
             "model_load_requested": modelRequested,
             // Google's AU doesn't expose a public loaded/model-audible getter.
-            "model_audio_confirmed": false,
+            // This only confirms a nonzero PCM signal at the native host mixer,
+            // never the physical headphones or correct Magenta semantics.
+            "model_audio_confirmed": outputSignalDetected,
+            "output_signal_detected": outputSignalDetected,
             "model_path": modelPath,
             "error": errorMessage,
             "scene": scene,
@@ -175,6 +178,19 @@ final class MRT2Host {
                     audio.connect(unit, to: reverb, format: nil)
                     audio.connect(reverb, to: audio.mainMixerNode, format: nil)
                     self.reverbUnit = reverb
+                    audio.mainMixerNode.installTap(onBus: 0, bufferSize: 2048, format: nil) { [weak self] buffer, _ in
+                        guard let samples = buffer.floatChannelData else { return }
+                        let strideLength = max(1, Int(buffer.frameLength) / 128)
+                        let count = min(Int(buffer.format.channelCount), 2)
+                        for channel in 0..<count {
+                            for frame in stride(from: 0, to: Int(buffer.frameLength), by: strideLength) {
+                                if abs(samples[channel][frame]) > 0.001 {
+                                    DispatchQueue.main.async { self?.outputSignalDetected = true }
+                                    return
+                                }
+                            }
+                        }
+                    }
                     // Bookmark + text prompts are consumed by Google's AU's
                     // applyCustomState and set_text_prompts during model load.
                     let modelURL = URL(fileURLWithPath: path)
@@ -219,6 +235,7 @@ final class MRT2Host {
         active = false
         loading = false
         modelRequested = false
+        outputSignalDetected = false
     }
     func command(_ request: [String: Any]) -> [String: Any] {
         let type = request["op"] as? String ?? ""
