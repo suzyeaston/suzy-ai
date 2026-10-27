@@ -14,7 +14,7 @@ void decorate(juce::TextButton& button, juce::Colour c) {
 
 SuzyToastAudioProcessorEditor::SuzyToastAudioProcessorEditor(SuzyToastAudioProcessor& p)
 : AudioProcessorEditor(&p), processor_(p) {
-    setSize(890, 580);
+    setSize(890, 800);
     heading_.setText("SUZY//TOAST", juce::dontSendNotification);
     heading_.setFont(juce::Font(32.0f, juce::Font::bold));
     heading_.setColour(juce::Label::textColourId, cream);
@@ -75,11 +75,81 @@ SuzyToastAudioProcessorEditor::SuzyToastAudioProcessorEditor(SuzyToastAudioProce
     caveat_.setColour(juce::Label::textColourId, cream.withAlpha(0.75f));
     caveat_.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(caveat_);
+    // These three big buttons are the main live-performance interface.
+    // Scene recall changes native AU audio parameters; physical Keystation
+    // remains the real MIDI/harmony input to Google's preceding MRT2 AU.
+    for (auto* button : {&scenePyramid_, &sceneEvolve_, &sceneFishes_}) {
+        decorate(*button, juce::Colour::fromRGB(247, 197, 159));
+        button->setColour(juce::TextButton::buttonOnColourId, mint);
+        button->setClickingTogglesState(false);
+        addAndMakeVisible(*button);
+    }
+    scenePyramid_.onClick = [this] { processor_.applyPerformanceScene(0); cueIndex_ = 0; updateShowCues(); };
+    sceneEvolve_.onClick = [this] { processor_.applyPerformanceScene(1); cueIndex_ = 0; updateShowCues(); };
+    sceneFishes_.onClick = [this] { processor_.applyPerformanceScene(2); cueIndex_ = 0; updateShowCues(); };
+    for (auto* button : {&previousCue_, &nextCue_}) {
+        decorate(*button, juce::Colour::fromRGB(187, 206, 185));
+        addAndMakeVisible(*button);
+    }
+    previousCue_.onClick = [this] {
+        const auto count = static_cast<int>(
+            suzytoast::sceneAt(processor_.performanceSceneIndex()).chordCount);
+        cueIndex_ = (cueIndex_ + count - 1) % count;
+        updateShowCues();
+    };
+    nextCue_.onClick = [this] {
+        const auto count = static_cast<int>(
+            suzytoast::sceneAt(processor_.performanceSceneIndex()).chordCount);
+        cueIndex_ = (cueIndex_ + 1) % count;
+        updateShowCues();
+    };
+    for(auto* label : {&sceneTitle_, &chordCues_, &sceneNotice_, &sceneStyle_}) {
+        label->setColour(juce::Label::textColourId, cream);
+        addAndMakeVisible(*label);
+    }
+    sceneTitle_.setFont(juce::Font(15.0f, juce::Font::bold));
+    chordCues_.setFont(juce::Font(14.0f, juce::Font::bold));
+    sceneNotice_.setColour(juce::Label::textColourId, mint);
+    sceneNotice_.setFont(juce::Font(11.0f));
+    sceneStyle_.setColour(juce::Label::textColourId, cream.withAlpha(0.72f));
+    sceneStyle_.setFont(juce::Font(11.0f));
     startTimerHz(8);
+    updateShowCues();
     timerCallback();
 }
 
+void SuzyToastAudioProcessorEditor::updateShowCues() {
+    const int index = processor_.performanceSceneIndex();
+    const auto& s = suzytoast::sceneAt(index);
+    if (index != displayedScene_) { cueIndex_ = 0; displayedScene_ = index; }
+    cueIndex_ = std::clamp(cueIndex_, 0, static_cast<int>(s.chordCount) - 1);
+    sceneTitle_.setText(juce::String(s.song) + "   |   " + s.instructions,
+                        juce::dontSendNotification);
+    juce::String progression;
+    for (size_t i = 0; i < s.chordCount; ++i) {
+        if (i) progression += "  ·  ";
+        progression += s.chords[i];
+    }
+    chordCues_.setText("PLAY ON KEYSTATION: " +
+        juce::String(s.chords[static_cast<size_t>(cueIndex_)]) +
+        "     |   " + progression, juce::dontSendNotification);
+    const double logicBpm = processor_.logicHostBpm();
+    const auto clockText = logicBpm > 0.0
+        ? "Logic BPM " + juce::String(logicBpm, 1) + " (used for REC length)"
+        : "Host tempo unknown; using manual " + juce::String(s.rehearsalBpm) + " BPM";
+    sceneNotice_.setText("CUE IS DISPLAY ONLY · You play keys into MRT2 · " + clockText +
+        " · REC not bar-synced", juce::dontSendNotification);
+    sceneStyle_.setText("OPTIONAL GOOGLE AU STYLE REFERENCE (not sent): " +
+        juce::String(s.styleReminder), juce::dontSendNotification);
+    const juce::Colour normal = juce::Colour::fromRGB(247, 197, 159);
+    for(auto* b : {&scenePyramid_, &sceneEvolve_, &sceneFishes_})
+        b->setColour(juce::TextButton::buttonColourId, normal);
+    (index == 0 ? scenePyramid_ : (index == 1 ? sceneEvolve_ : sceneFishes_))
+        .setColour(juce::TextButton::buttonColourId, mint);
+}
+
 void SuzyToastAudioProcessorEditor::timerCallback() {
+    updateShowCues();
     juce::String state = "EMPTY";
     switch (processor_.loopState()) {
         case suzytoast::LoopState::empty: state = "EMPTY"; break;
@@ -95,6 +165,12 @@ void SuzyToastAudioProcessorEditor::timerCallback() {
 void SuzyToastAudioProcessorEditor::paint(juce::Graphics& g) {
     const auto bg = juce::Colour::fromRGB(31, 25, 39);
     g.fillAll(bg);
+    g.setColour(juce::Colour::fromRGB(59, 47, 66));
+    g.fillRoundedRectangle(16.0f, 587.0f, 855.0f, 188.0f, 19.0f);
+    g.setColour(mint);
+    g.setFont(juce::Font(12.0f, juce::Font::bold));
+    g.drawText("LIVE SET / THREE SCENES · ACTUAL AU DSP PRESETS", 28, 591, 800, 17,
+               juce::Justification::left);
     g.setColour(juce::Colour::fromRGB(60, 44, 66));
     g.fillRoundedRectangle(16.0f, 99.0f, 855.0f, 405.0f, 22.0f);
     g.setColour(cream.withAlpha(0.07f));
@@ -155,4 +231,13 @@ void SuzyToastAudioProcessorEditor::resized() {
 
     loopStatus_.setBounds(333, 435, 510, 29);
     caveat_.setBounds(23, 538, 844, 32);
+    scenePyramid_.setBounds(28, 615, 222, 42);
+    sceneEvolve_.setBounds(257, 615, 212, 42);
+    sceneFishes_.setBounds(476, 615, 221, 42);
+    previousCue_.setBounds(708, 615, 72, 42);
+    nextCue_.setBounds(787, 615, 72, 42);
+    sceneTitle_.setBounds(30, 663, 828, 25);
+    chordCues_.setBounds(30, 688, 828, 26);
+    sceneNotice_.setBounds(30, 715, 828, 20);
+    sceneStyle_.setBounds(30, 738, 828, 26);
 }

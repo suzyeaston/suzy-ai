@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "LoopBuffer.h"
+#include "PerformanceScenes.h"
 #include <atomic>
 
 class SuzyToastAudioProcessor final : public juce::AudioProcessor {
@@ -27,12 +28,19 @@ public:
     void getStateInformation(juce::MemoryBlock&) override;
     void setStateInformation(const void*, int) override;
 
+    // Message-thread scene recall changes the AU's *actual* post-AI sound
+    // parameters. It never sends MIDI, alters Magenta style, mutes vocals,
+    // switches Logic tracks, or starts/stops the host transport.
+    void applyPerformanceScene(int index);
+    int performanceSceneIndex() const noexcept;
+
     void requestLoop(suzytoast::LoopCommand cmd) noexcept { pending_.store(cmd); }
     suzytoast::LoopState loopState() const noexcept {
         return static_cast<suzytoast::LoopState>(publishedState_.load());
     }
     bool lastRecordRejected() const noexcept { return recordRejected_.load(); }
     double actualSampleRate() const noexcept { return hostRate_.load(); }
+    double logicHostBpm() const noexcept { return hostBpm_.load(); }
     int actualChannels() const noexcept { return hostChannels_.load(); }
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
@@ -44,6 +52,7 @@ private:
     std::atomic<int> publishedState_{static_cast<int>(suzytoast::LoopState::empty)};
     std::atomic<bool> recordRejected_{false};
     std::atomic<double> hostRate_{0.0};
+    std::atomic<double> hostBpm_{0.0};
     std::atomic<int> hostChannels_{0};
     float lpState_[2] = {0.0f, 0.0f};
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGain_;

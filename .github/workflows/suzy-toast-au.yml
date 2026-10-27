@@ -22,6 +22,11 @@ jobs:
             plugins/suzy-toast/tests/loop_buffer_test.cpp -o /tmp/toast-loop-test
       - name: Run audio buffer contract QA
         run: /tmp/toast-loop-test
+      - name: Validate three musical performance scenes
+        run: |
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror \
+            plugins/suzy-toast/tests/performance_scene_test.cpp -o /tmp/toast-scenes-test
+          /tmp/toast-scenes-test
 
   au-macos:
     runs-on: macos-15
