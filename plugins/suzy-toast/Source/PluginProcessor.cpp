@@ -79,6 +79,7 @@ bool SuzyToastAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts)
 void SuzyToastAudioProcessor::prepareToPlay(double rate, int /*blockSize*/) {
     loop_.prepare(rate, std::clamp(getTotalNumInputChannels(), 1, 2));
     hostRate_.store(rate);
+    hostBpm_.store(0.0);
     hostChannels_.store(std::clamp(getTotalNumInputChannels(), 1, 2));
     publishedState_.store(static_cast<int>(suzytoast::LoopState::empty));
     recordRejected_.store(false);
@@ -95,12 +96,30 @@ void SuzyToastAudioProcessor::processBlock(juce::AudioBuffer<float>& audio,
     const int channels = std::min(audio.getNumChannels(), 2);
     const int frames = audio.getNumSamples();
     for (int ch = channels; ch < audio.getNumChannels(); ++ch) audio.clear(ch, 0, frames);
+
+    // Read the real Logic host BPM without allocating or changing transport.
+    // This reduces manual-tempo mismatch for phrase duration only: REC still
+    // starts on command, NOT on the next musical bar boundary.
+    double currentHostBpm = 0.0;
+    if (auto* head = getPlayHead()) {
+        if (auto position = head->getPosition()) {
+            if (auto bpm = position->getBpm())
+                currentHostBpm = *bpm;
+        }
+    }
+    if (!std::isfinite(currentHostBpm) || currentHostBpm < 40.0 ||
+        currentHostBpm > 240.0)
+        currentHostBpm = 0.0;
+    hostBpm_.store(currentHostBpm, std::memory_order_relaxed);
+
     const auto action = pending_.exchange(suzytoast::LoopCommand::none);
     switch(action) {
     case suzytoast::LoopCommand::record: {
         const int chosenBars[] = {1, 2, 4};
         const auto barsIndex = std::clamp(static_cast<int>(value(parameters, "bars")), 0, 2);
-        const bool ok = loop_.record(value(parameters, "bpm"),
+        const double referenceBpm = currentHostBpm > 0.0
+            ? currentHostBpm : static_cast<double>(value(parameters, "bpm"));
+        const bool ok = loop_.record(referenceBpm,
                                      static_cast<int>(value(parameters, "beats")),
                                      chosenBars[barsIndex]);
         recordRejected_.store(!ok);
