@@ -23,6 +23,7 @@ ACTIONS = {
     "scene": frozenset({"scene"}),
     "mix": frozenset({"value"}),
     "volume": frozenset({"value"}),
+    "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
     "chord": frozenset({"index"}),
     "release": frozenset(),
@@ -98,7 +99,7 @@ class NativeMagentaHost:
             if action == "scene":
                 if type(data["scene"]) is not str or data["scene"] not in PROMPTS:
                     raise ValueError("scene must be pyramid or fishes")
-            if action in ("mix", "volume"):
+            if action in ("mix", "volume", "reverb"):
                 v = data["value"]
                 if type(v) not in (int, float) or not 0 <= v <= 1:
                     raise ValueError("value must be 0..1")
