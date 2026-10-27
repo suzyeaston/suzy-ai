@@ -1,4 +1,4 @@
-"""Native MRT2 bridge guards: no model starts without explicit performer action."""
+"""Native MRT2 guard tests: launching the stage opts in once, not each page refresh."""
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -51,6 +51,35 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertEqual(ACTIONS["mute"], {"value"})
         self.assertEqual(ACTIONS["tempo"], {"bpm"})
         self.assertEqual(ACTIONS["note"], {"note"})
+
+        self.assertEqual(ACTIONS["configure-prompts"], {"prompts"})
+
+    def test_app_launch_starts_one_worker_and_reports_progress(self):
+        with patch("suzy_ai.music.magenta_native_host.Thread") as thread:
+            self.host.launch_async()
+            self.host.launch_async()
+            thread.assert_called_once()
+            self.assertEqual(self.host.status()["phase"], "starting")
+            self.assertFalse(self.host.status()["model_audio_confirmed"])
+            self.assertIsNone(self.host.process)
+
+    def test_failed_native_host_reports_error_without_faking_audio(self):
+        self.host.launch_error = "MRT2 Small model missing"
+        self.assertEqual(self.host.status()["phase"], "failed")
+        self.assertIn("missing", self.host.status()["error"])
+        self.assertFalse(self.host.status()["model_audio_confirmed"])
+
+    def test_native_prompt_validation(self):
+        bad = [
+            {"prompts": ["", "nice"]},
+            {"prompts": ["a" * 501, "nice"]},
+            {"prompts": ["nice", 12]},
+            {"prompts": "nice"},
+        ]
+        for data in bad:
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                self.host.command("configure-prompts", data)
+
 
 
 if __name__ == "__main__":

@@ -16,14 +16,14 @@ function rig(){
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
@@ -31,6 +31,7 @@ function rig(){
  class AudioContext{
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+  createBiquadFilter(){return new AudioNode()}
   createBufferSource(){return new AudioNode()}
   createMediaStreamSource(){return new AudioNode()}
   createScriptProcessor(){const n=new AudioNode(); n.onaudioprocess=null;calls.processor=n;return n;}
@@ -177,9 +178,10 @@ test("manual hold length is retained by event loops and renders sustained chord 
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
 });
 
-test("real Magenta is opt-in: page load plays no second neural model",()=>{
+test("page refresh checks native Magenta status but does not spawn another model",()=>{
  const {calls,run}=rig();
- assert.equal(calls.midi.length,0);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/status"));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/start").length,0);
  assert.equal(run("aiNativeReady"),false);
  assert.equal(run("aiNativeStarting"),false);
  assert.match(file,/AI OFF · local chords work without it/);
@@ -199,7 +201,7 @@ test("AI faders use actual native endpoints, not browser-only gain",async()=>{
  const {run,get,calls}=rig();
  run("aiNativeReady=true");
  get("aiVolume").value="21";
- get("aiReverb").value="35";
+ get("reverb").value="35";
  await run("syncAIMix()");
  const native = calls.midi.filter(x=>x.url.startsWith("/api/ai/"));
  const actions = native.map(x=>x.url);
@@ -276,4 +278,34 @@ test("tempo stays fixed if a real audio loop exists rather than shifting its pit
  assert.equal(run("bpm"),105);
  assert.equal(run("pendingBpm"),null);
  assert.equal(get("tempo").value,"105");
+});
+
+test("app opens with automatic Magenta status, audible browser graph and editable native prompts",async()=>{
+ const {run,get,calls}=rig();
+ assert.match(file,/id="promptPyramid"/);
+ assert.match(file,/id="promptFishes"/);
+ assert.match(file,/id="applyPrompts"/);
+ assert.match(file,/id="roomValue"/);
+ assert.match(file,/id="tone"/);
+ assert.ok(calls.midi.find(c=>c.url==="/api/ai/status"),"AI checked without pressing ENABLE");
+ await run("startStop()");
+ assert.ok(run("mixFilter")!==null);
+ assert.ok(run("beatBus")!==null);
+ assert.ok(run("wet")!==null);
+ assert.equal(run("getPromptStrings().length"),2);
+});
+test("room and tone effect controls work for synth, rhythm, imported loops and native AI",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ get("reverb").value="45";
+ run("updateRoomFx()");
+ assert.equal(get("roomValue").textContent,"45%");
+ assert.equal(get("aiReverb").value,"45");
+ assert.equal(run("wet.gain.value"),.25);
+ get("tone").value="20";
+ get("tone").oninput();
+ assert.ok(run("mixFilter.frequency.value")>220);
+ run("aiNativeReady=true");
+ run("updateRoomFx()");
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/reverb"));
 });
