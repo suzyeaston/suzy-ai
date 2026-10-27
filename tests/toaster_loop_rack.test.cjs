@@ -9,7 +9,7 @@ const script=fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_loo
 function harness(){
  const nodes=new Map();
  const element=()=>({
-  style:{},dataset:{},children:[],disabled:false,hidden:false,value:"",
+  style:{setProperty(k,v){this[k]=v;}},dataset:{},children:[],disabled:false,hidden:false,value:"",
   replaceChildren(){this.children=[];},appendChild(v){this.children.push(v);return v;},
   append(...v){this.children.push(...v);},
   remove(){},setAttribute(){},
