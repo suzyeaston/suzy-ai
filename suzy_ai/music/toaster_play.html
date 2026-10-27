@@ -54,6 +54,14 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .deck-faders{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
 .deck-faders label{display:flex;justify-content:space-between}
 .ai-state{margin-top:7px;font-size:11px;color:var(--muted)}
+.ai-strip{margin:12px 0;border:1px solid #af8cb1;border-radius:16px;background:linear-gradient(100deg,#34233c,#241e37);padding:13px 16px;display:grid;grid-template-columns:1.25fr auto 1fr;gap:12px;align-items:center}
+.ai-strip .tiny{color:#d9b7ff}.ai-strip button{padding:11px 14px}
+.ai-strip #aiEnable[aria-pressed=true]{background:var(--mint);color:#23362d}
+.ai-strip label{display:block}.ai-strip input{margin:6px 0}
+.ai-strip p{font-size:12px;max-width:400px}
+#aiHostStatus{font:750 11px/1.4 ui-monospace,monospace;color:var(--muted)}
+@media(max-width:740px){.ai-strip{grid-template-columns:1fr 1fr}.ai-strip>div:first-child{grid-column:1/-1}}
+
 .decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
@@ -79,6 +87,15 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
 </div>
 </section>
+<section class="ai-strip" aria-label="Real Magenta AI instrument">
+ <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
+ <p>One MRT2 Small model, with preloaded Pyramid and Fishes text prompts. Your chord keys steer its harmony. Browser piano stays available.</p>
+ <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
+ <button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
+ <div><label for="aiVolume">AI OUTPUT · <span id="aiVolumeValue">28</span>%</label>
+ <input type="range" id="aiVolume" min="0" max="65" value="28">
+ <small class="subtle">Separate native audio output. No automatic AI loop capture.</small></div>
+</section>
 <div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
@@ -91,7 +108,7 @@ a{color:var(--mint)}
 <div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
-<div class="ai-state" id="ai-pyramid">✦ AI preset: warm sparse piano / evolving ambience · saved, not driving a model</div>
+<div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
 </section>
 <section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
@@ -104,7 +121,7 @@ a{color:var(--mint)}
 <div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
-<div class="ai-state" id="ai-fishes">✦ AI preset: interlocking clean arpeggios / spacious texture · saved, not driving a model</div>
+<div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
 </div>
 <section><div class="start"><div><div class="tiny">SAVED SOUNDS · ACTUAL MAGENTA AUDIO</div><h2>Add an AI take, when you're ready</h2><p class="subtle">Import audio recorded from Magenta in Logic. It becomes a real removable loop on the selected track.</p></div>
@@ -121,7 +138,7 @@ a{color:var(--mint)}
 </section>
 <div id="message" role="status" aria-live="polite">Press PLAY RHYTHM. Then 1–4. Use LOOP MY CHORDS to build.</div>
 <div id="warning" role="alert"></div>
-<footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Magenta's separate engine is not embedded in this browser release. <a href="/toaster/studio">Older advanced studio</a>.</footer>
+<footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
 <script>
 "use strict";
@@ -135,6 +152,8 @@ let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,stageStart
 let stepNumber=0,nextStepAt=0,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 let midiQueue=Promise.resolve(),chordMidiScene=null;
+let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false;
+let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
@@ -240,9 +259,76 @@ function midiRelease(){
   method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:"{}"
  })).catch(()=>{});
 }
+// Genuine MRT2 AU prompt host: never call these endpoints until explicitly enabled.
+// `phase=host-running` means the native engine is running, not proof the neural model produced audible sound.
+async function aiFetch(action,data={}){
+ const response=await fetch("/api/ai/"+action,{
+  method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},
+  body:JSON.stringify(data)
+ });
+ const result=await response.json();
+ if(!response.ok||result.error)throw Error(result.error||"MRT2 native host unavailable");
+ return result;
+}
+function aiDisplay(s){
+ aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
+ aiNativeStarting=s.phase==="initializing";
+ const button=$("aiEnable");
+ button.setAttribute("aria-pressed",String(aiNativeReady||aiNativeStarting));
+ button.textContent=(aiNativeReady||aiNativeStarting)?"■ STOP MAGENTA":"✦ ENABLE MAGENTA";
+ $("aiHostStatus").textContent=aiNativeReady?
+  "NATIVE AU RUNNING · MRT2 audio still needs listening test · "+s.scene.toUpperCase():
+  aiNativeStarting?"LOADING LOCAL MRT2 MODEL · browser piano still plays":
+  s.error?"AI NOT READY · "+s.error:"AI OFF · local chords work without it";
+ if(s.error)aiLastError=s.error;
+}
+async function aiStatus(){
+ try{
+  const r=await fetch("/api/ai/status",{cache:"no-store"});
+  if(!r.ok)throw Error("No native status");
+  const s=await r.json();aiDisplay(s);
+  if(aiNativeReady&&s.scene!==scene)await aiFetch("scene",{scene});
+ }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
+}
+async function toggleAI(){
+ if(aiNativeReady||aiNativeStarting){
+  try{const s=await aiFetch("stop");aiDisplay(s);aiNoteHeld=false;tell("Magenta stopped; browser chords continue.");}
+  catch(e){warn(e);}
+  return;
+ }
+ try{
+  $("aiHostStatus").textContent="STARTING NATIVE MRT2 HOST…";
+  const s=await aiFetch("start");aiDisplay(s);
+  if(!aiPoll)aiPoll=setInterval(aiStatus,1000);
+  if(aiNativeReady)await syncAIMix();
+ }catch(e){aiNativeReady=false;warn(e);
+  $("aiHostStatus").textContent="AI UNAVAILABLE · "+e.message+" · browser piano still works";}
+}
+async function syncAIMix(){
+ if(!aiNativeReady)return;
+ try{
+  await aiFetch("mix",{value:Number($("mix").value)/100});
+  await aiFetch("volume",{value:Number($("aiVolume").value)/100});
+ }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
+}
+function aiNote(which,index){
+ if(!aiNativeReady)return;
+ (async()=>{
+  try{
+   if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
+   await aiFetch("chord",{index});aiNoteHeld=true;
+  }catch(e){$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message;}
+ })();
+}
+function aiRelease(){
+ if(!aiNativeReady||!aiNoteHeld)return;
+ aiNoteHeld=false;
+ aiFetch("release").catch(e=>{$("aiHostStatus").textContent="AI NOTE-OFF ERROR · "+e.message});
+}
 function choose(which){
  if(scene!==which){$("mix").value=which==="pyramid"?0:100;}
  scene=which;updateMix();
+ if(aiNativeReady&&aiScene!==which){aiScene=which;aiFetch("scene",{scene:which}).catch(e=>warn(e));}
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
  tell(which==="pyramid"?"PYRAMID · hold 1–4 to sustain":"WEIRD FISHES · hold 1–4 to sustain");
@@ -271,6 +357,7 @@ function beginChord(which,index,key){
   h.event={step,index,holdSteps:1};recording.events.push(h.event);
  }
  midi(which,index);
+ aiNote(which,index);
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
@@ -295,7 +382,7 @@ function endChord(key){
    el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
- if(!heldKeys.size)midiRelease();
+ if(!heldKeys.size){midiRelease();aiRelease();}
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
 function releaseAllChords(){for(const key of [...heldKeys.keys()])endChord(key);}
@@ -317,7 +404,19 @@ function schedule(time,count){
   for(const l of d.layers){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
-    if(e.step===step)synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()));
+    if(e.step===step){
+      synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()));
+      // Recorded harmony conditions the same live Magenta AU, when enabled.
+      if(aiNativeReady){
+       const wait=Math.max(0,(time-ctx.currentTime)*1000);
+       setTimeout(()=>{
+        if(!aiNativeReady||heldKeys.size)return;
+        aiNote(which,e.index);
+        setTimeout(()=>{if(!heldKeys.size)aiRelease();},
+          Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
+       },wait);
+      }
+    }
    }
   }
  }
@@ -570,6 +669,10 @@ document.addEventListener("keyup",e=>{
 window.addEventListener("blur",releaseAllChords);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
 $("mix").oninput=updateMix;
+$("mix").onchange=syncAIMix;
+$("aiEnable").onclick=toggleAI;
+$("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
+$("aiVolume").onchange=syncAIMix;
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>{if(Object.values(decks).some(d=>d.layers.length)){warn(Error("Tempo locked after recording. Clear saved loops before changing."));return;}bpm=Number($("tempo").value);$("tempoValue").textContent=bpm+" BPM"};
