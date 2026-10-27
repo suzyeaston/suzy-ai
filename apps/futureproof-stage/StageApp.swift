@@ -146,11 +146,20 @@ private final class PhysicalKeyboard {
     // The AU parameter's address/identifier is exposed by the AU host.
     // We set only known POST-AI processor parameters, never Google style/PCA.
     private func param(_ id: String, _ number: Float) {
-        guard let p = toaster?.auAudioUnit.parameterTree?.allParameters.first(where: {
-            $0.identifier.lowercased() == id.lowercased() ||
-            $0.displayName.lowercased() == id.lowercased()
-        }) else { return }
-        p.value = number
+        // AUv2 hosts sometimes expose a numeric parameter ID rather than
+        // JUCE's text key. Match the real, unambiguous display name too.
+        let names: [String: String] = [
+            "browning":"Browning", "destruction":"Destruction",
+            "live":"AI Live", "loop":"Loop Mix", "bpm":"Manual loop BPM",
+            "beats":"Beats per bar", "bars":"Record bars",
+            "scene":"Live set scene", "control":"External loop command"
+        ]
+        guard let parameters = toaster?.auAudioUnit.parameterTree?.allParameters else { return }
+        let p = parameters.first { $0.identifier.caseInsensitiveCompare(id) == .orderedSame }
+            ?? parameters.first {
+                $0.displayName.caseInsensitiveCompare(names[id] ?? id) == .orderedSame
+            }
+        p?.value = number
     }
 
     private func midi(_ notes: [UInt8]) {
@@ -253,11 +262,11 @@ private final class PhysicalKeyboard {
         commandSequence = (commandSequence + 1) % 8191
         param("control", Float(commandSequence * 8 + id))
         switch id {
-        case 1: loopState = "RECORDING"
-        case 2: loopState = "PLAY REQUESTED"
-        case 3: loopState = "OVERDUB REQUESTED"
-        case 4: loopState = "STOP REQUESTED"
-        case 5: loopState = "CLEARED"
+        case 1: loopState = "RECORD SENT · CHECK SOUND"
+        case 2: loopState = "PLAY SENT"
+        case 3: loopState = "OVERDUB SENT"
+        case 4: loopState = "STOP SENT"
+        case 5: loopState = "CLEAR SENT"
         default: break
         }
     }
