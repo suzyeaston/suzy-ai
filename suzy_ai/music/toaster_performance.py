@@ -45,6 +45,11 @@ class ToasterPerformance:
         self.worker = None
 
     def _note(self, channel, note, velocity):
+        # Match the bridge's proven /api/test format: MIDI CHANNEL ONE (status
+        # 0x90 / 0x80). The first live build used channels 2 and 3 and Jam may
+        # ignore them. Keep musical chord and groove independent by shifting
+        # the groove voice an octave, rather than separating MIDI channels.
+        channel = 0
         # Bridge's MIDI output requires the same mutex as the hardware callback.
         with self.bridge.lock:
             if self.bridge.closed:
@@ -69,6 +74,7 @@ class ToasterPerformance:
                 "chords": [name for name, _ in CHORDS[self.scene]],
                 "running": self.running, "step": self.step,
                 "virtual_source": "SUZY AI MIDI",
+                "midi_channel": 1,
                 "magenta_audio_confirmed": False,
                 "clock": "independent_monotonic_not_logic_synced",
                 "message": "MIDI output only. Silence neural audio in Magenta or Logic.",
@@ -178,6 +184,7 @@ class ToasterPerformance:
                         note = voices[0]
                     if active:
                         velocity = max(18, min(115, int(28 + 0.7 * self.intensity)))
+                        note += 12  # Groove is a distinct upper voice, avoids off/on chord overlap.
                         self._note(2, note, velocity)
                         self.groove_note = note
                     self.step += 1

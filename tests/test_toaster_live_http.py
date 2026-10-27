@@ -68,7 +68,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(data["chord_index"], 0)
         self.assertFalse(data["magenta_audio_confirmed"])
-        self.assertIn([0x91, 54, 56], self.bridge.output.messages)
+        self.assertIn([0x90, 54, 56], self.bridge.output.messages)
         self.assertEqual(self.call("POST", "/api/perform/scene", {"scene":"fishes"})[1]["scene"],"fishes")
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0})[1]["chords"][0],"Em7")
 
