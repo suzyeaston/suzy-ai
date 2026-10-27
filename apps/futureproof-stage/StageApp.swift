@@ -159,7 +159,20 @@ private final class PhysicalKeyboard {
             ?? parameters.first {
                 $0.displayName.caseInsensitiveCompare(names[id] ?? id) == .orderedSame
             }
-        p?.value = number
+        guard let p else { return }
+        // JUCE AUv2 can expose 0...1 normalized metadata for parameters
+        // whose host-visible raw value is an int/choice.
+        let ranges: [String: (Float, Float)] = [
+            "bpm":(40,240), "beats":(3,6), "bars":(0,2),
+            "scene":(0,2), "control":(0,65535)
+        ]
+        if let (low,high) = ranges[id],
+           p.minValue >= -0.0001 && p.maxValue <= 1.0001,
+           high > low {
+            p.value = max(0,min(1,(number-low)/(high-low)))
+        } else {
+            p.value = number
+        }
     }
 
     private func midi(_ notes: [UInt8]) {
@@ -230,10 +243,30 @@ private final class PhysicalKeyboard {
         let folder = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Audio/Plug-Ins/Components", isDirectory:true)
         let dest = folder.appendingPathComponent("SUZY Toast.component", isDirectory:true)
-        guard !FileManager.default.fileExists(atPath:dest.path) else { return }
+        let fm = FileManager.default
+        if fm.fileExists(atPath: dest.path) {
+            let old = Bundle(url:dest)?.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+            let fresh = Bundle(url:embedded)?.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+            if old.compare(fresh, options:.numeric) != .orderedAscending { return }
+            // Do not overwrite an effect bundle that Logic could be using.
+            if NSWorkspace.shared.runningApplications.contains(where: {
+                $0.bundleIdentifier == "com.apple.logic10"
+            }) {
+                message = "Older Toast AU installed. Close Logic before upgrading the standalone effect."
+                return
+            }
+        }
         do {
-            try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
-            try FileManager.default.copyItem(at:embedded,to:dest)
+            try fm.createDirectory(at:folder,withIntermediateDirectories:true)
+            if fm.fileExists(atPath:dest.path) {
+                let backup = folder.appendingPathComponent("SUZY Toast.prior-build",isDirectory:true)
+                if fm.fileExists(atPath:backup.path) { try fm.removeItem(at:backup) }
+                try fm.moveItem(at:dest,to:backup)
+                do { try fm.copyItem(at:embedded,to:dest) }
+                catch { try? fm.moveItem(at:backup,to:dest); throw error }
+            } else {
+                try fm.copyItem(at:embedded,to:dest)
+            }
         } catch { message = "Toast installation blocked: \(error.localizedDescription)" }
     }
 
