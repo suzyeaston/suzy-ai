@@ -478,7 +478,7 @@ $("localReverb").oninput=()=>{
 async function audio(){
  if(!ctx){
    ctx=new (window.AudioContext||window.webkitAudioContext)();
-   masterBus=ctx.createGain();masterBus.gain.value=.8;masterBus.connect(ctx.destination);
+   masterBus=ctx.createGain();masterBus.gain.value=masterMuted?0:Number($("stageMasterLevel").value)/100;masterBus.connect(ctx.destination);
    loopGain=ctx.createGain();loopGain.gain.value=.55;loopGain.connect(masterBus);
  }
  if(ctx.state!=="running")await ctx.resume();
