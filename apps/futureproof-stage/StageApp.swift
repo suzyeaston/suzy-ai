@@ -73,7 +73,7 @@ private final class PhysicalKeyboard {
             let ep = MIDIGetSource(i)
             var cf: Unmanaged<CFString>?
             MIDIObjectGetStringProperty(ep, kMIDIPropertyDisplayName, &cf)
-            let name = cf?.takeRetainedValue() as String? ?? "MIDI (i + 1)"
+            let name = cf?.takeRetainedValue() as String? ?? "MIDI \(i + 1)"
             let lower = name.lowercased()
             let score = lower.contains("keystation") ? 3 :
               (lower.contains("keyboard") || lower.contains("m-audio")) ? 2 :
@@ -284,7 +284,7 @@ private final class PhysicalKeyboard {
         param("bpm", Float(s.bpm))
         param("beats", 4); param("bars", 1)
         if ready { sendCue(); playSceneBacking() }
-        message = "(s.name) · Play your keyboard; press NEXT CHORD to steer Magenta."
+        message = "\(s.name) · Play your keyboard; press NEXT CHORD to steer Magenta."
     }
 
     private func command(_ id: Int) {
@@ -316,7 +316,7 @@ private final class PhysicalKeyboard {
         shutdown()
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.logic10") {
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, err in
-                if let err { Task { @MainActor in self.message = "Logic could not open: (err.localizedDescription)" } }
+                if let err { Task { @MainActor in self.message = "Logic could not open: \(err.localizedDescription)" } }
             }
             message = "Logic is opening. Standalone audio is stopped to avoid two model instances."
         } else {
@@ -392,7 +392,7 @@ private final class PhysicalKeyboard {
                 // a MIDI-only performance on system privacy dialogs.
             } catch {
                 shutdown()
-                message = "Standalone host not ready: (error.localizedDescription). Open Logic for the tested fallback."
+                message = "Standalone host not ready: \(error.localizedDescription). Open Logic for the tested fallback."
             }
         }
     }
@@ -501,7 +501,7 @@ private struct StageView: View {
                 Spacer()
                 VStack(alignment:.leading,spacing:6) {
                     Text(model.scene.hint).font(.system(size:14)).fixedSize(horizontal:false,vertical:true)
-                    Text("Keystation: (model.keyboardName)")
+                    Text("Keystation: \(model.keyboardName)")
                         .font(.system(size:11,design:.monospaced)).foregroundStyle(mint)
                     Text("Cue buttons actually send held MIDI chords to Magenta. Play or replace them on the keyboard.")
                         .font(.system(size:11)).foregroundStyle(.secondary)
@@ -534,7 +534,7 @@ private struct StageView: View {
                 Text("VE-22 → system input · monitoring must be checked to prevent doubling")
                     .font(.system(size:11)).foregroundStyle(.secondary)
             }
-            Text("LOOPER: (model.loopState)   |   (model.message)")
+            Text("LOOPER: \(model.loopState)   |   \(model.message)")
                 .font(.system(size:12,weight:.medium,design:.monospaced))
                 .foregroundStyle(mint)
                 .lineLimit(3)
