@@ -93,8 +93,10 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 <div class="notice">The vocal loop is <strong>local browser audio</strong>, not a Magenta input and not sample-synced to the MIDI groove. Captures are limited to 4 bars. Use Logic/VE-22 for show-critical vocal recording until hardware QA is complete.</div>
 </section>
 <section class="panel"><div class="tiny">04 · FEEDBACK & SAFETY</div>
+<div class="actions"><button class="main" id="connectCollider">CONNECT COLLIDER DIRECT</button><button id="disconnectCollider">DISCONNECT</button></div>
+<div class="tiny" id="colliderState">COLLIDER MIDI NOT CONNECTED</div>
 <div id="message" role="status" aria-live="polite">Waiting for localhost MIDI bridge…</div><div id="error" role="alert"></div>
-<p class="muted" id="routing">MIDI path: TOASTER computer pads → SUZY AI MIDI virtual port → selected Magenta MIDI INPUT. No hardware Keystation necessary.</p>
+<p class="muted" id="routing">MIDI path: TOASTER computer pads → CONNECT COLLIDER DIRECT → MRT2 - Collider Input. Jam still uses the separate SUZY AI MIDI source. No Keystation required.</p>
 <div class="notice"><strong>Actual AI panic:</strong> use MRT2 Jam's Stop/Mute or Logic's dedicated MRT2 track mute. Esc/EJECT stops **MIDI notes only**; neural audio might keep streaming.</div>
 <div class="muted">Shortcut guide: 1–4 chords · P Pyramid · F Fishes · Q rhythm · [ / ] tempo · Esc MIDI release. No shortcuts when typing in fields.</div>
 </section></div></div>
@@ -117,7 +119,10 @@ const send=(route,body={})=>{
  return serial.catch(e=>{error(e);return null;});
 };
 function draw(s){
- state=s;$("status").textContent="SUZY AI MIDI · "+(s.running?"RHYTHM RUNNING":"READY (AUDIO UNVERIFIED)");
+ state=s;$("status").textContent="TOASTER MIDI · "+(s.collider_direct_ready?"COLLIDER ROUTED":"NOT CONNECTED TO COLLIDER");
+ $("colliderState").textContent=s.collider_direct_ready?"COREMIDI → "+s.collider_direct_output+" (AUDIO UNVERIFIED)":"COLLIDER NOT ROUTED. OPEN APP, THEN CONNECT.";
+ $("connectCollider").disabled=!!s.collider_direct_ready;
+ $("disconnectCollider").disabled=!s.collider_direct_ready;
  $("pyramid").setAttribute("aria-pressed",String(s.scene==="pyramid"));
  $("fishes").setAttribute("aria-pressed",String(s.scene==="fishes"));
  $("tempo").value=s.bpm;$("rhythm").value=s.rhythm;$("intensity").value=s.intensity;
@@ -159,6 +164,14 @@ $("rhythm").onchange=settings;$("tempo").onchange=settings;$("intensity").onchan
 $("start").onclick=async()=>{const s=await send("start");if(s)say("Rhythm MIDI started. Audio response needs ears.");};
 $("stop").onclick=async()=>{const s=await send("stop");if(s)say("Rhythm and chord MIDI released.");};
 $("panic").onclick=release;
+$("connectCollider").onclick=async()=>{
+ try{const j=await post("/api/collider/connect");draw(j);say("CoreMIDI output connected directly to Collider. Press Play in Collider, then chord 1.");}
+ catch(e){error(e);}
+};
+$("disconnectCollider").onclick=async()=>{
+ try{const j=await post("/api/collider/disconnect");draw(j);say("Direct Collider MIDI endpoint disconnected.");}
+ catch(e){error(e);}
+};
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
  const t=e.target;
