@@ -9,6 +9,7 @@ from threading import RLock, Timer
 import time
 
 VIRTUAL_PORT = "SUZY AI MIDI"
+COLLIDER_DESTINATION = "MRT2 - Collider Input"
 MODES = {"direct": 0, "low": -12, "high": 12}
 TEST_CHORD = (57, 60, 64, 67)  # A minor seventh, MIDI 1 channel
 
@@ -21,6 +22,8 @@ class MagentaMidiBridge:
         self.output.open_virtual_port(VIRTUAL_PORT)
         self.source = None
         self.source_name = None
+        self.collider_out = None
+        self.collider_name = None
         self.mode = "direct"
         self.held = {}
         self.gate_open = True
@@ -46,6 +49,8 @@ class MagentaMidiBridge:
             return {
                 "enabled": not self.closed,
                 "virtual_source": VIRTUAL_PORT,
+                "collider_direct_output": self.collider_name,
+                "collider_direct_ready": self.collider_out is not None,
                 "input_name": self.source_name,
                 "mode": self.mode,
                 "gate_open": self.gate_open,
@@ -64,6 +69,12 @@ class MagentaMidiBridge:
 
     def _send(self, message):
         self.output.send_message(message)
+        if self.collider_out is not None:
+            # Native Collider exposes a virtual MIDI *destination*, not a
+            # source. Explicitly send there without requiring its hidden
+            # legacy settings UI or an IAC/MIDI patchbay. Do not count this
+            # as confirmed Magenta audio or host receive.
+            self.collider_out.send_message(message)
         self.forwarded += 1
         self.last_event = time.monotonic()
 
@@ -89,6 +100,45 @@ class MagentaMidiBridge:
             if self.closed:
                 raise ValueError("MIDI bridge is closed")
             self._release_locked()
+            return self.status()
+
+    def connect_collider(self):
+        """Connect TO Collider's named virtual MIDI destination via CoreMIDI.
+
+        The already-present SUZY AI MIDI virtual *source* remains available
+        for Jam and third-party input. This direct path is opt-in because
+        enabling both paths inside Collider could double the notes.
+        """
+        with self.lock:
+            if self.closed:
+                raise ValueError("MIDI bridge closed")
+            if self.collider_out is not None:
+                return self.status()
+            candidate = self.rtmidi.MidiOut()
+            ports = candidate.get_ports()
+            matches = [i for i, name in enumerate(ports)
+                       if COLLIDER_DESTINATION.casefold() in str(name).casefold()]
+            if len(matches) != 1:
+                raise ValueError(
+                    "Collider MIDI destination not found. Open MRT2 - Collider "
+                    "and click CONNECT COLLIDER again." if not matches else
+                    "Multiple Collider MIDI destinations; close duplicate Collider instances."
+                )
+            candidate.open_port(matches[0])
+            self.collider_out = candidate
+            self.collider_name = str(ports[matches[0]])
+            return self.status()
+
+    def disconnect_collider(self):
+        with self.lock:
+            if self.closed:
+                raise ValueError("MIDI bridge closed")
+            # Explicit all-notes-off before detaching the endpoint.
+            self._release_locked()
+            if self.collider_out is not None:
+                self.collider_out.close_port()
+                self.collider_out = None
+            self.collider_name = None
             return self.status()
 
     def change_mode(self, mode):
@@ -213,4 +263,8 @@ class MagentaMidiBridge:
                 self.source.close_port()
                 self.source = None
             self.source_name = None
+            if self.collider_out is not None:
+                self.collider_out.close_port()
+                self.collider_out = None
+                self.collider_name = None
             self.output.close_port()
