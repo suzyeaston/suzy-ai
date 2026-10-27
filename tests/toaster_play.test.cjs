@@ -178,9 +178,10 @@ test("manual hold length is retained by event loops and renders sustained chord 
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
 });
 
-test("real Magenta is opt-in: page load plays no second neural model",()=>{
+test("page refresh checks native Magenta status but does not spawn another model",()=>{
  const {calls,run}=rig();
- assert.equal(calls.midi.length,0);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/status"));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/start").length,0);
  assert.equal(run("aiNativeReady"),false);
  assert.equal(run("aiNativeStarting"),false);
  assert.match(file,/AI OFF · local chords work without it/);
@@ -200,7 +201,7 @@ test("AI faders use actual native endpoints, not browser-only gain",async()=>{
  const {run,get,calls}=rig();
  run("aiNativeReady=true");
  get("aiVolume").value="21";
- get("aiReverb").value="35";
+ get("reverb").value="35";
  await run("syncAIMix()");
  const native = calls.midi.filter(x=>x.url.startsWith("/api/ai/"));
  const actions = native.map(x=>x.url);
