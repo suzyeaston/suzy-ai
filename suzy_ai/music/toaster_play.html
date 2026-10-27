@@ -119,7 +119,7 @@ a{color:var(--mint)}
  <p>One MRT2 Small model, with preloaded Pyramid and Fishes text prompts. Your chord keys steer its harmony. Browser piano stays available.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
- <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button></div>
+ <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button></div>
  <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
@@ -216,7 +216,7 @@ const heldKeys=new Map();
 const heldNotes=new Map();
 const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
-let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false;
+let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
@@ -338,6 +338,13 @@ async function aiFetch(action,data={}){
  if(!response.ok||result.error)throw Error(result.error||"MRT2 native host unavailable");
  return result;
 }
+function toggleAISolo(){
+ aiSolo=!aiSolo;
+ $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
+ $("aiSolo").textContent=aiSolo?"🎹 RESTORE LOCAL KEYS":"🎧 HEAR AI ONLY";
+ updateMix();
+ tell(aiSolo?"LOCAL KEYS SILENCED · rhythm, vocal loops and native Magenta remain audible. Hold 1–4 and listen for AI.":"Local chord synth restored.");
+}
 function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
  aiNativeStarting=["initializing","starting"].includes(s.phase);
@@ -354,6 +361,9 @@ function aiDisplay(s){
  $("aiDiagnostics").textContent=s.native_au?
     "AU: "+(s.au_component||"unknown")+" · model "+(s.model_file_exists?"file found":"file unverified")+
     " · "+(s.model_file_bytes?Math.round(s.model_file_bytes/1048576)+" MB":"unknown size")+
+    " · assets: "+(s.musiccoca_assets_path||"not found in normal folders")+
+    " · model load: "+(s.host_model_load_state||"unknown")+
+    " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
     " · "+(s.output||"macOS default output"):
@@ -827,7 +837,7 @@ function updateMix(){
  for(const k of Object.keys(decks)){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
-  decks[k].bus.gain.value=level*side;
+  decks[k].bus.gain.value=(aiSolo?0:level*side);
   decks[k].voiceBus.gain.value=Number($("voice-"+k).value)/100*side;
  }
 }
@@ -928,6 +938,7 @@ $("mix").onchange=syncAIMix;
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
+$("aiSolo").onclick=toggleAISolo;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};

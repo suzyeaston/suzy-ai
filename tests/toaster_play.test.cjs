@@ -309,3 +309,27 @@ test("room and tone effect controls work for synth, rhythm, imported loops and n
  await new Promise(resolve=>setImmediate(resolve));
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/reverb"));
 });
+
+test("AI SOLO lets musician hear real Magenta without the always-on browser chord oscillator",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ assert.equal(run("aiSolo"),false);
+ assert.equal(run("decks.pyramid.bus.gain.value"),1);
+ run("toggleAISolo()");
+ assert.equal(run("aiSolo"),true);
+ assert.equal(run("decks.pyramid.bus.gain.value"),0);
+ assert.equal(run("stageStarted"),true,"rhythm stays playing");
+ assert.equal(run("beatBus.gain.value"),.35,"rhythm level remains");
+ assert.equal(get("aiSolo").textContent,"🎹 RESTORE LOCAL KEYS");
+ run("toggleAISolo()");
+ assert.equal(run("decks.pyramid.bus.gain.value"),1);
+});
+test("native status differentiates bookmark, assets and loaded model from host-running",()=>{
+ const {run,get}=rig();
+ run('aiDisplay({phase:"host-running",audio_engine_running:true,scene:"pyramid",native_au:true,model_file_exists:true,model_file_bytes:470000000,model_load_requested:true,host_model_load_state:"requested_asynchronously_by_google_AU_not_confirmed",bookmark_scope_verified:false,output_signal_detected:false})');
+ assert.match(get("aiHostStatus").textContent,/AUDIO NOT VERIFIED/);
+ assert.match(get("aiDiagnostics").textContent,/bookmark: not confirmed/);
+ assert.match(get("aiDiagnostics").textContent,/not_confirmed/);
+ run('aiDisplay({phase:"failed",error:"scope denied"})');
+ assert.match(get("aiHostStatus").textContent,/scope denied/);
+});
