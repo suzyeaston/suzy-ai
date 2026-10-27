@@ -100,6 +100,7 @@ private final class PhysicalKeyboard {
     @Published var starting = false
     @Published var hasToast = false
     @Published var micOn = false
+    @Published var backingOn = true
     @Published var keyboardName = "CONNECTING…"
     @Published var selectedScene = 0
     @Published var chordIndex = 0
@@ -110,6 +111,8 @@ private final class PhysicalKeyboard {
     private var generator: AVAudioUnit?
     private var toaster: AVAudioUnit?
     private var micMixer: AVAudioMixerNode?
+    private var backingPlayer: AVAudioPlayerNode?
+    private var backingBuffer: AVAudioPCMBuffer?
     private var keyboard: PhysicalKeyboard?
     private var heldChord: [UInt8] = []
     private var commandSequence = 0
@@ -184,6 +187,47 @@ private final class PhysicalKeyboard {
         sendCue()
     }
 
+
+    // Bundled original audio scaffolds: no samples or internet needed.
+    private func playSceneBacking() {
+        guard let player = backingPlayer,
+            let url = Bundle.main.url(forResource:
+                set[selectedScene].name.lowercased(), withExtension:"wav") else { return }
+        do {
+            let file = try AVAudioFile(forReading: url)
+            guard file.length > 0 && file.length < 48_000 * 60,
+                let buffer = AVAudioPCMBuffer(pcmFormat:file.processingFormat,
+                    frameCapacity:AVAudioFrameCount(file.length)) else { return }
+            try file.read(into:buffer)
+            player.stop()
+            backingBuffer = buffer
+            player.scheduleBuffer(buffer, at:nil, options:[.loops], completionHandler:nil)
+            player.volume = 0.42
+            if backingOn { player.play() }
+        } catch { message = "Backing could not load: \(error.localizedDescription)" }
+    }
+
+    func toggleBacking() {
+        backingOn.toggle()
+        if backingOn { backingPlayer?.play() } else { backingPlayer?.pause() }
+    }
+
+    // First launch copies bundled SUZY Toast AU only to the user's own
+    // components directory. No admin, no modifying Google's Magenta bundle.
+    private func installBundledToastIfNeeded() {
+        guard let embedded = Bundle.main.resourceURL?
+            .appendingPathComponent("SUZY Toast.component", isDirectory:true),
+            FileManager.default.fileExists(atPath:embedded.path) else { return }
+        let folder = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Audio/Plug-Ins/Components", isDirectory:true)
+        let dest = folder.appendingPathComponent("SUZY Toast.component", isDirectory:true)
+        guard !FileManager.default.fileExists(atPath:dest.path) else { return }
+        do {
+            try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+            try FileManager.default.copyItem(at:embedded,to:dest)
+        } catch { message = "Toast installation blocked: \(error.localizedDescription)" }
+    }
+
     func selectScene(_ index: Int) {
         guard set.indices.contains(index) else { return }
         releaseCue()
@@ -197,7 +241,7 @@ private final class PhysicalKeyboard {
         param("loop", s.loop)
         param("bpm", Float(s.bpm))
         param("beats", 4); param("bars", 1)
-        if ready { sendCue() }
+        if ready { sendCue(); playSceneBacking() }
         message = "(s.name) · Play your keyboard; press NEXT CHORD to steer Magenta."
     }
 
@@ -241,6 +285,7 @@ private final class PhysicalKeyboard {
     func start() {
         guard !ready && !starting else { return }
         starting = true
+        installBundledToastIfNeeded()
         message = "Finding the installed Google Magenta MIDI Audio Unit…"
         Task {
             defer { starting = false }
@@ -259,6 +304,10 @@ private final class PhysicalKeyboard {
                 }
                 let e = AVAudioEngine()
                 e.attach(unit)
+                let backing = AVAudioPlayerNode()
+                e.attach(backing)
+                let backingFormat = AVAudioFormat(standardFormatWithSampleRate:48000, channels:2)!
+                e.connect(backing, to:e.mainMixerNode, format:backingFormat)
                 if let fx {
                     e.attach(fx)
                     e.connect(unit, to: fx, format: nil)
@@ -275,6 +324,7 @@ private final class PhysicalKeyboard {
                 vm.outputVolume = 0.0
                 try e.start()
                 engine = e; generator = unit; toaster = fx; micMixer = vm
+                backingPlayer = backing
                 hasToast = fx != nil
                 ready = true
                 keyboardName = keyboard?.autoConnect() ?? "NO PHYSICAL MIDI DEVICE"
@@ -327,6 +377,8 @@ private final class PhysicalKeyboard {
         micMixer?.outputVolume = 0
         engine?.stop()
         engine = nil
+        backingPlayer = nil
+        backingBuffer = nil
         generator = nil
         toaster = nil
         micMixer = nil
@@ -425,6 +477,13 @@ private struct StageView: View {
                 Slider(value:Binding(get:{model.liveGain},set:{model.setLive($0)}),in:0...1)
                 Text("LOOP")
                 Slider(value:Binding(get:{model.loopGain},set:{model.setLoop($0)}),in:0...1)
+            }
+            HStack {
+                Button(model.backingOn ? "♫ BACKING ON · MUTE" : "♫ BACKING OFF · PLAY") {
+                    model.toggleBacking()
+                }.disabled(!model.ready)
+                Text("Original generated piano, beat and arpeggio loops load with each section.")
+                    .font(.system(size:11)).foregroundStyle(.secondary)
             }
             HStack {
                 Button(model.micOn ? "🎤 MIC ON · MUTE" : "🎤 ENABLE VOCAL INPUT") {
