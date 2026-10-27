@@ -19,8 +19,9 @@ function rig(){
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
+ const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
-  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:[]}};
+  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
  class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.buffer=null;this.type=""}connect(){return this}start(){}stop(){}}
  class AudioBuffer{
@@ -30,6 +31,8 @@ function rig(){
  class AudioContext{
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+  createMediaStreamSource(){return new AudioNode()}
+  createScriptProcessor(){const n=new AudioNode(); n.onaudioprocess=null;calls.processor=n;return n;}
   createBuffer(ch,len,sr){return new AudioBuffer(ch,len,sr)}
   async resume(){this.state="running";}
   async setSinkId(id){calls.output=id;}
@@ -67,6 +70,8 @@ function rig(){
 test("the musician sees the toaster, one-click beat, two decks and hidden setup",()=>{
  assert.match(file,/Smiling pink toaster/);
  assert.match(file,/PLAY RHYTHM/);
+ assert.match(file,/13-note|CHROMATIC/);
+ assert.match(file,/id="tempo"/);
  assert.match(file,/TRACK 01/);
  assert.match(file,/TRACK 02/);
  assert.match(file,/LOOP MY CHORDS/);
@@ -216,4 +221,58 @@ test("AI mute does not turn off the browser instrument or rhythm",async()=>{
  assert.ok(calls.midi.find(x=>x.url==="/api/ai/mute"));
  await run("toggleAIMute()");
  assert.equal(run("aiMuted"),false);
+});
+
+test("live tempo changes land on a common cycle boundary, both decks keep chord loops",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({kind:"chords",muted:false,events:[{step:0,index:0,holdSteps:2}]})');
+ run("changeTempo(132)");
+ assert.equal(run("bpm"),105);
+ assert.equal(run("pendingBpm"),132);
+ assert.match(get("tempoValue").textContent,/next cycle/);
+ run("ctx.currentTime=5;scheduler()");
+ assert.equal(run("bpm"),132);
+ assert.equal(run("pendingBpm"),null);
+ assert.equal(run("cycleSeconds()"),8*60/132);
+ assert.ok(run("Math.abs(nextStepAt - (transportEpoch+stepNumber*tickSeconds()))")<.0001);
+});
+test("polyphonic melody keyboard A W S E D F T G Y H U J K sends native MIDI per note",async()=>{
+ const {run,emit,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ emit("keydown","a","BUTTON");
+ emit("keydown","w","BUTTON");
+ assert.equal(run("heldNotes.size"),2);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),60);
+ assert.equal(run('heldNotes.get("key-note:w").midi'),61);
+ emit("keyup","a","BUTTON");
+ assert.equal(run("heldNotes.size"),1);
+ emit("keyup","w","BUTTON");
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(run("heldNotes.size"),0);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/note"));
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/note-off"));
+});
+test("vocal recording uses AudioContext buffer timestamps and identical transport epoch",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.kind"),"vocal");
+ assert.ok(calls.processor?.onaudioprocess);
+ const first=run("recording.start");
+ const frame=run("ctx.sampleRate");
+ const input={length:1024,getChannelData(){return new Float32Array(1024).fill(.4)}};
+ const frameCount=run("Math.round(cycleSeconds()*ctx.sampleRate)");
+ for(let position=0;position<frameCount+1024;position+=1024){
+  calls.processor.onaudioprocess?.({playbackTime:first+position/frame,inputBuffer:input});
+ }
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frameCount);
+});
+test("tempo stays fixed if a real audio loop exists rather than shifting its pitch",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({kind:"vocal",buffer:{},muted:false})');
+ run("changeTempo(145)");
+ assert.equal(run("bpm"),105);
+ assert.equal(run("pendingBpm"),null);
+ assert.equal(get("tempo").value,"105");
 });
