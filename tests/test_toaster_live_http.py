@@ -96,7 +96,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("function midiRelease()", html)
         self.assertIn("SCENES=", html)
         self.assertIn("VE-22", html)
-        self.assertIn("Magenta's separate engine is not embedded", html)
+        self.assertIn("Native Google Magenta AU is optional", html)
         self.assertNotIn("__MAGENTA_TOKEN__", html)
         self.assertNotIn("CONNECT COLLIDER DIRECT", html)
         self.assertNotIn("AUDIO ROUTING + MIXER", html)
