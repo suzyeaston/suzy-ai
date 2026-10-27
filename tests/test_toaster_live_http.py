@@ -61,6 +61,22 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("real rehearsal verification", html)
         self.assertNotIn("__MAGENTA_TOKEN__", html)
 
+    def test_owned_loop_rack_js_and_visible_three_lane_controls(self):
+        status, html = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        self.assertIn('<script src="/toaster/loop-rack.js"></script>', html)
+        for name in ("rackChord", "rackVocal", "rackAI", "rackImport",
+                     "rackLayers", "rackExport", "rackProgress"):
+            self.assertIn(f'id="{name}"', html)
+        self.assertIn("VE-22", html)
+        self.assertIn("Actual AI only:", html)
+        status, js = self.call("GET", "/toaster/loop-rack.js")
+        self.assertEqual(status, 200)
+        self.assertIn("root.SuzyLoopRack=Rack", js)
+        self.assertIn("MediaRecorder", js)
+        self.assertIn("getDisplayMedia", js)
+        self.assertIn("decodeAudioData", js)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
