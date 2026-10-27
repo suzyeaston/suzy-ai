@@ -40,6 +40,7 @@ public:
     }
     bool lastRecordRejected() const noexcept { return recordRejected_.load(); }
     double actualSampleRate() const noexcept { return hostRate_.load(); }
+    double logicHostBpm() const noexcept { return hostBpm_.load(); }
     int actualChannels() const noexcept { return hostChannels_.load(); }
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameters();
@@ -51,6 +52,7 @@ private:
     std::atomic<int> publishedState_{static_cast<int>(suzytoast::LoopState::empty)};
     std::atomic<bool> recordRejected_{false};
     std::atomic<double> hostRate_{0.0};
+    std::atomic<double> hostBpm_{0.0};
     std::atomic<int> hostChannels_{0};
     float lpState_[2] = {0.0f, 0.0f};
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputGain_;
