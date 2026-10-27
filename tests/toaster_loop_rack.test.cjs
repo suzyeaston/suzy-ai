@@ -113,3 +113,22 @@ test("WAV export is deterministic RIFF PCM and destructive clear is guarded",asy
  rack.clear();assert.equal(rack.layers.length,0);
  assert.equal(get("rackLayers").children.length,0);
 });
+
+test("real mixer faders affect audible rack lanes without mutating clips",async()=>{
+ const {rack,Buffer,get}=harness();
+ await rack.context();
+ const buffer=new Buffer(1,9600,48000);
+ rack.add("chord",buffer,{duration:.2,name:"Synth"});
+ rack.add("vocal",buffer,{name:"Voice"});
+ rack.add("ai",buffer,{name:"Actual captured AI"});
+ rack.setKindGain("chord",.25);
+ rack.setKindGain("vocal",0);
+ rack.setKindGain("ai",.75);
+ assert.equal(rack.layers[0].gain.gain.value,.55*.25);
+ assert.equal(rack.layers[1].gain.gain.value,0);
+ assert.equal(rack.layers[2].gain.gain.value,.55*.75);
+ assert.equal(rack.layers.length,3);
+ assert.equal(get("rackRuler").children.length,2);
+ assert.throws(()=>rack.setKindGain("fake",.5),/Unknown/);
+ assert.throws(()=>rack.setKindGain("ai",2),/outside/);
+});
