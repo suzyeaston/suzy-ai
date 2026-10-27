@@ -90,6 +90,14 @@
       if(this.layers.length>=MAX_TRACKS)return this.notify("16 layer limit reached. Export or remove a lane.",true);
       try{
         this.pending=true;
+        // macOS/Chrome requires getDisplayMedia while the user's direct click
+        // still has activation. Request immediately, before awaiting AudioContext.
+        let screenRequest=null;
+        if(kind==="ai"){
+          if(!root.navigator.mediaDevices?.getDisplayMedia)
+            throw Error("No screen-audio capture in this browser. Import a Magenta WAV instead.");
+          screenRequest=root.navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+        }
         const ctx=await this.context(),len=this.duration();
         if(typeof MediaRecorder==="undefined")throw Error("MediaRecorder is unavailable in this browser");
         if(kind==="chord"){
@@ -101,8 +109,7 @@
           stream=this.getMicStream();
           if(!stream?.getAudioTracks().length)throw Error("Enable Scarlett/VE-22 mic first in Vocal Input below");
         }else if(kind==="ai"){
-          if(!root.navigator.mediaDevices?.getDisplayMedia)throw Error("No screen-audio capture in this browser. Import a Magenta WAV instead.");
-          screen=await root.navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+          screen=await screenRequest;
           if(!screen.getAudioTracks().length){
             screen.getTracks().forEach(t=>t.stop());
             throw Error("macOS did not share Collider audio. This is not captured AI. Export/print Magenta in Logic then IMPORT AI WAV.");
@@ -154,7 +161,12 @@
       if(this.pending)return;
       if(this.timer){root.clearTimeout(this.timer);this.timer=null;}
       if(this.recorder?.state==="recording"){this.recorder.stop();return;}
-      if(this.recorder){this.recorder=null;this._resetCaptureUI();this.notify("Armed capture cancelled.");}
+      if(this.recorder){
+        this.recorder=null;
+        if(this.tempStream){this.tempStream.getTracks().forEach(t=>t.stop());this.tempStream=null;}
+        this._resetCaptureUI();
+        this.notify("Armed capture cancelled.");
+      }
     }
     normalize(buffer,seconds){
       const frames=Math.round(seconds*buffer.sampleRate),ch=Math.min(2,buffer.numberOfChannels);
