@@ -8,7 +8,37 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
-## Current state · October 25, 2026
+## 🍞 TOASTER PLAY · two-deck rehearsal instrument (October 27, 2026)
+
+**Start here for a fast, human-led rehearsal.** On the 8 GB performance Mac, the new minimal TOASTER is a browser-local synthesizer, rhythm engine, chord-event looper, basic vocal looper and two-song mixer. No physical Keystation or running Magenta model is required to hear TOASTER's **own** instruments.
+
+```bash
+cd ~/Projects/suzy-ai
+git switch main && git pull --ff-only
+.venv-mac/bin/python -m suzy_ai.music.magenta_stage
+# Chrome: http://127.0.0.1:7345/toaster/live
+```
+
+Keep the Terminal open. The older complex mixer/timeline remains accessible at [`/toaster/studio`](http://127.0.0.1:7345/toaster/studio); **`/toaster/live` is now the simple PLAY view**.
+
+### First ten minutes
+
+1. Keep **mic → BOSS VE-22 → Scarlett Solo USB**, as already wired. Connect headphones to the intended audio output. Click **PLAY RHYTHM**. TOASTER's own soft pulse starts and activates browser audio. With supported Chrome audio output switching, the app prefers the Scarlett; otherwise set **macOS Sound Output** to Scarlett. The output status shows when auto-routing is unavailable.
+2. On **TRACK 01 / PYRAMID**, play chord pads **1, 2, 3, 4** with your computer keyboard. No Keystation needed. The pink toaster reacts to the pulse.
+3. Click **LOOP MY CHORDS**. The app arms recording at the next two-bar boundary, records **chord trigger events** for one complete cycle, and repeats the synthesized notes rather than cutting an audio recording mid-release. Click again for another chord layer. Each loop has its own **MUTE** and **× remove**.
+4. Click **🎙 LOOP VOICE**. Allow Chrome's microphone permission once. The app looks for a **Scarlett/Focusrite input** automatically (or uses the selected fallback). Sing via the **existing VE-22 → Scarlett** chain. Vocal capture is browser MediaRecorder audio with approximate boundary timing, not a sample-accurate DAW overdub.
+5. Choose **TRACK 02 / WEIRD FISHES** and layer a second part. Use the **SONGS crossfader** to hear track 1, track 2 or a blend. Each deck retains its own clips and level controls.
+6. Open **Sound settings / devices / export** only if needed to change the BPM, reverb, input/output, or **EXPORT WAV MIX**. The two-bar WAV is rendered offline from unmuted chord-event layers plus genuine recorded vocal / imported AI audio. Export before refreshing or closing Chrome: loops otherwise live only in browser memory.
+
+### What is and isn't Magenta
+
+**The TOASTER synth/rhythm/loop engine runs locally in the browser, not on Google Magenta.** Its saved Pyramid / Fishes *text descriptions are future AI scene presets*, **not currently connected to MRT2 style/prompt parameters**. Pressing 1–4 can additionally send note-conditioning events to the existing `SUZY AI MIDI` bridge, but MIDI activity alone does **not** prove Google is generating sound, and the browser cannot mix, record or mute a separate Collider/Jam model automatically. Collider does not need to be open for this mode.
+
+To loop **actual Magenta** audio today, record/print the output of **Google MRT2 Small inside Logic** and import the audio file using **+ IMPORT AI AUDIO**. That sound then becomes a normal independently removable deck loop. The imported audio must genuinely have come from MRT2; labeling a track AI does not transform ordinary loops into generated music. To use Magenta *live* as an optional musician, open its already-tested AU inside Logic and handle MIDI selection, audio level and mute **in Logic**, not in TOASTER. Do not simultaneously run another model on the constrained Mac unless deliberately testing.
+
+**Known limitations:** Soft clock from Web Audio rather than Logic transport; browser mic capture is not guaranteed phase-accurate, output auto-selection requires `AudioContext.setSinkId` support and labelled device access; browser audio output does not control Google's separate host. Please test the complete mic/loop/print path on the physical Scarlett before relying on it for Thursday's show.
+
+## Current state · October 27, 2026 (verified milestones and rehearsal caveats)
 
 **The most important milestone:** On an 8 GB Apple Silicon Mac, **Google Magenta RealTime 2 Small** has been heard generating music as a **software instrument inside Logic Pro**, with a **Keystation Mini 32 MK3**, a **48 kHz Logic project**, **Scarlett Solo USB selected for Logic input and output**, and **headphones connected to the Scarlett**. The separate **MRT2 - Jam** app has also been heard responding to the Keystation.
 
@@ -78,9 +108,9 @@ For a dynamic microphone, don't enable phantom power unnecessarily. A processor'
 
 **8 GB Mac tip:** For the live Logic test, quit the separate Jam and MRT2 standalone windows and leave Qwen stopped. Running multiple neural engines simultaneously consumes resources unnecessarily.
 
-## 🍞 SUZY//TOAST · research-grounded stage preview
+## 🍞 SUZY//TOAST · earlier MIDI-only stage preview (historical)
 
-**Draft PR #60; not a Logic plug-in yet.** The original *Appliance Latent Space* now has a little CSS toaster interface on the existing localhost MIDI stage at **[127.0.0.1:7345/toaster](http://127.0.0.1:7345/toaster)**. With the `magenta_stage` server running on macOS, its lever sends the already-supported Am7 MIDI test chord; LOW/DIRECT/HIGH, MIDI pause and MIDI release use the same safe bridge. Browning is a visual preview only. It never claims to control Google's AU neural parameters, Logic's track volume, or a durable recording.
+**Earlier implementation; not a Logic plug-in.** The original *Appliance Latent Space* now has a little CSS toaster interface on the existing localhost MIDI stage at **[127.0.0.1:7345/toaster](http://127.0.0.1:7345/toaster)**. With the `magenta_stage` server running on macOS, its lever sends the already-supported Am7 MIDI test chord; LOW/DIRECT/HIGH, MIDI pause and MIDI release use the same safe bridge. Browning is a visual preview only. It never claims to control Google's AU neural parameters, Logic's track volume, or a durable recording.
 
 See [the toaster architecture, original control mappings and live Mac QA checklist](docs/suzy-toaster-roadmap.md). The October 26 research handoff explicitly recommends retaining the known-good Google's MRT2 Small AU inside Logic, keeping the human show path independent, and deferring a *separately identified custom SUZY AU* until after October 29.
 
