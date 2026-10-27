@@ -31,6 +31,27 @@ For actual Magenta, our native Audio Unit host also supplies **host musical cont
 
 **On Swift build errors:** Swift 6.3.3 cannot compile against a macOS 27 SDK's Swift 6.4 interface. The updated `bash scripts/build-toaster-magenta.sh` selects an installed compiler/SDK pair that matches (including older macOS 26 SDKs and full Xcode), or exits with actionable instructions instead of showing pages of incompatible Swift-interface failures. If none are installed, install or select a matching full Xcode/Command Line Tools toolchain. Don't rerun the old command expecting an SDK mismatch to disappear on its own.
 
+### Confirmed on Suzy's Mac: missing Google MRT2 (AU) registration
+
+The localhost status on 2026-10-27 showed a valid **455,654,550-byte MRT2 Small model**, correct MusicCoCa resources, and this definitive blocking error: **`Google MRT2 Audio Unit ... not registered`**. The MLX model and prompts cannot start until macOS registers Google's separate **MRT2 (AU).app** extension. Having Jam or Collider installed does *not* install the AU plugin.
+
+**Official setup:** Download the **Plugin / MRT2 (Plugin & App)** from [Google Magenta RealTime 2](https://magenta.withgoogle.com/mrt2). Move **`MRT2 (AU).app`** to `/Applications` or `~/Applications` **before launching it**, then open the app once. TOASTER now automatically calls `pluginkit -a` for its existing `Contents/PlugIns/MRT2_AU.appex` at either permanent path before launching its native host. It does not download, move, delete, or install the AU bundle. Google's official `examples/mrt2/auv3/INSTALL.md` explains this macOS requirement.
+
+To check whether the app is already installed:
+
+```bash
+for app in "/Applications/MRT2 (AU).app" "$HOME/Applications/MRT2 (AU).app"; do
+  if [ -d "$app/Contents/PlugIns/MRT2_AU.appex" ]; then
+    echo "Found actual AU extension: $app"
+    pluginkit -a "$app/Contents/PlugIns/MRT2_AU.appex"
+    open "$app" # one-time registration with macOS
+  fi
+done
+pluginkit -mAv | grep -i mrt || echo "No MRT2 AU extension registered; install official AU plugin."
+```
+
+Restart the TOASTER server after registration and check `http://127.0.0.1:7345/api/ai/status`. **`native_au: true`** is the next checkpoint. Only afterward troubleshoot the bookmark, model load, 48 kHz output and genuinely audible Magenta sound. The separate browser piano remains the playable fallback.
+
 ### Why Magenta could be silent while TOASTER's chords sounded unchanged
 
 **Root cause in the interface:** The 1–4 chords always drove a separate browser oscillator synth, with no automatic substitution by generated AI. The **HEAR AI ONLY** button now mutes that oscillator instrument (but preserves the rhythm and vocal/recorded audio layers) so the genuine AU can be auditioned independently. Press it, hold 1 for several seconds and listen. Click **RESTORE LOCAL KEYS** to return to the dependable original synth. If Magenta hasn't produced nonzero PCM, AI-only will be silent by design.
