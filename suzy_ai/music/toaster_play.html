@@ -506,7 +506,7 @@ function hasAudioLoops(){
 function changeTempo(value){
  const next=Number(value);
  if(!Number.isFinite(next)||next<70||next>170)return;
- if(hasAudioLoops()){
+ if(recording||hasAudioLoops()){
   $("tempo").value=String(pendingBpm||bpm);
   warn(Error("Tempo locked while recorded voice or AI audio loops exist: changing speed would shift their pitch. Export/remove those audio loops first; chord-event loops can follow BPM."));
   return;
@@ -599,6 +599,11 @@ async function startStop(){
   await openAudio();
   if(stageStarted){
    releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   if(recording?.kind==="vocal"){
+    recording.processor.onaudioprocess=null;
+    try{recording.source.disconnect();recording.processor.disconnect();recording.silent.disconnect()}catch{}
+    $("vocal-"+recording.scene).textContent="🎙 LOOP VOICE";
+   }
    if(recording)warn(Error("Recording stopped with rhythm; discard incomplete take."));
    recording=null;
    for(const d of Object.values(decks))for(const layer of d.layers){
@@ -608,10 +613,10 @@ async function startStop(){
    tell("Rhythm paused. Your loops are preserved.");
   }else{
    stepNumber=0;transportEpoch=ctx.currentTime+.09;nextStepAt=transportEpoch;
+   stageStarted=true;
    for(const [which,d] of Object.entries(decks)){
     for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer);
-   }
-   stageStarted=true;playTimer=setInterval(scheduler,25);scheduler();
+   }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
    tell("Rhythm live! Play 1–4, then tap LOOP MY CHORDS.");
@@ -670,46 +675,63 @@ async function enableMic(){
  micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
  await findDevices();return micStream;
 }
+// Record exactly one transport-aligned cycle of microphone PCM.
+// MediaRecorder starts/stops on browser timers (which caused drifting
+// vocal loops). Web Audio processing timestamps and fixed frame counts
+// keep this capture in the very same clock as the rhythm scheduler.
+// Chrome ScriptProcessor is deprecated but stable on the performance Mac;
+// it can later be replaced with an AudioWorklet without changing the UI.
 async function voiceLoop(which){
  choose(which);
- if(!stageStarted) return warn(Error("Start the rhythm first"));
- if(recording)return warn(Error("Finish your chord loop recording first"));
+ if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(recording)return warn(Error("Finish the current recording first"));
  try{
   await openAudio();
   const stream=await enableMic();
-  const recorder=new MediaRecorder(stream);
-  let parts=[];let duration=cycleSeconds();
-  recording={kind:"vocal",scene:which,active:false,beginAt:Math.ceil(stepNumber/16)*16,recorder};
+  if(!ctx.createScriptProcessor)throw Error("Chrome AudioContext recording unavailable. Use Advanced Studio for vocals.");
+  const firstStep=Math.ceil((stepNumber+1)/loopSteps)*loopSteps;
+  const start=transportEpoch+firstStep*tickSeconds();
+  const duration=cycleSeconds(),frames=Math.round(duration*ctx.sampleRate);
+  if(frames>ctx.sampleRate*12)throw Error("Loop cycle too long for live microphone recording");
+  const data=new Float32Array(frames);
+  const source=ctx.createMediaStreamSource(stream);
+  const processor=ctx.createScriptProcessor(1024,1,1);
+  const silent=ctx.createGain();silent.gain.value=0;
+  source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
+  const take={kind:"vocal",scene:which,active:false,beginAt:firstStep,start,
+              processor,source,silent,finished:false};
+  recording=take;
   $("vocal-"+which).textContent="🎙 ARMED";
-  const poll=setInterval(()=>{
-   if(!recording||recording.recorder!==recorder){clearInterval(poll);return;}
-   if(stepNumber>=recording.beginAt&&!recording.active){
-    recording.active=true;recording.start=ctx.currentTime;
-    recorder.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
-    recorder.onstop=async()=>{
-     try{
-      const raw=await new Blob(parts,{type:recorder.mimeType}).arrayBuffer();
-      const buffer=await ctx.decodeAudioData(raw);
-      const result=ctx.createBuffer(Math.min(2,buffer.numberOfChannels),Math.floor(duration*ctx.sampleRate),ctx.sampleRate);
-      for(let c=0;c<result.numberOfChannels;c++){
-       const source=buffer.getChannelData(c),dest=result.getChannelData(c);
-       dest.set(source.subarray(0,Math.min(dest.length,source.length)));
-       const fade=Math.min(400,dest.length/3);
-       for(let n=0;n<fade;n++){dest[n]*=n/fade;dest[dest.length-n-1]*=n/fade;}
-      }
-      const layer={id:crypto.randomUUID(),kind:"vocal",buffer:result,muted:false,source:null,gain:null};
-      decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
-      tell("Vocal loop saved to "+which+". The VE-22 stays in your signal chain.");
-     }catch(e){warn(e)}
-     $("vocal-"+which).textContent="🎙 LOOP VOICE";recording=null;
-    };
-    recorder.start();
-    $("vocal-"+which).textContent="🎙 RECORDING…";
-    setTimeout(()=>{if(recorder.state==="recording")recorder.stop()},duration*1000);
-    clearInterval(poll);
+  const finish=()=>{
+   if(take.finished)return;
+   take.finished=true;
+   processor.onaudioprocess=null;
+   source.disconnect();processor.disconnect();silent.disconnect();
+   if(recording!==take)return;
+   const clip=ctx.createBuffer(1,frames,ctx.sampleRate);
+   clip.getChannelData(0).set(data);
+   const dst=clip.getChannelData(0),fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
+   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null};
+   decks[which].layers.push(layer);
+   recording=null;
+   startLoopAudio(which,layer);
+   renderClips(which);
+   $("vocal-"+which).textContent="🎙 LOOP VOICE";
+   tell("Vocal loop aligned to rhythm: "+bpm+" BPM. VE-22 → Scarlett stays connected.");
+  };
+  processor.onaudioprocess=e=>{
+   if(take.finished)return;
+   const relative=Math.round((e.playbackTime-start)*ctx.sampleRate);
+   const inAudio=e.inputBuffer.getChannelData(0);
+   const from=Math.max(0,-relative),to=Math.min(inAudio.length,frames-relative);
+   if(to>from){
+    if(!take.active){take.active=true;$("vocal-"+which).textContent="🎙 RECORDING…";}
+    data.set(inAudio.subarray(from,to),Math.max(0,relative));
    }
-  },30);
-  tell("Mic ready. Voice recording starts at the next 2-bar boundary.");
+   if(relative+inAudio.length>=frames)finish();
+  };
+  tell("Voice armed. Sing at the next 2-bar downbeat; the shared clock aligns the loop.");
  }catch(e){recording=null;$("vocal-"+which).textContent="🎙 LOOP VOICE";warn(e)}
 }
 function startLoopAudio(which,l){
