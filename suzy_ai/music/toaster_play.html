@@ -133,6 +133,8 @@ const SCENES={
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,stageStarted=false,playTimer=null;
 let stepNumber=0,nextStepAt=0,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+const heldKeys=new Map();
+let midiQueue=Promise.resolve(),chordMidiScene=null;
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
@@ -202,57 +204,101 @@ function pulse(time,step){
  g.gain.exponentialRampToValueAtTime(.0001,time+(loud?.11:.026));
  o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+.14);
 }
-function synth(sceneKey,chord,time=ctx.currentTime+.01,quiet=false){
+// Looped chords are timed synth events; live chords are held until key-up.
+function synth(which,index,time=ctx.currentTime+.01,quiet=false,holdSeconds=.85){
  if(!ctx)return;
- const notes=SCENES[sceneKey].notes[chord],dest=decks[sceneKey].bus;
- const duration=2.0,attack=.025,release=1.65;
+ const notes=SCENES[which].notes[index],dest=decks[which].bus;
+ const sec=Math.max(.08,Math.min(cycleSeconds(),holdSeconds));
  for(const note of notes){
   const freq=440*Math.pow(2,(note-69)/12),gain=ctx.createGain();
-  const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createOscillator(),pg=ctx.createGain();
-  o.type="triangle";o.frequency.value=freq;g.gain.value=.55;
-  p.type="sine";p.frequency.value=freq*2;pg.gain.value=.08;
-  o.connect(g);g.connect(gain);p.connect(pg);pg.connect(gain);gain.connect(dest);
-  const peak=(quiet?.12:.21)/notes.length;
+  const osc=ctx.createOscillator(),soft=ctx.createOscillator(),og=ctx.createGain();
+  osc.type="triangle";osc.frequency.value=freq;
+  soft.type="sine";soft.frequency.value=freq*2;og.gain.value=.08;
+  osc.connect(gain);soft.connect(og);og.connect(gain);gain.connect(dest);
+  const peak=(quiet?.13:.24)/notes.length,up=time+.025,down=time+sec;
   gain.gain.setValueAtTime(.00001,time);
-  gain.gain.linearRampToValueAtTime(peak,time+attack);
-  gain.gain.exponentialRampToValueAtTime(peak*.43,time+.42);
-  gain.gain.exponentialRampToValueAtTime(.00001,time+release);
-  o.start(time);p.start(time);o.stop(time+duration);p.stop(time+duration);
+  gain.gain.linearRampToValueAtTime(peak,up);
+  gain.gain.setTargetAtTime(peak*.72,up,.35);
+  gain.gain.setTargetAtTime(.00001,down,.15);
+  osc.start(time);soft.start(time);osc.stop(down+.75);soft.stop(down+.75);
  }
 }
-function midi(sceneKey,index){
- // Magenta's MIDI bridge is optional. It does not generate audio in TOASTER.
- const url="/api/perform/";
+function midi(which,index){
+ // CoreMIDI conditioning is optional; no model is being run by this webpage.
  const headers={"Content-Type":"application/json","X-Suzy-Token":token};
- const request=(name,body)=>fetch(url+name,{method:"POST",headers,body:JSON.stringify(body)}).catch(()=>{});
- if(window.currentMidiScene!==sceneKey){window.currentMidiScene=sceneKey;request("scene",{scene:sceneKey}).then(()=>request("chord",{index}));}
- else request("chord",{index});
+ midiQueue=midiQueue.catch(()=>{}).then(async()=>{
+  const send=async(type,data)=>{
+   const r=await fetch("/api/perform/"+type,{method:"POST",headers,body:JSON.stringify(data)});
+   if(!r.ok)throw Error("MIDI bridge unavailable");
+  };
+  if(chordMidiScene!==which){await send("scene",{scene:which});chordMidiScene=which;}
+  await send("chord",{index});
+ }).catch(()=>{});
+}
+function midiRelease(){
+ midiQueue=midiQueue.catch(()=>{}).then(()=>fetch("/api/perform/release-chord",{
+  method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:"{}"
+ })).catch(()=>{});
 }
 function choose(which){
  if(scene!==which){$("mix").value=which==="pyramid"?0:100;}
- scene=which;
- updateMix();
+ scene=which;updateMix();
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
- tell(which==="pyramid"?"PYRAMID ready · keys 1–4": "WEIRD FISHES ready · keys 1–4");
+ tell(which==="pyramid"?"PYRAMID · hold 1–4 to sustain":"WEIRD FISHES · hold 1–4 to sustain");
 }
-function perform(which,index,manual=true){
+function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
+ if(heldKeys.has(key))return; // never retrigger for key auto-repeat
  choose(which);
- synth(which,index);
- if(manual){
-  midi(which,index);
-  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
-   const step=Math.max(0,Math.min(15,Math.round((ctx.currentTime-recording.start)/tickSeconds())%16));
-   recording.events.push({step,index});
-  }
+ const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
+ for(const note of notes){
+  const freq=440*Math.pow(2,(note-69)/12),amp=ctx.createGain();
+  const osc=ctx.createOscillator(),soft=ctx.createOscillator(),softGain=ctx.createGain();
+  osc.type="triangle";osc.frequency.value=freq;
+  soft.type="sine";soft.frequency.value=freq*2;softGain.gain.value=.085;
+  osc.connect(amp);soft.connect(softGain);softGain.connect(amp);amp.connect(decks[which].bus);
+  const peak=.23/notes.length;
+  amp.gain.setValueAtTime(.00001,start);
+  amp.gain.linearRampToValueAtTime(peak,start+.032);
+  amp.gain.setTargetAtTime(peak*.70,start+.16,.35);
+  osc.start(start);soft.start(start);
+  voices.push({amp,osc,soft});
+ }
+ const h={which,index,voices,start,event:null};heldKeys.set(key,h);
+ if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
+  const step=Math.max(0,Math.min(15,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
+  h.event={step,index,holdSteps:1};recording.events.push(h.event);
+ }
+ midi(which,index);
+ for(const el of document.querySelectorAll(".pad")){
+  if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
+ }
+ tell(SCENES[which].names[index]+" · SUSTAINING");
+}
+function endChord(key){
+ const h=heldKeys.get(key);if(!h)return;
+ heldKeys.delete(key);
+ const now=ctx?.currentTime??0;
+ for(const {amp,osc,soft} of h.voices){
+  try{
+   amp.gain.cancelScheduledValues(now);
+   amp.gain.setTargetAtTime(.00001,now,.13);
+   osc.stop(now+.75);soft.stop(now+.75);
+  }catch{}
+ }
+ if(h.event){
+  h.event.holdSteps=Math.max(.25,Math.min(loopSteps,Math.max(.05,now-h.start)/tickSeconds()));
  }
  for(const el of document.querySelectorAll(".pad")){
-  if(el.dataset.scene===which&&Number(el.dataset.chord)===index){
-   el.classList.add("on");setTimeout(()=>el.classList.remove("on"),150);
+  if(el.dataset.scene===h.which&&Number(el.dataset.chord)===h.index){
+   el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
+ if(!heldKeys.size)midiRelease();
+ tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
+function releaseAllChords(){for(const key of [...heldKeys.keys()])endChord(key);}
 function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function schedule(time,count){
@@ -271,7 +317,7 @@ function schedule(time,count){
   for(const l of d.layers){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
-    if(e.step===step)synth(which,e.index,time,true);
+    if(e.step===step)synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()));
    }
   }
  }
@@ -297,7 +343,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
-   stageStarted=false;clearInterval(playTimer);playTimer=null;
+   releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
    $("rhythm").textContent="▶ PLAY RHYTHM";$("rhythm").setAttribute("aria-pressed","false");
    tell("Rhythm paused. Your loops are preserved.");
   }else{
@@ -319,7 +365,14 @@ function record(which){
 }
 function endRecord(){
  if(!recording)return;
- const r=recording;recording=null;
+ const r=recording;
+ for(const h of heldKeys.values()){
+  if(h.event&&h.which===r.scene){
+   h.event.holdSteps=Math.max(.25,Math.min(loopSteps,(r.start+cycleSeconds()-h.start)/tickSeconds()));
+   h.event=null;
+  }
+ }
+ recording=null;
  $("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
  if(!r.events.length){tell("No notes captured. Tap LOOP MY CHORDS and play again.");return;}
@@ -453,7 +506,7 @@ async function readAndExport(){
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
-       const end=Math.min(sec*2,time+1.8);
+       const end=Math.min(sec*2,time+Math.max(.12,(event.holdSteps||1)*tickSeconds())+.65);
        v.gain.setValueAtTime(.00001,time);
        v.gain.linearRampToValueAtTime(.20/notes.length,Math.min(end,time+.025));
        if(end>time+.05)v.gain.exponentialRampToValueAtTime(.00001,end);
@@ -493,12 +546,29 @@ for(const k of Object.keys(decks)){
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
  $("voice-"+k).oninput=()=>{$("voiceNum-"+k).textContent=$("voice-"+k).value+"%";updateMix()};
 }
-document.querySelectorAll(".pad").forEach(el=>el.onclick=()=>perform(el.dataset.scene,Number(el.dataset.chord)));
-document.addEventListener("keydown",e=>{
- if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||e.target?.closest("input,select,button,textarea"))return;
- if("1234".includes(e.key)&&e.key.length===1){e.preventDefault();perform(scene,Number(e.key)-1)}
- else if(e.key===" "){e.preventDefault();startStop()}
+// Buttons keep focus after clicking. Ignore only *editable* fields, not BUTTON.
+// Capture keyup as well as keydown so sustain always ends, even after switching decks.
+document.querySelectorAll(".pad").forEach(el=>{
+ const which=el.dataset.scene,index=Number(el.dataset.chord),key="pad:"+which+":"+index;
+ el.addEventListener("pointerdown",e=>{if(e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);beginChord(which,index,key)});
+ el.addEventListener("pointerup",()=>endChord(key));
+ el.addEventListener("pointercancel",()=>endChord(key));
+ el.addEventListener("lostpointercapture",()=>endChord(key));
+ // Keyboard-accessible pad fallback: Enter/Space on focused button.
+ el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&!e.repeat){e.preventDefault();beginChord(which,index,key)}});
+ el.addEventListener("keyup",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();endChord(key)}});
 });
+const isTyping=e=>e.target?.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(e.target?.tagName);
+document.addEventListener("keydown",e=>{
+ if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||isTyping(e))return;
+ if(/^[1-4]$/.test(e.key)){e.preventDefault();beginChord(scene,Number(e.key)-1,"key:"+e.key);}
+ else if(e.key===" "&&e.target?.tagName!=="BUTTON"){e.preventDefault();startStop();}
+});
+document.addEventListener("keyup",e=>{
+ if(/^[1-4]$/.test(e.key)){e.preventDefault();endChord("key:"+e.key);}
+});
+window.addEventListener("blur",releaseAllChords);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
 $("mix").oninput=updateMix;
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};

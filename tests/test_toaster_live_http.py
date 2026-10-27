@@ -90,7 +90,8 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("auto Scarlett", html)
         self.assertIn("Saved, not driving a model".lower(), html.lower())
         self.assertIn("OfflineAudioContext", html)
-        self.assertIn("midi(sceneKey,index)", html)
+        self.assertIn("function midi(which,index)", html)
+        self.assertIn("function midiRelease()", html)
         self.assertIn("SCENES=", html)
         self.assertIn("VE-22", html)
         self.assertIn("Magenta's separate engine is not embedded", html)
@@ -124,6 +125,15 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn([0x90, 54, 56],self.bridge.collider_out.messages)
         self.assertEqual(self.call("POST", "/api/collider/disconnect")[1]["collider_direct_ready"],False)
         self.assertFalse(self.perf.status()["collider_direct_ready"])
+
+    def test_releasing_computer_key_sends_midi_note_off(self):
+        self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0})[0], 200)
+        self.assertEqual(self.call("POST", "/api/perform/release-chord", token=False)[0], 403)
+        self.assertEqual(self.call("POST", "/api/perform/release-chord", {"index":0})[0], 400)
+        code, data = self.call("POST", "/api/perform/release-chord", {})
+        self.assertEqual(code, 200)
+        self.assertIsNone(data["chord_index"])
+        self.assertIn([0x80, 54, 0], self.bridge.output.messages)
 
     def test_rhythm_and_release_do_not_claim_audio_mute(self):
         self.call("POST", "/api/perform/chord", {"index":0})

@@ -111,6 +111,9 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
                 elif self.path == "/api/perform/chord":
                     if set(data) != {"index"}: raise ValueError("index required")
                     result = perf.chord(data["index"])
+                elif self.path == "/api/perform/release-chord":
+                    if data: raise ValueError("release-chord takes no arguments")
+                    result = perf.release_chord()
                 elif self.path == "/api/perform/settings":
                     if set(data) != {"bpm","rhythm","intensity"}: raise ValueError("bpm, rhythm, intensity required")
                     result = perf.settings(**data)
