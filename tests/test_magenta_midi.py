@@ -5,13 +5,21 @@ from suzy_ai.music.magenta_midi import MagentaMidiBridge, VIRTUAL_PORT
 
 
 class FakeOut:
-    def __init__(self):
+    def __init__(self, owner=None):
+        self.owner = owner
+        self.opened_index = None
         self.messages = []
         self.name = None
         self.closed = False
 
     def open_virtual_port(self, name):
         self.name = name
+
+    def get_ports(self):
+        return list(self.owner.output_ports) if self.owner else []
+
+    def open_port(self, index):
+        self.opened_index = index
 
     def send_message(self, message):
         self.messages.append(list(message))
@@ -50,11 +58,12 @@ class FakeIn:
 class FakeRtMidi:
     def __init__(self):
         self.ports = ["Keystation Mini 32 MK3", VIRTUAL_PORT]
+        self.output_ports = ["MRT2 - Collider Input"]
         self.outputs = []
         self.inputs = []
 
     def MidiOut(self):
-        result = FakeOut()
+        result = FakeOut(self)
         self.outputs.append(result)
         return result
 
@@ -86,6 +95,31 @@ class MagentaMidiTests(unittest.TestCase):
         self.assertIsNotNone(self.connect())
         self.assertEqual(self.bridge.status()["magenta_connection"], "not_observed")
         self.assertEqual(self.bridge.status()["ai_audio_muted"], "not_observed")
+
+    def test_explicit_collider_direct_destination_duplicates_midi_to_native_sink(self):
+        self.assertFalse(self.bridge.status()["collider_direct_ready"])
+        self.bridge.connect_collider()
+        self.assertTrue(self.bridge.status()["collider_direct_ready"])
+        self.assertIn("MRT2 - Collider Input", self.bridge.status()["collider_direct_output"])
+        direct = self.hw.outputs[-1]
+        self.assertEqual(direct.opened_index, 0)
+        self.bridge.test_chord()
+        self.assertIn([0x90, 57, 48], direct.messages)
+        self.assertIn([0x90, 57, 48], self.output.messages)
+        self.bridge.disconnect_collider()
+        self.assertTrue(direct.closed)
+        self.assertFalse(self.bridge.status()["collider_direct_ready"])
+        self.assertEqual(self.bridge.status()["magenta_connection"], "not_observed")
+        self.assertEqual(self.bridge.status()["ai_audio_muted"], "not_observed")
+
+    def test_collider_port_absent_and_ambiguous_fails_closed(self):
+        self.hw.output_ports.clear()
+        with self.assertRaisesRegex(ValueError, "not found"):
+            self.bridge.connect_collider()
+        self.hw.output_ports = ["MRT2 - Collider Input", "MRT2 - Collider Input duplicate"]
+        with self.assertRaisesRegex(ValueError, "Multiple"):
+            self.bridge.connect_collider()
+        self.assertFalse(self.bridge.status()["collider_direct_ready"])
 
     def test_direct_note_off_velocity_zero_and_octave_move(self):
         source = self.connect()

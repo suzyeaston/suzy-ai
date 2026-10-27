@@ -83,7 +83,18 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(int(length)))
             if not isinstance(data, dict):
                 raise ValueError("JSON object expected")
-            if self.path.startswith("/api/perform/"):
+            if self.path in ("/api/collider/connect", "/api/collider/disconnect"):
+                if data:
+                    raise ValueError("Collider MIDI command takes no arguments")
+                # Release TOASTER chord/groove before changing destination.
+                if self.performance is not None:
+                    self.performance.stop()
+                if self.path == "/api/collider/connect":
+                    self.bridge.connect_collider()
+                else:
+                    self.bridge.disconnect_collider()
+                result = self.performance.status() if self.performance else self.bridge.status()
+            elif self.path.startswith("/api/perform/"):
                 perf = self.performance
                 if perf is None:
                     return self.reply(503, {"error": "performance unavailable"})
