@@ -38,3 +38,22 @@ jobs:
         run: cmake --build /tmp/suzy-toast-au --target SuzyToast_AU --config Release -j 2
       - name: Find AU bundle
         run: find /tmp/suzy-toast-au -name "*.component" -print
+
+      - name: Package compiled AU for manual Mac test
+        shell: bash
+        run: |
+          component="$(find /tmp/suzy-toast-au -type d -name '*.component' -print -quit)"
+          if [ -z "$component" ]; then
+            echo "::error::No Audio Unit component produced"
+            exit 1
+          fi
+          echo "Packaging $component"
+          ditto -c -k --sequesterRsrc --keepParent "$component" "$GITHUB_WORKSPACE/suzy-toast-au-macos-arm64.zip"
+          unzip -l "$GITHUB_WORKSPACE/suzy-toast-au-macos-arm64.zip" | head -n 20
+      - name: Upload test AU (unsigned/ad-hoc build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: suzy-toast-au-macos-arm64
+          path: suzy-toast-au-macos-arm64.zip
+          if-no-files-found: error
+          retention-days: 7
