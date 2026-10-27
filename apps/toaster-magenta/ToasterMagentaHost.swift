@@ -25,7 +25,9 @@ final class MRT2Host {
     private var reverbAmount: Float = 0.18
     private var muted = false
     private var outputSignalDetected = false
-    private let prompts = [
+    private var auComponentName = ""
+    private var outputRate: Double = 0
+    private var prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
         "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
     ]
@@ -56,6 +58,10 @@ final class MRT2Host {
             "tempo_bpm": tempoBpm,
             "tempo_context_supplied": generator != nil,
             "text_prompts": prompts,
+            "au_component": auComponentName,
+            "native_output_sample_rate": outputRate,
+            "model_file_exists": FileManager.default.fileExists(atPath: modelPath),
+            "model_file_bytes": ((try? FileManager.default.attributesOfItem(atPath: modelPath)[.size]) as? NSNumber)?.int64Value ?? 0,
             "midi_input": "TOASTER direct AU, not CoreMIDI",
             "output": "macOS system default, separate from browser audio",
         ]
@@ -168,6 +174,7 @@ final class MRT2Host {
                 errorMessage = "MRT2 native Audio Unit not registered. Open the installed MRT2 (AU) app once, or keep TOASTER browser synth."
                 return
             }
+        auComponentName = item.name
         AVAudioUnit.instantiate(with: item.audioComponentDescription, options: []) { [weak self] unit,error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -239,6 +246,7 @@ final class MRT2Host {
                     unit.auAudioUnit.fullState = state
                     self.modelRequested = true
                     try audio.start()
+                    self.outputRate = audio.outputNode.outputFormat(forBus: 0).sampleRate
                     self.engine = audio
                     self.active = true
                     self.configure()
@@ -270,6 +278,17 @@ final class MRT2Host {
         case "status": break
         case "start": start()
         case "stop": stop()
+        case "configure-prompts":
+            // Google's AU reads the text strings while loading the model.
+            // Changing fullState AFTER it is loaded doesn't update embeddings;
+            // require a new ENABLE instead of pretending to hot-swap sound.
+            guard !active && !loading,
+                  let list = request["prompts"] as? [String],
+                  list.count == 2,
+                  list.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 500 }) else {
+                return ["error":"Stop Magenta before saving two prompts (maximum 500 characters each)"]
+            }
+            prompts = list
         case "scene":
             guard let x = request["scene"] as? String, chords[x] != nil else {
                 return ["error":"scene must be pyramid or fishes"]
