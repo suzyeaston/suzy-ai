@@ -48,9 +48,11 @@
   }
 
   class Rack {
-    constructor({audio,ensureLocal,getChordBus,getMicStream,ensureMic,onMessage}){
+    constructor({audio,ensureLocal,getChordBus,getMicStream,ensureMic,onMessage,getAudioBus}){
       this.audio=audio;this.ensureLocal=ensureLocal;this.getChordBus=getChordBus;
       this.getMicStream=getMicStream;this.ensureMic=ensureMic;this.onMessage=onMessage;
+      this.getAudioBus=getAudioBus||(()=>this.ctx.destination);
+      this.kindGains={chord:1,vocal:1,ai:1};
       this.ctx=null;this.layers=[];this.epoch=0;this.length=0;this.bpm=0;
       this.bars=0;this.bus=null;this.recorder=null;this.timer=null;this.pending=false;
       this.trackId=0;this.playing=true;this.raf=0;this.tempStream=null;
@@ -201,13 +203,19 @@
       const src=ctx.createBufferSource(),gain=ctx.createGain();
       src.buffer=layer.buffer;src.loop=true;
       gain.gain.value=this.effectiveGain(layer);
-      src.connect(gain);gain.connect(ctx.destination);
+      src.connect(gain);gain.connect(this.getAudioBus()||ctx.destination);
       const when=ctx.currentTime+.025;
       const offset=((when-this.epoch)%this.length+this.length)%this.length;
       src.start(when,offset);
       layer.source=src;layer.gain=gain;
     }
-    effectiveGain(layer){return layer.muted||(this.soloId!==null&&layer.id!==this.soloId)?0:layer.level;}
+    effectiveGain(layer){return layer.muted||(this.soloId!==null&&layer.id!==this.soloId)?0:layer.level*this.kindGains[layer.kind];}
+    setKindGain(kind,value){
+      if(!Object.prototype.hasOwnProperty.call(this.kindGains,kind))throw Error('Unknown loop mixer channel');
+      if(!Number.isFinite(value)||value<0||value>1)throw Error('Mixer fader outside 0..1');
+      this.kindGains[kind]=value;
+      this.updateLevels();
+    }
     updateLevels(){
       for(const layer of this.layers){
         if(layer.gain)layer.gain.gain.setTargetAtTime(this.effectiveGain(layer),this.ctx.currentTime,.02);
@@ -286,8 +294,18 @@
       $("rackExport").disabled=this.layers.length===0;
       $("rackClear").disabled=this.layers.length===0;
       $("rackMeta").textContent=this.layers.length?
-        this.layers.length+" lanes · "+this.bars+" bars · "+this.bpm+" BPM · "+this.length.toFixed(2)+"s cycle · RAM only":
+        this.layers.length+" clips · "+this.bars+" bars · "+this.bpm+" BPM · "+this.length.toFixed(2)+"s loop · RAM only":
         "NO LOOP YET · first captured lane sets the duration";
+      const ruler=$("rackRuler");
+      if(ruler){
+        ruler.replaceChildren();
+        const beats=this.layers.length?this.bars:Number($("rackBars").value);
+        for(let i=1;i<=beats;i++){
+          const cell=root.document.createElement("span");
+          cell.textContent="BAR "+i;
+          ruler.appendChild(cell);
+        }
+      }
       for(const l of this.layers){
         const row=root.document.createElement("div");row.className="rack-layer";row.dataset.kind=l.kind;
         const top=root.document.createElement("div");top.className="rack-layer-top";
@@ -310,9 +328,12 @@
       if(this.length&&this.ctx&&this.playing){
         const phase=((this.ctx.currentTime-this.epoch)%this.length+this.length)%this.length;
         $("rackProgress").style.width=(phase/this.length*100)+"%";
+        if($("rackTrackField"))$("rackTrackField").style.setProperty("--phase",(phase/this.length*100)+"%");
         $("rackClock").textContent=phase.toFixed(1)+" / "+this.length.toFixed(1)+" s";
       }else{
-        $("rackProgress").style.width="0%";$("rackClock").textContent=this.length?this.length.toFixed(1)+" s · paused":"0.0s";
+        $("rackProgress").style.width="0%";
+        if($("rackTrackField"))$("rackTrackField").style.setProperty("--phase","0%");
+        $("rackClock").textContent=this.length?this.length.toFixed(1)+" s · paused":"0.0s";
       }
       this.raf=root.requestAnimationFrame(()=>this.tick());
     }
