@@ -125,6 +125,15 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/collider/disconnect")[1]["collider_direct_ready"],False)
         self.assertFalse(self.perf.status()["collider_direct_ready"])
 
+    def test_releasing_computer_key_sends_midi_note_off(self):
+        self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0})[0], 200)
+        self.assertEqual(self.call("POST", "/api/perform/release-chord", token=False)[0], 403)
+        self.assertEqual(self.call("POST", "/api/perform/release-chord", {"index":0})[0], 400)
+        code, data = self.call("POST", "/api/perform/release-chord", {})
+        self.assertEqual(code, 200)
+        self.assertIsNone(data["chord_index"])
+        self.assertIn([0x80, 54, 0], self.bridge.output.messages)
+
     def test_rhythm_and_release_do_not_claim_audio_mute(self):
         self.call("POST", "/api/perform/chord", {"index":0})
         self.assertEqual(self.call("POST", "/api/perform/settings", {"bpm":132,"rhythm":"pulse","intensity":75})[0],200)
