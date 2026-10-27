@@ -159,6 +159,7 @@ async function openAudio(){
     d.bus.connect(mainBus);d.bus.connect(verb);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);
   }
+  updateMix();
  }
  if(ctx.state!=="running")await ctx.resume();
  return ctx;
@@ -228,7 +229,9 @@ function midi(sceneKey,index){
  else request("chord",{index});
 }
 function choose(which){
+ if(scene!==which){$("mix").value=which==="pyramid"?0:100;}
  scene=which;
+ updateMix();
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
  tell(which==="pyramid"?"PYRAMID ready · keys 1–4": "WEIRD FISHES ready · keys 1–4");
@@ -256,11 +259,11 @@ function schedule(time,count){
  const step=count%loopSteps;
  pulse(time,step);
  if(step===0){
-  if(recording&&!recording.active&&count>=recording.beginAt){
+  if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
    tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
    $("record-"+recording.scene).textContent="● RECORDING…";
-  }else if(recording?.active&&count>=recording.beginAt+loopSteps){
+  }else if(recording?.kind==="chords"&&recording.active&&count>=recording.beginAt+loopSteps){
    endRecord();
   }
  }
@@ -340,7 +343,12 @@ function renderClips(which){
 async function enableMic(){
  if(micStream?.active)return micStream;
  if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone not available in this browser");
- const devices=await navigator.mediaDevices.enumerateDevices();
+ let devices=await navigator.mediaDevices.enumerateDevices();
+ if(!devices.some(d=>d.kind==="audioinput"&&d.label)){
+   const provisional=await navigator.mediaDevices.getUserMedia({audio:true});
+   devices=await navigator.mediaDevices.enumerateDevices();
+   provisional.getTracks().forEach(t=>t.stop());
+ }
  const chosen=$("micInput").value;
  const preferred=devices.find(d=>d.kind==="audioinput"&&/scarlett|focusrite/i.test(d.label));
  micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
@@ -427,12 +435,54 @@ function updateMix(){
   decks[k].voiceBus.gain.value=Number($("voice-"+k).value)/100*side;
  }
 }
-function readAndExport(){
- // Simple one-cycle offline export for audio clips. Symbolic chord loops remain
- // editable live and are not silently represented as printed audio.
- const audio=Object.values(decks).flatMap(d=>d.layers.filter(l=>l.buffer&&!l.muted));
- if(!audio.length){warn(Error("No recorded audio loops to export yet. Chord-event loops aren't WAV audio. Use the studio recorder for full bounce."));return;}
- warn(Error("For now use individual recorded loops in Advanced Studio to export WAV; this simple performance view keeps them in browser memory. Export is not implemented here."));
+async function readAndExport(){
+ try{
+  await openAudio();
+  if(!Object.values(decks).some(d=>d.layers.some(l=>!l.muted)))throw Error("Record a loop before exporting");
+  const sec=cycleSeconds(),sr=ctx.sampleRate,offline=new OfflineAudioContext(2,Math.ceil(sec*sr),sr);
+  const masterOut=offline.createGain();masterOut.gain.value=Number($("master").value)/100;masterOut.connect(offline.destination);
+  for(const [which,d] of Object.entries(decks)){
+   const side=which==="pyramid"?1-Number($("mix").value)/100:Number($("mix").value)/100;
+   for(const layer of d.layers){
+    if(layer.muted)continue;
+    const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
+    gain.connect(masterOut);
+    if(layer.kind==="chords"){
+     for(const event of layer.events){
+      const notes=SCENES[which].notes[event.index],time=event.step*tickSeconds();
+      for(const note of notes){
+       const o=offline.createOscillator(),v=offline.createGain();
+       o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
+       const end=Math.min(sec,time+1.8);
+       v.gain.setValueAtTime(.00001,time);
+       v.gain.linearRampToValueAtTime(.20/notes.length,Math.min(end,time+.025));
+       if(end>time+.05)v.gain.exponentialRampToValueAtTime(.00001,end);
+       o.connect(v);v.connect(gain);o.start(time);o.stop(end);
+      }
+     }
+    }else if(layer.buffer){
+     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);src.start(0);
+    }
+   }
+  }
+  const result=await offline.startRendering();
+  const channels=2,frame=result.length,data=new ArrayBuffer(44+frame*channels*2),v=new DataView(data);
+  const tag=(pos,txt)=>{for(let i=0;i<txt.length;i++)v.setUint8(pos+i,txt.charCodeAt(i));};
+  tag(0,"RIFF");v.setUint32(4,data.byteLength-8,true);tag(8,"WAVE");tag(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*channels*2,true);
+  v.setUint16(32,channels*2,true);v.setUint16(34,16,true);tag(36,"data");v.setUint32(40,data.byteLength-44,true);
+  const left=result.getChannelData(0),right=result.getChannelData(1);
+  for(let i=0;i<frame;i++){
+   for(const [c,n] of [left[i],right[i]].entries()){const x=Math.max(-1,Math.min(1,n));
+    v.setInt16(44+i*4+c*2,x<0?x*32768:x*32767,true);
+   }
+  }
+  const url=URL.createObjectURL(new Blob([data],{type:"audio/wav"}));
+  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_2BAR_MIX.wav";
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+  tell("Mix exported! Import SUZY_TOAST_2BAR_MIX.wav into Logic.");
+ }catch(e){warn(e)}
 }
 $("rhythm").onclick=startStop;
 for(const k of Object.keys(decks)){
