@@ -63,6 +63,41 @@ class NativeMagentaHost:
             self.launch_error = ""
             Thread(target=self._launch_worker, name="toaster-magenta-start", daemon=True).start()
 
+    @staticmethod
+    def _register_installed_au(app_paths=None):
+        """Best-effort registration of Google's actual AUv3 extension.
+
+        Jam and Collider are independent applications: neither is an AU.
+        Only touch an existing MRT2 (AU).app at a permanent Applications path.
+        No downloading, deleting stale extensions, or registrar process killing.
+        """
+        candidates = app_paths if app_paths is not None else [
+            Path.home() / "Applications" / "MRT2 (AU).app",
+            Path("/Applications/MRT2 (AU).app"),
+        ]
+        for app in candidates:
+            extension = Path(app) / "Contents/PlugIns/MRT2_AU.appex"
+            if not extension.is_dir():
+                continue
+            try:
+                result = subprocess.run(
+                    ["pluginkit", "-a", str(extension)],
+                    capture_output=True, text=True, timeout=12, check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise RuntimeError(
+                    "MRT2 (AU).app was found, but its AUv3 extension could not be registered: "
+                    + str(exc)[:180]
+                ) from exc
+            if result.returncode != 0:
+                raise RuntimeError(
+                    "macOS pluginkit could not register MRT2_AU.appex. "
+                    "Open MRT2 (AU).app once and restart TOASTER. "
+                    + (result.stderr or result.stdout)[-240:]
+                )
+            return str(app)
+        return None
+
     def _launch_worker(self):
         error = ""
         try:
@@ -82,6 +117,10 @@ class NativeMagentaHost:
                     raise RuntimeError(
                         "Native helper build failed: " + (build.stdout + build.stderr)[-450:]
                     )
+            # If the official AU app is already installed, register its
+            # embedded extension *before* starting our fresh host process.
+            # AVAudioUnitComponentManager then sees the newly registered AU.
+            self._register_installed_au()
             with self.lock:
                 if self.closing:
                     return
