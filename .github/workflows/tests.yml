@@ -26,6 +26,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Typecheck real Magenta AU audio host
+        run: |
+          xcrun swiftc -typecheck -framework AVFoundation -framework AudioToolbox apps/toaster-magenta/ToasterMagentaHost.swift
+          bash -n scripts/build-toaster-magenta.sh
       - name: Test and compile Mac companion
         working-directory: apps/macos
         run: swift test
