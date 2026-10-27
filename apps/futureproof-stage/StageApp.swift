@@ -18,7 +18,7 @@ struct ShowScene {
     let loop: Float
     let hint: String
 }
-private let set: [ShowScene] = [
+private let showScenes: [ShowScene] = [
     .init(name: "PYRAMID", caption: "Pyramid Song · opening", chords: [
         ("F♯", [54,58,61]), ("Gmaj7", [55,59,62,66]),
         ("A6", [57,61,64,66]), ("Gmaj7", [55,59,62,66]),
@@ -166,7 +166,7 @@ private final class PhysicalKeyboard {
         guard let callback = generator?.auAudioUnit.scheduleMIDIEventBlock else { return }
         notes.withUnsafeBufferPointer { pointer in
             guard let base = pointer.baseAddress, !notes.isEmpty else { return }
-            callback(AUEventSampleTimeImmediate, 0, UInt32(notes.count), base)
+            callback(AUEventSampleTimeImmediate, 0, notes.count, base)
         }
     }
 
@@ -178,20 +178,20 @@ private final class PhysicalKeyboard {
     private func sendCue() {
         guard ready else { return }
         releaseCue()
-        let cues = set[selectedScene].chords
+        let cues = showScenes[selectedScene].chords
         let notes = cues[chordIndex % cues.count].1
         heldChord = notes
         for n in notes { midi([0x90, n, 77]) }
     }
 
     func nextChord() {
-        let count = set[selectedScene].chords.count
+        let count = showScenes[selectedScene].chords.count
         chordIndex = (chordIndex + 1) % count
         sendCue()
     }
 
     func previousChord() {
-        let count = set[selectedScene].chords.count
+        let count = showScenes[selectedScene].chords.count
         chordIndex = (chordIndex - 1 + count) % count
         sendCue()
     }
@@ -201,7 +201,7 @@ private final class PhysicalKeyboard {
     private func playSceneBacking() {
         guard let player = backingPlayer,
             let url = Bundle.main.url(forResource:
-                set[selectedScene].name.lowercased(), withExtension:"wav") else { return }
+                showScenes[selectedScene].name.lowercased(), withExtension:"wav") else { return }
         do {
             let file = try AVAudioFile(forReading: url)
             guard file.length > 0 && file.length < 48_000 * 60,
@@ -238,10 +238,10 @@ private final class PhysicalKeyboard {
     }
 
     func selectScene(_ index: Int) {
-        guard set.indices.contains(index) else { return }
+        guard showScenes.indices.contains(index) else { return }
         releaseCue()
         selectedScene = index; chordIndex = 0
-        let s = set[index]
+        let s = showScenes[index]
         liveGain = Double(s.live); loopGain = Double(s.loop)
         param("scene", Float(index))
         param("browning", s.warmth)
@@ -346,7 +346,7 @@ private final class PhysicalKeyboard {
                     if let callback = generatorRef.auAudioUnit.scheduleMIDIEventBlock {
                         message.withUnsafeBufferPointer { p in
                             if let base = p.baseAddress {
-                                callback(AUEventSampleTimeImmediate, 0, UInt32(message.count), base)
+                                callback(AUEventSampleTimeImmediate, 0, message.count, base)
                             }
                         }
                     }
@@ -394,8 +394,8 @@ private final class PhysicalKeyboard {
         ready = false; micOn = false; hasToast = false; loopState = "IDLE"
     }
 
-    var nowChord: String { set[selectedScene].chords[chordIndex].0 }
-    var scene: ShowScene { set[selectedScene] }
+    var nowChord: String { showScenes[selectedScene].chords[chordIndex].0 }
+    var scene: ShowScene { showScenes[selectedScene] }
 }
 
 @main struct FutureproofApp: App {
@@ -444,8 +444,8 @@ private struct StageView: View {
                     } label: {
                         VStack(spacing:7) {
                             Text(String(format:"0%d",i+1)).font(.system(size:13,weight:.semibold,design:.monospaced))
-                            Text(set[i].name).font(.system(size:17,weight:.heavy,design:.rounded))
-                            Text(set[i].caption).font(.system(size:11)).lineLimit(2)
+                            Text(showScenes[i].name).font(.system(size:17,weight:.heavy,design:.rounded))
+                            Text(showScenes[i].caption).font(.system(size:11)).lineLimit(2)
                         }
                         .frame(maxWidth:.infinity,minHeight:85)
                         .padding(6)
