@@ -20,6 +20,7 @@ from .audio_routing import inspect_audio_routing
 PAGE = Path(__file__).with_name("magenta_stage.html")
 TOASTER_PAGE = Path(__file__).with_name("toaster_stage.html")
 LIVE_PAGE = Path(__file__).with_name("toaster_live.html")
+LOOP_RACK_SCRIPT = Path(__file__).with_name("toaster_loop_rack.js")
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
@@ -41,7 +42,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
             ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; "
-             "script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"),
+             "script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"),
         ]:
             self.send_header(k, v)
         self.end_headers()
@@ -57,6 +58,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         if self.path == "/toaster/live":
             page = LIVE_PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
+        if self.path == "/toaster/loop-rack.js":
+            return self.reply(200, LOOP_RACK_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/api/perform/status":
             return self.reply(200, self.performance.status()) if self.performance else self.reply(503, {"error":"performance unavailable"})
         if self.path == "/api/status":

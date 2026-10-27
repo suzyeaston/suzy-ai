@@ -19,6 +19,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: bash scripts/test-native-loop.sh
       - run: bash scripts/test.sh
+      - run: node --test tests/toaster_loop_rack.test.cjs
       - run: bash -n scripts/setup-mac.sh scripts/start-mac.sh
   mac-companion:
     runs-on: macos-latest
