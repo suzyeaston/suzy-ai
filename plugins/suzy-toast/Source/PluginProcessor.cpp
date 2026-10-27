@@ -36,7 +36,38 @@ juce::AudioProcessorValueTreeState::ParameterLayout SuzyToastAudioProcessor::cre
         juce::ParameterID{"beats", 1}, "Beats per bar", 3, 6, 4));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"bars", 1}, "Record bars", juce::StringArray{"1", "2", "4"}, 1));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID{"scene", 1}, "Live set scene",
+        juce::StringArray{"PYRAMID", "EVOLVE", "FISHES"}, 0));
     return layout;
+}
+
+// Called from the UI/message thread, never from the audio callback.
+// The stage buttons recall DSP defaults and manual loop tempo only.
+// In particular, MASTER, SPACE and the existing loop recording/state
+// are preserved during a scene transition.
+void SuzyToastAudioProcessor::applyPerformanceScene(int index) {
+    if (index < 0 || index >= static_cast<int>(suzytoast::performanceScenes.size()))
+        return;
+    const auto& s = suzytoast::sceneAt(index);
+    const auto set = [this](const char* id, float raw) {
+        if (auto* param = parameters.getParameter(id))
+            param->setValueNotifyingHost(param->convertTo0to1(raw));
+    };
+    set("browning", s.browning);
+    set("destruction", s.destruction);
+    set("live", s.liveMix);
+    set("loop", s.loopMix);
+    set("bpm", static_cast<float>(s.rehearsalBpm));
+    set("beats", 4.0f);
+    set("bars", s.bars == 1 ? 0.0f : (s.bars == 2 ? 1.0f : 2.0f));
+    set("scene", static_cast<float>(index));
+}
+
+int SuzyToastAudioProcessor::performanceSceneIndex() const noexcept {
+    if (auto* v = parameters.getRawParameterValue("scene"))
+        return std::clamp(static_cast<int>(v->load(std::memory_order_relaxed)), 0, 2);
+    return 0;
 }
 
 bool SuzyToastAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
