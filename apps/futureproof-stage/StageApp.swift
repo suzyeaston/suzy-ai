@@ -7,7 +7,7 @@ import CoreMIDI
 // A genuinely standalone AUDIO UNIT HOST for the *already installed* Google
 // Magenta MRT2 Small instrument, with the existing native SUZY Toast effect.
 // No Qwen, Python process, browser, second neural model, or internet needed.
-private struct ShowScene {
+struct ShowScene {
     let name: String
     let caption: String
     let chords: [(String, [UInt8])]
@@ -244,13 +244,13 @@ private final class PhysicalKeyboard {
         message = "Finding the installed Google Magenta MIDI Audio Unit…"
         Task {
             defer { starting = false }
-            guard let component = component(kAudioUnitType_MusicDevice,
+            guard let magentaComponent = component(kAudioUnitType_MusicDevice,
                  nameTerms: ["magenta realtime", "magenta real", "mrt2", "magenta"]) else {
                 message = "Google Magenta MRT2 instrument not registered. This app does not download Google's model."
                 return
             }
             do {
-                let unit = try await instantiate(component.audioComponentDescription)
+                let unit = try await instantiate(magentaComponent.audioComponentDescription)
                 // Resolve the optional AU effect only after the official generator.
                 let toastComponent = component(kAudioUnitType_Effect, nameTerms:["suzy toast"])
                 var fx: AVAudioUnit?
