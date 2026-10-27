@@ -117,6 +117,18 @@ class ToasterPerformance:
                 self._note(1, n, velocity)
             return self.status()
 
+    def release_chord(self):
+        """Release held harmonic notes without stopping the rhythm or changing scenes.
+
+        Called on keyboard/pointer up; keep groove voice independent.
+        """
+        with self.lock:
+            for n in self.chord_notes:
+                self._note(1, n, 0)
+            self.chord_notes = ()
+            self.index = None
+            return self.status()
+
     def settings(self, *, bpm, rhythm, intensity):
         if type(bpm) is not int or not 60 <= bpm <= 190:
             raise ValueError("BPM must be integer 60..190")
