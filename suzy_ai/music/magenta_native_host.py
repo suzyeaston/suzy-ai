@@ -12,7 +12,7 @@ from pathlib import Path
 import platform
 import select
 import subprocess
-from threading import RLock
+from threading import RLock, Thread
 
 ROOT = Path(__file__).resolve().parents[2]
 EXECUTABLE = ROOT / ".build" / "toaster-magenta-host"
@@ -44,18 +44,73 @@ class NativeMagentaHost:
         self.process = None
         self.lock = RLock()
         self.log = None
+        self.launching = False
+        self.launch_error = ""
+        self.closing = False
+
+    def launch_async(self):
+        """App launch starts ONE native Magenta instance off the HTTP thread.
+
+        Never start from import or from a web page refresh. If a binary is
+        missing, compile the local source using the fixed Swift/SDK selector.
+        """
+        with self.lock:
+            if self.launching or self.closing:
+                return
+            if self.process is not None and self.process.poll() is None:
+                return
+            self.launching = True
+            self.launch_error = ""
+            Thread(target=self._launch_worker, name="toaster-magenta-start", daemon=True).start()
+
+    def _launch_worker(self):
+        error = ""
+        try:
+            if platform.system() != "Darwin":
+                raise RuntimeError("Magenta native audio requires macOS")
+            if not self.binary.is_file():
+                if self.binary != EXECUTABLE:
+                    raise RuntimeError("Native host executable not present")
+                build = subprocess.run(
+                    ["bash", str(ROOT / "scripts/build-toaster-magenta.sh")],
+                    cwd=ROOT, timeout=180, capture_output=True, text=True,
+                )
+                if build.returncode != 0:
+                    raise RuntimeError(
+                        "Native helper build failed: " + (build.stdout + build.stderr)[-450:]
+                    )
+            with self.lock:
+                if self.closing:
+                    return
+                self._start()
+                response = self._request({"op": "start"})
+                if response.get("error"):
+                    raise RuntimeError(str(response["error"]))
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+            error = str(exc)[:600]
+        finally:
+            with self.lock:
+                self.launching = False
+                self.launch_error = error
+
+    def _inactive_status(self):
+        return {
+            "phase": "starting" if self.launching else "failed" if self.launch_error else "not-running",
+            "native_au": False,
+            "model_audio_confirmed": False,
+            "build_available": self.binary.is_file(),
+            "prompts": PROMPTS,
+            "error": self.launch_error,
+            "message": "Starting Magenta automatically…" if self.launching
+                       else self.launch_error or "Google MRT2 stopped; browser sound remains available.",
+        }
 
     def status(self):
         with self.lock:
+            if self.launching:
+                return self._inactive_status()
             if self.process is None or self.process.poll() is not None:
-                return {
-                    "phase": "not-running",
-                    "native_au": False,
-                    "model_audio_confirmed": False,
-                    "build_available": self.binary.is_file(),
-                    "prompts": PROMPTS,
-                    "message": "Google MRT2 not started. Browser audio still works.",
-                }
+                return self._inactive_status()
             return self._request({"op": "status"})
 
     def _start(self):
@@ -128,6 +183,7 @@ class NativeMagentaHost:
                 if type(note) is not int or not 0 <= note <= 127:
                     raise ValueError("note must be MIDI integer 0..127")
             if action == "start":
+                self.launch_error = ""
                 self._start()
                 if "prompts" in data:
                     response = self._request({"op": "configure-prompts", "prompts": data["prompts"]})
@@ -142,6 +198,7 @@ class NativeMagentaHost:
 
     def close(self):
         with self.lock:
+            self.closing = True
             if self.process is not None and self.process.poll() is None:
                 try:
                     self._request({"op": "stop"})
