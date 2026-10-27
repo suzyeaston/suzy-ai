@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "ticks_per_quarter": 480,
+  "total_bars": 499,
+  "duration_seconds": 898.98,
+  "acts": [
+    {
+      "name": "PYRAMID",
+      "bpm": 105,
+      "bars": 126,
+      "duration_seconds": 288.0
+    },
+    {
+      "name": "TRANSFORMATION",
+      "bpm": 120,
+      "bars": 60,
+      "duration_seconds": 120.0
+    },
+    {
+      "name": "FISHES",
+      "bpm": 153,
+      "bars": 313,
+      "duration_seconds": 490.98
+    }
+  ],
+  "files": [
+    "SUZY_FUTUREPROOF_15min_FULL_SET.mid",
+    "SUZY_PYRAMID_FIRST_16_BARS.mid",
+    "SUZY_TRANSFORMATION_32_BARS.mid",
+    "SUZY_FISHES_FIRST_32_BARS.mid"
+  ]
+}
