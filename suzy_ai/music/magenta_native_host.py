@@ -68,7 +68,10 @@ class NativeMagentaHost:
         try:
             if platform.system() != "Darwin":
                 raise RuntimeError("Magenta native audio requires macOS")
-            if not self.binary.is_file():
+            source = ROOT / "apps/toaster-magenta/ToasterMagentaHost.swift"
+            stale = (not self.binary.is_file()
+                     or (source.is_file() and source.stat().st_mtime_ns > self.binary.stat().st_mtime_ns))
+            if stale:
                 if self.binary != EXECUTABLE:
                     raise RuntimeError("Native host executable not present")
                 build = subprocess.run(
