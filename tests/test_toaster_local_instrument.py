@@ -31,7 +31,7 @@ class ToasterLocalInstrumentTests(unittest.TestCase):
         html = PAGE.read_text(encoding="utf8")
         self.assertIn('pyramid:[[54,58,61,66]', html)
         self.assertIn('fishes:[[52,55,59,62]', html)
-        self.assertIn('NO AI REQUIRED FOR SOUND', html)
+        self.assertIn('MODEL AND MIDI NOT REQUIRED FOR SOUND', html)
         self.assertIn('The Magenta / Collider volume must be controlled in its own app', html)
         self.assertNotIn('MRT2 AUDIO CONNECTED', html)
         self.assertNotIn('<script src=', html)
