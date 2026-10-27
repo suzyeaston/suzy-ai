@@ -340,26 +340,56 @@ async function aiFetch(action,data={}){
 }
 function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
- aiNativeStarting=s.phase==="initializing";
+ aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
- aiMuted=!!s.muted;
+ if(typeof s.muted==="boolean")aiMuted=s.muted;
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
  button.setAttribute("aria-pressed",String(aiNativeReady||aiNativeStarting));
  button.textContent=(aiNativeReady||aiNativeStarting)?"■ STOP MAGENTA":"✦ ENABLE MAGENTA";
  $("aiHostStatus").textContent=aiNativeReady?
   (s.output_signal_detected?"AI AUDIO SIGNAL DETECTED AT NATIVE MIXER · ":"NATIVE AU RUNNING, AUDIO NOT VERIFIED · ")+s.scene.toUpperCase():
-  aiNativeStarting?"LOADING LOCAL MRT2 MODEL · browser piano still plays":
+  aiNativeStarting?"STARTING OR COMPILING LOCAL MRT2 · browser piano still plays":
   s.error?"AI NOT READY · "+s.error:"AI OFF · local chords work without it";
+ $("aiDiagnostics").textContent=s.native_au?
+    "AU: "+(s.au_component||"unknown")+" · model "+(s.model_file_exists?"file found":"file unverified")+
+    " · "+(s.model_file_bytes?Math.round(s.model_file_bytes/1048576)+" MB":"unknown size")+
+    " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
+    (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
+    " · "+(s.output||"macOS default output"):
+    s.phase==="starting"?"Starting/compiling on Mac automatically…":
+    s.error?"STARTUP ERROR: "+s.error:"AI stopped or model not yet loaded";
+ if(s.native_output_sample_rate&&Math.abs(s.native_output_sample_rate-48000)>5){
+  $("aiDiagnostics").textContent+=" · CHECK 48 kHz IN AUDIO MIDI SETUP";
+ }
  if(s.error)aiLastError=s.error;
 }
 async function aiStatus(){
  try{
   const r=await fetch("/api/ai/status",{cache:"no-store"});
   if(!r.ok)throw Error("No native status");
+  const wasReady=aiNativeReady;
   const s=await r.json();aiDisplay(s);
+  if(aiNativeReady&&!wasReady){await syncAIMix();aiScene=s.scene||"pyramid";}
   if(aiNativeReady&&s.scene!==scene)await aiFetch("scene",{scene});
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
+}
+function getPromptStrings(){
+ const prompts=[$("promptPyramid").value.trim(),$("promptFishes").value.trim()];
+ if(prompts.some(p=>!p||p.length>500))throw Error("Enter two AI prompts, maximum 500 characters each");
+ return prompts;
+}
+async function applyPrompts(){
+ try{
+  const prompts=getPromptStrings();
+  $("aiHostStatus").textContent="APPLYING PROMPTS · restarting one model, browser sound continues…";
+  await aiFetch("stop");
+  aiNativeReady=false;
+  const result=await aiFetch("start",{prompts});
+  aiDisplay(result);
+  if(aiNativeReady)await syncAIMix();
+  tell("Both AI prompts updated; audition a held key when model sound is detected.");
+ }catch(e){warn(e);$("aiHostStatus").textContent="PROMPT UPDATE FAILED · "+e.message;}
 }
 async function toggleAI(){
  if(aiNativeReady||aiNativeStarting){
@@ -369,7 +399,7 @@ async function toggleAI(){
  }
  try{
   $("aiHostStatus").textContent="STARTING NATIVE MRT2 HOST…";
-  const s=await aiFetch("start");aiDisplay(s);
+  const s=await aiFetch("start",{prompts:getPromptStrings()});aiDisplay(s);
   if(!aiPoll)aiPoll=setInterval(aiStatus,1000);
   if(aiNativeReady)await syncAIMix();
  }catch(e){aiNativeReady=false;warn(e);
@@ -380,7 +410,7 @@ async function syncAIMix(){
  try{
   await aiFetch("mix",{value:Number($("mix").value)/100});
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
-  await aiFetch("reverb",{value:Number($("aiReverb").value)/100});
+  await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
   await aiFetch("tempo",{bpm});
  }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
@@ -896,19 +926,34 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllC
 $("mix").oninput=updateMix;
 $("mix").onchange=syncAIMix;
 $("aiEnable").onclick=toggleAI;
+$("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
-$("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value};
-$("aiReverb").onchange=syncAIMix;
+$("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
-$("reverb").oninput=()=>{if(wet)wet.gain.value=Number($("reverb").value)/180};
+function updateRoomFx(){
+ const value=Number($("reverb").value);
+ $("roomValue").textContent=value+"%";
+ $("aiReverbValue").textContent=value+"%";
+ $("aiReverb").value=String(value);
+ if(wet)wet.gain.value=value/180;
+ if(aiNativeReady)aiFetch("reverb",{value:value/100}).catch(warn);
+}
+$("reverb").oninput=updateRoomFx;
+$("tone").oninput=()=>{
+ const value=Number($("tone").value);
+ $("toneValue").textContent=value+"%";
+ if(mixFilter)mixFilter.frequency.setTargetAtTime(220+Math.pow(value/100,2)*19000,ctx.currentTime,.03);
+};
 $("findDevices").onclick=()=>findDevices().catch(warn);
 $("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
 $("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}tell("Mic change will apply on the next vocal recording.")};
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();
+aiStatus();
+if(!aiPoll)aiPoll=setInterval(aiStatus,1200);
 </script></body></html>
