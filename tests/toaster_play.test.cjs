@@ -12,7 +12,7 @@ function rig(){
  const el=(v="")=>({
    value:v,textContent:"",style:{},dataset:{},children:[],options:[],
    classList:klass(),disabled:false,selectedOptions:[{textContent:"Automatic"}],
-   setAttribute(){},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
+   setAttribute(){},addEventListener(){},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
