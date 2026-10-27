@@ -68,6 +68,12 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .ai-faders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ai-faders label{display:block}
 .ai-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prompt-editor{margin:12px 0;padding:10px;border:1px solid #735d84;border-radius:11px;background:#241d2b}
+.prompt-editor summary{font-size:12px;color:var(--peach);font-weight:700}
+.prompt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.prompt-grid label{display:block}
+.prompt-grid textarea{display:block;width:100%;min-height:82px;background:#17131f;color:#fff4e8;resize:vertical;border:1px solid #927e91;border-radius:9px;padding:9px;margin-top:5px;font:12px/1.5 system-ui}
+@media(max-width:650px){.prompt-grid{grid-template-columns:1fr}}
 .ai-actions button{flex:1}
 #aiMute[aria-pressed=true]{background:var(--red);color:#331d25}
 @media(max-width:740px){.ai-faders{grid-template-columns:1fr}}
@@ -99,6 +105,12 @@ a{color:var(--mint)}
 <small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
 <div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">soft pulse, no busy AI drums</small></div>
 <div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small></div>
+<div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
+<input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
+<small class="subtle">Applies to browser mix and native AI reverb</small></div>
+<div class="strip"><div class="strip-header"><strong>🎛 TONE</strong><span class="stat" id="toneValue">75%</span></div>
+<input id="tone" aria-label="Browser mix tone and lowpass" type="range" min="0" max="100" value="75">
+<small class="subtle">Warm ↔ bright · browser instruments and loops</small></div>
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
 </div>
 </section>
@@ -112,7 +124,18 @@ a{color:var(--mint)}
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
- <small class="subtle" style="grid-column:1/-1">Real native AU gain, hall reverb and mute. Independent from browser master. No automatic AI loop capture.</small></div>
+ <small class="subtle" style="grid-column:1/-1">Independent native AI volume and mute; ROOM FX above also adjusts its reverb. Native audio does not enter browser loop capture.</small></div>
+<details class="prompt-editor" id="promptEditor"><summary>✦ EDIT THE TWO AI SOUND PROMPTS</summary>
+<div class="prompt-grid">
+<div><label for="promptPyramid">01 · PYRAMID · intimate piano</label>
+<textarea id="promptPyramid" maxlength="500">Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals</textarea></div>
+<div><label for="promptFishes">02 · WEIRD FISHES · shimmering arpeggios</label>
+<textarea id="promptFishes" maxlength="500">Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals</textarea></div>
+</div>
+<div class="start"><span class="subtle">Apply prompts by restarting just the AI model. Browser audio and loops continue.</span>
+<button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
+</details>
+<div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
 </section>
 <section class="note-bank" aria-label="Playable computer keyboard">
 <div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
@@ -168,7 +191,7 @@ a{color:var(--mint)}
 <details><summary>Sound settings / devices / export (optional)</summary>
 <div class="settings">
 
-<div><label for="reverb">Reverb</label><input id="reverb" type="range" min="0" max="100" value="30"></div>
+
 <div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
 <div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
 <div><button id="findDevices">↻ RECHECK DEVICES</button></div>
@@ -187,7 +210,7 @@ const SCENES={
  fishes:{names:["Em7","F♯m7","A","Gmaj7"],notes:[[52,55,59,62],[54,57,61,64],[57,61,64,69],[55,59,62,66]],prompt:"Interlocking clean guitar arpeggios, shimmering delays, understated drum pulse, flowing bass"}
 };
 const token="__MAGENTA_TOKEN__";
-let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,stageStarted=false,playTimer=null;
+let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -212,15 +235,18 @@ async function openAudio(){
  if(!ctx){
   ctx=new (window.AudioContext||window.webkitAudioContext)();
   master=ctx.createGain();master.gain.value=Number($("master").value)/100;master.connect(ctx.destination);
-  mainBus=ctx.createGain();mainBus.connect(master);
-  beatBus=ctx.createGain();beatBus.gain.value=Number($("rhythmLevel").value)/100;beatBus.connect(master);
+  mixFilter=ctx.createBiquadFilter();mixFilter.type="lowpass";
+  mixFilter.frequency.value=220+Math.pow(Number($("tone").value)/100,2)*19000;
+  mixFilter.Q.value=.65;mixFilter.connect(master);
+  mainBus=ctx.createGain();mainBus.connect(mixFilter);
+  beatBus=ctx.createGain();beatBus.gain.value=Number($("rhythmLevel").value)/100;beatBus.connect(mixFilter);
   verb=ctx.createConvolver();verb.buffer=makeReverb();
   wet=ctx.createGain();wet.gain.value=Number($("reverb").value)/180;
-  verb.connect(wet);wet.connect(master);
+  verb.connect(wet);wet.connect(mixFilter);beatBus.connect(verb);
   for(const k of Object.keys(decks)){
     const d=decks[k];d.bus=ctx.createGain();d.bus.gain.value=1;
     d.bus.connect(mainBus);d.bus.connect(verb);
-    d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);
+    d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
   }
   updateMix();
  }
