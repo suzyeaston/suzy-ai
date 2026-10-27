@@ -56,38 +56,143 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 .rack-progress>div{width:0%;height:100%;background:linear-gradient(90deg,#ddb0cc,#baf3db)}
 #rackMessage{font:700 13px/1.45 ui-monospace,monospace;color:var(--mint)}
 @media(max-width:650px){.rack-inputs{grid-template-columns:1fr}.looprack{padding:14px}}
+
+/* v2 stage desk: musician-first surface. Audio signal graph is unchanged except
+   an independent browser master bus; Collider is still a separate application. */
+main{max-width:1480px;padding:16px clamp(12px,2vw,26px) 52px}
+header{margin-bottom:14px;border-bottom:1px solid #ffffff24;padding-bottom:14px}
+header h1{font-size:clamp(28px,3.2vw,42px)}
+header>.status{background:#302a3c;border-radius:9px}
+.stage-desk-title{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.stage-mixer{background:#191723;border:1px solid #6a607c;border-radius:17px;padding:16px;margin-bottom:12px}
+.stage-mixer h2,.looprack h2{font-size:20px;letter-spacing:-.02em}
+.stage-io{display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr) auto;gap:12px;align-items:end;margin-top:14px}
+.stage-io>.control,.stage-io>.voice-buttons{margin:0!important}
+.stage-io label{display:block;margin-bottom:6px;color:#ddd5e2;font-size:12px;font-weight:700}
+.stage-io select{padding:9px;font-size:13px}
+.stage-io .voice-buttons{display:flex;gap:6px}.stage-io button{padding:9px;min-height:40px;font-size:11px}
+.route-strip{border-top:1px solid #ffffff20;margin-top:14px;padding-top:13px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.route-channel{background:#241e2f;border:1px solid #5b5368;border-radius:12px;padding:10px;min-width:0}
+.route-channel .tiny{color:#e6d6ed}.route-channel h3{font-size:14px;margin:4px 0 2px}
+.route-channel p{color:#afa6b9;font-size:11px;margin:0 0 10px;min-height:29px}
+.route-channel .control{margin:0}.route-channel .control label{font-size:12px}
+.route-channel input[type=range]{width:100%;display:block}
+.route-channel .actions{margin-top:7px;gap:4px}.route-channel .actions button{min-width:0;flex:1;padding:8px 6px;border-radius:8px;font-size:10px;white-space:normal}
+.route-channel .route-state{font-size:10px;line-height:1.45;margin-top:9px;color:#c3b1c9;min-height:26px;overflow-wrap:anywhere}
+.route-channel .stage-fader-value{font:700 12px ui-monospace,monospace}
+.route-footer{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:#d5bdcb;margin-top:8px}
+.looprack{background:#17151f;border:1px solid #777081;border-radius:16px;padding:14px;margin-bottom:12px}
+.looprack .rack-head{align-items:center}
+.looprack .rack-head h2{margin-bottom:1px}
+.looprack .rack-head p{margin:0}
+.rack-session-transport{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.rack-session-transport button{min-width:140px;padding:9px 12px}
+.rack-session-transport .rack-time{font:750 22px ui-monospace,monospace;color:var(--mint)}
+.rack-session-transport select{padding:7px 11px}
+.rack-trackfield{--phase:0%;position:relative;background:#0f0e17;border:1px solid #555061;border-radius:10px;overflow:hidden;padding:0 0 6px}
+.rack-ruler{display:flex;background:#272534;min-height:24px;border-bottom:1px solid #635a70;gap:0;padding-left:172px;padding-right:220px}
+.rack-ruler span{flex:1;min-width:0;border-left:1px solid #ffffff25;color:#c9c1d0;padding:4px 8px;font:750 10px ui-monospace,monospace}
+.rack-tracklist{display:grid;gap:0}
+.rack-layer{display:grid;grid-template-columns:170px minmax(120px,1fr) 216px;gap:7px;align-items:center;margin:0;border:0;border-bottom:1px solid #433d4c;border-left:5px solid #d5a6e6;border-radius:0;padding:7px 8px;background:#161420}
+.rack-layer:nth-child(2n){background:#1e1b29}
+.rack-layer-top{display:grid;gap:1px;font-size:12px}
+.rack-layer-top strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.rack-layer-top span{font-size:10px}
+.rack-wave{position:relative;height:50px;margin:0;padding:1px 3px;border-radius:5px;background:repeating-linear-gradient(90deg,#fff1 0 1px,transparent 1px 25%);gap:2px}
+.rack-wave::after{content:"";position:absolute;top:0;bottom:0;left:var(--phase);border-left:2px solid #fff;box-shadow:0 0 10px #fff8;pointer-events:none;z-index:1}
+.rack-layer-actions{display:flex;gap:3px;justify-content:flex-end}
+.rack-layer-actions button{font-size:10px;padding:6px 7px;min-width:0}
+.rack-progress{height:4px;border-radius:0;margin:0;background:#241e2f}
+#rackEmpty{padding:42px 14px!important;text-align:center}
+.rack-inputs{margin:12px 0 8px}
+.rack-inputs button{min-height:55px;font-size:13px}
+.rack-toolbar{margin:8px 0}
+.rack-toolbar button{min-width:0;font-size:12px;padding:8px 11px}
+#rackMessage{font-size:12px;margin:4px 0}
+.looprack .notice{font-size:11px;padding:8px 10px;margin-top:8px}
+.stage-performance{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(300px,.85fr);gap:12px}
+.stage-performance>.stack{display:grid;gap:12px;align-content:start}
+.stage-performance .panel{padding:15px;border-radius:14px}
+.stage-performance .pad{min-height:93px;padding:12px 4px}
+.stage-performance .pads{gap:7px}
+.stage-performance .scene{margin:8px 0}
+.stage-performance .notice{font-size:11px;margin-top:10px;padding:8px 10px}
+.stage-advanced{margin-top:12px;border:1px solid #4e4756;border-radius:12px;padding:12px;background:#15141d}
+.stage-advanced summary{cursor:pointer;font-size:13px;color:#d4bdce;font-weight:700}
+.stage-advanced[open]>.panel{margin-top:12px}
+@media(max-width:1060px){.route-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.stage-performance{grid-template-columns:1fr}.rack-ruler{padding-left:128px;padding-right:0}.rack-layer{grid-template-columns:125px minmax(100px,1fr);}.rack-layer-actions{grid-column:1/-1;justify-content:start}.rack-io{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.stage-io{grid-template-columns:1fr}.route-strip{grid-template-columns:1fr 1fr}.rack-ruler{padding-left:4px}.rack-layer{grid-template-columns:1fr}.rack-layer-top{display:flex}.rack-wave{height:48px}.rack-layer-actions{grid-column:auto}.rack-ruler{padding-right:0}}
+@media(max-width:480px){.route-strip{grid-template-columns:1fr}.rack-inputs{grid-template-columns:1fr}.stage-io .voice-buttons{display:grid;grid-template-columns:1fr 1fr}}
 </style></head>
 <body><main>
 <header><div><div class="tiny">FUTUREPROOF 2026 · APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST <span style="color:var(--pink)">LIVE</span> 🍞</h1><div class="muted">Your computer keys are the chord instrument. Magenta is the accompanying neural voice.</div></div><div class="status" id="status">CONNECTING MIDI…</div></header>
-<section class="looprack" id="looprack" aria-label="Loop Lab multi-lane performance recorder">
-<div class="rack-head"><div><div class="tiny">LOOP LAB × TOASTER · INDEPENDENT LAYERS</div>
-<h2>Build the song, one layer at a time.</h2>
-<p class="muted">Record your played chord synth, your existing VE-22 → Scarlett vocals, and <em>real</em> Magenta audio. Every lane has waveform, mute, solo, remove and WAV export. AI can stay silent while the music loops.</p></div>
-<div class="tiny" id="rackClock">0.0s</div></div>
-<div class="rack-toolbar">
-<label for="rackBars" class="tiny">LOOP LENGTH <select id="rackBars"><option value="1">1 bar</option><option value="2" selected>2 bars</option><option value="4">4 bars</option></select></label>
-<span class="muted" id="rackMeta">NO LOOP YET · first captured lane sets the duration</span>
-</div>
-<div class="rack-inputs">
-<button type="button" id="rackChord">● RECORD CHORDS <small>TOASTER instrument</small></button>
-<button type="button" id="rackVocal">● RECORD VOCALS <small>VE-22 → Scarlett mic</small></button>
-<button type="button" id="rackAI">● CAPTURE MAGENTA <small>Share audio if supported</small></button>
-</div>
-<div class="rack-toolbar">
-<button type="button" id="rackStopCapture" disabled>■ FINISH CAPTURE EARLY</button>
-<button type="button" id="rackToggle">Ⅱ PAUSE RACK</button>
-<button type="button" id="rackExport" disabled>↓ EXPORT MIX WAV</button>
-<button type="button" id="rackClear" disabled>REMOVE ALL</button>
-<label for="rackImport" class="mini" style="cursor:pointer">+ IMPORT MAGENTA WAV <input type="file" accept="audio/*,.wav,.aiff,.aif,.mp3,.m4a" id="rackImport" style="max-width:175px;font-size:11px"></label>
-</div>
-<div class="rack-progress" role="progressbar" aria-label="Loop phase"><div id="rackProgress"></div></div>
-<div id="rackMessage" role="status" aria-live="polite">Ready to capture first loop. Start TOASTER audio and play chords 1–4.</div>
-<div id="rackEmpty" class="muted" style="padding:14px 0">No layers yet. Record the chords you play, then add a vocal and a genuine Magenta sample.</div>
-<div id="rackLayers" class="rack-tracklist" aria-label="Recorded audio loop lanes"></div>
-<div class="notice"><strong>Actual AI only:</strong> Collider's music is a separate app. CAPTURE MAGENTA requires browser sharing that includes <em>audio</em> (often unavailable for macOS apps); otherwise record/print Magenta in Logic and import the audio WAV. MIDI chord messages alone never count as a captured AI loop. All loops are in browser memory until you export.</div>
+<section class="stage-mixer" id="stageMixer" aria-label="Audio mixer and routing">
+  <div class="stage-desk-title"><div><div class="tiny">01 / STAGE PATCH</div><h2>AUDIO ROUTING + MIXER</h2></div><div class="tiny" id="stageRouteStatus">BROWSER AUDIO / COLLIDER SEPARATE</div></div>
+  <div class="stage-io">
+    <div class="control"><label for="mic">Microphone input</label><select id="mic"><option value="">Click ENABLE MIC to discover inputs</option></select></div>
+    <div class="control" style="margin-top:10px"><label for="speaker">Audio output (browser support varies)</label><select id="speaker"><option value="">System default · use Scarlett headphones</option></select></div>
+    <div class="voice-buttons" aria-label="Input monitoring"><button id="enableMic" class="main">ENABLE MIC</button><button id="monitor" aria-pressed="false">MONITOR OFF</button><button id="stageRefreshDevices" type="button">↻ DEVICES</button></div>
+  </div>
+  <div class="route-strip">
+    <div class="route-channel"><div class="tiny">CH 01 · SYNTH</div><h3>Keys · TOASTER</h3><p>Live chords 1–4, local browser synth</p>
+      <div class="control"><label for="localGain">Instrument output · <span id="localGainValue">35</span>%</label><input id="localGain" type="range" min="0" max="70" value="35"></div>
+      <div class="actions"><button id="localAudio" class="main" aria-pressed="false">▶ ENABLE TOASTER SOUND</button><button id="localMute" class="stop">MUTE TOASTER SOUND</button></div>
+      <div class="route-state" id="localAudioStatus">AUDIO OFF UNTIL YOU PRESS ENABLE · MODEL AND MIDI NOT REQUIRED FOR SOUND</div>
+      <div class="route-state" id="stageChordLoopState">Recorded chord loops: 100%</div><input type="range" min="0" max="100" value="100" id="stageChordLoopLevel" aria-label="Recorded chord loop level">
+    </div>
+    <div class="route-channel"><div class="tiny">CH 02 · MIC</div><h3>Voice · VE-22</h3><p>Mic → VE-22 → Scarlett, input as selected above</p>
+      <label for="stageVocalLevel">Recorded vocal loops · <span id="stageVocalNum">100</span>%</label>
+      <input id="stageVocalLevel" type="range" min="0" max="100" value="100">
+      <div class="meter" style="height:8px;margin:9px 0"><div class="bar" id="stageMicMeter"></div></div>
+      <div class="route-state" id="stageVocalStatus">Mic permission not requested</div>
+    </div>
+    <div class="route-channel"><div class="tiny">CH 03 · AI LOOP</div><h3>Magenta · printed</h3><p>Recorded/imported AI audio, not Collider live</p>
+      <label for="stageAILevel">Recorded AI loops · <span id="stageAINum">100</span>%</label>
+      <input id="stageAILevel" type="range" min="0" max="100" value="100">
+      <div class="actions"><button class="main" id="connectCollider">CONNECT COLLIDER DIRECT</button><button id="disconnectCollider">DISCONNECT</button></div>
+      <div class="route-state" id="colliderState">COLLIDER MIDI NOT CONNECTED</div>
+    </div>
+    <div class="route-channel"><div class="tiny">MAIN OUT</div><h3>Browser master</h3><p>Synth, loops, optional mic monitor. Not Collider live</p>
+      <label for="stageMasterLevel">Master · <span id="stageMasterNum">80</span>%</label>
+      <input id="stageMasterLevel" type="range" min="0" max="100" value="80">
+      <div class="route-state" id="stageOutputStatus">System audio default. Choose Scarlett above if supported.</div>
+      <button id="stageMuteMaster" class="stop" type="button">MUTE BROWSER MASTER</button>
+    </div>
+  </div>
+  <div class="route-footer"><span>Headphones → Scarlett · VE-22 remains connected</span><span>Collider live output/mute stays in Collider · Browser master does not silence it</span></div>
 </section>
-<div class="grid"><div class="stack">
-<section class="panel"><div class="tiny">01 · THE ARRANGEMENT</div>
+
+
+<section class="looprack" id="looprack" aria-label="Live looping timeline">
+  <div class="rack-head"><div><div class="tiny">02 / LIVE SESSION · LOOP LAB</div><h2>LOOP TIMELINE</h2></div><div id="rackMeta" class="muted">NO LOOP YET · first captured lane sets the duration</div></div>
+  <div class="rack-session-transport">
+    <button id="rackToggle" type="button" class="main">Ⅱ PAUSE RACK</button>
+    <span class="rack-time" id="rackClock">0.0s</span>
+    <label class="tiny" for="rackBars">BARS <select id="rackBars"><option value="1">1</option><option value="2" selected>2</option><option value="4">4</option></select></label>
+    <span class="muted">Loop takes repeat; changing song scenes does not erase them.</span>
+  </div>
+  <div class="rack-trackfield" id="rackTrackField">
+    <div class="rack-ruler" id="rackRuler" aria-label="Loop bar timeline"></div>
+    <div class="rack-progress" role="progressbar" aria-label="Current loop phase"><div id="rackProgress"></div></div>
+    <div id="rackEmpty" class="muted">NO CLIPS · Capture a chord phrase to begin building</div>
+    <div id="rackLayers" class="rack-tracklist" aria-label="Editable audio loop tracks"></div>
+  </div>
+  <div class="rack-inputs" aria-label="Record a layer">
+    <button id="rackChord" type="button">● REC KEYS <small>TOASTER synth</small></button>
+    <button id="rackVocal" type="button">● REC VOICE <small>VE-22 → Scarlett</small></button>
+    <button id="rackAI" type="button">● REC AI <small>Collider audio sharing if available</small></button>
+  </div>
+  <div class="rack-toolbar">
+    <button id="rackStopCapture" type="button" disabled>■ STOP CAPTURE</button>
+    <button id="rackExport" type="button" disabled>↓ EXPORT MIX WAV</button>
+    <button id="rackClear" type="button" disabled>CLEAR SESSION</button>
+    <label class="muted" for="rackImport">Import printed Magenta audio: <input id="rackImport" type="file" accept="audio/*,.wav,.aiff,.aif,.mp3,.m4a" style="max-width:180px;font-size:11px"></label>
+  </div>
+  <div id="rackMessage" role="status" aria-live="polite">Ready to capture the first take. Enable TOASTER sound at the mixer, then play 1–4.</div>
+  <div class="muted" style="font-size:11px">Loop rack and waveform playback are browser-local, not sample-synced to Logic. Real Magenta audio requires an audio capture or printed WAV; MIDI notes alone are not an AI recording. Export to keep your clips.</div>
+</section>
+<div class="stage-performance"><div class="stack">
+<section class="panel"><div class="tiny">03 / SONG SCENES + CHORD PADS</div>
 <h2>Pick the song. Play the harmony.</h2>
 <div class="scene" role="group" aria-label="Song scene">
 <button id="pyramid" aria-pressed="true">◁ PYRAMID SONG</button>
@@ -103,7 +208,7 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 <div class="tiny" id="chordNow">CHOOSE PAD 1–4 · NOTES LATCH UNTIL NEXT PAD OR MIDI RELEASE</div>
 <div class="notice">Pyramid rhythm: you trigger the changes, not the old MIDI file. For the five-accent shape use 1, 2, 3, 2, 4 with your own breathing/phrasing. Four on-screen chord buttons are mapped to computer keys <b>1–4</b>.</div>
 </section>
-<section class="panel"><div class="tiny">02 · THE RHYTHM IS YOURS</div>
+<section class="panel"><div class="tiny">04 / MIDI RHYTHM · MAGENTA CONDITIONING</div>
 <h2>Change the pulse while you play.</h2>
 <div class="controls">
 <div class="control"><label for="rhythm">MIDI groove</label><select id="rhythm">
@@ -121,23 +226,24 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 </section>
 </div>
 <div class="stack">
-<section class="panel" id="localInstrument"><div class="tiny">03 · HUMAN INSTRUMENT · NO AI REQUIRED</div>
-<h2>TOASTER plays the chords. You control the song.</h2>
+<section class="panel" id="localInstrument"><div class="tiny">05 / SYNTH SOUND DESIGN</div>
+<h2>Shape the chord sound</h2>
 <p class="muted">Computer keys 1–4 now trigger <strong>actual local audio</strong>, not only MIDI requests. An original soft electric-piano-style synthesizer is built into this page using your browser's Web Audio engine. Pause Collider to hear the instrument by itself.</p>
 <div class="controls">
 <div class="control"><label for="localVoice">Instrument</label><select id="localVoice"><option value="felt">FELT · warm struck keys</option><option value="glass">GLASS · suspended shimmer</option><option value="organ">ORGAN · long soft notes</option></select></div>
-<div class="control"><label for="localGain">Instrument output · <span id="localGainValue">35</span>%</label><input id="localGain" type="range" min="0" max="70" value="35"></div>
+
 <div class="control" style="grid-column:1/-1"><label for="localReverb">Reverb · <span id="localReverbValue">30</span>%</label><input id="localReverb" type="range" min="0" max="90" value="30"></div>
 </div>
-<div class="actions"><button id="localAudio" class="main" aria-pressed="false">▶ ENABLE TOASTER SOUND</button><button id="localMute" class="stop">MUTE TOASTER SOUND</button></div>
+
 <div id="localAudioStatus" class="tiny" role="status">AUDIO OFF UNTIL YOU PRESS ENABLE · MODEL AND MIDI NOT REQUIRED FOR SOUND</div>
 <div class="notice"><strong>Performance safety:</strong> This is independent browser audio. The Magenta / Collider volume must be controlled in its own app. Reverb and instrument gain here never change Collider's generated beats. Use headphones and start quietly.</div>
 </section>
-<section class="panel"><div class="tiny">04 · VOCAL INPUT / OUTPUT</div><h2>Sing, capture, repeat.</h2>
+<details class="stage-advanced" id="stageLegacy"><summary>ADVANCED · older single-track vocal looper (separate from session timeline)</summary>
+<section class="panel" id="legacyVocal"><div class="tiny">04 · OPTIONAL SINGLE VOICE LOOP</div><h2>Old one-track vocal loop</h2>
 <p class="muted">The browser captures your VE-22/Scarlett input. Headphones required to prevent feedback. Its loop plays through the browser audio output, separately from Magenta.</p>
-<div class="control"><label for="mic">Microphone input</label><select id="mic"><option value="">Click ENABLE MIC to discover inputs</option></select></div>
-<div class="control" style="margin-top:10px"><label for="speaker">Audio output (browser support varies)</label><select id="speaker"><option value="">System default · use Scarlett headphones</option></select></div>
-<div class="voice-buttons"><button id="enableMic" class="main">ENABLE MIC</button><button id="monitor" aria-pressed="false">MONITOR OFF</button></div>
+
+
+
 <div class="meter"><div id="vu" class="bar"></div></div>
 <div class="tiny" id="voiceStatus">MIC OFF · NO VOCAL LOOP</div>
 <div class="controls">
@@ -153,9 +259,10 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 <div class="actions"><button id="saveVoice">↓ SAVE VOICE WAV</button></div>
 <div class="notice">The vocal loop is <strong>local browser audio</strong>, not a Magenta input and not sample-synced to the MIDI groove. Captures are limited to 4 bars. Use Logic/VE-22 for show-critical vocal recording until hardware QA is complete.</div>
 </section>
-<section class="panel"><div class="tiny">05 · FEEDBACK & SAFETY</div>
-<div class="actions"><button class="main" id="connectCollider">CONNECT COLLIDER DIRECT</button><button id="disconnectCollider">DISCONNECT</button></div>
-<div class="tiny" id="colliderState">COLLIDER MIDI NOT CONNECTED</div>
+</details>
+<section class="panel"><div class="tiny">06 / CONNECTION DIAGNOSTICS</div>
+
+
 <div id="message" role="status" aria-live="polite">Waiting for localhost MIDI bridge…</div><div id="error" role="alert"></div>
 <p class="muted" id="routing">MIDI path: TOASTER computer pads → CONNECT COLLIDER DIRECT → MRT2 - Collider Input. Jam still uses the separate SUZY AI MIDI source. No Keystation required.</p>
 <div class="notice"><strong>Actual AI panic:</strong> use MRT2 Jam's Stop/Mute or Logic's dedicated MRT2 track mute. Esc/EJECT stops **MIDI notes only**; neural audio might keep streaming.</div>
@@ -167,6 +274,7 @@ footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 "use strict";
 const $=id=>document.getElementById(id), token="__MAGENTA_TOKEN__";
 let state=null, serial=Promise.resolve(), ctx=null, micStream=null, source=null, monitorGain=null, vuNode=null, meterHandle=null;
+let masterBus=null, masterMuted=false;
 let recorder=null, chunks=[], recordTimer=null, captured=null, loopSource=null, loopGain=null, overdubbing=false;
 const pads=[...document.querySelectorAll("[data-pad]")];
 function say(m){$("message").textContent=m;$("error").textContent="";}
@@ -287,8 +395,8 @@ async function startLocal(){
   localOutput.connect(localDry);
   localOutput.connect(localConvolver);
   localConvolver.connect(localWet);
-  localDry.connect(ctx.destination);
-  localWet.connect(ctx.destination);
+  localDry.connect(masterBus);
+  localWet.connect(masterBus);
  }
  localDry.gain.value=Number($("localGain").value)/100;
  localWet.gain.value=Number($("localGain").value)*Number($("localReverb").value)/10000;
@@ -368,7 +476,11 @@ $("localReverb").oninput=()=>{
 
 // BROWSER VOCALS: entirely independent of the backend MIDI bridge and Magenta.
 async function audio(){
- if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();loopGain=ctx.createGain();loopGain.gain.value=.55;loopGain.connect(ctx.destination);}
+ if(!ctx){
+   ctx=new (window.AudioContext||window.webkitAudioContext)();
+   masterBus=ctx.createGain();masterBus.gain.value=.8;masterBus.connect(ctx.destination);
+   loopGain=ctx.createGain();loopGain.gain.value=.55;loopGain.connect(masterBus);
+ }
  if(ctx.state!=="running")await ctx.resume();
  return ctx;
 }
@@ -393,20 +505,26 @@ async function enableMic(){
    if(source)source.disconnect();
    source=ctx.createMediaStreamSource(micStream);
    if(monitorGain)monitorGain.disconnect();
-   monitorGain=ctx.createGain();monitorGain.gain.value=0;source.connect(monitorGain);monitorGain.connect(ctx.destination);
+   monitorGain=ctx.createGain();monitorGain.gain.value=0;source.connect(monitorGain);monitorGain.connect(masterBus);
    vuNode=ctx.createAnalyser();vuNode.fftSize=512;source.connect(vuNode);
    if(meterHandle)cancelAnimationFrame(meterHandle);
    function meter(){const a=new Uint8Array(vuNode.frequencyBinCount);vuNode.getByteTimeDomainData(a);let p=0;for(const v of a){const n=(v-128)/128;p+=n*n;}
-    $("vu").style.width=Math.min(100,Math.sqrt(p/a.length)*280)+"%";meterHandle=requestAnimationFrame(meter);}
+    const measured=Math.min(100,Math.sqrt(p/a.length)*280);
+    $("vu").style.width=measured+"%";
+    const stageMeter=$("stageMicMeter");if(stageMeter)stageMeter.style.width=measured+"%";meterHandle=requestAnimationFrame(meter);}
    meter();
    await enumerate();$("voiceStatus").textContent="MIC CONNECTED · MONITOR OFF";
+   const inputLabel=$("mic").selectedOptions[0]?.textContent||"Scarlett input";
+   $("stageVocalStatus").textContent="INPUT ACTIVE · "+inputLabel;
    say("Microphone ready. Listen through Scarlett headphones; monitor is initially OFF.");
  }catch(e){error(e);}
 }
 $("enableMic").onclick=enableMic;$("mic").onchange=enableMic;
 $("speaker").onchange=async()=>{
  try{await audio();if(!ctx.setSinkId)throw Error("Browser does not support output switching. Choose Scarlett as macOS system output");
-  await ctx.setSinkId($("speaker").value||"");say("Browser output selected.");}catch(e){error(e);}
+  await ctx.setSinkId($("speaker").value||"");
+  $("stageOutputStatus").textContent="BROWSER AUDIO OUTPUT · "+($("speaker").selectedOptions[0]?.textContent||"System default");
+  say("Browser output selected.");}catch(e){error(e);}
 };
 $("monitor").onclick=()=>{
  if(!monitorGain)return error(Error("Enable microphone first"));
@@ -488,8 +606,36 @@ window.toasterRack = new SuzyLoopRack({
   audio,
   ensureLocal: async()=>{if(!localEnabled)await startLocal();},
   getChordBus:()=>localOutput,
+  getAudioBus:()=>masterBus,
   getMicStream:()=>micStream,
   ensureMic:async()=>{await enableMic();if(!micStream)throw Error("Scarlett/VE-22 microphone was not enabled");},
   onMessage:msg=>{if(msg)say(msg);}
 });
+// Real mixer faders: keyboard synth, recorded chord/vocal/AI lanes, and browser master.
+function channelFader(id,kind,textId){
+ const el=$(id);if(!el)return;
+ el.oninput=()=>{
+   $("stage"+(kind==="vocal"?"Vocal":kind==="ai"?"AI":"ChordLoop")+(kind==="chord"?"State":"Num")).textContent=
+      kind==="chord"?"Recorded chord loops: "+el.value+"%":el.value;
+   toasterRack.setKindGain(kind,Number(el.value)/100);
+ };
+}
+channelFader("stageChordLoopLevel","chord","stageChordLoopState");
+channelFader("stageVocalLevel","vocal","stageVocalNum");
+channelFader("stageAILevel","ai","stageAINum");
+$("stageMasterLevel").oninput=()=>{
+ const val=Number($("stageMasterLevel").value);
+ $("stageMasterNum").textContent=val;
+ if(masterBus)masterBus.gain.setTargetAtTime(masterMuted?0:val/100,ctx.currentTime,.015);
+};
+$("stageMuteMaster").onclick=()=>{
+ masterMuted=!masterMuted;
+ $("stageMuteMaster").textContent=masterMuted?"UNMUTE BROWSER MASTER":"MUTE BROWSER MASTER";
+ $("stageMuteMaster").setAttribute("aria-pressed",String(masterMuted));
+ if(masterBus)masterBus.gain.setTargetAtTime(masterMuted?0:Number($("stageMasterLevel").value)/100,ctx.currentTime,.015);
+};
+$("stageRefreshDevices").onclick=async()=>{
+ try{await audio();await enumerate();$("stageOutputStatus").textContent="Devices refreshed. Select Scarlett for browser output where supported.";}
+ catch(e){error(e);}
+};
 </script></body></html>
