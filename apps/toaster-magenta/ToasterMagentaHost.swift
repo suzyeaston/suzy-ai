@@ -26,6 +26,9 @@ final class MRT2Host {
     private var muted = false
     private var outputSignalDetected = false
     private var auComponentName = ""
+    private var assetPath = ""
+    private var bookmarkScopeVerified = false
+    private var modelFileBytes: Int64 = 0
     private var outputRate: Double = 0
     private var prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
@@ -59,6 +62,10 @@ final class MRT2Host {
             "tempo_context_supplied": generator != nil,
             "text_prompts": prompts,
             "au_component": auComponentName,
+            "musiccoca_assets_path": assetPath,
+            "bookmark_scope_verified": bookmarkScopeVerified,
+            "host_model_loaded": false,
+            "host_model_load_state": modelRequested ? "requested_asynchronously_by_google_AU_not_confirmed" : "not_requested",
             "native_output_sample_rate": outputRate,
             "model_file_exists": FileManager.default.fileExists(atPath: modelPath),
             "model_file_bytes": ((try? FileManager.default.attributesOfItem(atPath: modelPath)[.size]) as? NSNumber)?.int64Value ?? 0,
@@ -150,6 +157,24 @@ final class MRT2Host {
             return av == bv ? a < b : av < bv
         }.first
     }
+    private func findResources() -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let roots = [
+            "Documents/Magenta/magenta-rt-v2/resources",
+            "Documents/Magenta/resources",
+            "Library/Application Support/MagentaRT/resources",
+        ]
+        for root in roots {
+            let path = home.appendingPathComponent(root)
+            let encoder = path.appendingPathComponent("musiccoca/text_encoder.tflite")
+            let quantizer = path.appendingPathComponent("musiccoca/pretrained_vector_quantizer.tflite")
+            if FileManager.default.fileExists(atPath: encoder.path)
+                && FileManager.default.fileExists(atPath: quantizer.path) {
+                return path.path
+            }
+        }
+        return nil
+    }
     func start() {
         if active || loading { return }
         errorMessage = ""
@@ -160,18 +185,31 @@ final class MRT2Host {
             return
         }
         modelPath = path
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+        modelFileBytes = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+        if modelFileBytes < 10_000_000 {
+            errorMessage = "Found an unusually small MRT2 model file: \(modelFileBytes) bytes. Check model installation."
+            return
+        }
+        // Google loads its text encoder *before* restoring our saved prompt
+        // state. The default SDK path does not necessarily point to the v2
+        // resources that `mrt models init` actually installed.
+        if let resources = findResources() {
+            assetPath = resources
+            UserDefaults.standard.set(resources, forKey: "MagentaRT_CustomResourcesPath")
+        } else {
+            assetPath = ""
+            // Plugin may have bundled resources, so do not reject blindly.
+            errorMessage = "MusicCoCa assets not found in default MRT2 folders; plugin bundle may provide them."
+        }
         loading = true
         let desc = AudioComponentDescription(componentType: kAudioUnitType_MusicDevice,
-            componentSubType: 0, componentManufacturer: 0,
+            componentSubType: 0x4D475254, componentManufacturer: 0x476F6F67,
             componentFlags: 0, componentFlagsMask: 0)
         guard let item = AVAudioUnitComponentManager.shared()
-            .components(matching: desc)
-            .first(where: { c in
-                let name = c.name.lowercased()
-                return name.contains("magenta") || name.contains("mrt2")
-            }) else {
+            .components(matching: desc).first else {
                 loading = false
-                errorMessage = "MRT2 native Audio Unit not registered. Open the installed MRT2 (AU) app once, or keep TOASTER browser synth."
+                errorMessage = "Google MRT2 Audio Unit (type aumu, subtype MGRT, maker Goog) not registered. Reopen the official MRT2 plugin installer."
                 return
             }
         auComponentName = item.name
@@ -228,13 +266,22 @@ final class MRT2Host {
                     // Bookmark + text prompts are consumed by Google's AU's
                     // applyCustomState and set_text_prompts during model load.
                     let modelURL = URL(fileURLWithPath: path)
-                    let bookmark: Data
-                    do {
-                        bookmark = try modelURL.bookmarkData(options: [.withSecurityScope],
-                            includingResourceValuesForKeys: nil, relativeTo: nil)
-                    } catch {
-                        bookmark = try modelURL.bookmarkData(options: [],
-                            includingResourceValuesForKeys: nil, relativeTo: nil)
+                    // A plain unscoped fallback bookmark cannot satisfy Google's
+                    // exact AU loader, which requires startAccessingSecurityScopedResource.
+                    // Reject it explicitly instead of reporting a running but silent AU.
+                    let bookmark = try modelURL.bookmarkData(options: [.withSecurityScope],
+                        includingResourceValuesForKeys: nil, relativeTo: nil)
+                    var stale = false
+                    let checkedURL = try URL(resolvingBookmarkData: bookmark,
+                        options: [.withSecurityScope, .withoutUI], relativeTo: nil,
+                        bookmarkDataIsStale: &stale)
+                    let scoped = checkedURL.startAccessingSecurityScopedResource()
+                    self.bookmarkScopeVerified = scoped
+                    if scoped { checkedURL.stopAccessingSecurityScopedResource() }
+                    guard scoped, !stale else {
+                        throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
+                            userInfo: [NSLocalizedDescriptionKey:
+                                "Google AU needs a usable security-scoped model bookmark. Bookmark scope could not be verified."])
                     }
                     var state = unit.auAudioUnit.fullState ?? [:]
                     let weighted = self.prompts.enumerated().map { (i,text) in
@@ -271,6 +318,7 @@ final class MRT2Host {
         loading = false
         modelRequested = false
         outputSignalDetected = false
+        bookmarkScopeVerified = false
     }
     func command(_ request: [String: Any]) -> [String: Any] {
         let type = request["op"] as? String ?? ""
