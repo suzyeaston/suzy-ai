@@ -197,10 +197,11 @@ def main(argv=None):
             server.daemon_threads = True
             print(f"SUZY//AI MAGENTA MIDI STAGE http://127.0.0.1:{args.port}/", flush=True)
             print(f"SUZY//TOAST SIMPLE PLAY http://127.0.0.1:{args.port}/toaster/live", flush=True)
+            print("Magenta: starting native MRT2 Small automatically (one instance), browser synth remains independent.", flush=True)
+            Handler.native_host.launch_async()
             print(f"SUZY//TOAST ADVANCED STUDIO http://127.0.0.1:{args.port}/toaster/studio", flush=True)
             print(f"SUZY//TOAST prototype http://127.0.0.1:{args.port}/toaster", flush=True)
-            print("Choose 'SUZY AI MIDI' as Jam's MIDI INPUT. Deselect physical Keystation in Jam.", flush=True)
-            print("This app only steers MIDI. For real audio mute, use Magenta/Logic controls.", flush=True)
+            print("No Collider or Jam required. TOASTER will report model or device errors in the browser.", flush=True)
             server.serve_forever()
     except KeyboardInterrupt:
         pass
