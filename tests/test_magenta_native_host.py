@@ -1,7 +1,9 @@
 """Native MRT2 guard tests: launching the stage opts in once, not each page refresh."""
 from pathlib import Path
+import os
+import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from suzy_ai.music.magenta_native_host import NativeMagentaHost, PROMPTS, ACTIONS
 
 
@@ -80,6 +82,33 @@ class NativeMRT2Tests(unittest.TestCase):
             with self.subTest(data=data), self.assertRaises(ValueError):
                 self.host.command("configure-prompts", data)
 
+
+    def test_updates_native_binary_when_swift_source_changes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            binary = root / ".build" / "toaster-magenta-host"
+            binary.parent.mkdir(parents=True)
+            binary.write_text("old")
+            source = root / "apps" / "toaster-magenta" / "ToasterMagentaHost.swift"
+            source.parent.mkdir(parents=True)
+            source.write_text("new")
+            os.utime(binary, (1000, 1000))
+            os.utime(source, (2000, 2000))
+            host = NativeMagentaHost(binary=binary)
+            completed = MagicMock()
+            completed.returncode = 0
+            completed.stdout = ""
+            completed.stderr = ""
+            with patch("suzy_ai.music.magenta_native_host.ROOT", root), \
+                 patch("suzy_ai.music.magenta_native_host.EXECUTABLE", binary), \
+                 patch("suzy_ai.music.magenta_native_host.platform.system", return_value="Darwin"), \
+                 patch("suzy_ai.music.magenta_native_host.subprocess.run", return_value=completed) as build, \
+                 patch.object(host, "_start"), \
+                 patch.object(host, "_request", return_value={"phase": "host-running"}):
+                host._launch_worker()
+                build.assert_called_once()
+                self.assertFalse(host.launching)
+                self.assertEqual(host.launch_error, "")
 
 
 if __name__ == "__main__":
