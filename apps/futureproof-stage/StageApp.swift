@@ -372,16 +372,32 @@ private final class PhysicalKeyboard {
                 keyboardName = keyboard?.autoConnect() ?? "NO PHYSICAL MIDI DEVICE"
                 let generatorRef = unit
                 keyboard?.receive = { events in
-                    // MIDI callback must not mutate SwiftUI state.
-                    guard events.count >= 3,
-                        events[0] >= 0x80, events[0] < 0xF0 else { return }
-                    let message = [events[0], events[1], events[2]]
-                    if let callback = generatorRef.auAudioUnit.scheduleMIDIEventBlock {
+                    // A CoreMIDI packet may contain *several* MIDI messages,
+                    // including all notes of a live chord. Do not silently
+                    // forward only the first note of a stacked event.
+                    guard let callback = generatorRef.auAudioUnit.scheduleMIDIEventBlock else { return }
+                    var i = 0
+                    var runningStatus: UInt8 = 0
+                    while i < events.count {
+                        let byte = events[i]
+                        if byte >= 0xF8 { i += 1; continue } // realtime clock
+                        if byte >= 0xF0 { break }             // system/SysEx
+                        var status = runningStatus
+                        if byte >= 0x80 {
+                            status = byte; runningStatus = status; i += 1
+                        }
+                        if status < 0x80 || status >= 0xF0 { break }
+                        let kind = status & 0xF0
+                        let dataLength = kind == 0xC0 || kind == 0xD0 ? 1 : 2
+                        guard i + dataLength <= events.count else { break }
+                        var message = [status]
+                        message.append(contentsOf: events[i..<i+dataLength])
                         message.withUnsafeBufferPointer { p in
                             if let base = p.baseAddress {
                                 callback(AUEventSampleTimeImmediate, 0, message.count, base)
                             }
                         }
+                        i += dataLength
                     }
                 }
                 selectScene(selectedScene)
