@@ -72,7 +72,11 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/LOOP MY CHORDS/);
  assert.match(file,/LOOP VOICE/);
  assert.match(file,/auto Scarlett/);
- assert.match(file,/saved, not driving a model/i);
+ assert.match(file,/MRT2 prompt/);
+ assert.match(file,/ENABLE MAGENTA/);
+ assert.match(file,/Native Google Magenta AU is optional/);
+ assert.match(javascript,/await aiFetch\("chord",\{index\}\)/);
+ assert.match(javascript,/await aiFetch\("mix",\{value:Number\(\$\("mix"\)\.value\)\/100\}\)/);
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
  assert.ok(file.indexOf('id="deck-fishes"')<file.indexOf('id="micInput"'));
@@ -165,4 +169,22 @@ test("manual hold length is retained by event loops and renders sustained chord 
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
  assert.match(javascript,/Math\.max\(\.12,\(e\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
+});
+
+test("real Magenta is opt-in: page load plays no second neural model",()=>{
+ const {calls,run}=rig();
+ assert.equal(calls.midi.length,0);
+ assert.equal(run("aiNativeReady"),false);
+ assert.equal(run("aiNativeStarting"),false);
+ assert.match(file,/AI OFF · local chords work without it/);
+});
+test("native bridge playback sends real MIDI note-on and MIDI note-off only when ready",async()=>{
+ const {calls,run}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ run('beginChord("pyramid",0,"key:1")');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(v=>v.url==="/api/ai/chord"),"Google AU MIDI note-on sent");
+ run('endChord("key:1")');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(v=>v.url==="/api/ai/release"),"Google AU MIDI note-off sent");
 });
