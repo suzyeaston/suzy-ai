@@ -14,15 +14,18 @@ import platform
 import secrets
 
 from .magenta_midi import MagentaMidiBridge
+from .toaster_performance import ToasterPerformance
 from .audio_routing import inspect_audio_routing
 
 PAGE = Path(__file__).with_name("magenta_stage.html")
 TOASTER_PAGE = Path(__file__).with_name("toaster_stage.html")
+LIVE_PAGE = Path(__file__).with_name("toaster_live.html")
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
     bridge: MagentaMidiBridge
     token: str
+    performance: ToasterPerformance | None = None
 
     def log_message(self, fmt, *args):
         pass
@@ -51,6 +54,11 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         if self.path == "/toaster":
             page = TOASTER_PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
+        if self.path == "/toaster/live":
+            page = LIVE_PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
+            return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
+        if self.path == "/api/perform/status":
+            return self.reply(200, self.performance.status()) if self.performance else self.reply(503, {"error":"performance unavailable"})
         if self.path == "/api/status":
             return self.reply(200, self.bridge.status())
         if self.path == "/api/inputs":
@@ -75,7 +83,28 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(int(length)))
             if not isinstance(data, dict):
                 raise ValueError("JSON object expected")
-            if self.path == "/api/select":
+            if self.path.startswith("/api/perform/"):
+                perf = self.performance
+                if perf is None:
+                    return self.reply(503, {"error": "performance unavailable"})
+                if self.path == "/api/perform/scene":
+                    if set(data) != {"scene"}: raise ValueError("scene required")
+                    result = perf.scene_change(data["scene"])
+                elif self.path == "/api/perform/chord":
+                    if set(data) != {"index"}: raise ValueError("index required")
+                    result = perf.chord(data["index"])
+                elif self.path == "/api/perform/settings":
+                    if set(data) != {"bpm","rhythm","intensity"}: raise ValueError("bpm, rhythm, intensity required")
+                    result = perf.settings(**data)
+                elif self.path == "/api/perform/start":
+                    if data: raise ValueError("start takes no arguments")
+                    result = perf.start()
+                elif self.path == "/api/perform/stop":
+                    if data: raise ValueError("stop takes no arguments")
+                    result = perf.stop()
+                else:
+                    return self.reply(404, {"error": "unknown action"})
+            elif self.path == "/api/select":
                 if set(data) != {"input"}:
                     raise ValueError("input required")
                 result = self.bridge.connect(data["input"])
@@ -90,10 +119,14 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             elif self.path == "/api/gate":
                 if set(data) != {"open"}:
                     raise ValueError("open flag required")
+                if data["open"] is False and self.performance is not None:
+                    self.performance.stop()
                 result = self.bridge.set_gate(data["open"])
             elif self.path == "/api/release":
                 if data:
                     raise ValueError("release requires no arguments")
+                if self.performance is not None:
+                    self.performance.stop()
                 result = self.bridge.release()
             elif self.path == "/api/test":
                 if data:
@@ -125,11 +158,13 @@ def main(argv=None):
     class Handler(MagentaStageHandler):
         pass
     Handler.bridge = bridge
+    Handler.performance = ToasterPerformance(bridge)
     Handler.token = secrets.token_urlsafe(32)
     try:
         with ThreadingHTTPServer(("127.0.0.1", args.port), Handler) as server:
             server.daemon_threads = True
             print(f"SUZY//AI MAGENTA MIDI STAGE http://127.0.0.1:{args.port}/", flush=True)
+            print(f"SUZY//TOAST LIVE http://127.0.0.1:{args.port}/toaster/live", flush=True)
             print(f"SUZY//TOAST prototype http://127.0.0.1:{args.port}/toaster", flush=True)
             print("Choose 'SUZY AI MIDI' as Jam's MIDI INPUT. Deselect physical Keystation in Jam.", flush=True)
             print("This app only steers MIDI. For real audio mute, use Magenta/Logic controls.", flush=True)
@@ -137,6 +172,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        Handler.performance.close()
         bridge.close()
 
 
