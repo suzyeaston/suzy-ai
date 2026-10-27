@@ -110,6 +110,40 @@ class NativeMRT2Tests(unittest.TestCase):
                 self.assertFalse(host.launching)
                 self.assertEqual(host.launch_error, "")
 
+    def test_registers_existing_official_au_extension_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            app = folder / "MRT2 (AU).app"
+            extension = app / "Contents" / "PlugIns" / "MRT2_AU.appex"
+            extension.mkdir(parents=True)
+            result = MagicMock(returncode=0, stderr="", stdout="")
+            with patch("suzy_ai.music.magenta_native_host.subprocess.run", return_value=result) as cmd:
+                registered = self.host._register_installed_au(app_paths=[app])
+            self.assertEqual(registered, str(app))
+            cmd.assert_called_once()
+            self.assertEqual(cmd.call_args.args[0], ["pluginkit", "-a", str(extension)])
+
+    def test_does_not_mistake_jam_or_collider_for_audio_unit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ["MRT2 - Jam.app", "MRT2 - Collider.app"]:
+                (root / name).mkdir()
+            with patch("suzy_ai.music.magenta_native_host.subprocess.run") as run:
+                found = self.host._register_installed_au(
+                    app_paths=[root / "MRT2 - Jam.app", root / "MRT2 - Collider.app"]
+                )
+            self.assertIsNone(found)
+            run.assert_not_called()
+
+    def test_registration_failure_gives_repair_path_without_bypassing_it(self):
+        with tempfile.TemporaryDirectory() as temp:
+            app = Path(temp) / "MRT2 (AU).app"
+            (app / "Contents/PlugIns/MRT2_AU.appex").mkdir(parents=True)
+            result = MagicMock(returncode=1, stderr="denied", stdout="")
+            with patch("suzy_ai.music.magenta_native_host.subprocess.run", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "Open MRT2"):
+                    self.host._register_installed_au(app_paths=[app])
+
 
 if __name__ == "__main__":
     unittest.main()

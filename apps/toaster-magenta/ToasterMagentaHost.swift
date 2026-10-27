@@ -209,7 +209,7 @@ final class MRT2Host {
         guard let item = AVAudioUnitComponentManager.shared()
             .components(matching: desc).first else {
                 loading = false
-                errorMessage = "Google MRT2 Audio Unit (type aumu, subtype MGRT, maker Goog) not registered. Reopen the official MRT2 plugin installer."
+                errorMessage = "Google MRT2 AUv3 is not registered. Install the separate MRT2 (AU).app (not Jam or Collider) in /Applications or ~/Applications, open it once, and restart TOASTER. Official download: https://magenta.withgoogle.com/mrt2"
                 return
             }
         auComponentName = item.name
