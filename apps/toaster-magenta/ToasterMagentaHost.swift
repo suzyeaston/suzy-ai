@@ -203,15 +203,25 @@ final class MRT2Host {
             errorMessage = "MusicCoCa assets not found in default MRT2 folders; plugin bundle may provide them."
         }
         loading = true
-        let desc = AudioComponentDescription(componentType: kAudioUnitType_MusicDevice,
-            componentSubType: 0x4D475254, componentManufacturer: 0x476F6F67,
+        // Google's current AUv3 Info.plist advertises aumu/MGR2/Goog
+        // (0x4D475232). Earlier AU source also mentioned MGRT
+        // (0x4D475254). Query registered components, not a single stale ID.
+        let googleMusicDevice = AudioComponentDescription(
+            componentType: kAudioUnitType_MusicDevice,
+            componentSubType: 0, componentManufacturer: 0x476F6F67,
             componentFlags: 0, componentFlagsMask: 0)
-        guard let item = AVAudioUnitComponentManager.shared()
-            .components(matching: desc).first else {
-                loading = false
-                errorMessage = "Google MRT2 AUv3 is not registered. Install the separate MRT2 (AU).app (not Jam or Collider) in /Applications or ~/Applications, open it once, and restart TOASTER. Official download: https://magenta.withgoogle.com/mrt2"
-                return
-            }
+        let available = AVAudioUnitComponentManager.shared()
+            .components(matching: googleMusicDevice)
+        let currentMRT2: OSType = 0x4D475232 // 'MGR2'
+        let legacyMRT2: OSType = 0x4D475254 // 'MGRT'
+        let item = available.first(where: { $0.audioComponentDescription.componentSubType == currentMRT2 })
+            ?? available.first(where: { $0.audioComponentDescription.componentSubType == legacyMRT2 })
+            ?? available.first(where: { $0.name.lowercased().contains("mrt2") })
+        guard let item else {
+            loading = false
+            errorMessage = "MRT2 (AU).app may be registered with pluginkit, but AVAudioUnitComponentManager still does not expose Google MRT2 (aumu/MGR2/Goog). Open MRT2 (AU).app once, quit and restart TOASTER. If it persists, reboot macOS to refresh Audio Unit discovery."
+            return
+        }
         auComponentName = item.name
         AVAudioUnit.instantiate(with: item.audioComponentDescription, options: []) { [weak self] unit,error in
             DispatchQueue.main.async {
