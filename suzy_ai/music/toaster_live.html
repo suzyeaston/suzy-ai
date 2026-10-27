@@ -34,9 +34,58 @@ hr{border:0;border-top:1px solid #ffffff29;margin:16px 0}
 .notice{border-left:3px solid var(--peach);background:#40323d;padding:12px;border-radius:0 10px 10px 0;margin-top:14px;font-size:13px;color:#ffe8dc}
 footer{font-size:12px;color:var(--muted);margin:25px 0}a{color:var(--mint)}
 @media(max-width:860px){.grid{grid-template-columns:1fr}}@media(max-width:520px){main{padding:12px}.panel{padding:15px}.pads{gap:6px}.pad{min-height:95px}button{padding:9px}.controls{grid-template-columns:1fr}}
+.looprack{margin-bottom:18px;background:linear-gradient(115deg,#30263c,#221d2e);border:1px solid #a48ca6;border-radius:22px;padding:20px}
+.rack-head{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.rack-inputs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.rack-inputs button{min-height:64px;border-color:#987d92}.rack-inputs button:nth-child(1){background:#51405b}.rack-inputs button:nth-child(2){background:#35544d}.rack-inputs button:nth-child(3){background:#5e4a30}
+.rack-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.rack-toolbar button{min-width:125px}.rack-toolbar label{display:flex;align-items:center;gap:8px}
+.rack-toolbar select{max-width:110px}.rack-tracklist{display:grid;gap:9px;margin-top:10px}
+.rack-layer{padding:10px 12px;border:1px solid #806783;border-left:5px solid #d5a6e6;border-radius:12px;background:#0c0a1091}
+.rack-layer[data-kind="vocal"]{border-left-color:#a6e8c3}
+.rack-layer[data-kind="ai"]{border-left-color:#ffcb96}
+.rack-layer-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px}
+.rack-layer-top span{font-size:11px;color:var(--muted)}
+.rack-wave{height:47px;display:flex;align-items:center;gap:2px;overflow:hidden;margin:8px 0}
+.rack-wave i{flex:1;min-width:2px;background:#d8b5dd;border-radius:4px}
+.rack-layer[data-kind="vocal"] .rack-wave i{background:#a6e8c3}
+.rack-layer[data-kind="ai"] .rack-wave i{background:#ffcb96}
+.rack-layer-actions{display:flex;gap:7px;flex-wrap:wrap}
+.rack-layer-actions button{font-size:11px;padding:7px 10px;border-radius:8px}
+.rack-progress{height:12px;border-radius:20px;background:#15101b;overflow:hidden;margin:10px 0}
+.rack-progress>div{width:0%;height:100%;background:linear-gradient(90deg,#ddb0cc,#baf3db)}
+#rackMessage{font:700 13px/1.45 ui-monospace,monospace;color:var(--mint)}
+@media(max-width:650px){.rack-inputs{grid-template-columns:1fr}.looprack{padding:14px}}
 </style></head>
 <body><main>
 <header><div><div class="tiny">FUTUREPROOF 2026 · APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST <span style="color:var(--pink)">LIVE</span> 🍞</h1><div class="muted">Your computer keys are the chord instrument. Magenta is the accompanying neural voice.</div></div><div class="status" id="status">CONNECTING MIDI…</div></header>
+<section class="looprack" id="looprack" aria-label="Loop Lab multi-lane performance recorder">
+<div class="rack-head"><div><div class="tiny">LOOP LAB × TOASTER · INDEPENDENT LAYERS</div>
+<h2>Build the song, one layer at a time.</h2>
+<p class="muted">Record your played chord synth, your existing VE-22 → Scarlett vocals, and <em>real</em> Magenta audio. Every lane has waveform, mute, solo, remove and WAV export. AI can stay silent while the music loops.</p></div>
+<div class="tiny" id="rackClock">0.0s</div></div>
+<div class="rack-toolbar">
+<label for="rackBars" class="tiny">LOOP LENGTH <select id="rackBars"><option value="1">1 bar</option><option value="2" selected>2 bars</option><option value="4">4 bars</option></select></label>
+<span class="muted" id="rackMeta">NO LOOP YET · first captured lane sets the duration</span>
+</div>
+<div class="rack-inputs">
+<button type="button" id="rackChord">● RECORD CHORDS <small>TOASTER instrument</small></button>
+<button type="button" id="rackVocal">● RECORD VOCALS <small>VE-22 → Scarlett mic</small></button>
+<button type="button" id="rackAI">● CAPTURE MAGENTA <small>Share audio if supported</small></button>
+</div>
+<div class="rack-toolbar">
+<button type="button" id="rackStopCapture" disabled>■ FINISH CAPTURE EARLY</button>
+<button type="button" id="rackToggle">Ⅱ PAUSE RACK</button>
+<button type="button" id="rackExport" disabled>↓ EXPORT MIX WAV</button>
+<button type="button" id="rackClear" disabled>REMOVE ALL</button>
+<label for="rackImport" class="mini" style="cursor:pointer">+ IMPORT MAGENTA WAV <input type="file" accept="audio/*,.wav,.aiff,.aif,.mp3,.m4a" id="rackImport" style="max-width:175px;font-size:11px"></label>
+</div>
+<div class="rack-progress" role="progressbar" aria-label="Loop phase"><div id="rackProgress"></div></div>
+<div id="rackMessage" role="status" aria-live="polite">Ready to capture first loop. Start TOASTER audio and play chords 1–4.</div>
+<div id="rackEmpty" class="muted" style="padding:14px 0">No layers yet. Record the chords you play, then add a vocal and a genuine Magenta sample.</div>
+<div id="rackLayers" class="rack-tracklist" aria-label="Recorded audio loop lanes"></div>
+<div class="notice"><strong>Actual AI only:</strong> Collider's music is a separate app. CAPTURE MAGENTA requires browser sharing that includes <em>audio</em> (often unavailable for macOS apps); otherwise record/print Magenta in Logic and import the audio WAV. MIDI chord messages alone never count as a captured AI loop. All loops are in browser memory until you export.</div>
+</section>
 <div class="grid"><div class="stack">
 <section class="panel"><div class="tiny">01 · THE ARRANGEMENT</div>
 <h2>Pick the song. Play the harmony.</h2>
@@ -432,4 +481,15 @@ $("saveVoice").onclick=()=>{
  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_VOICE_LOOP.wav";a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
 };
 window.addEventListener("beforeunload",()=>{if(micStream)micStream.getTracks().forEach(t=>t.stop());});
+</script>
+<script src="/toaster/loop-rack.js"></script>
+<script>
+window.toasterRack = new SuzyLoopRack({
+  audio,
+  ensureLocal: async()=>{if(!localEnabled)await startLocal();},
+  getChordBus:()=>localOutput,
+  getMicStream:()=>micStream,
+  ensureMic:async()=>{await enableMic();if(!micStream)throw Error("Scarlett/VE-22 microphone was not enabled");},
+  onMessage:msg=>{if(msg)say(msg);}
+});
 </script></body></html>
