@@ -59,6 +59,17 @@ class ToasterPerformanceTests(unittest.TestCase):
         self.assertTrue(any(msg[0]==0x80 for msg in self.out.messages))
         self.assertEqual(self.perf.status()["clock"], "independent_monotonic_not_logic_synced")
 
+    def test_key_up_releases_chord_without_stopping_independent_rhythm(self):
+        self.perf.chord(0)
+        self.perf.settings(bpm=120,rhythm="pulse",intensity=35)
+        self.perf.start()
+        result = self.perf.release_chord()
+        self.assertIsNone(result["chord_index"])
+        self.assertTrue(result["running"])
+        self.assertEqual(self.perf.chord_notes, ())
+        self.assertIn([0x80, 54, 0], self.out.messages)
+        self.perf.stop()
+
     def test_gate_and_closed_bridge_refuse_new_notes(self):
         self.bridge.set_gate(False)
         with self.assertRaises(ValueError):
