@@ -48,7 +48,9 @@ class ToasterPerformance:
         # Bridge's MIDI output requires the same mutex as the hardware callback.
         with self.bridge.lock:
             if self.bridge.closed:
-                raise ValueError("MIDI bridge closed")
+                if velocity:
+                    raise ValueError("MIDI bridge closed")
+                return  # Graceful shutdown if the host closed before cleanup.
             self.bridge._send([0x90 | channel if velocity else 0x80 | channel, note, velocity])
 
     def _silence(self):
