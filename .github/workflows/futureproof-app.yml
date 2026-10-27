@@ -34,7 +34,7 @@ jobs:
       - name: Compile Apple Silicon Futureproof standalone host
         run: |
           mkdir -p "$RUNNER_TEMP/futureproof/SUZY TOAST Futureproof.app/Contents/MacOS"
-          swiftc -O -target arm64-apple-macosx14.0 \
+          swiftc -O -parse-as-library -target arm64-apple-macosx14.0 \
             -framework AppKit -framework SwiftUI -framework AVFoundation \
             -framework CoreMIDI -framework AudioToolbox \
             apps/futureproof-stage/StageApp.swift \
