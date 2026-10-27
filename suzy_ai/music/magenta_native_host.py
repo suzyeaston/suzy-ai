@@ -182,6 +182,8 @@ class NativeMagentaHost:
                 note = data["note"]
                 if type(note) is not int or not 0 <= note <= 127:
                     raise ValueError("note must be MIDI integer 0..127")
+            if action == "start" and self.launching:
+                return self._inactive_status()
             if action == "start":
                 self.launch_error = ""
                 self._start()
