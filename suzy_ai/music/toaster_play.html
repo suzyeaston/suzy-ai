@@ -421,7 +421,7 @@ async function importAudio(file){
   }
   const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false};
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
-  tell("Actual imported AI AUDIO is now a loop on "+which+".");
+  tell("Audio imported into the AI lane on "+which+". Confirm this file was really printed from MRT2.");
  }catch(e){warn(e)}
 }
 function updateMix(){
@@ -439,7 +439,7 @@ async function readAndExport(){
  try{
   await openAudio();
   if(!Object.values(decks).some(d=>d.layers.some(l=>!l.muted)))throw Error("Record a loop before exporting");
-  const sec=cycleSeconds(),sr=ctx.sampleRate,offline=new OfflineAudioContext(2,Math.ceil(sec*sr),sr);
+  const sec=cycleSeconds(),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
   const masterOut=offline.createGain();masterOut.gain.value=Number($("master").value)/100;masterOut.connect(offline.destination);
   for(const [which,d] of Object.entries(decks)){
    const side=which==="pyramid"?1-Number($("mix").value)/100:Number($("mix").value)/100;
@@ -448,12 +448,12 @@ async function readAndExport(){
     const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
     gain.connect(masterOut);
     if(layer.kind==="chords"){
-     for(const event of layer.events){
-      const notes=SCENES[which].notes[event.index],time=event.step*tickSeconds();
+     for(const cycle of [0,1])for(const event of layer.events){
+      const notes=SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
-       const end=Math.min(sec,time+1.8);
+       const end=Math.min(sec*2,time+1.8);
        v.gain.setValueAtTime(.00001,time);
        v.gain.linearRampToValueAtTime(.20/notes.length,Math.min(end,time+.025));
        if(end>time+.05)v.gain.exponentialRampToValueAtTime(.00001,end);
@@ -466,7 +466,8 @@ async function readAndExport(){
    }
   }
   const result=await offline.startRendering();
-  const channels=2,frame=result.length,data=new ArrayBuffer(44+frame*channels*2),v=new DataView(data);
+  // Export second cycle so synth note tails from the previous bar survive the loop seam.
+  const channels=2,frame=oneCycle,data=new ArrayBuffer(44+frame*channels*2),v=new DataView(data);
   const tag=(pos,txt)=>{for(let i=0;i<txt.length;i++)v.setUint8(pos+i,txt.charCodeAt(i));};
   tag(0,"RIFF");v.setUint32(4,data.byteLength-8,true);tag(8,"WAVE");tag(12,"fmt ");
   v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);
@@ -474,7 +475,7 @@ async function readAndExport(){
   v.setUint16(32,channels*2,true);v.setUint16(34,16,true);tag(36,"data");v.setUint32(40,data.byteLength-44,true);
   const left=result.getChannelData(0),right=result.getChannelData(1);
   for(let i=0;i<frame;i++){
-   for(const [c,n] of [left[i],right[i]].entries()){const x=Math.max(-1,Math.min(1,n));
+   for(const [c,n] of [left[i+oneCycle],right[i+oneCycle]].entries()){const x=Math.max(-1,Math.min(1,n));
     v.setInt16(44+i*4+c*2,x<0?x*32768:x*32767,true);
    }
   }
