@@ -74,6 +74,8 @@ class ToasterPerformance:
                 "chords": [name for name, _ in CHORDS[self.scene]],
                 "running": self.running, "step": self.step,
                 "virtual_source": "SUZY AI MIDI",
+                "collider_direct_output": self.bridge.collider_name,
+                "collider_direct_ready": self.bridge.collider_out is not None,
                 "midi_channel": 1,
                 "magenta_audio_confirmed": False,
                 "clock": "independent_monotonic_not_logic_synced",
