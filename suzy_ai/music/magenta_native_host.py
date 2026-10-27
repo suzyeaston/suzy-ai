@@ -21,6 +21,7 @@ ACTIONS = {
     "stop": frozenset(),
     "status": frozenset(),
     "scene": frozenset({"scene"}),
+    "configure-prompts": frozenset({"prompts"}),
     "mix": frozenset({"value"}),
     "volume": frozenset({"value"}),
     "reverb": frozenset({"value"}),
@@ -99,6 +100,14 @@ class NativeMagentaHost:
                 raise ValueError("unknown AI action")
             if set(data) != ACTIONS[action]:
                 raise ValueError("invalid AI action fields")
+            if action == "configure-prompts":
+                strings = data["prompts"]
+                if (
+                    not isinstance(strings, list)
+                    or len(strings) != 2
+                    or any(type(p) is not str or not p.strip() or len(p) > 500 for p in strings)
+                ):
+                    raise ValueError("provide two nonempty text prompts, each at most 500 characters")
             if action == "scene":
                 if type(data["scene"]) is not str or data["scene"] not in PROMPTS:
                     raise ValueError("scene must be pyramid or fishes")
