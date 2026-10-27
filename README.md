@@ -30,9 +30,28 @@ Keep the Terminal open. The older complex mixer/timeline remains accessible at [
 5. Choose **TRACK 02 / WEIRD FISHES** and layer a second part. Use the **SONGS crossfader** to hear track 1, track 2 or a blend. Each deck retains its own clips and level controls.
 6. Open **Sound settings / devices / export** only if needed to change the BPM, reverb, input/output, or **EXPORT WAV MIX**. The two-bar WAV is rendered offline from unmuted chord-event layers plus genuine recorded vocal / imported AI audio. Export before refreshing or closing Chrome: loops otherwise live only in browser memory.
 
+### ✦ Real Magenta AU prompt engine (experimental, opt-in)
+
+The simple TOASTER page now has **ENABLE MAGENTA**, which starts a **separate native macOS Audio Unit host** for the installed Google Magenta RealTime 2 Small model, but only when you explicitly click the button. This is a *real* native model audio source, not the browser's piano oscillator or a fake prompt. The two preset strings are installed as the AU's **MGRT_Prompts**, and the TOASTER song crossfader updates real AU parameters **Weight 0 / Weight 1**. Computer keys **1–4** send a direct **MIDI note-on** to that instance while held, and release sends a note-off. Looped chords also steer the same AU. The AI volume slider controls its separate native gain; Stop disables the model. Google's **Filter Drums** and MIDI gate are activated so the model should not keep imposing busy beats between notes.
+
+**Build once on your Apple Silicon Mac (requires existing registered MRT2 AU and local mrt2_small .mlxfn):**
+
+```bash
+cd ~/Projects/suzy-ai
+bash scripts/build-toaster-magenta.sh
+.venv-mac/bin/python -m suzy_ai.music.magenta_stage
+# Open http://127.0.0.1:7345/toaster/live and click ENABLE MAGENTA
+```
+
+The helper looks for MRT2 Small under `~/Library/Application Support/MagentaRT/models`, `~/Documents/Magenta` or `~/Downloads`. If needed, set `SUZY_MRT2_MODEL=/full/path/to/mrt2_small.mlxfn` **before** starting the Python server. No model downloads are performed. Do not run the separate Jam/Collider/Logic model simultaneously on the 8 GB Mac.
+
+**Verification semantics:** `NATIVE AU RUNNING` means the native host and AVAudioEngine started; it **does not** independently prove that MLX loaded the requested weights or that musical audio reached Scarlett. On first run, allow the model time to load and audition key 1 with the AI volume low; pause the browser pulse to distinguish the sounds. Native host output follows the macOS system audio device; browser and model volumes are independent. The new bridge's model bookmark/state restoration may need Mac-specific tweaks based on the locally installed MRT2 AU version. Test audio audibility before depending on the AI part of Thursday's performance.
+
+**Loop capture limitation:** Native generated AI audio is not automatically sent into browser tracks or Loop Lab. For a genuine AI audio loop, print/bounce the model output via Logic or a supported audio-sharing route and import that audio file. The browser's native-generated piano/vocal loops remain entirely functional if Magenta fails to start.
+
 ### What is and isn't Magenta
 
-**The TOASTER synth/rhythm/loop engine runs locally in the browser, not on Google Magenta.** Its saved Pyramid / Fishes *text descriptions are future AI scene presets*, **not currently connected to MRT2 style/prompt parameters**. Pressing 1–4 can additionally send note-conditioning events to the existing `SUZY AI MIDI` bridge, but MIDI activity alone does **not** prove Google is generating sound, and the browser cannot mix, record or mute a separate Collider/Jam model automatically. Collider does not need to be open for this mode.
+**The TOASTER synth/rhythm/loop engine runs locally in the browser, not on Google Magenta.** With **ENABLE MAGENTA** and the optional native AU host built, the same two scene descriptions now become real AU prompt slots and crossfade weights. Without the native host, they are only labels and the browser's own piano remains audible. Pressing 1–4 can additionally send note-conditioning events to the existing `SUZY AI MIDI` bridge, but MIDI activity alone does **not** prove Google is generating sound, and the browser cannot mix, record or mute a separate Collider/Jam model automatically. Collider does not need to be open for this mode.
 
 To loop **actual Magenta** audio today, record/print the output of **Google MRT2 Small inside Logic** and import the audio file using **+ IMPORT AI AUDIO**. That sound then becomes a normal independently removable deck loop. The imported audio must genuinely have come from MRT2; labeling a track AI does not transform ordinary loops into generated music. To use Magenta *live* as an optional musician, open its already-tested AU inside Logic and handle MIDI selection, audio level and mute **in Logic**, not in TOASTER. Do not simultaneously run another model on the constrained Mac unless deliberately testing.
 
