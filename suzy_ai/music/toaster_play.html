@@ -54,6 +54,12 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .deck-faders{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
 .deck-faders label{display:flex;justify-content:space-between}
 .ai-state{margin-top:7px;font-size:11px;color:var(--muted)}
+.note-keys{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:4px;margin-top:11px}
+.note-pad{min-width:0;padding:6px 1px;display:flex;flex-direction:column;gap:4px;align-items:center;background:#f0dbcd;color:#422c45;border:1px solid #b2a1a8}
+.note-pad:nth-child(2),.note-pad:nth-child(4),.note-pad:nth-child(7),.note-pad:nth-child(9),.note-pad:nth-child(11){background:#423646;color:#f0dbcd}
+.note-pad.on{background:var(--mint);color:#233729}
+.note-pad kbd{font:800 13px ui-monospace,monospace}.note-pad span{font-size:10px}
+@media(max-width:720px){.note-keys{grid-template-columns:repeat(7,minmax(0,1fr))}}
 .ai-strip{margin:12px 0;border:1px solid #af8cb1;border-radius:16px;background:linear-gradient(100deg,#34233c,#241e37);padding:13px 16px;display:grid;grid-template-columns:1.25fr auto 1fr;gap:12px;align-items:center}
 .ai-strip .tiny{color:#d9b7ff}.ai-strip button{padding:11px 14px}
 .ai-strip #aiEnable[aria-pressed=true]{background:var(--mint);color:#23362d}
@@ -88,6 +94,9 @@ a{color:var(--mint)}
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
 <div class="mixer">
+<div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
+<input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
+<small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
 <div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">soft pulse, no busy AI drums</small></div>
 <div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small></div>
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
@@ -104,6 +113,27 @@ a{color:var(--mint)}
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
  <small class="subtle" style="grid-column:1/-1">Real native AU gain, hall reverb and mute. Independent from browser master. No automatic AI loop capture.</small></div>
+</section>
+<section class="note-bank" aria-label="Playable computer keyboard">
+<div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
+<h2>1–4 are your chords. A–K is your piano.</h2>
+<p class="subtle">Hold a key to sustain; release for a soft fade. Play melodies over your chord loops.</p></div>
+<div class="stat">C4 → C5 · CHROMATIC</div></div>
+<div class="note-keys">
+<button type="button" class="note-pad" data-key="a" data-note="60" aria-label="Play note C"><kbd>A</kbd><span>C</span></button>
+<button type="button" class="note-pad" data-key="w" data-note="61" aria-label="Play note C♯"><kbd>W</kbd><span>C♯</span></button>
+<button type="button" class="note-pad" data-key="s" data-note="62" aria-label="Play note D"><kbd>S</kbd><span>D</span></button>
+<button type="button" class="note-pad" data-key="e" data-note="63" aria-label="Play note D♯"><kbd>E</kbd><span>D♯</span></button>
+<button type="button" class="note-pad" data-key="d" data-note="64" aria-label="Play note E"><kbd>D</kbd><span>E</span></button>
+<button type="button" class="note-pad" data-key="f" data-note="65" aria-label="Play note F"><kbd>F</kbd><span>F</span></button>
+<button type="button" class="note-pad" data-key="t" data-note="66" aria-label="Play note F♯"><kbd>T</kbd><span>F♯</span></button>
+<button type="button" class="note-pad" data-key="g" data-note="67" aria-label="Play note G"><kbd>G</kbd><span>G</span></button>
+<button type="button" class="note-pad" data-key="y" data-note="68" aria-label="Play note G♯"><kbd>Y</kbd><span>G♯</span></button>
+<button type="button" class="note-pad" data-key="h" data-note="69" aria-label="Play note A"><kbd>H</kbd><span>A</span></button>
+<button type="button" class="note-pad" data-key="u" data-note="70" aria-label="Play note A♯"><kbd>U</kbd><span>A♯</span></button>
+<button type="button" class="note-pad" data-key="j" data-note="71" aria-label="Play note B"><kbd>J</kbd><span>B</span></button>
+<button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
+</div>
 </section>
 <div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
@@ -137,7 +167,7 @@ a{color:var(--mint)}
 <label for="aiImport" class="big" style="cursor:pointer;background:#5b4254;color:#ffe8d9;font-size:12px;padding:13px;border-radius:11px">+ IMPORT AI AUDIO <input id="aiImport" type="file" accept="audio/*,.wav,.mp3,.m4a,.aiff" style="display:block;font-size:10px;max-width:170px;margin-top:5px"></label></div>
 <details><summary>Sound settings / devices / export (optional)</summary>
 <div class="settings">
-<div><label for="tempo">Session BPM (before recording)</label><input id="tempo" type="range" min="70" max="170" value="105"><span id="tempoValue" class="stat">105 BPM</span></div>
+
 <div><label for="reverb">Reverb</label><input id="reverb" type="range" min="0" max="100" value="30"></div>
 <div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
 <div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
@@ -158,8 +188,10 @@ const SCENES={
 };
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,stageStarted=false,playTimer=null;
-let stepNumber=0,nextStepAt=0,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
+const heldNotes=new Map();
+const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false;
 let aiCommandQueue=Promise.resolve();
@@ -324,7 +356,15 @@ async function syncAIMix(){
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
   await aiFetch("reverb",{value:Number($("aiReverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
+  await aiFetch("tempo",{bpm});
  }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
+}
+function aiMelody(note,on){
+ if(!aiNativeReady)return;
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  await aiFetch(on?"note":"note-off",{note});
+ }).catch(e=>{$("aiHostStatus").textContent="AI MELODY MIDI ERROR · "+e.message});
 }
 function aiNote(which,index){
  if(!aiNativeReady)return;
@@ -416,11 +456,79 @@ function endChord(key){
  if(!heldKeys.size){midiRelease();aiRelease();}
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
-function releaseAllChords(){for(const key of [...heldKeys.keys()])endChord(key);}
+function beginNote(midi,key){
+ if(!ctx)return warn(Error("Press PLAY RHYTHM first"));
+ if(heldNotes.has(key))return;
+ const start=ctx.currentTime+.006,frequency=440*Math.pow(2,(midi-69)/12);
+ const osc=ctx.createOscillator(),gain=ctx.createGain(),tone=ctx.createOscillator(),harmonic=ctx.createGain();
+ osc.type="triangle";osc.frequency.value=frequency;
+ tone.type="sine";tone.frequency.value=frequency*2;harmonic.gain.value=.1;
+ osc.connect(gain);tone.connect(harmonic);harmonic.connect(gain);gain.connect(decks[scene].bus);
+ gain.gain.setValueAtTime(.0001,start);
+ gain.gain.linearRampToValueAtTime(.16,start+.022);
+ gain.gain.setTargetAtTime(.09,start+.09,.25);
+ osc.start(start);tone.start(start);
+ const h={osc,tone,gain,midi,scene,start,event:null};
+ heldNotes.set(key,h);
+ if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
+  const step=Math.max(0,Math.min(15,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
+  h.event={step,midi,holdSteps:1,type:"note"};
+  recording.events.push(h.event);
+ }
+ aiMelody(midi,true);
+ document.querySelectorAll(".note-pad").forEach(el=>{if(Number(el.dataset.note)===midi)el.classList.add("on")});
+}
+function endNote(key){
+ const h=heldNotes.get(key);if(!h)return;
+ heldNotes.delete(key);
+ const now=ctx?.currentTime??0;
+ h.gain.gain.cancelScheduledValues(now);
+ h.gain.gain.setTargetAtTime(.0001,now,.10);
+ try{h.osc.stop(now+.6);h.tone.stop(now+.6)}catch{}
+ if(h.event)h.event.holdSteps=Math.max(.25,Math.min(loopSteps,(now-h.start)/tickSeconds()));
+ aiMelody(h.midi,false);
+ document.querySelectorAll(".note-pad").forEach(el=>{
+  if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
+ });
+}
+function releaseAllChords(){
+ for(const key of [...heldKeys.keys()])endChord(key);
+ for(const key of [...heldNotes.keys()])endNote(key);
+}
 function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
+function phaseSeconds(at=ctx.currentTime){
+ return ((at-transportEpoch)%cycleSeconds()+cycleSeconds())%cycleSeconds();
+}
+function hasAudioLoops(){
+ return Object.values(decks).some(d=>d.layers.some(l=>l.buffer));
+}
+function changeTempo(value){
+ const next=Number(value);
+ if(!Number.isFinite(next)||next<70||next>170)return;
+ if(hasAudioLoops()){
+  $("tempo").value=String(pendingBpm||bpm);
+  warn(Error("Tempo locked while recorded voice or AI audio loops exist: changing speed would shift their pitch. Export/remove those audio loops first; chord-event loops can follow BPM."));
+  return;
+ }
+ if(stageStarted){
+  pendingBpm=next;
+  $("tempoValue").textContent=bpm+" → "+next+" BPM (next cycle)";
+ }else{
+  bpm=next;pendingBpm=null;$("tempoValue").textContent=bpm+" BPM";
+  if(aiNativeReady)aiFetch("tempo",{bpm}).catch(warn);
+ }
+}
+function applyTempoAtBar(time,count){
+ if(pendingBpm===null)return;
+ bpm=pendingBpm;pendingBpm=null;
+ transportEpoch=time-count*tickSeconds();
+ $("tempoValue").textContent=bpm+" BPM";
+ if(aiNativeReady)aiFetch("tempo",{bpm}).catch(warn);
+}
 function schedule(time,count){
  const step=count%loopSteps;
+ if(step===0)applyTempoAtBar(time,count);
  pulse(time,step);
  if(step===0){
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
@@ -436,6 +544,23 @@ function schedule(time,count){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
     if(e.step===step){
+      if(e.type==="note"){
+       const pitch=e.midi;
+       const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
+       const osc=ctx.createOscillator(),gain=ctx.createGain();
+       osc.type="triangle";osc.frequency.value=440*Math.pow(2,(pitch-69)/12);
+       gain.gain.setValueAtTime(.0001,start);
+       gain.gain.linearRampToValueAtTime(.08,start+.016);
+       gain.gain.setTargetAtTime(.0001,start+heldSec,.12);
+       osc.connect(gain);gain.connect(decks[which].bus);
+       osc.start(start);osc.stop(start+heldSec+.7);
+       if(aiNativeReady){
+        const wait=Math.max(0,(time-ctx.currentTime)*1000);
+        setTimeout(()=>{if(!aiNativeReady)return;aiMelody(pitch,true);
+          setTimeout(()=>aiMelody(pitch,false),heldSec*1000);},wait);
+       }
+       continue;
+      }
       synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()));
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
@@ -465,7 +590,7 @@ function scheduler(){
 }
 function updateTimeline(){
  if(!ctx||!stageStarted)return;
- const phase=((ctx.currentTime-(nextStepAt-stepNumber*tickSeconds()))%cycleSeconds()+cycleSeconds())%cycleSeconds()/cycleSeconds();
+ const phase=phaseSeconds()/cycleSeconds();
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
  const t=$("toaster");t.classList.toggle("bop",Math.floor(phase*16)%4===0);
 }
@@ -474,10 +599,18 @@ async function startStop(){
   await openAudio();
   if(stageStarted){
    releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   if(recording)warn(Error("Recording stopped with rhythm; discard incomplete take."));
+   recording=null;
+   for(const d of Object.values(decks))for(const layer of d.layers){
+    if(layer.source){try{layer.source.stop()}catch{}layer.source=null;}
+   }
    $("rhythm").textContent="▶ PLAY RHYTHM";$("rhythm").setAttribute("aria-pressed","false");
    tell("Rhythm paused. Your loops are preserved.");
   }else{
-   stepNumber=0;nextStepAt=ctx.currentTime+.09;
+   stepNumber=0;transportEpoch=ctx.currentTime+.09;nextStepAt=transportEpoch;
+   for(const [which,d] of Object.entries(decks)){
+    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer);
+   }
    stageStarted=true;playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
@@ -489,7 +622,7 @@ function record(which){
  if(!stageStarted)return warn(Error("Start the rhythm first, then record"));
  choose(which);
  if(recording)return warn(Error("Finish the current recording first"));
- recording={kind:"chords",scene:which,active:false,events:[],beginAt:Math.ceil(stepNumber/16)*16,start:0};
+ recording={kind:"chords",scene:which,active:false,events:[],beginAt:Math.ceil((stepNumber+1)/16)*16,start:0};
  $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
  tell("Ready: chord recording begins on the next loop. Press keys 1–4.");
 }
@@ -585,8 +718,10 @@ function startLoopAudio(which,l){
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=l.muted?0:.65;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const phase=((ctx.currentTime-(nextStepAt-stepNumber*tickSeconds()))%cycleSeconds()+cycleSeconds())%cycleSeconds();
- src.start(ctx.currentTime+.02,phase);
+ const when=ctx.currentTime+.025,phase=phaseSeconds(when);
+ if(stageStarted)src.start(when,phase);
+ else{l.source=null;l.gain=null;return;}
+
  l.source=src;l.gain=gain;
 }
 async function importAudio(file){
@@ -632,7 +767,7 @@ async function readAndExport(){
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
-      const notes=SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
+      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
@@ -692,10 +827,21 @@ const isTyping=e=>e.target?.isContentEditable||["INPUT","SELECT","TEXTAREA"].inc
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||isTyping(e))return;
  if(/^[1-4]$/.test(e.key)){e.preventDefault();beginChord(scene,Number(e.key)-1,"key:"+e.key);}
+ else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
+  e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
+ }
  else if(e.key===" "&&e.target?.tagName!=="BUTTON"){e.preventDefault();startStop();}
 });
 document.addEventListener("keyup",e=>{
  if(/^[1-4]$/.test(e.key)){e.preventDefault();endChord("key:"+e.key);}
+ else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
+  e.preventDefault();endNote("key-note:"+e.key.toLowerCase());
+ }
+});
+document.querySelectorAll(".note-pad").forEach(el=>{
+ const note=Number(el.dataset.note),id="pad-note:"+note;
+ el.addEventListener("pointerdown",e=>{if(e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);beginNote(note,id)});
+ for(const type of ["pointerup","pointercancel","lostpointercapture"])el.addEventListener(type,()=>endNote(id));
 });
 window.addEventListener("blur",releaseAllChords);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
@@ -709,7 +855,7 @@ $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value};
 $("aiReverb").onchange=syncAIMix;
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
-$("tempo").oninput=()=>{if(Object.values(decks).some(d=>d.layers.length)){warn(Error("Tempo locked after recording. Clear saved loops before changing."));return;}bpm=Number($("tempo").value);$("tempoValue").textContent=bpm+" BPM"};
+$("tempo").oninput=()=>changeTempo($("tempo").value);
 $("reverb").oninput=()=>{if(wet)wet.gain.value=Number($("reverb").value)/180};
 $("findDevices").onclick=()=>findDevices().catch(warn);
 $("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
