@@ -16,7 +16,7 @@ function rig(){
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
@@ -72,7 +72,11 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/LOOP MY CHORDS/);
  assert.match(file,/LOOP VOICE/);
  assert.match(file,/auto Scarlett/);
- assert.match(file,/saved, not driving a model/i);
+ assert.match(file,/MRT2 prompt/);
+ assert.match(file,/ENABLE MAGENTA/);
+ assert.match(file,/Native Google Magenta AU is optional/);
+ assert.match(javascript,/await aiFetch\("chord",\{index\}\)/);
+ assert.match(javascript,/await aiFetch\("mix",\{value:Number\(\$\("mix"\)\.value\)\/100\}\)/);
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
  assert.ok(file.indexOf('id="deck-fishes"')<file.indexOf('id="micInput"'));
@@ -165,4 +169,51 @@ test("manual hold length is retained by event loops and renders sustained chord 
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
  assert.match(javascript,/Math\.max\(\.12,\(e\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
+});
+
+test("real Magenta is opt-in: page load plays no second neural model",()=>{
+ const {calls,run}=rig();
+ assert.equal(calls.midi.length,0);
+ assert.equal(run("aiNativeReady"),false);
+ assert.equal(run("aiNativeStarting"),false);
+ assert.match(file,/AI OFF · local chords work without it/);
+});
+test("native bridge playback sends real MIDI note-on and MIDI note-off only when ready",async()=>{
+ const {calls,run}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ run('beginChord("pyramid",0,"key:1")');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(v=>v.url==="/api/ai/chord"),"Google AU MIDI note-on sent");
+ run('endChord("key:1")');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(v=>v.url==="/api/ai/release"),"Google AU MIDI note-off sent");
+});
+
+test("AI faders use actual native endpoints, not browser-only gain",async()=>{
+ const {run,get,calls}=rig();
+ run("aiNativeReady=true");
+ get("aiVolume").value="21";
+ get("aiReverb").value="35";
+ await run("syncAIMix()");
+ const native = calls.midi.filter(x=>x.url.startsWith("/api/ai/"));
+ const actions = native.map(x=>x.url);
+ assert.ok(actions.includes("/api/ai/volume"));
+ assert.ok(actions.includes("/api/ai/reverb"));
+ assert.ok(actions.includes("/api/ai/mute"));
+ const vol = JSON.parse(native.find(x=>x.url==="/api/ai/volume").opts.body);
+ const rev = JSON.parse(native.find(x=>x.url==="/api/ai/reverb").opts.body);
+ assert.equal(vol.value,.21);
+ assert.equal(rev.value,.35);
+});
+test("AI mute does not turn off the browser instrument or rhythm",async()=>{
+ const {run,calls}=rig();
+ await run("startStop()");
+ run("aiNativeReady=true");
+ await run("toggleAIMute()");
+ assert.equal(run("aiMuted"),true);
+ assert.equal(run("stageStarted"),true);
+ assert.equal(run("ctx.state"),"running");
+ assert.ok(calls.midi.find(x=>x.url==="/api/ai/mute"));
+ await run("toggleAIMute()");
+ assert.equal(run("aiMuted"),false);
 });

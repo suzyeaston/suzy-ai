@@ -16,6 +16,7 @@ import secrets
 from .magenta_midi import MagentaMidiBridge
 from .toaster_performance import ToasterPerformance
 from .audio_routing import inspect_audio_routing
+from .magenta_native_host import NativeMagentaHost
 
 PAGE = Path(__file__).with_name("magenta_stage.html")
 TOASTER_PAGE = Path(__file__).with_name("toaster_stage.html")
@@ -28,6 +29,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
     bridge: MagentaMidiBridge
     token: str
     performance: ToasterPerformance | None = None
+    native_host: NativeMagentaHost | None = None
 
     def log_message(self, fmt, *args):
         pass
@@ -64,6 +66,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
         if self.path == "/toaster/loop-rack.js":
             return self.reply(200, LOOP_RACK_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
+        if self.path == "/api/ai/status":
+            return self.reply(200, self.native_host.status() if self.native_host else {"phase":"not-configured"})
         if self.path == "/api/perform/status":
             return self.reply(200, self.performance.status()) if self.performance else self.reply(503, {"error":"performance unavailable"})
         if self.path == "/api/status":
@@ -90,7 +94,11 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(int(length)))
             if not isinstance(data, dict):
                 raise ValueError("JSON object expected")
-            if self.path in ("/api/collider/connect", "/api/collider/disconnect"):
+            if self.path.startswith("/api/ai/"):
+                if self.native_host is None:
+                    return self.reply(503, {"error": "native Magenta bridge not configured"})
+                result = self.native_host.command(self.path.removeprefix("/api/ai/"), data)
+            elif self.path in ("/api/collider/connect", "/api/collider/disconnect"):
                 if data:
                     raise ValueError("Collider MIDI command takes no arguments")
                 # Release TOASTER chord/groove before changing destination.
@@ -155,6 +163,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
                 result = self.bridge.test_chord()
             else:
                 return self.reply(404, {"error": "unknown action"})
+        except RuntimeError as exc:
+            return self.reply(503, {"error": str(exc)[:180]})
         except (ValueError, TypeError, KeyError) as exc:
             return self.reply(400, {"error": str(exc)[:180]})
         except Exception:
@@ -180,6 +190,7 @@ def main(argv=None):
         pass
     Handler.bridge = bridge
     Handler.performance = ToasterPerformance(bridge)
+    Handler.native_host = NativeMagentaHost()
     Handler.token = secrets.token_urlsafe(32)
     try:
         with ThreadingHTTPServer(("127.0.0.1", args.port), Handler) as server:
@@ -195,6 +206,7 @@ def main(argv=None):
         pass
     finally:
         Handler.performance.close()
+        Handler.native_host.close()
         bridge.close()
 
 
