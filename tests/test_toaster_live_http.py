@@ -57,6 +57,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("data-pad=", html)
         self.assertIn("navigator.mediaDevices.getUserMedia", html)
         self.assertIn("MediaRecorder", html)
+        self.assertIn("CONNECT COLLIDER DIRECT",html)
         self.assertIn("real rehearsal verification", html)
         self.assertNotIn("__MAGENTA_TOKEN__", html)
 
@@ -71,6 +72,21 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn([0x90, 54, 56], self.bridge.output.messages)
         self.assertEqual(self.call("POST", "/api/perform/scene", {"scene":"fishes"})[1]["scene"],"fishes")
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0})[1]["chords"][0],"Em7")
+
+    def test_direct_collider_route_is_explicit_token_guarded_and_audio_unverified(self):
+        self.assertEqual(self.call("POST", "/api/collider/connect", token=False)[0], 403)
+        self.assertEqual(self.call("POST", "/api/collider/connect",
+                                   origin="https://other.example")[0], 403)
+        self.assertEqual(self.call("POST", "/api/collider/connect", {"ignored": True})[0], 400)
+        status, body = self.call("POST", "/api/collider/connect")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["collider_direct_ready"])
+        self.assertEqual(body["collider_direct_output"], "MRT2 - Collider Input")
+        self.assertFalse(body["magenta_audio_confirmed"])
+        self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0})[0],200)
+        self.assertIn([0x90, 54, 56],self.bridge.collider_out.messages)
+        self.assertEqual(self.call("POST", "/api/collider/disconnect")[1]["collider_direct_ready"],False)
+        self.assertFalse(self.perf.status()["collider_direct_ready"])
 
     def test_rhythm_and_release_do_not_claim_audio_mute(self):
         self.call("POST", "/api/perform/chord", {"index":0})
