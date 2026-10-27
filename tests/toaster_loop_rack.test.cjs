@@ -9,7 +9,7 @@ const script=fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_loo
 function harness(){
  const nodes=new Map();
  const element=()=>({
-  style:{},dataset:{},children:[],disabled:false,hidden:false,value:"",
+  style:{setProperty(k,v){this[k]=v;}},dataset:{},children:[],disabled:false,hidden:false,value:"",
   replaceChildren(){this.children=[];},appendChild(v){this.children.push(v);return v;},
   append(...v){this.children.push(...v);},
   remove(){},setAttribute(){},
@@ -71,7 +71,7 @@ test("Loop Lab-style independent chord/voice/AI lanes with mute, solo and remove
  assert.equal(rack.layers.length,3);
  assert.equal(rack.length,.2);
  assert.equal(get("rackLayers").children.length,3);
- assert.equal(get("rackMeta").textContent.includes("3 lanes"),true);
+ assert.equal(get("rackMeta").textContent.includes("3 clips"),true);
  assert.equal(get("rackBars").disabled,true);
  assert.ok(emitted.some(x=>x[0]==="start"));
  rack.mute(2);assert.equal(rack.layers[1].gain.gain.value,0);
@@ -112,4 +112,23 @@ test("WAV export is deterministic RIFF PCM and destructive clear is guarded",asy
  rack.add("chord",sample,{duration:.0625,name:"Synth"});
  rack.clear();assert.equal(rack.layers.length,0);
  assert.equal(get("rackLayers").children.length,0);
+});
+
+test("real mixer faders affect audible rack lanes without mutating clips",async()=>{
+ const {rack,Buffer,get}=harness();
+ await rack.context();
+ const buffer=new Buffer(1,9600,48000);
+ rack.add("chord",buffer,{duration:.2,name:"Synth"});
+ rack.add("vocal",buffer,{name:"Voice"});
+ rack.add("ai",buffer,{name:"Actual captured AI"});
+ rack.setKindGain("chord",.25);
+ rack.setKindGain("vocal",0);
+ rack.setKindGain("ai",.75);
+ assert.equal(rack.layers[0].gain.gain.value,.55*.25);
+ assert.equal(rack.layers[1].gain.gain.value,0);
+ assert.equal(rack.layers[2].gain.gain.value,.55*.75);
+ assert.equal(rack.layers.length,3);
+ assert.equal(get("rackRuler").children.length,2);
+ assert.throws(()=>rack.setKindGain("fake",.5),/Unknown/);
+ assert.throws(()=>rack.setKindGain("ai",2),/outside/);
 });

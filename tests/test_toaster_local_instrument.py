@@ -39,6 +39,24 @@ class ToasterLocalInstrumentTests(unittest.TestCase):
         self.assertNotIn('tone.js', html.lower())
         self.assertNotIn('https://cdn.', html)
 
+    def test_performance_desk_ui_order_and_real_routing(self):
+        html = PAGE.read_text(encoding="utf8")
+        self.assertLess(html.index('id="stageMixer"'), html.index('id="looprack"'))
+        self.assertLess(html.index('id="looprack"'), html.index('id="pads"'))
+        for unique in ("mic", "speaker", "localAudio", "localGain", "connectCollider", "rackLayers"):
+            self.assertEqual(html.count(f'id="{unique}"'), 1, unique)
+        for control in ("stageMasterLevel", "stageVocalLevel", "stageChordLoopLevel",
+                        "stageAILevel", "rackRuler", "rackTrackField"):
+            self.assertIn(f'id="{control}"', html)
+        self.assertIn("masterBus.gain.setTargetAtTime", html)
+        self.assertIn("getAudioBus:()=>masterBus", html)
+        self.assertIn("localDry.connect(masterBus)", html)
+        self.assertIn("localWet.connect(masterBus)", html)
+        self.assertIn("monitorGain.connect(masterBus)", html)
+        self.assertIn("ctx.setSinkId", html)
+        self.assertIn("Collider live output/mute stays in Collider", html)
+        self.assertIn("id=\"stageLegacy\"", html)
+
 
 if __name__ == "__main__":
     unittest.main()
