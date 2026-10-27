@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUZY//TOAST · PLAY</title>
+<style>
+:root{color-scheme:dark;--bg:#191420;--panel:#302637;--border:#78607b;--pink:#ffc9d8;--peach:#ffdbb0;--mint:#b4f1d0;--muted:#c2afc7;--red:#fc9cac}
+*{box-sizing:border-box}body{background:radial-gradient(ellipse at 25% -15%,#66425c 0,transparent 58%),var(--bg);color:#fff2e9;margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:18px 18px 55px}h1{margin:0;font-size:clamp(30px,4.5vw,47px);letter-spacing:-.07em;line-height:1.04}h2{margin:0;font-size:clamp(18px,2.5vw,24px)}p{margin:5px 0}small,.subtle{font-size:12px;color:var(--muted)}
+label{font-size:12px;font-weight:750}button,input,select{font:inherit}button{border:1px solid #926e8f;color:#fff7ed;background:#4b3b50;border-radius:12px;padding:11px;cursor:pointer;font-weight:800;touch-action:manipulation}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+button:disabled{opacity:.48;cursor:default}button[aria-pressed=true],button.active{background:var(--mint);border-color:var(--mint);color:#222d27}
+input[type=range]{accent-color:var(--mint);width:100%}select{background:#241c2c;color:#fff;border:1px solid var(--border);border-radius:9px;padding:8px;max-width:100%}
+header{display:flex;gap:16px;justify-content:space-between;align-items:center;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid #ffffff33}
+.tiny{font:800 11px/1.4 ui-monospace,monospace;letter-spacing:.12em;color:var(--mint)}
+.brand{display:flex;align-items:center;gap:18px}
+.toaster{width:114px;height:99px;position:relative;flex-shrink:0}
+.toaster .slot{position:absolute;z-index:2;top:12px;left:18px;width:83px;height:15px;border-radius:45%;background:#523649;border:4px solid #e6acbc}
+.toaster .bread{position:absolute;z-index:1;left:30px;top:0;width:58px;height:46px;border-radius:22px 22px 10px 10px;background:linear-gradient(#e9b473,#ffdab7);border:6px solid #a26849;transition:transform .18s}
+.toaster.bop .bread{transform:translateY(-15px)}
+.toaster .body{position:absolute;z-index:3;bottom:1px;left:5px;width:102px;height:71px;border:5px solid #e9adb9;border-radius:23px 23px 16px 16px;background:linear-gradient(140deg,#f8c8d4,#d48ea6)}
+.toaster .face{position:absolute;left:30px;top:21px;color:#5a304d;font-size:22px;font-weight:900;letter-spacing:12px}
+.toaster .smile{position:absolute;left:43px;top:43px;width:15px;height:8px;border-radius:0 0 20px 20px;border-bottom:3px solid #5a304d}
+.toaster .lever{position:absolute;z-index:4;right:0;bottom:30px;height:8px;width:20px;border-radius:7px;background:#eec29e}
+.toaster .foot{position:absolute;z-index:2;left:19px;bottom:-4px;background:#845465;width:20px;height:9px;border-radius:3px;box-shadow:62px 0 #845465}
+main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;padding:15px;margin:12px 0}
+.start{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.big{background:var(--peach);color:#482c42;border:0;font-size:17px;padding:15px 26px;min-width:190px}
+#rhythm[aria-pressed=true]{background:var(--mint);color:#273a31}
+.stat{font:750 12px ui-monospace,monospace;color:var(--mint)}
+.mixer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+.strip{background:#1d1827;border:1px solid #65506b;border-radius:12px;padding:10px}
+.strip-header{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.strip-header strong{font-size:13px}
+.strip>.subtle{display:block;min-height:15px}
+.deck{border:2px solid #735a79;background:#281f30;border-radius:17px;padding:14px;margin:12px 0}
+.deck.selected{border-color:var(--peach);box-shadow:0 0 0 1px #ffd2a53a}
+.deck>div:first-child{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.deck-head{display:flex;align-items:center;gap:12px}
+.deck-badge{font:850 11px ui-monospace,monospace;color:#382b3b;background:var(--peach);border-radius:9px;padding:7px}
+.deck[data-scene=fishes] .deck-badge{background:var(--mint)}
+.deck-info{font-size:11px;color:#c8bac8}
+.pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.pad{height:88px;background:linear-gradient(155deg,#70485f,#48334e);border:2px solid #b08b9c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.pad kbd{font:800 13px ui-monospace,monospace}.pad b{font-size:clamp(16px,2.2vw,24px)}
+.pad.on{background:linear-gradient(150deg,#ffe2b9,#ffb7cc);color:#552c45}
+.deck-transport{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.deck-transport button{font-size:12px;padding:10px 13px}
+.deck-transport button.rec{background:#813e53}
+.deck-transport button.rec.armed{background:var(--red);color:#3b1d32}
+.timeline{position:relative;height:13px;background:#131019;border:1px solid #68566e;border-radius:20px;flex:1;min-width:70px;overflow:hidden}
+.timeline::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 49.5%,#ffffff35 50%,transparent 50.5%)}
+.playhead{position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--mint);box-shadow:0 0 8px var(--mint)}
+.clips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;min-height:30px;align-items:center}
+.clip{display:flex;gap:4px;align-items:center;max-width:100%;border:1px solid #937d9b;background:#211925;border-radius:9px;padding:4px;font-size:11px}
+.clip button{padding:4px 7px;font-size:11px;border:0;border-radius:6px}.clip.muted{opacity:.56}
+.deck-faders{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
+.deck-faders label{display:flex;justify-content:space-between}
+.ai-state{margin-top:7px;font-size:11px;color:var(--muted)}
+.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
+details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+#message{min-height:26px;color:var(--mint);font:700 12px ui-monospace,monospace;white-space:normal}
+#warning{font-size:12px;color:#ffc5b3}
+a{color:var(--mint)}
+@media(max-width:650px){main{padding:11px}.toaster{transform:scale(.78);margin-right:-11px}.brand{gap:8px}.mixer{grid-template-columns:1fr}.pads{gap:5px}.pad{height:70px;padding:5px}.settings{grid-template-columns:1fr}.deck{padding:11px}header{align-items:start}}
+</style></head><body><main>
+<header>
+<div class="brand">
+<div class="toaster" id="toaster" role="img" aria-label="Smiling pink toaster with bouncing toast">
+<div class="bread"></div><div class="slot"></div><div class="body"><div class="face">• •</div><div class="smile"></div></div><div class="lever"></div><div class="foot"></div></div>
+<div><div class="tiny">FUTUREPROOF · THE APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST 🍞</h1><p class="subtle">Play it. Loop it. Add a voice. Make it evolve.</p></div>
+</div>
+<div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div>
+</header>
+<section aria-label="Session rhythm and master">
+<div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
+<button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
+<div class="mixer">
+<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">soft pulse, no busy AI drums</small></div>
+<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small></div>
+<div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
+</div>
+</section>
+<div id="decks">
+<section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
+<div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
+<div class="pads" id="pads-pyramid">
+<button class="pad" data-scene="pyramid" data-chord="0"><kbd>1</kbd><b>F♯</b></button>
+<button class="pad" data-scene="pyramid" data-chord="1"><kbd>2</kbd><b>Gmaj7</b></button>
+<button class="pad" data-scene="pyramid" data-chord="2"><kbd>3</kbd><b>A6</b></button>
+<button class="pad" data-scene="pyramid" data-chord="3"><kbd>4</kbd><b>F♯</b></button>
+</div>
+<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
+<div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
+<div class="ai-state" id="ai-pyramid">✦ AI preset: warm sparse piano / evolving ambience · saved, not driving a model</div>
+</section>
+<section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
+<div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
+<div class="pads" id="pads-fishes">
+<button class="pad" data-scene="fishes" data-chord="0"><kbd>1</kbd><b>Em7</b></button>
+<button class="pad" data-scene="fishes" data-chord="1"><kbd>2</kbd><b>F♯m7</b></button>
+<button class="pad" data-scene="fishes" data-chord="2"><kbd>3</kbd><b>A</b></button>
+<button class="pad" data-scene="fishes" data-chord="3"><kbd>4</kbd><b>Gmaj7</b></button>
+</div>
+<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
+<div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
+<div class="ai-state" id="ai-fishes">✦ AI preset: interlocking clean arpeggios / spacious texture · saved, not driving a model</div>
+</section>
+</div>
+<section><div class="start"><div><div class="tiny">SAVED SOUNDS · ACTUAL MAGENTA AUDIO</div><h2>Add an AI take, when you're ready</h2><p class="subtle">Import audio recorded from Magenta in Logic. It becomes a real removable loop on the selected track.</p></div>
+<label for="aiImport" class="big" style="cursor:pointer;background:#5b4254;color:#ffe8d9;font-size:12px;padding:13px;border-radius:11px">+ IMPORT AI AUDIO <input id="aiImport" type="file" accept="audio/*,.wav,.mp3,.m4a,.aiff" style="display:block;font-size:10px;max-width:170px;margin-top:5px"></label></div>
+<details><summary>Sound settings / devices / export (optional)</summary>
+<div class="settings">
+<div><label for="tempo">Session BPM (before recording)</label><input id="tempo" type="range" min="70" max="170" value="105"><span id="tempoValue" class="stat">105 BPM</span></div>
+<div><label for="reverb">Reverb</label><input id="reverb" type="range" min="0" max="100" value="30"></div>
+<div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
+<div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
+<div><button id="findDevices">↻ RECHECK DEVICES</button></div>
+<div><button id="export">↓ EXPORT WAV MIX</button></div>
+</div></details>
+</section>
+<div id="message" role="status" aria-live="polite">Press PLAY RHYTHM. Then 1–4. Use LOOP MY CHORDS to build.</div>
+<div id="warning" role="alert"></div>
+<footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Magenta's separate engine is not embedded in this browser release. <a href="/toaster/studio">Older advanced studio</a>.</footer>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const SCENES={
+ pyramid:{names:["F♯","Gmaj7","A6","F♯"],notes:[[54,58,61,66],[55,59,62,66],[57,61,64,66],[54,58,61,66]],prompt:"Intimate warm piano, suspended harmony, minimal drums, spacious atmospheric art rock"},
+ fishes:{names:["Em7","F♯m7","A","Gmaj7"],notes:[[52,55,59,62],[54,57,61,64],[57,61,64,69],[55,59,62,66]],prompt:"Interlocking clean guitar arpeggios, shimmering delays, understated drum pulse, flowing bass"}
+};
+const token="__MAGENTA_TOKEN__";
+let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,stageStarted=false,playTimer=null;
+let stepNumber=0,nextStepAt=0,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
+function tell(s){$("message").textContent=s;$("warning").textContent="";}
+function warn(e){$("warning").textContent=e?.message||String(e);}
+function makeReverb(){
+ const len=1.4,sr=ctx.sampleRate,b=ctx.createBuffer(2,Math.floor(sr*len),sr);
+ let seed=911;
+ for(let c=0;c<2;c++){const a=b.getChannelData(c);for(let i=0;i<a.length;i++){
+ seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+ a[i]=((seed/2147483648)-1)*.22*Math.pow(1-i/a.length,3);
+ }}
+ return b;
+}
+async function openAudio(){
+ if(!ctx){
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  master=ctx.createGain();master.gain.value=Number($("master").value)/100;master.connect(ctx.destination);
+  mainBus=ctx.createGain();mainBus.connect(master);
+  beatBus=ctx.createGain();beatBus.gain.value=Number($("rhythmLevel").value)/100;beatBus.connect(master);
+  verb=ctx.createConvolver();verb.buffer=makeReverb();
+  wet=ctx.createGain();wet.gain.value=Number($("reverb").value)/180;
+  verb.connect(wet);wet.connect(master);
+  for(const k of Object.keys(decks)){
+    const d=decks[k];d.bus=ctx.createGain();d.bus.gain.value=1;
+    d.bus.connect(mainBus);d.bus.connect(verb);
+    d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);
+  }
+  updateMix();
+ }
+ if(ctx.state!=="running")await ctx.resume();
+ return ctx;
+}
+async function findDevices(){
+ if(!navigator.mediaDevices?.enumerateDevices)return;
+ const list=await navigator.mediaDevices.enumerateDevices();
+ for(const [id,kind] of [["micInput","audioinput"],["audioOutput","audiooutput"]]){
+  const el=$(id),prior=el.value;el.replaceChildren();
+  const auto=document.createElement("option");auto.value="";auto.textContent="Automatic";el.add(auto);
+  for(const d of list.filter(x=>x.kind===kind)){
+    const opt=document.createElement("option");opt.value=d.deviceId;opt.textContent=d.label||kind;el.add(opt);
+  }
+  if([...el.options].some(o=>o.value===prior)&&prior)el.value=prior;
+ }
+ const outs=list.filter(d=>d.kind==="audiooutput");
+ const ideal=outs.find(d=>/scarlett|focusrite/i.test(d.label));
+ if(ctx&&ctx.setSinkId&&ideal&&!$("audioOutput").dataset.manual){
+  try{await ctx.setSinkId(ideal.deviceId);$("audioOutput").value=ideal.deviceId;
+    $("outputStatus").textContent="OUTPUT · "+ideal.label;}
+  catch(e){$("outputStatus").textContent="OUTPUT · System default (Scarlett auto-switch unavailable)";}
+ } else if(ctx&&!ctx.setSinkId){
+  $("outputStatus").textContent="OUTPUT · SYSTEM DEFAULT (set Scarlett in macOS)";
+ }else if(ctx&&!ideal){$("outputStatus").textContent="OUTPUT · System default";}
+}
+async function syncOutput(){
+ if(!ctx?.setSinkId)return warn(Error("Chrome audio-output switching is unavailable. Set macOS Sound Output to Scarlett."));
+ try{await ctx.setSinkId($("audioOutput").value||"");tell("Browser audio routed to "+($("audioOutput").selectedOptions[0]?.textContent||"system output"));}
+ catch(e){warn(e);}
+}
+function pulse(time,step){
+ // Short soft kick on the first eighth of each group, shaker on alternating eighths.
+ const acc=scene==="pyramid"?[0,3,6,10,13]:[0,4,8,12];
+ const loud=acc.includes(step);
+ const o=ctx.createOscillator(),g=ctx.createGain();
+ o.type="sine";o.frequency.setValueAtTime(loud?130:690,time);
+ o.frequency.exponentialRampToValueAtTime(loud?52:530,time+.065);
+ g.gain.setValueAtTime(.0001,time);
+ g.gain.exponentialRampToValueAtTime(loud?.22:.034,time+.004);
+ g.gain.exponentialRampToValueAtTime(.0001,time+(loud?.11:.026));
+ o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+.14);
+}
+function synth(sceneKey,chord,time=ctx.currentTime+.01,quiet=false){
+ if(!ctx)return;
+ const notes=SCENES[sceneKey].notes[chord],dest=decks[sceneKey].bus;
+ const duration=2.0,attack=.025,release=1.65;
+ for(const note of notes){
+  const freq=440*Math.pow(2,(note-69)/12),gain=ctx.createGain();
+  const o=ctx.createOscillator(),g=ctx.createGain(),p=ctx.createOscillator(),pg=ctx.createGain();
+  o.type="triangle";o.frequency.value=freq;g.gain.value=.55;
+  p.type="sine";p.frequency.value=freq*2;pg.gain.value=.08;
+  o.connect(g);g.connect(gain);p.connect(pg);pg.connect(gain);gain.connect(dest);
+  const peak=(quiet?.12:.21)/notes.length;
+  gain.gain.setValueAtTime(.00001,time);
+  gain.gain.linearRampToValueAtTime(peak,time+attack);
+  gain.gain.exponentialRampToValueAtTime(peak*.43,time+.42);
+  gain.gain.exponentialRampToValueAtTime(.00001,time+release);
+  o.start(time);p.start(time);o.stop(time+duration);p.stop(time+duration);
+ }
+}
+function midi(sceneKey,index){
+ // Magenta's MIDI bridge is optional. It does not generate audio in TOASTER.
+ const url="/api/perform/";
+ const headers={"Content-Type":"application/json","X-Suzy-Token":token};
+ const request=(name,body)=>fetch(url+name,{method:"POST",headers,body:JSON.stringify(body)}).catch(()=>{});
+ if(window.currentMidiScene!==sceneKey){window.currentMidiScene=sceneKey;request("scene",{scene:sceneKey}).then(()=>request("chord",{index}));}
+ else request("chord",{index});
+}
+function choose(which){
+ if(scene!==which){$("mix").value=which==="pyramid"?0:100;}
+ scene=which;
+ updateMix();
+ document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
+ for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
+ tell(which==="pyramid"?"PYRAMID ready · keys 1–4": "WEIRD FISHES ready · keys 1–4");
+}
+function perform(which,index,manual=true){
+ if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
+ choose(which);
+ synth(which,index);
+ if(manual){
+  midi(which,index);
+  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
+   const step=Math.max(0,Math.min(15,Math.round((ctx.currentTime-recording.start)/tickSeconds())%16));
+   recording.events.push({step,index});
+  }
+ }
+ for(const el of document.querySelectorAll(".pad")){
+  if(el.dataset.scene===which&&Number(el.dataset.chord)===index){
+   el.classList.add("on");setTimeout(()=>el.classList.remove("on"),150);
+  }
+ }
+}
+function tickSeconds(){return 30/bpm;}
+function cycleSeconds(){return tickSeconds()*loopSteps;}
+function schedule(time,count){
+ const step=count%loopSteps;
+ pulse(time,step);
+ if(step===0){
+  if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
+   recording.active=true;recording.start=time;
+   tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
+   $("record-"+recording.scene).textContent="● RECORDING…";
+  }else if(recording?.kind==="chords"&&recording.active&&count>=recording.beginAt+loopSteps){
+   endRecord();
+  }
+ }
+ for(const [which,d] of Object.entries(decks)){
+  for(const l of d.layers){
+   if(l.muted||l.kind!=="chords")continue;
+   for(const e of l.events){
+    if(e.step===step)synth(which,e.index,time,true);
+   }
+  }
+ }
+ if(step===0)updateTimeline();
+}
+function scheduler(){
+ if(!ctx||!stageStarted)return;
+ const now=ctx.currentTime;
+ while(nextStepAt<now+.14){
+  schedule(nextStepAt,stepNumber);
+  stepNumber++;
+  nextStepAt+=tickSeconds();
+ }
+ updateTimeline();
+}
+function updateTimeline(){
+ if(!ctx||!stageStarted)return;
+ const phase=((ctx.currentTime-(nextStepAt-stepNumber*tickSeconds()))%cycleSeconds()+cycleSeconds())%cycleSeconds()/cycleSeconds();
+ for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
+ const t=$("toaster");t.classList.toggle("bop",Math.floor(phase*16)%4===0);
+}
+async function startStop(){
+ try{
+  await openAudio();
+  if(stageStarted){
+   stageStarted=false;clearInterval(playTimer);playTimer=null;
+   $("rhythm").textContent="▶ PLAY RHYTHM";$("rhythm").setAttribute("aria-pressed","false");
+   tell("Rhythm paused. Your loops are preserved.");
+  }else{
+   stepNumber=0;nextStepAt=ctx.currentTime+.09;
+   stageStarted=true;playTimer=setInterval(scheduler,25);scheduler();
+   $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
+   await findDevices();
+   tell("Rhythm live! Play 1–4, then tap LOOP MY CHORDS.");
+  }
+ }catch(e){warn(e);}
+}
+function record(which){
+ if(!stageStarted)return warn(Error("Start the rhythm first, then record"));
+ choose(which);
+ if(recording)return warn(Error("Finish the current recording first"));
+ recording={kind:"chords",scene:which,active:false,events:[],beginAt:Math.ceil(stepNumber/16)*16,start:0};
+ $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
+ tell("Ready: chord recording begins on the next loop. Press keys 1–4.");
+}
+function endRecord(){
+ if(!recording)return;
+ const r=recording;recording=null;
+ $("record-"+r.scene).classList.remove("armed");
+ $("record-"+r.scene).textContent="● LOOP MY CHORDS";
+ if(!r.events.length){tell("No notes captured. Tap LOOP MY CHORDS and play again.");return;}
+ const d=decks[r.scene];
+ d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false});
+ renderClips(r.scene);
+ tell("Loop saved. It repeats without chopping chord tails. Record another layer!");
+}
+function renderClips(which){
+ const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
+ if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
+ d.layers.forEach((layer,i)=>{
+  const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
+  const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹":layer.kind==="vocal"?"🎙":"✦")+" Loop "+(i+1);
+  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;renderClips(which);};
+  const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>{if(layer.source)try{layer.source.stop()}catch{}d.layers=d.layers.filter(l=>l!==layer);renderClips(which);};
+  row.append(name,mute,remove);box.append(row);
+ });
+}
+async function enableMic(){
+ if(micStream?.active)return micStream;
+ if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone not available in this browser");
+ let devices=await navigator.mediaDevices.enumerateDevices();
+ if(!devices.some(d=>d.kind==="audioinput"&&d.label)){
+   const provisional=await navigator.mediaDevices.getUserMedia({audio:true});
+   devices=await navigator.mediaDevices.enumerateDevices();
+   provisional.getTracks().forEach(t=>t.stop());
+ }
+ const chosen=$("micInput").value;
+ const preferred=devices.find(d=>d.kind==="audioinput"&&/scarlett|focusrite/i.test(d.label));
+ micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+ await findDevices();return micStream;
+}
+async function voiceLoop(which){
+ choose(which);
+ if(!stageStarted) return warn(Error("Start the rhythm first"));
+ if(recording)return warn(Error("Finish your chord loop recording first"));
+ try{
+  await openAudio();
+  const stream=await enableMic();
+  const recorder=new MediaRecorder(stream);
+  let parts=[];let duration=cycleSeconds();
+  recording={kind:"vocal",scene:which,active:false,beginAt:Math.ceil(stepNumber/16)*16,recorder};
+  $("vocal-"+which).textContent="🎙 ARMED";
+  const poll=setInterval(()=>{
+   if(!recording||recording.recorder!==recorder){clearInterval(poll);return;}
+   if(stepNumber>=recording.beginAt&&!recording.active){
+    recording.active=true;recording.start=ctx.currentTime;
+    recorder.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
+    recorder.onstop=async()=>{
+     try{
+      const raw=await new Blob(parts,{type:recorder.mimeType}).arrayBuffer();
+      const buffer=await ctx.decodeAudioData(raw);
+      const result=ctx.createBuffer(Math.min(2,buffer.numberOfChannels),Math.floor(duration*ctx.sampleRate),ctx.sampleRate);
+      for(let c=0;c<result.numberOfChannels;c++){
+       const source=buffer.getChannelData(c),dest=result.getChannelData(c);
+       dest.set(source.subarray(0,Math.min(dest.length,source.length)));
+       const fade=Math.min(400,dest.length/3);
+       for(let n=0;n<fade;n++){dest[n]*=n/fade;dest[dest.length-n-1]*=n/fade;}
+      }
+      const layer={id:crypto.randomUUID(),kind:"vocal",buffer:result,muted:false,source:null,gain:null};
+      decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
+      tell("Vocal loop saved to "+which+". The VE-22 stays in your signal chain.");
+     }catch(e){warn(e)}
+     $("vocal-"+which).textContent="🎙 LOOP VOICE";recording=null;
+    };
+    recorder.start();
+    $("vocal-"+which).textContent="🎙 RECORDING…";
+    setTimeout(()=>{if(recorder.state==="recording")recorder.stop()},duration*1000);
+    clearInterval(poll);
+   }
+  },30);
+  tell("Mic ready. Voice recording starts at the next 2-bar boundary.");
+ }catch(e){recording=null;$("vocal-"+which).textContent="🎙 LOOP VOICE";warn(e)}
+}
+function startLoopAudio(which,l){
+ if(!ctx||!l.buffer)return;
+ const src=ctx.createBufferSource(),gain=ctx.createGain();
+ src.buffer=l.buffer;src.loop=true;
+ gain.gain.value=l.muted?0:.65;
+ src.connect(gain);gain.connect(decks[which].voiceBus);
+ const phase=((ctx.currentTime-(nextStepAt-stepNumber*tickSeconds()))%cycleSeconds()+cycleSeconds())%cycleSeconds();
+ src.start(ctx.currentTime+.02,phase);
+ l.source=src;l.gain=gain;
+}
+async function importAudio(file){
+ if(!file)return;
+ try{
+  await openAudio();
+  if(file.size>30*1024*1024)throw Error("Maximum audio size 30 MB");
+  const buffer=await ctx.decodeAudioData(await file.arrayBuffer());
+  const which=scene;
+  const length=Math.floor(cycleSeconds()*ctx.sampleRate);
+  const out=ctx.createBuffer(Math.min(2,buffer.numberOfChannels),length,ctx.sampleRate);
+  for(let c=0;c<out.numberOfChannels;c++){
+   const d=out.getChannelData(c),src=buffer.getChannelData(c);
+   d.set(src.subarray(0,Math.min(d.length,src.length)));
+  }
+  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false};
+  decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
+  tell("Audio imported into the AI lane on "+which+". Confirm this file was really printed from MRT2.");
+ }catch(e){warn(e)}
+}
+function updateMix(){
+ const x=Number($("mix").value)/100;
+ $("mixValue").textContent=Math.round((1-x)*100)+" / "+Math.round(x*100);
+ if(!ctx)return;
+ for(const k of Object.keys(decks)){
+  const level=Number($("level-"+k).value)/100;
+  const side=k==="pyramid"?(1-x):x;
+  decks[k].bus.gain.value=level*side;
+  decks[k].voiceBus.gain.value=Number($("voice-"+k).value)/100*side;
+ }
+}
+async function readAndExport(){
+ try{
+  await openAudio();
+  if(!Object.values(decks).some(d=>d.layers.some(l=>!l.muted)))throw Error("Record a loop before exporting");
+  const sec=cycleSeconds(),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
+  const masterOut=offline.createGain();masterOut.gain.value=Number($("master").value)/100;masterOut.connect(offline.destination);
+  for(const [which,d] of Object.entries(decks)){
+   const side=which==="pyramid"?1-Number($("mix").value)/100:Number($("mix").value)/100;
+   for(const layer of d.layers){
+    if(layer.muted)continue;
+    const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
+    gain.connect(masterOut);
+    if(layer.kind==="chords"){
+     for(const cycle of [0,1])for(const event of layer.events){
+      const notes=SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
+      for(const note of notes){
+       const o=offline.createOscillator(),v=offline.createGain();
+       o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
+       const end=Math.min(sec*2,time+1.8);
+       v.gain.setValueAtTime(.00001,time);
+       v.gain.linearRampToValueAtTime(.20/notes.length,Math.min(end,time+.025));
+       if(end>time+.05)v.gain.exponentialRampToValueAtTime(.00001,end);
+       o.connect(v);v.connect(gain);o.start(time);o.stop(end);
+      }
+     }
+    }else if(layer.buffer){
+     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);src.start(0);
+    }
+   }
+  }
+  const result=await offline.startRendering();
+  // Export second cycle so synth note tails from the previous bar survive the loop seam.
+  const channels=2,frame=oneCycle,data=new ArrayBuffer(44+frame*channels*2),v=new DataView(data);
+  const tag=(pos,txt)=>{for(let i=0;i<txt.length;i++)v.setUint8(pos+i,txt.charCodeAt(i));};
+  tag(0,"RIFF");v.setUint32(4,data.byteLength-8,true);tag(8,"WAVE");tag(12,"fmt ");
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*channels*2,true);
+  v.setUint16(32,channels*2,true);v.setUint16(34,16,true);tag(36,"data");v.setUint32(40,data.byteLength-44,true);
+  const left=result.getChannelData(0),right=result.getChannelData(1);
+  for(let i=0;i<frame;i++){
+   for(const [c,n] of [left[i+oneCycle],right[i+oneCycle]].entries()){const x=Math.max(-1,Math.min(1,n));
+    v.setInt16(44+i*4+c*2,x<0?x*32768:x*32767,true);
+   }
+  }
+  const url=URL.createObjectURL(new Blob([data],{type:"audio/wav"}));
+  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_2BAR_MIX.wav";
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+  tell("Mix exported! Import SUZY_TOAST_2BAR_MIX.wav into Logic.");
+ }catch(e){warn(e)}
+}
+$("rhythm").onclick=startStop;
+for(const k of Object.keys(decks)){
+ $("select-"+k).onclick=()=>choose(k);
+ $("record-"+k).onclick=()=>record(k);
+ $("vocal-"+k).onclick=()=>voiceLoop(k);
+ $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
+ $("voice-"+k).oninput=()=>{$("voiceNum-"+k).textContent=$("voice-"+k).value+"%";updateMix()};
+}
+document.querySelectorAll(".pad").forEach(el=>el.onclick=()=>perform(el.dataset.scene,Number(el.dataset.chord)));
+document.addEventListener("keydown",e=>{
+ if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||e.target?.closest("input,select,button,textarea"))return;
+ if("1234".includes(e.key)&&e.key.length===1){e.preventDefault();perform(scene,Number(e.key)-1)}
+ else if(e.key===" "){e.preventDefault();startStop()}
+});
+$("mix").oninput=updateMix;
+$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
+$("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
+$("tempo").oninput=()=>{if(Object.values(decks).some(d=>d.layers.length)){warn(Error("Tempo locked after recording. Clear saved loops before changing."));return;}bpm=Number($("tempo").value);$("tempoValue").textContent=bpm+" BPM"};
+$("reverb").oninput=()=>{if(wet)wet.gain.value=Number($("reverb").value)/180};
+$("findDevices").onclick=()=>findDevices().catch(warn);
+$("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
+$("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}tell("Mic change will apply on the next vocal recording.")};
+$("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
+$("export").onclick=readAndExport;
+updateMix();
+</script></body></html>

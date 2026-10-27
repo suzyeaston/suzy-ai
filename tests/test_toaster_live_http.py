@@ -50,7 +50,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         return status, raw.decode("utf-8")
 
     def test_live_page_is_local_and_keyboard_playable(self):
-        status, html = self.call("GET", "/toaster/live")
+        status, html = self.call("GET", "/toaster/studio")
         self.assertEqual(status, 200)
         self.assertIn("SUZY//TOAST", html)
         self.assertIn("test-live-token", html)
@@ -62,7 +62,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertNotIn("__MAGENTA_TOKEN__", html)
 
     def test_owned_loop_rack_js_and_visible_three_lane_controls(self):
-        status, html = self.call("GET", "/toaster/live")
+        status, html = self.call("GET", "/toaster/studio")
         self.assertEqual(status, 200)
         self.assertIn('<script src="/toaster/loop-rack.js"></script>', html)
         for name in ("rackChord", "rackVocal", "rackAI", "rackImport",
@@ -76,6 +76,27 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("MediaRecorder", js)
         self.assertIn("getDisplayMedia", js)
         self.assertIn("decodeAudioData", js)
+
+    def test_new_simple_play_is_default_and_presets_are_honest(self):
+        status, html = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        self.assertIn("SUZY//TOAST", html)
+        self.assertIn("Smiling pink toaster", html)
+        self.assertIn('id="rhythm"', html)
+        self.assertIn('id="deck-pyramid"', html)
+        self.assertIn('id="deck-fishes"', html)
+        self.assertIn("LOOP MY CHORDS", html)
+        self.assertIn("LOOP VOICE", html)
+        self.assertIn("auto Scarlett", html)
+        self.assertIn("Saved, not driving a model".lower(), html.lower())
+        self.assertIn("OfflineAudioContext", html)
+        self.assertIn("midi(sceneKey,index)", html)
+        self.assertIn("SCENES=", html)
+        self.assertIn("VE-22", html)
+        self.assertIn("Magenta's separate engine is not embedded", html)
+        self.assertNotIn("__MAGENTA_TOKEN__", html)
+        self.assertNotIn("CONNECT COLLIDER DIRECT", html)
+        self.assertNotIn("AUDIO ROUTING + MIXER", html)
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
