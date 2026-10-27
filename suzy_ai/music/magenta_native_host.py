@@ -98,9 +98,9 @@ class NativeMagentaHost:
         with self.lock:
             if action not in ACTIONS or not isinstance(data, dict):
                 raise ValueError("unknown AI action")
-            if set(data) != ACTIONS[action]:
+            if set(data) != ACTIONS[action] and not (action == "start" and set(data) == {"prompts"}):
                 raise ValueError("invalid AI action fields")
-            if action == "configure-prompts":
+            if action == "configure-prompts" or (action == "start" and "prompts" in data):
                 strings = data["prompts"]
                 if (
                     not isinstance(strings, list)
@@ -129,6 +129,11 @@ class NativeMagentaHost:
                     raise ValueError("note must be MIDI integer 0..127")
             if action == "start":
                 self._start()
+                if "prompts" in data:
+                    response = self._request({"op": "configure-prompts", "prompts": data["prompts"]})
+                    if response.get("error"):
+                        raise RuntimeError(str(response["error"])[:180])
+                return self._request({"op": "start"})
             elif self.process is None or self.process.poll() is not None:
                 if action == "stop":
                     return self.status()
