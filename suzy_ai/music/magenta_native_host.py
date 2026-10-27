@@ -26,6 +26,9 @@ ACTIONS = {
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
     "chord": frozenset({"index"}),
+    "tempo": frozenset({"bpm"}),
+    "note": frozenset({"note"}),
+    "note-off": frozenset({"note"}),
     "release": frozenset(),
 }
 PROMPTS = {
@@ -107,6 +110,14 @@ class NativeMagentaHost:
                 raise ValueError("mute must be true or false")
             if action == "chord" and (type(data["index"]) is not int or not 0 <= data["index"] < 4):
                 raise ValueError("chord must be integer 0..3")
+            if action == "tempo":
+                bpm = data["bpm"]
+                if type(bpm) not in (int, float) or not 60 <= bpm <= 190:
+                    raise ValueError("tempo must be 60..190 BPM")
+            if action in ("note", "note-off"):
+                note = data["note"]
+                if type(note) is not int or not 0 <= note <= 127:
+                    raise ValueError("note must be MIDI integer 0..127")
             if action == "start":
                 self._start()
             elif self.process is None or self.process.poll() is not None:

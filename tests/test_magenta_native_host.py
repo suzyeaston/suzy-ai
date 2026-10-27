@@ -28,6 +28,9 @@ class NativeMRT2Tests(unittest.TestCase):
             ("mix", {"value":"0.3"}), ("volume", {"value":-1}),
             ("mute", {"value":1}), ("start", {"model":"remote"}),
             ("release", {"index":1}), ("other",{}),
+            ("tempo", {"bpm": 240}), ("tempo", {"bpm": True}),
+            ("note", {"note": -1}), ("note", {"note": 128}),
+            ("note-off", {"note": "60"}),
         ]
         for cmd,data in invalid:
             with self.subTest(action=cmd, data=data), self.assertRaises(ValueError):
@@ -41,11 +44,13 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIsNone(self.host.process)
 
     def test_distinct_real_native_actions_have_explicit_schemas(self):
-        for op in ("start", "stop", "status", "scene", "mix", "volume", "mute", "chord", "release"):
+        for op in ("start", "stop", "status", "scene", "mix", "volume", "mute", "chord", "release", "tempo", "note", "note-off"):
             self.assertIn(op, ACTIONS)
         self.assertEqual(ACTIONS["chord"], {"index"})
         self.assertEqual(ACTIONS["scene"], {"scene"})
         self.assertEqual(ACTIONS["mute"], {"value"})
+        self.assertEqual(ACTIONS["tempo"], {"bpm"})
+        self.assertEqual(ACTIONS["note"], {"note"})
 
 
 if __name__ == "__main__":

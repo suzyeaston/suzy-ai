@@ -21,6 +21,16 @@ git switch main && git pull --ff-only
 
 Keep the Terminal open. The older complex mixer/timeline remains accessible at [`/toaster/studio`](http://127.0.0.1:7345/toaster/studio); **`/toaster/live` is now the simple PLAY view**.
 
+### Live tempo, shared loops and chromatic notes
+
+**The rhythm BPM control is now at the top beside Rhythm / Songs / Master**, instead of buried under settings. The rhythm and chord-event loops use one Web Audio transport epoch. A BPM change while playing is **applied at the next two-bar downbeat**, so chord loops, the playhead and pulses change together. New chromatic keyboard layout: **A W S E D F T G Y H U J K = C4 C♯4 D4 D♯4 E4 F4 F♯4 G4 G♯4 A4 A♯4 B4 C5**. Hold and release each key for note-on/off, independently of the four chord pads on **1 2 3 4**. MIDI notes go to the real native Magenta AU if it is on, and both live chords and melody are audible without Magenta.
+
+Vocal capture now uses the **Web Audio clock and a fixed-length audio buffer**, instead of MediaRecorder's independent timer. The transport starts vocal takes on a session downbeat; playback uses the same beat epoch. Microphone capture timing can still depend on device/input latency, and is not a sample-accurate replacement for Logic, but no second unsynchronized loop timer is used. **After a recorded vocal/AI audio clip exists, tempo changes are safely blocked** rather than pitch-shifting the clip or silently desynchronizing it; export/delete audio clips before changing BPM. Chord/melody-event loops can freely follow BPM.
+
+For actual Magenta, our native Audio Unit host also supplies **host musical context** (BPM, 4/4, continuous beat position) and sends note-on/off events when you play. This is **tempo guidance, not guaranteed beat-perfect generative synchronization**: Google's MRT2 AU currently reads the host beat position for transport-reset detection but does not expose a hard output-tempo-lock API. Keep AI drums filtered out and treat the neural layer as evolving accompaniment above the deterministic browser rhythm.
+
+**On Swift build errors:** Swift 6.3.3 cannot compile against a macOS 27 SDK's Swift 6.4 interface. The updated `bash scripts/build-toaster-magenta.sh` selects an installed compiler/SDK pair that matches (including older macOS 26 SDKs and full Xcode), or exits with actionable instructions instead of showing pages of incompatible Swift-interface failures. If none are installed, install or select a matching full Xcode/Command Line Tools toolchain. Don't rerun the old command expecting an SDK mismatch to disappear on its own.
+
 ### First ten minutes
 
 1. Keep **mic → BOSS VE-22 → Scarlett Solo USB**, as already wired. Connect headphones to the intended audio output. Click **PLAY RHYTHM**. TOASTER's own soft pulse starts and activates browser audio. With supported Chrome audio output switching, the app prefers the Scarlett; otherwise set **macOS Sound Output** to Scarlett. The output status shows when auto-routing is unavailable.
@@ -34,7 +44,7 @@ Keep the Terminal open. The older complex mixer/timeline remains accessible at [
 
 The simple TOASTER page now has **ENABLE MAGENTA**, which starts a **separate native macOS Audio Unit host** for the installed Google Magenta RealTime 2 Small model, but only when you explicitly click the button. This is a *real* native model audio source, not the browser's piano oscillator or a fake prompt. The two preset strings are installed as the AU's **MGRT_Prompts**, and the TOASTER song crossfader updates real AU parameters **Weight 0 / Weight 1**. Computer keys **1–4** send a direct **MIDI note-on** to that instance while held, and release sends a note-off. Looped chords also steer the same AU. The **AI VOLUME** slider now maps to Google's real Audio Unit dB gain (0% is silent; the default 28% is approximately -11 dB), **MUTE AI** flips Google's native mute, and **AI REVERB** adjusts a genuine native hall reverb effect after the model output. The browser's rhythm, song and master faders remain separate. **MUTE AI** silences only native Magenta: chords, existing recorded loops and your VE-22/Scarlett vocal routing keep working. Stop unloads the host. Google's **Filter Drums** and MIDI gate are activated so the model should not keep imposing busy beats between notes.
 
-**Build once on your Apple Silicon Mac (requires existing registered MRT2 AU and local mrt2_small .mlxfn):**
+**Build once on your Apple Silicon Mac (requires a matching Swift compiler/SDK pair, a registered MRT2 AU, and local mrt2_small .mlxfn):**
 
 ```bash
 cd ~/Projects/suzy-ai
