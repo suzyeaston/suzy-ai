@@ -1,0 +1,40 @@
+name: SUZY Toast AU engine + macOS build
+
+on:
+  pull_request:
+    paths:
+      - "plugins/suzy-toast/**"
+      - ".github/workflows/suzy-toast-au.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  loop-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile JUCE-free native looping tests
+        run: |
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror \
+            plugins/suzy-toast/tests/loop_buffer_test.cpp -o /tmp/toast-loop-test
+      - name: Run audio buffer contract QA
+        run: /tmp/toast-loop-test
+
+  au-macos:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Xcode and CMake versions
+        run: |
+          xcodebuild -version
+          cmake --version
+      - name: Configure pinned JUCE Audio Unit, arm64 target
+        run: cmake -S plugins/suzy-toast -B /tmp/suzy-toast-au -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
+      - name: Compile native Audio Unit
+        run: cmake --build /tmp/suzy-toast-au --target SuzyToast_AU --config Release -j 2
+      - name: Find AU bundle
+        run: find /tmp/suzy-toast-au -name "*.component" -print
