@@ -328,12 +328,12 @@ async function syncAIMix(){
 }
 function aiNote(which,index){
  if(!aiNativeReady)return;
- (async()=>{
-  try{
-   if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
-   await aiFetch("chord",{index});aiNoteHeld=true;
-  }catch(e){$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message;}
- })();
+ // Serialized to guarantee key-up never overtakes a still-pending key-down.
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
+  await aiFetch("chord",{index});aiNoteHeld=true;
+ }).catch(e=>{$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message});
 }
 async function toggleAIMute(){
  aiMuted=!aiMuted;
@@ -344,14 +344,22 @@ async function toggleAIMute(){
  catch(e){warn(e);}
 }
 function aiRelease(){
- if(!aiNativeReady||!aiNoteHeld)return;
- aiNoteHeld=false;
- aiFetch("release").catch(e=>{$("aiHostStatus").textContent="AI NOTE-OFF ERROR · "+e.message});
+ if(!aiNativeReady)return;
+ // Queue note-off even when note-on is still in flight.
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  await aiFetch("release");
+  aiNoteHeld=false;
+ }).catch(e=>{$("aiHostStatus").textContent="AI NOTE-OFF ERROR · "+e.message});
 }
 function choose(which){
  if(scene!==which){$("mix").value=which==="pyramid"?0:100;}
  scene=which;updateMix();
- if(aiNativeReady&&aiScene!==which){aiScene=which;aiFetch("scene",{scene:which}).catch(e=>warn(e));}
+ if(aiNativeReady&&aiScene!==which){
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(aiNativeReady){await aiFetch("scene",{scene:which});aiScene=which;}
+  }).catch(e=>warn(e));
+ }
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
  tell(which==="pyramid"?"PYRAMID · hold 1–4 to sustain":"WEIRD FISHES · hold 1–4 to sustain");
