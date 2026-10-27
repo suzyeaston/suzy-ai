@@ -1,0 +1,59 @@
+name: Generate Futureproof rehearsal MIDI into GitHub
+
+on:
+  push:
+    branches:
+      - feat/futureproof-logic-rehearsal-cues-20261027
+    paths:
+      - 'performance/futureproof-2026/generator.py.zlib.b64'
+      - '.github/workflows/futureproof-midi-files.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Recover original stdlib MIDI generator and generate four MIDIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, pathlib, zlib
+          d=pathlib.Path('performance/futureproof-2026')
+          source=zlib.decompress(base64.b64decode((d/'generator.py.zlib.b64').read_text().strip()))
+          (d/'generate_futureproof_logic_midi.py').write_bytes(source)
+          PY
+          python3 performance/futureproof-2026/generate_futureproof_logic_midi.py --out performance/futureproof-2026
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          d=Path('performance/futureproof-2026')
+          for p in sorted(d.glob('*.mid')):
+              assert p.read_bytes().startswith(b'MThd'), p.name
+              print(p.name, p.stat().st_size, hashlib.sha256(p.read_bytes()).hexdigest())
+          assert len(list(d.glob('*.mid'))) == 4
+          PY
+      - name: Commit the binary MIDIs for direct GitHub download
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add performance/futureproof-2026/
+          if git diff --cached --quiet; then
+            echo "Files are already up to date"
+          else
+            git commit -m "build: publish four directly downloadable Futureproof MIDI files"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Futureproof-Logic-MIDI-four-files
+          path: performance/futureproof-2026/*.mid
+          retention-days: 14
