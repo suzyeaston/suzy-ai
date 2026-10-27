@@ -62,7 +62,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertNotIn("__MAGENTA_TOKEN__", html)
 
     def test_owned_loop_rack_js_and_visible_three_lane_controls(self):
-        status, html = self.call("GET", "/toaster/live")
+        status, html = self.call("GET", "/toaster/studio")
         self.assertEqual(status, 200)
         self.assertIn('<script src="/toaster/loop-rack.js"></script>', html)
         for name in ("rackChord", "rackVocal", "rackAI", "rackImport",
