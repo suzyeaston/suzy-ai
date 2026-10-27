@@ -133,9 +133,12 @@ void SuzyToastAudioProcessorEditor::updateShowCues() {
     chordCues_.setText("PLAY ON KEYSTATION: " +
         juce::String(s.chords[static_cast<size_t>(cueIndex_)]) +
         "     |   " + progression, juce::dontSendNotification);
-    sceneNotice_.setText("NEXT/PREV = CUE DISPLAY ONLY · Chords are played on the keyboard · " +
-        juce::String(s.rehearsalBpm) +
-        " BPM is a loop reference, NOT Logic transport", juce::dontSendNotification);
+    const double logicBpm = processor_.logicHostBpm();
+    const auto clockText = logicBpm > 0.0
+        ? "Logic BPM " + juce::String(logicBpm, 1) + " (used for REC length)"
+        : "Host tempo unknown; using manual " + juce::String(s.rehearsalBpm) + " BPM";
+    sceneNotice_.setText("CUE IS DISPLAY ONLY · You play keys into MRT2 · " + clockText +
+        " · REC not bar-synced", juce::dontSendNotification);
     sceneStyle_.setText("OPTIONAL GOOGLE AU STYLE REFERENCE (not sent): " +
         juce::String(s.styleReminder), juce::dontSendNotification);
     const juce::Colour normal = juce::Colour::fromRGB(247, 197, 159);
