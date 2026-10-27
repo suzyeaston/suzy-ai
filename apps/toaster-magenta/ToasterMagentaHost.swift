@@ -11,6 +11,9 @@ final class MRT2Host {
     private var generator: AVAudioUnit?
     private var reverbUnit: AVAudioUnitReverb?
     private var held: [UInt8] = []
+    private var melodyHeld = Set<UInt8>()
+    private var tempoBpm: Double = 105.0
+    private var tempoStart = ProcessInfo.processInfo.systemUptime
     private var active = false
     private var loading = false
     private var modelRequested = false
@@ -49,7 +52,9 @@ final class MRT2Host {
             "volume": Double(level),
             "reverb": Double(reverbAmount),
             "muted": muted,
-            "held_notes": held.map(Int.init),
+            "held_notes": (held + Array(melodyHeld)).map(Int.init),
+            "tempo_bpm": tempoBpm,
+            "tempo_context_supplied": generator != nil,
             "text_prompts": prompts,
             "midi_input": "TOASTER direct AU, not CoreMIDI",
             "output": "macOS system default, separate from browser audio",
@@ -84,8 +89,13 @@ final class MRT2Host {
         }
     }
     private func noteOff() {
-        for note in held { rawMIDI([0x80, note, 0]) }
+        for note in held where !melodyHeld.contains(note) { rawMIDI([0x80, note, 0]) }
         held.removeAll()
+    }
+    private func allNotesOff() {
+        for note in melodyHeld { rawMIDI([0x80, note, 0]) }
+        melodyHeld.removeAll()
+        noteOff()
     }
     private func findModel() -> String? {
         let fm = FileManager.default
@@ -170,6 +180,23 @@ final class MRT2Host {
                 do {
                     let audio = AVAudioEngine()
                     audio.attach(unit)
+                    // This supplies real AU host musical context (tempo/beat).
+                    // Google MRT2 reads beat position but does not provide a
+                    // public hard tempo-lock guarantee. MIDI note timing remains
+                    // the stronger conditioning signal.
+                    unit.auAudioUnit.musicalContextBlock = { [weak self] tempo, numerator, denominator, beat, nextBeat, downbeat in
+                        guard let self = self else { return false }
+                        let bpm = self.tempoBpm
+                        tempo?.pointee = bpm
+                        numerator?.pointee = 4
+                        denominator?.pointee = 4
+                        let elapsed = max(0, ProcessInfo.processInfo.systemUptime - self.tempoStart)
+                        let pos = 0.001 + elapsed * bpm / 60
+                        beat?.pointee = pos
+                        nextBeat?.pointee = 0
+                        downbeat?.pointee = floor(pos / 4) * 4
+                        return true
+                    }
                     let reverb = AVAudioUnitReverb()
                     reverb.loadFactoryPreset(.largeHall)
                     reverb.wetDryMix = self.reverbAmount * 60
@@ -226,7 +253,7 @@ final class MRT2Host {
         }
     }
     func stop() {
-        noteOff()
+        allNotesOff()
         parameter(6, 1)
         engine?.stop()
         engine = nil
@@ -247,7 +274,7 @@ final class MRT2Host {
             guard let x = request["scene"] as? String, chords[x] != nil else {
                 return ["error":"scene must be pyramid or fishes"]
             }
-            noteOff();scene = x;blend = x == "pyramid" ? 0 : 1;configure()
+            allNotesOff();scene = x;blend = x == "pyramid" ? 0 : 1;configure()
         case "mix":
             guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
                 return ["error":"blend must be 0..1"]
@@ -268,6 +295,31 @@ final class MRT2Host {
                 return ["error":"mute requires boolean"]
             }
             muted = x;configure()
+        case "tempo":
+            guard let x = request["bpm"] as? Double, x.isFinite, x >= 60, x <= 190 else {
+                return ["error":"tempo must be 60..190 BPM"]
+            }
+            tempoBpm = x
+            // Re-anchor to avoid a 0-beat reset event after tempo edits.
+            tempoStart = ProcessInfo.processInfo.systemUptime - 60 / x
+        case "note":
+            guard active, let n = request["note"] as? Int, (0...127).contains(n) else {
+                return ["error":"AI host not ready or invalid MIDI note"]
+            }
+            let midiNote = UInt8(n)
+            if !melodyHeld.contains(midiNote) {
+                melodyHeld.insert(midiNote)
+                rawMIDI([0x90, midiNote, 82])
+            }
+        case "note-off":
+            guard let n = request["note"] as? Int, (0...127).contains(n) else {
+                return ["error":"invalid MIDI note"]
+            }
+            let midiNote = UInt8(n)
+            if melodyHeld.contains(midiNote) {
+                melodyHeld.remove(midiNote)
+                if !held.contains(midiNote) { rawMIDI([0x80, midiNote, 0]) }
+            }
         case "chord":
             guard active, let i = request["index"] as? Int,
                   let notes = chords[scene], (0..<4).contains(i) else {
@@ -275,7 +327,7 @@ final class MRT2Host {
             }
             noteOff()
             held = notes[i]
-            for note in held { rawMIDI([0x90, note, 77]) }
+            for note in held where !melodyHeld.contains(note) { rawMIDI([0x90, note, 77]) }
         case "release":
             noteOff()
         default: return ["error":"unknown operation"]
