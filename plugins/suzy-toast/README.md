@@ -59,6 +59,39 @@ The effect may reset loops on device/sample-rate reinitialization.
 - Keep Logic's original MRT2 channel and vocal chain independent. If this
   new AU fails, delete/bypass the insert and return to the known-good project.
 
+## Trying a prebuilt AU from GitHub Actions (separate test project only)
+
+Once the macOS CI job is green on the [SUZY Toast AU engine + macOS build]
+(https://github.com/suzyeaston/suzy-ai/actions/workflows/suzy-toast-au.yml)
+workflow, open its latest successful run. In **Artifacts**, download
+`suzy-toast-au-macos-arm64`. GitHub downloads a ZIP containing
+`suzy-toast-au-macos-arm64.zip`; extract the inner ZIP to get the
+`SUZY Toast.component` Audio Unit bundle. Only download from a workflow
+run you recognize, under the repository you control.
+
+1. Keep Logic quit. Back up/duplicate your current Logic performance session.
+2. Copy the extracted `*.component` bundle into
+   `~/Library/Audio/Plug-Ins/Components/` (create the folder if missing).
+   Keep Google's MRT2 component untouched.
+3. Reopen Logic; go to **Logic Pro → Settings → Plug-in Manager** to check
+   `SUZY Toast` AU validation. Alternatively, in Terminal run:
+   `auval -v aufx St01 Szye` (manufacturer/subtype from CMake source).
+   The CI compiles an AU but cannot verify your local Logic installation.
+4. In a *duplicate/test Logic project*, find the channel with Google's MRT2
+   instrument. Insert **SUZY Toast** on an **Audio FX** slot immediately
+   **after the instrument**. Select Scarlett for Logic audio input/output.
+5. Start with low master/loop gain. Play MIDI, verify Google's generated
+   sound is reaching the AU. Capture a short AI passage. Set **AI LIVE**
+   to zero while **LOOP MIX** stays up: if recording succeeded, the
+   captured AI audio should still be audible. Test STOP, PLAY and CLEAR.
+6. Bounce/print the loop to an ordinary audio track and reopen it. The AU
+   loop buffer is volatile and is **not** project-persistent.
+
+This experimental component has no Apple Developer ID/notarization release
+workflow yet. If macOS refuses it or Logic rejects AU validation, **do not
+bypass platform security to force it**. Capture the Plugin Manager/auval
+diagnostic and fix the distribution/signature issue.
+
 ## Source build and QA (do not attempt installation during Thursday preflight)
 
 On the Mac with Xcode, CMake and Git:

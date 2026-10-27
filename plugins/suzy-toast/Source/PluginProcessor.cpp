@@ -120,13 +120,13 @@ juce::AudioProcessorEditor* SuzyToastAudioProcessor::createEditor() {
 
 void SuzyToastAudioProcessor::getStateInformation(juce::MemoryBlock& out) {
     if (auto xml = parameters.copyState().createXml())
-        juce::copyXmlToBinary(*xml, out);
+        copyXmlToBinary(*xml, out);
     // Loop audio is intentionally NOT serialized in host presets or projects.
     // For durable AI audio, print/record the track in Logic and verify reopen.
 }
 
 void SuzyToastAudioProcessor::setStateInformation(const void* data, int size) {
-    if (auto xml = juce::getXmlFromBinary(data, size)) {
+    if (auto xml = getXmlFromBinary(data, size)) {
         const auto tree = juce::ValueTree::fromXml(*xml);
         if (tree.isValid()) parameters.replaceState(tree);
     }
