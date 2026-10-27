@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "LoopBuffer.h"
+#include "PerformanceScenes.h"
 #include <atomic>
 
 class SuzyToastAudioProcessor final : public juce::AudioProcessor {
@@ -26,6 +27,12 @@ public:
     void changeProgramName(int, const juce::String&) override {}
     void getStateInformation(juce::MemoryBlock&) override;
     void setStateInformation(const void*, int) override;
+
+    // Message-thread scene recall changes the AU's *actual* post-AI sound
+    // parameters. It never sends MIDI, alters Magenta style, mutes vocals,
+    // switches Logic tracks, or starts/stops the host transport.
+    void applyPerformanceScene(int index);
+    int performanceSceneIndex() const noexcept;
 
     void requestLoop(suzytoast::LoopCommand cmd) noexcept { pending_.store(cmd); }
     suzytoast::LoopState loopState() const noexcept {
