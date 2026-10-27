@@ -235,7 +235,7 @@ header>.status{background:#302a3c;border-radius:9px}
 <div class="control" style="grid-column:1/-1"><label for="localReverb">Reverb · <span id="localReverbValue">30</span>%</label><input id="localReverb" type="range" min="0" max="90" value="30"></div>
 </div>
 
-<div id="localAudioStatus" class="tiny" role="status">AUDIO OFF UNTIL YOU PRESS ENABLE · MODEL AND MIDI NOT REQUIRED FOR SOUND</div>
+
 <div class="notice"><strong>Performance safety:</strong> This is independent browser audio. The Magenta / Collider volume must be controlled in its own app. Reverb and instrument gain here never change Collider's generated beats. Use headphones and start quietly.</div>
 </section>
 <details class="stage-advanced" id="stageLegacy"><summary>ADVANCED · older single-track vocal looper (separate from session timeline)</summary>
@@ -492,7 +492,11 @@ async function enumerate(){
    const opt=document.createElement("option");opt.value="";opt.textContent=kind==="audioinput"?"System default microphone":"System default output";sel.add(opt);
    devices.filter(d=>d.kind===kind).forEach(d=>{const x=document.createElement("option");x.value=d.deviceId;x.textContent=d.label||kind;sel.add(x);});
    if([...sel.options].some(o=>o.value===last))sel.value=last;
-   else if(kind==="audioinput"){const preferred=[...sel.options].find(o=>/scarlett|focusrite/i.test(o.textContent));if(preferred)sel.value=preferred.value;}
+   else if(kind==="audioinput"){
+     const actual=micStream?.getAudioTracks()?.[0]?.getSettings()?.deviceId;
+     if(actual&&[...sel.options].some(o=>o.value===actual))sel.value=actual;
+     else if(!micStream){const preferred=[...sel.options].find(o=>/scarlett|focusrite/i.test(o.textContent));if(preferred)sel.value=preferred.value;}
+   }
  }
 }
 async function enableMic(){
