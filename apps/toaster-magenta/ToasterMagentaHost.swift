@@ -9,6 +9,7 @@ import AudioToolbox
 final class MRT2Host {
     private var engine: AVAudioEngine?
     private var generator: AVAudioUnit?
+    private var reverbUnit: AVAudioUnitReverb?
     private var held: [UInt8] = []
     private var active = false
     private var loading = false
@@ -18,6 +19,7 @@ final class MRT2Host {
     private var scene = "pyramid"
     private var blend: Float = 0
     private var level: Float = 0.28
+    private var reverbAmount: Float = 0.18
     private var muted = false
     private let logger = NSLock()
     private let prompts = [
@@ -42,6 +44,7 @@ final class MRT2Host {
             "scene": scene,
             "blend": Double(blend),
             "volume": Double(level),
+            "reverb": Double(reverbAmount),
             "muted": muted,
             "held_notes": held.map(Int.init),
             "text_prompts": prompts,
@@ -62,7 +65,12 @@ final class MRT2Host {
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
         parameter(3, 2.5)  // Prompt Adherence
         parameter(45, 1.0) // MIDI gate: cease AI when notes released.
-        parameter(5, level <= 0 ? -60 : (-35 + level * 31))
+        // AU volume is measured in dB (-60…+12). Convert the user's
+        // 0–100% linear fader into a logarithmic dB level, with no boost > 0dB.
+        // 28% is about -11dB instead of the barely audible old -26dB.
+        let db = level <= 0.0001 ? -60 : max(-60, min(0, 20 * log10(level)))
+        parameter(5, db)
+        reverbUnit?.wetDryMix = max(0, min(60, reverbAmount * 60))
         parameter(6, muted || level <= 0 ? 1 : 0)
     }
     private func rawMIDI(_ bytes: [UInt8]) {
@@ -159,7 +167,14 @@ final class MRT2Host {
                 do {
                     let audio = AVAudioEngine()
                     audio.attach(unit)
-                    audio.connect(unit, to: audio.mainMixerNode, format: nil)
+                    let reverb = AVAudioUnitReverb()
+                    reverb.loadFactoryPreset(.largeHall)
+                    reverb.wetDryMix = self.reverbAmount * 60
+                    audio.attach(reverb)
+                    // Genuine native audio processing, not a UI-only reverb label.
+                    audio.connect(unit, to: reverb, format: nil)
+                    audio.connect(reverb, to: audio.mainMixerNode, format: nil)
+                    self.reverbUnit = reverb
                     // Bookmark + text prompts are consumed by Google's AU's
                     // applyCustomState and set_text_prompts during model load.
                     let modelURL = URL(fileURLWithPath: path)
@@ -188,6 +203,7 @@ final class MRT2Host {
                     self.active = false
                     self.errorMessage = "Native AU startup: \(error.localizedDescription)"
                     self.generator = nil
+                    self.reverbUnit = nil
                     self.engine = nil
                 }
             }
@@ -199,6 +215,7 @@ final class MRT2Host {
         engine?.stop()
         engine = nil
         generator = nil
+        reverbUnit = nil
         active = false
         loading = false
         modelRequested = false
@@ -224,6 +241,11 @@ final class MRT2Host {
                 return ["error":"volume must be 0..1"]
             }
             level = Float(x);configure()
+        case "reverb":
+            guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
+                return ["error":"reverb must be 0..1"]
+            }
+            reverbAmount = Float(x);configure()
         case "mute":
             guard let x = request["value"] as? Bool else {
                 return ["error":"mute requires boolean"]
