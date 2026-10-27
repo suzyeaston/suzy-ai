@@ -71,7 +71,7 @@ test("Loop Lab-style independent chord/voice/AI lanes with mute, solo and remove
  assert.equal(rack.layers.length,3);
  assert.equal(rack.length,.2);
  assert.equal(get("rackLayers").children.length,3);
- assert.equal(get("rackMeta").textContent.includes("3 lanes"),true);
+ assert.equal(get("rackMeta").textContent.includes("3 clips"),true);
  assert.equal(get("rackBars").disabled,true);
  assert.ok(emitted.some(x=>x[0]==="start"));
  rack.mute(2);assert.equal(rack.layers[1].gain.gain.value,0);
