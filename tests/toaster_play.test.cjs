@@ -27,7 +27,7 @@ function rig(){
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.buffer=null;this.type="";this.stopAt=null}connect(){return this}disconnect(){}start(){}stop(t){this.stopAt=t}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null}connect(){return this}disconnect(){}start(){}stop(t){this.stopAt=t}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
@@ -36,6 +36,7 @@ function rig(){
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};
    this.audioWorklet={addModule:async src=>{calls.workletModule=src}};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+   createDelay(){return new AudioNode()}
    createDynamicsCompressor(){return new AudioNode()}
   createBiquadFilter(){return new AudioNode()}
   createBufferSource(){return new AudioNode()}
@@ -587,4 +588,53 @@ test("the full timeline edits real clips with copy, cut, cross-song paste, split
  run('fullTimeline.perform("cut")');
  assert.equal(run("decks.fishes.layers.length"),0);
  assert.equal(run("fullTimeline.clipboard.kind"),"chords");
+});
+
+test("filtered vocal tape echo is zero by default and follows the live BPM",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ assert.equal(run("vocalEchoWet.gain.value"),0,"FX dry by default");
+ assert.equal(run("vocalEchoFeedbackNode.gain.value"),.22);
+ get("vocalEchoMode").value="dotted";
+ get("vocalEchoLevel").value="22";
+ get("vocalEchoFeedback").value="33";
+ get("vocalAir").value="25";
+ run("updateVoiceEcho()");
+ assert.equal(run("vocalEchoWet.gain.value"),.22);
+ assert.equal(run("vocalEchoFeedbackNode.gain.value"),.33);
+ assert.ok(Math.abs(run("vocalEchoDelay.delayTime.value")-(45/105))<.001);
+ assert.ok(run("vocalEchoTone.frequency.value")>3000);
+ get("vocalEchoMode").value="off";
+ run("updateVoiceEcho()");
+ assert.equal(run("vocalEchoWet.gain.value"),0);
+ assert.equal(run("vocalEchoFeedbackNode.gain.value"),0);
+});
+test("browser timeline stop and rewind preserve vocal clips while resetting bar position",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({id:"voice",kind:"vocal",muted:false,arrStartBar:0,buffer:null})');
+ run("stepNumber=48");
+ await run("timelineStop()");
+ assert.equal(run("stageStarted"),false);
+ assert.equal(run("stepNumber"),0);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.match(get("timelineTransportStatus").textContent,/STOPPED.*BAR 1/);
+ assert.match(get("vocalLoopState").textContent,/1 VOCAL LOOP SAVED/);
+ await run("startStop()");
+ run("stepNumber=96");
+ await run("timelineRewind()");
+ assert.equal(run("stageStarted"),true);
+ assert.ok(run("stepNumber")<=3);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+});
+test("live monitor and recording are separate states, vocal loop tally is explicit",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
+ assert.match(get("vocalLoopState").textContent,/NO VOCAL LOOPS/);
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ assert.match(get("monitorStatus").textContent,/NOT RECORDING/);
+ assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
+ await run('voiceLoop("pyramid")');
+ assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
+ assert.equal(run("recording.kind"),"vocal");
 });
