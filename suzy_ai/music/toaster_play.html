@@ -827,7 +827,9 @@ function choose(which){
 }
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
- if(heldKeys.has(key))return;
+ // A fresh pointer-down or nonrepeating key-down must always articulate.
+ // Recover from a lost pointer-up instead of silently ignoring the new tap.
+ if(heldKeys.has(key))endChord(key);
  choose(which);
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
