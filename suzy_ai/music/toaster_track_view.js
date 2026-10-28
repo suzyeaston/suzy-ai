@@ -42,7 +42,7 @@ class Tracks{
    const column=$("tracks-"+which);if(!column)continue;column.replaceChildren();
    const header=el("div","track-top");
    const title=el("div","track-title",which==="pyramid"?"01 · PYRAMID":"02 · WEIRD FISHES");
-   const badge=el("span","track-loop-badge",d.locked?bars+"-BAR MASTER LOOP · "+(d.loopEnabled?"ON":"OFF"):"FIRST LOOP SETS LENGTH");
+   const badge=el("span","track-loop-badge",d.locked?(d.lengthSteps/2)+"-BEAT MASTER LOOP · "+(d.loopEnabled?"ON":"OFF"):"FIRST DONE SETS LENGTH");
    header.append(title,badge);
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
@@ -65,7 +65,7 @@ class Tracks{
    }
    const recState=this.getRecording();
    if(recState?.scene===which&&recState.kind==="chords"){
-    rec.textContent=recState.active&&!d.locked?"■ FINISH FIRST TAKE":recState.active?"● OVERDUBBING…":"● ARMED";
+    rec.textContent=recState.finishQueued?"↻ LOOP STARTING":recState.active?(recState.first?"■ DONE → LOOP":"■ DONE OVERDUB"):"● ARMED";
     rec.classList.add("active");
    }
    if(recState?.scene===which&&recState.kind==="vocal"){
@@ -74,14 +74,14 @@ class Tracks{
     mic.classList.add("active");
    }
    header.append(controls);
-   const status=el("div","track-loop-label",d.locked?"LOOP READY · "+bars+" BARS":"FIRST LOOP NOT YET RECORDED");
+   const status=el("div","track-loop-label",d.locked?"LOOP READY · "+(d.lengthSteps/2)+" BEATS":"FIRST LOOP NOT YET RECORDED");
    status.id="track-loop-label-"+which;header.append(status);
    const progress=el("div","track-loop-progress");const fill=el("div","track-loop-fill");
    fill.id="track-loop-fill-"+which;progress.append(fill);header.append(progress);
    column.append(header);
    const ruler=el("div","track-ruler");
    const n=Math.max(2,bars);
-   for(let i=0;i<n;i++){const mark=el("span","track-bar",i%4===0?"BAR "+(i+1):"·");ruler.append(mark)}
+   for(let i=0;i<Math.ceil(n);i++){const mark=el("span","track-bar",i%4===0?"BAR "+(i+1):"·");ruler.append(mark)}
    column.append(ruler);
    const lanes=el("div","track-lanes");
    for(const [kind,label,icon] of LANES){
@@ -126,8 +126,8 @@ class Tracks{
    const head=el("div","track-song-playhead");head.id="track-head-"+which;
    lanes.append(head);column.append(lanes);
    const summary=el("div","track-foot",d.locked
-     ?"All future overdubs follow this "+bars+"-bar loop. Remove every clip to reset the length."
-     :"First KEYS take: press Record, play, then press Finish after 2–32 bars. First VOICE take uses the selected bar length.");
+     ?"All overdubs follow your "+(d.lengthSteps/2)+"-beat master phrase. Remove every clip to reset it."
+     :"First KEYS take: press RECORD, play your phrase, press DONE. That sets the loop length. First VOICE take uses its separate vocal bar selection.");
    column.append(summary);
   }
   this.tick();
@@ -144,7 +144,7 @@ class Tracks{
    if(label){
      const bar=Math.floor(phase/8)+1,pass=Math.floor(Math.max(0,step-origin)/length)+1;
      label.textContent=(d.locked?"↻ LOOP "+pass+" · ":"○ NOT RECORDED · ")+
-       "BAR "+bar+" / "+(length/8)+(this.getRunning()?(d.loopEnabled?" · PLAYING":" · LOOP STOPPED"):" · TRANSPORT PAUSED")+
+       "BEAT "+(phase/2+1).toFixed(1)+" / "+(length/2)+(this.getRunning()?(d.loopEnabled?" · PLAYING":" · LOOP STOPPED"):" · TRANSPORT PAUSED")+
        (rec?.scene===which?" · ● RECORDING":"");
    }
    if(fill)fill.style.width=((phase/length)*100)+"%";
