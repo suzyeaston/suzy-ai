@@ -316,7 +316,7 @@ a{color:var(--mint)}
  <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
 </div>
 <div class="song-lead-panel" aria-label="pyramid independent lead instrument">
- <div class="lead-head">✧ PLAYABLE LEAD · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
    <option value="violin" selected>Bowed violin (synth)</option>
@@ -327,7 +327,7 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-pyramid" aria-label="pyramid lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-pyramid">▶ HEAR VIOLIN LEAD</button>
+  <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </div>
 <div class="instrument-tools">
@@ -362,7 +362,7 @@ a{color:var(--mint)}
  <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
 </div>
 <div class="song-lead-panel" aria-label="fishes independent lead instrument">
- <div class="lead-head">✧ PLAYABLE LEAD · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
    <option value="violin">Bowed violin (synth)</option>
@@ -373,7 +373,7 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-fishes" aria-label="fishes lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-fishes">▶ HEAR CLASSICAL GUITAR LEAD</button>
+  <button type="button" id="leadPlay-fishes">▶ HEAR LOCAL GUITAR</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </div>
 <div class="instrument-tools">
@@ -751,7 +751,7 @@ async function auditionLead(which){
    releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
   }
   tell(which.toUpperCase()+" · previewing "+INSTRUMENTS[d.leadInstrument].name+
-   " with three local notes. This does not trigger native Magenta.");
+   " with three fallback local notes. Use the green native AI PROMPT controls for genuine Magenta sounds.");
  }catch(e){warn(e)}
 }
 function setLead(which,instrument){
@@ -973,10 +973,25 @@ async function toggleAI(){
  }catch(e){aiNativeReady=false;warn(e);
   $("aiHostStatus").textContent="AI UNAVAILABLE · "+e.message+" · browser piano still works";}
 }
+function setNativeLeadMix(which,percent){
+ const value=clamp(percent,0,100);
+ $("aiLeadMix-"+which).value=String(value);
+ $("aiLeadMixValue-"+which).textContent="CHORDS "+(100-value)+"% · LEAD "+value+"%";
+ if(!aiNativeReady){
+  tell("MAGENTA "+which.toUpperCase()+" lead set to "+value+"%. Start Google AU to hear it.");
+  return;
+ }
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  await aiFetch("lead-mix",{scene:which,value:value/100});
+ }).catch(e=>warn(e));
+}
 async function syncAIMix(){
  if(!aiNativeReady)return;
  try{
   await aiFetch("mix",{value:Number($("mix").value)/100});
+  for(const which of ["pyramid","fishes"])
+   await aiFetch("lead-mix",{scene:which,value:Number($("aiLeadMix-"+which).value)/100});
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
@@ -1083,7 +1098,8 @@ function beginNote(midi,key){
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
  const playedMidi=midi+d.leadOctave;
- const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
+ const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;
+ const voice=nativeLead?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
  const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
@@ -1097,7 +1113,7 @@ function endNote(key){
  heldNotes.delete(key);
  const now=ctx?.currentTime??0;
  const attack=INSTRUMENTS[h.instrument]?.attack??.028;
- releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
+ if(h.voice)releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
@@ -1866,6 +1882,13 @@ for(const which of Object.keys(decks)){
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
  $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
  $("leadPlay-"+which).onclick=()=>auditionLead(which);
+ $("aiChords-"+which).onclick=()=>{choose(which);setNativeLeadMix(which,0);};
+ $("aiLead-"+which).onclick=()=>{choose(which);setNativeLeadMix(which,100);};
+ $("aiLeadMix-"+which).oninput=e=>{
+  const value=Number(e.target.value);
+  $("aiLeadMixValue-"+which).textContent="CHORDS "+(100-value)+"% · LEAD "+value+"%";
+ };
+ $("aiLeadMix-"+which).onchange=e=>{choose(which);setNativeLeadMix(which,e.target.value);};
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);
