@@ -5,6 +5,7 @@
 import Foundation
 import AVFoundation
 import AudioToolbox
+import CoreAudioKit // AUv3's custom-view controller API is exposed by CoreAudioKit.
 import AppKit
 
 final class MRT2Host {
