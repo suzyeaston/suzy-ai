@@ -112,6 +112,21 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertNotIn("CONNECT COLLIDER DIRECT", html)
         self.assertNotIn("AUDIO ROUTING + MIXER", html)
 
+    def test_live_arranger_is_editable_and_served_locally(self):
+        status, html = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for needle in ('id="arrCues"', 'id="arrArm"', 'id="arrNext"',
+                       'id="arrProgress"', 'window.SuzyArrangement',
+                       'arranger.onCycle(count/8)', 'onCue:c=>', 'onChord:c=>'):
+            self.assertIn(needle, html)
+        code, js = self.call("GET", "/toaster/arrangement.js")
+        self.assertEqual(code, 200)
+        self.assertIn("root.SuzyArrangement=Arrangement", js)
+        self.assertIn('root.localStorage.setItem(KEY', js)
+        self.assertIn("this.endBar=bar+this.cues[0].bars", js)
+        self.assertIn("this.skip=true", js)
+        self.assertNotIn("eval(", js)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
