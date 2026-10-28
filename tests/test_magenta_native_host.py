@@ -107,6 +107,19 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('"midi_gate_parameter_readback"', source)
         self.assertIn('"midi_gate_enabled"', source)
 
+    def test_implicit_cross_process_bookmark_is_explicitly_opt_in(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('SUZY_MRT2_BOOKMARK_MODE', source)
+        self.assertIn('"implicit_cross_process"', source)
+        self.assertIn('"explicit_app_scoped"', source)
+        self.assertIn('options: implicit ? [] : [.withSecurityScope]', source)
+        self.assertIn('"bookmark_self_resolution_verified"', source)
+        self.assertIn('"bookmark_recipient_verified": false', source)
+        # The diagnostic must not present a host-side self-check as
+        # successful MLX initialization inside Google's AUv3 extension.
+        self.assertIn('self.bookmarkScopeVerified = false', source)
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},
