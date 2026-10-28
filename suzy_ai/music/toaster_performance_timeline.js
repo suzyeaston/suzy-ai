@@ -19,6 +19,12 @@ class PerformanceTimeline{
   this.decks=decks;this.getCues=getCues;this.getStep=getStep;
   this.getTempo=getTempo;this.onEdit=onEdit;this.onSelect=onSelect;
   this.zoom=6;this.total=320;
+  this.minutes=15;
+  $("fullDuration").onchange=e=>{
+   this.minutes=clamp(Number(e.target.value)||15,5,30);
+   e.target.value=String(this.minutes);
+   this.render();
+  };
   $("fullZoom").oninput=e=>{this.zoom=Number(e.target.value)||6;this.render()};
   $("fullFit").onclick=()=>{
     const width=$("fullViewport").clientWidth||1000;
@@ -31,7 +37,8 @@ class PerformanceTimeline{
  totalBars(){
   const cues=this.getCues(),n=cues.reduce((sum,c)=>sum+(Number(c.bars)||0),0);
   // Not capped at one loop. A bar ruler covers the full cue-programmed show.
-  return clamp(n||320,32,1024);
+  const barsForDuration=Math.ceil(this.minutes*60/(240/Math.max(40,Number(this.getTempo())||105)));
+  return clamp(Math.max(n,barsForDuration),32,1024);
  }
  render(){
   this.total=this.totalBars();
@@ -51,6 +58,12 @@ class PerformanceTimeline{
    const mark=node("div","full-section "+(cue.scene==="fishes"?"fishes":"pyramid"),cue.name||cue.scene);
    mark.style.left=(elapsed*px)+"px";mark.style.width=(span*px)+"px";
    ruler.append(mark);elapsed+=span;
+  }
+  if(elapsed<this.total){
+   const improv=node("div","full-section pyramid","FREE IMPROVISATION / OUTRO");
+   improv.style.left=(elapsed*px)+"px";
+   improv.style.width=((this.total-elapsed)*px)+"px";
+   ruler.append(improv);
   }
   for(const [which,title] of order){
    for(const [kind,label] of kinds){
