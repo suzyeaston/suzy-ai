@@ -353,16 +353,16 @@ a{color:var(--mint)}
 </section>
 <section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
-<p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
+<p class="subtle">Click a bar number or song section on the ruler to position playback, then press Play. Clicking while playing jumps immediately. Click an empty lane to locate and choose a paste bar; drag recorded clips to arrange them. Native Magenta has its own transport.</p></div>
 <div class="arrangement-transport" aria-label="Browser timeline transport">
- <button id="timelinePlay" type="button">▶ PLAY FROM START</button>
+ <button id="timelinePlay" type="button">▶ PLAY FROM BAR 1</button>
  <button id="timelineStop" type="button">■ STOP</button>
  <button id="timelineRewind" type="button">⏮ RETURN TO START</button>
  <span id="timelineTransportStatus" role="status">STOPPED · BAR 1 · Browser loops only</span>
 </div>
 <div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
 <div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullSplit" type="button">SPLIT AT PLAYHEAD</button><button id="fullDelete" type="button">DELETE</button>
-<span id="fullSelection" class="stat">Click a clip to select it. Click a lane to choose the paste destination. Cmd+C / X / V / Delete.</span></div>
+<span id="fullSelection" class="stat">Click the ruler or an empty lane to locate playback. Click a clip to edit. Cmd+C / X / V / Delete.</span></div>
 <div class="full-viewport" id="fullViewport">
 <div class="full-labels"><div class="full-label-head">SECTIONS</div>
 <div class="full-label-row">PYRAMID · KEYS</div><div class="full-label-row">PYRAMID · VOICE</div><div class="full-label-row">PYRAMID · AI</div>
@@ -465,6 +465,7 @@ let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEcho
 let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+let parkedBar=0,seekRevision=0;
 const heldKeys=new Map();
 const heldNotes=new Map();
 const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
@@ -1025,20 +1026,23 @@ function schedule(time,count){
        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
-        const wait=Math.max(0,(time-ctx.currentTime)*1000);
-        setTimeout(()=>{if(!aiNativeReady)return;aiMelody(pitch,true);
-          setTimeout(()=>aiMelody(pitch,false),heldSec*1000);},wait);
+        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
+        setTimeout(()=>{
+         if(!aiNativeReady||revision!==seekRevision)return;
+         aiMelody(pitch,true);
+         setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},heldSec*1000);
+        },wait);
        }
        continue;
       }
       synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
-       const wait=Math.max(0,(time-ctx.currentTime)*1000);
+       const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
        setTimeout(()=>{
-        if(!aiNativeReady||heldKeys.size)return;
+        if(!aiNativeReady||revision!==seekRevision||heldKeys.size)return;
         aiNote(which,e.index);
-        setTimeout(()=>{if(!heldKeys.size)aiRelease();},
+        setTimeout(()=>{if(revision===seekRevision&&!heldKeys.size)aiRelease();},
           Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
        },wait);
       }
@@ -1076,9 +1080,51 @@ function updateVocalState(){
   "NO VOCAL LOOPS YET · Monitoring alone never records";
  if($("vocalLoopState").textContent!==loopStatus)$("vocalLoopState").textContent=loopStatus;
 }
+function currentTransportBar(){
+ if(!stageStarted||!ctx)return parkedBar;
+ return Math.max(parkedBar,Math.floor(Math.max(0,ctx.currentTime-transportEpoch)/(tickSeconds()*8)));
+}
+function sectionAtBar(bar){
+ let start=0;
+ for(const cue of arranger?.cues||[]){
+  const end=start+Number(cue.bars||0);
+  if(bar>=start&&bar<end)return cue;
+  start=end;
+ }
+ return null;
+}
+function locateTimelineBar(rawBar){
+ const maxBar=Math.max(0,(fullTimeline?.total||1024)-1);
+ const bar=Math.max(0,Math.min(maxBar,Math.floor(Number(rawBar)||0)));
+ if(recording){warn(Error("Finish or cancel the current recording before moving the playhead."));return;}
+ parkedBar=bar;seekRevision++;
+ const cue=sectionAtBar(bar);
+ if(arranger?.armed)arranger.seekToBar(bar);
+ else if(cue)choose(cue.scene);
+ if(stageStarted&&ctx){
+  releaseAllChords();
+  if(aiNativeReady&&aiNoteHeld)aiRelease();
+  // Re-anchor the beat clock; never restart native MRT2 or the microphone.
+  const when=ctx.currentTime+.10;
+  for(const d of Object.values(decks))for(const layer of d.layers){
+   if(layer.source){
+    try{layer.source.stop(when)}catch{}
+    layer.source=null;layer.gain=null;
+   }
+  }
+  stepNumber=bar*8;
+  transportEpoch=when-stepNumber*tickSeconds();
+  nextStepAt=when;
+  for(const [which,d] of Object.entries(decks))
+   for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,when);
+  scheduler();
+ }else stepNumber=bar*8;
+ fullTimeline?.update();updateTransportUI();updateVocalState();
+ tell("Playhead at BAR "+(bar+1)+(stageStarted?" · playback jumped here.":" · press PLAY FROM BAR "+(bar+1)+"."));
+}
 function updateTransportUI(){
- const playing=!!stageStarted,bar=playing?Math.max(1,Math.floor((stepNumber-1)/8)+1):1;
- $("timelinePlay").textContent=playing?"▶ PLAYING":"▶ PLAY FROM BAR 1";
+ const playing=!!stageStarted,bar=currentTransportBar()+1;
+ $("timelinePlay").textContent=playing?"▶ PLAYING":"▶ PLAY FROM BAR "+bar;
  $("timelinePlay").disabled=playing;
  $("timelineStop").disabled=!playing;
  $("timelineTransportStatus").textContent=(playing?"▶ PLAYING":"■ STOPPED")+
@@ -1097,6 +1143,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
+   parkedBar=currentTransportBar();
    releaseAllChords();stopVoiceFollow();stopVoiceMonitor();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
     recording.finished=true;clearTimeout(recording.watchdog);
@@ -1113,13 +1160,17 @@ async function startStop(){
    tell("Rhythm paused. Your loops are preserved.");
    updateVocalState();updateTransportUI();fullTimeline?.update();
   }else{
-   stepNumber=0;transportEpoch=ctx.currentTime+.09;nextStepAt=transportEpoch;
+   stepNumber=parkedBar*8;nextStepAt=ctx.currentTime+.09;
+   transportEpoch=nextStepAt-stepNumber*tickSeconds();
    for(const d of Object.values(decks))d.anchorStep=0;
-   if(arranger)arranger.resetClock();
+   if(arranger){
+    arranger.resetClock();
+    if(parkedBar>0)arranger.seekToBar(parkedBar);
+   }
    trackView?.draw();
    stageStarted=true;
    for(const [which,d] of Object.entries(decks)){
-    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer);
+    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,nextStepAt);
    }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
@@ -1131,22 +1182,14 @@ async function startStop(){
 // Browser transport only; this does not restart Google's native AU.
 async function timelineStop(){
  if(stageStarted)await startStop();
- stepNumber=0;nextStepAt=0;transportEpoch=ctx?.currentTime||0;
- for(const d of Object.values(decks))d.anchorStep=0;
- arranger?.resetClock();
+ stepNumber=parkedBar*8;
  trackView?.draw();fullTimeline?.update();updateTransportUI();updateVocalState();
- tell("Browser timeline STOPPED at BAR 1. Clips preserved; native Magenta independent.");
+ tell("Browser stopped at BAR "+(parkedBar+1)+". Press Play to resume, or Return to Start.");
 }
 async function timelineRewind(){
  if(recording){warn(Error("Finish the take before returning to start."));return;}
- const wasRunning=stageStarted,wasMonitoring=monitoringVoice;
- await timelineStop();
- if(wasRunning){
-  await startStop();
-  // Rewinding during a performance should not silently drop the lead mic.
-  if(wasMonitoring&&stageStarted)await startVoiceMonitor();
- }
- tell(wasRunning?"Browser arrangement restarted at BAR 1.":"Browser playhead returned to BAR 1.");
+ locateTimelineBar(0);
+ tell(stageStarted?"Playing browser arrangement from BAR 1.":"Playhead returned to BAR 1; press Play.");
 }
 function record(which){
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
@@ -1415,13 +1458,13 @@ async function voiceLoop(which){
   warn(e);
  }
 }
-function startLoopAudio(which,l){
+function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=clipActiveAt(l,Math.floor(stepNumber/8))?.65:0;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025;
+ const when=startAt??(ctx.currentTime+.025);
  const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
  const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
  const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
@@ -1546,9 +1589,10 @@ arranger=new window.SuzyArrangement({
 fullTimeline=new window.SuzyPerformanceTimeline({
  decks,
  getCues:()=>arranger?.cues||[],
- getStep:()=>stepNumber,
+ getStep:()=>currentTransportBar()*8,
  getTempo:()=>bpm,
  onSelect:choose,
+ onSeek:locateTimelineBar,
  onAction:({action,selected,target,clipboard})=>{
   if(action==="copy")return;
   if(action==="cut"||action==="delete"){
