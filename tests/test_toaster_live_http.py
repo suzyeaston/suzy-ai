@@ -230,7 +230,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         code, js = self.call("GET", "/toaster/track-view.js")
         self.assertEqual(code, 200)
         for marker in ('track-loop-label-', 'track-loop-fill-',
-                       '"↻ LOOP "+pass', '"BAR "+bar+" / "',
+                       '"↻ LOOP "+pass', '"BEAT "+(phase/2+1).toFixed(1)+" / "',
                        'fill.style.width=((phase/length)*100)+"%"'):
             self.assertIn(marker, js)
 
