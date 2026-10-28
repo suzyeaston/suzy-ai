@@ -1026,20 +1026,23 @@ function schedule(time,count){
        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
-        const wait=Math.max(0,(time-ctx.currentTime)*1000);
-        setTimeout(()=>{if(!aiNativeReady)return;aiMelody(pitch,true);
-          setTimeout(()=>aiMelody(pitch,false),heldSec*1000);},wait);
+        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
+        setTimeout(()=>{
+         if(!aiNativeReady||revision!==seekRevision)return;
+         aiMelody(pitch,true);
+         setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},heldSec*1000);
+        },wait);
        }
        continue;
       }
       synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
-       const wait=Math.max(0,(time-ctx.currentTime)*1000);
+       const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
        setTimeout(()=>{
-        if(!aiNativeReady||heldKeys.size)return;
+        if(!aiNativeReady||revision!==seekRevision||heldKeys.size)return;
         aiNote(which,e.index);
-        setTimeout(()=>{if(!heldKeys.size)aiRelease();},
+        setTimeout(()=>{if(revision===seekRevision&&!heldKeys.size)aiRelease();},
           Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
        },wait);
       }
@@ -1079,7 +1082,7 @@ function updateVocalState(){
 }
 function currentTransportBar(){
  if(!stageStarted||!ctx)return parkedBar;
- return Math.max(0,Math.floor(Math.max(0,ctx.currentTime-transportEpoch)/(tickSeconds()*8)));
+ return Math.max(parkedBar,Math.floor(Math.max(0,ctx.currentTime-transportEpoch)/(tickSeconds()*8)));
 }
 function sectionAtBar(bar){
  let start=0;
@@ -1095,8 +1098,12 @@ function locateTimelineBar(rawBar){
  const bar=Math.max(0,Math.min(maxBar,Math.floor(Number(rawBar)||0)));
  if(recording){warn(Error("Finish or cancel the current recording before moving the playhead."));return;}
  parkedBar=bar;seekRevision++;
+ const cue=sectionAtBar(bar);
+ if(arranger?.armed)arranger.seekToBar(bar);
+ else if(cue)choose(cue.scene);
  if(stageStarted&&ctx){
   releaseAllChords();
+  if(aiNativeReady&&aiNoteHeld)aiRelease();
   // Re-anchor the beat clock; never restart native MRT2 or the microphone.
   const when=ctx.currentTime+.10;
   for(const d of Object.values(decks))for(const layer of d.layers){
@@ -1112,9 +1119,6 @@ function locateTimelineBar(rawBar){
    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,when);
   scheduler();
  }else stepNumber=bar*8;
- const cue=sectionAtBar(bar);
- if(arranger?.armed)arranger.seekToBar(bar);
- else if(cue)choose(cue.scene);
  fullTimeline?.update();updateTransportUI();updateVocalState();
  tell("Playhead at BAR "+(bar+1)+(stageStarted?" · playback jumped here.":" · press PLAY FROM BAR "+(bar+1)+"."));
 }
@@ -1159,7 +1163,10 @@ async function startStop(){
    stepNumber=parkedBar*8;nextStepAt=ctx.currentTime+.09;
    transportEpoch=nextStepAt-stepNumber*tickSeconds();
    for(const d of Object.values(decks))d.anchorStep=0;
-   if(arranger)arranger.resetClock();
+   if(arranger){
+    arranger.resetClock();
+    if(parkedBar>0)arranger.seekToBar(parkedBar);
+   }
    trackView?.draw();
    stageStarted=true;
    for(const [which,d] of Object.entries(decks)){
