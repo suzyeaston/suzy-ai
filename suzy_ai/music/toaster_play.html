@@ -781,6 +781,7 @@ function setLeadOctave(which,value){
  const n=Number(value);if(![-12,0,12].includes(n))return;
  decks[which].leadOctave=n;
  $("leadOctave-"+which).value=String(n);
+ updateHarmony(which,decks[which].harmonyIndex);
  tell(which.toUpperCase()+" · lead register "+(n>0?"+":"")+n+" semitones.");
 }
 function setLeadLevel(which,value){
@@ -959,7 +960,14 @@ async function aiStatus(){
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
 }
 function getPromptStrings(){
- const prompts=[$("promptPyramid").value.trim(),$("promptFishes").value.trim()];
+ // MRT2 exposes TWO prompt slots (one per song), not independent lead AUs.
+ // Preserve the proven original sound unless the performer opts into adding
+ // a lead-timbre description on the next explicit AI start/restart.
+ const prompts=["pyramid","fishes"].map(which=>{
+  const base=$(which==="pyramid"?"promptPyramid":"promptFishes").value.trim();
+  const lead=$("includeLeadPrompt-"+which).checked?$("leadPrompt-"+which).value.trim():"";
+  return lead?base+". "+lead:base;
+ });
  if(prompts.some(p=>!p||p.length>500))throw Error("Enter two AI prompts, maximum 500 characters each");
  return prompts;
 }
@@ -1053,12 +1061,64 @@ function choose(which){
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
  tell(which==="pyramid"?"PYRAMID · use Z X C V for chords":"WEIRD FISHES · use Z X C V for chords");
 }
+const MIDI_NAMES=Object.freeze(["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"]);
+function noteName(midi){return MIDI_NAMES[((midi%12)+12)%12]+(Math.floor(midi/12)-1)}
+function chordLeadNotes(which,index){
+ const d=decks[which],base=SCENES[which].notes[index].map(n=>n+d.transpose+d.leadOctave);
+ // Original song chord tones, moved to a comfortable melodic register.
+ // Retain each chord's actual intervals. The pattern wraps through octaves.
+ const out=[...base].sort((a,b)=>a-b);
+ while(out[0]<60+d.leadOctave)for(let i=0;i<out.length;i++)out[i]+=12;
+ return out;
+}
+function leadKeyboardMidi(which,rawMidi){
+ const d=decks[which],index=Math.max(0,Math.min(12,rawMidi-60));
+ if(!$("harmonicLock-"+which).checked)return rawMidi+d.leadOctave;
+ const chord=chordLeadNotes(which,d.harmonyIndex);
+ return chord[index%chord.length]+12*Math.floor(index/chord.length);
+}
+function updateHarmony(which,index){
+ const d=decks[which];d.harmonyIndex=index;
+ const chord=chordLeadNotes(which,index);
+ $("harmonyLabel-"+which).textContent="FOLLOW "+["Z","X","C","V"][index]+
+  " · "+SCENES[which].names[index]+" · "+chord.map(noteName).join(" ");
+ for(let i=0;i<4;i++){
+  const names=chordLeadNotes(which,i).map(noteName);
+  $("leadChord-"+which+"-"+i).textContent=SCENES[which].names[i]+" · "+names.slice(0,2).join(" ");
+ }
+}
+function playLeadPhrase(which,index){
+ if(!ctx||!stageStarted)return warn(Error("Start PLAY RHYTHM before playing or looping lead phrases."));
+ choose(which);updateHarmony(which,index);
+ const d=decks[which],notes=chordLeadNotes(which,index),inst=d.leadInstrument;
+ const initial=ctx.currentTime+.022,spacing=inst==="violin"?.31:.21,hold=inst==="violin"?.46:.19;
+ for(let i=0;i<4;i++){
+  const midi=notes[i%notes.length],at=initial+i*spacing;
+  const voice=makeVoice(which,midi,at,inst,.12,true,"lead");
+  releaseVoice(voice,at+hold);
+  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
+   const step=Math.round((at-recording.start)/tickSeconds());
+   // Event timestamps are relative to the same recording clock as chord pads.
+   if(step>=0&&step<256)recording.events.push({step,midi,holdSteps:hold/tickSeconds(),type:"note",instrument:inst});
+  }
+  if(aiNativeReady&&$("leadToAI-"+which).checked){
+   const rev=seekRevision,delay=Math.max(0,(at-ctx.currentTime)*1000);
+   setTimeout(()=>{
+    if(rev!==seekRevision||!aiNativeReady)return;
+    aiMelody(midi,true);
+    setTimeout(()=>{if(rev===seekRevision)aiMelody(midi,false)},hold*1000);
+   },delay);
+  }
+ }
+ tell(which.toUpperCase()+" "+INSTRUMENTS[inst].name+" · "+SCENES[which].names[index]+
+  " · "+notes.map(noteName).join(" ")+" · click LOOP MY CHORDS to record.");
+}
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
  // A fresh pointer-down or nonrepeating key-down must always articulate.
  // Recover from a lost pointer-up instead of silently ignoring the new tap.
  if(heldKeys.has(key))endChord(key);
- choose(which);
+ choose(which);updateHarmony(which,index);
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
  for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
@@ -1098,9 +1158,9 @@ function beginNote(midi,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM first"));
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
- const playedMidi=midi+d.leadOctave;
+ const playedMidi=leadKeyboardMidi(scene,midi);
  const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
- const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
+ const h={voice,midi:playedMidi,rawMidi:midi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi:playedMidi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
@@ -1117,7 +1177,7 @@ function endNote(key){
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
-  if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
+  if(Number(el.dataset.note)===h.rawMidi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.rawMidi===h.rawMidi));
  });
 }
 function releaseAllChords(){
@@ -1882,6 +1942,10 @@ for(const which of Object.keys(decks)){
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
  $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
  $("leadPlay-"+which).onclick=()=>auditionLead(which);
+ $("harmonicLock-"+which).onchange=()=>tell(which.toUpperCase()+
+  ($("harmonicLock-"+which).checked?" · A–K now follows selected chord tones.":" · A–K chromatic melody restored."));
+ $("includeLeadPrompt-"+which).onchange=()=>tell("Native AI prompts are not updated until APPLY PROMPTS. Local lead pads already work.");
+ updateHarmony(which,0);
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);
@@ -1899,6 +1963,10 @@ for(const k of Object.keys(decks)){
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
  $("voice-"+k).oninput=()=>{$("voiceNum-"+k).textContent=$("voice-"+k).value+"%";updateMix()};
 }
+document.querySelectorAll(".lead-pad").forEach(el=>{
+ const which=el.dataset.leadScene,index=Number(el.dataset.leadChord);
+ el.onclick=()=>playLeadPhrase(which,index);
+});
 // Buttons keep focus after clicking. Ignore only *editable* fields, not BUTTON.
 // Capture keyup as well as keydown so sustain always ends, even after switching decks.
 document.querySelectorAll(".pad").forEach(el=>{
