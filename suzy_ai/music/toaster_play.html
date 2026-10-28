@@ -1290,7 +1290,7 @@ async function startVoiceMonitor(){
  monitorDry.connect(mainBus);monitorSend.connect(verb);
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
- $("monitorStatus").textContent="MONITOR ON · live dry vocal + FX · NOT RECORDING";
+ $("monitorStatus").textContent="MONITOR ON · dry vocal + FX · see recorder state below";
  updateVocalState();
 }
 function updateVoiceEcho(){
