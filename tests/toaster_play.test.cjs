@@ -936,3 +936,21 @@ test("repair keeps native four-prompt design and VE-22 microphone controls uncha
  assert.ok(file.includes('id="micMeter"'));
  assert.ok(!file.includes('id="includeLeadPrompt-pyramid"'));
 });
+
+test("Google model selector is clickable in native bookmark mode, with no server relaunch required",async()=>{
+ const {get,run,calls}=rig();
+ run('aiDisplay({phase:"host-running",audio_engine_running:true,native_model_selection_required:false,native_au:true})');
+ assert.equal(get("aiGoogleModel").disabled,false,"running AU can transition to picker from bookmark mode");
+ assert.match(get("aiModelHelp").textContent,/Click OPEN GOOGLE MODEL SELECTOR/);
+ await run("openGoogleModelSelector()");
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/show-au-ui"),"the UI calls the existing same-host action");
+});
+test("model picker stays disabled until native AU ready and during an in-flight UI request",()=>{
+ const {get,run}=rig();
+ run('aiDisplay({phase:"starting",native_model_selection_required:false})');
+ assert.equal(get("aiGoogleModel").disabled,true);
+ run('aiDisplay({phase:"host-running",audio_engine_running:true,native_model_selection_required:true,native_au_ui_requested:true})');
+ assert.equal(get("aiGoogleModel").disabled,true);
+ run('aiDisplay({phase:"host-running",audio_engine_running:true,native_model_selection_required:true,native_au_ui_requested:false})');
+ assert.equal(get("aiGoogleModel").disabled,false);
+});
