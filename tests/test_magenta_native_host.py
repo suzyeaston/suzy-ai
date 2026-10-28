@@ -50,6 +50,7 @@ class NativeMRT2Tests(unittest.TestCase):
             self.assertIn(op, ACTIONS)
         self.assertEqual(ACTIONS["chord"], {"index"})
         self.assertEqual(ACTIONS["scene"], {"scene"})
+        self.assertEqual(ACTIONS["show-au-ui"], set())
         self.assertEqual(ACTIONS["mute"], {"value"})
         self.assertEqual(ACTIONS["tempo"], {"bpm"})
         self.assertEqual(ACTIONS["note"], {"note"})
@@ -119,6 +120,24 @@ class NativeMRT2Tests(unittest.TestCase):
         # The diagnostic must not present a host-side self-check as
         # successful MLX initialization inside Google's AUv3 extension.
         self.assertIn('self.bookmarkScopeVerified = false', source)
+
+    def test_google_native_picker_avoids_cross_identity_bookmark(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('SUZY_MRT2_MODEL_VIA_UI', source)
+        self.assertIn('state.removeValue(forKey: "MGRT_ModelBookmark")', source)
+        self.assertIn('state.removeValue(forKey: "MGRT_ModelName")', source)
+        self.assertIn('unit.auAudioUnit.requestViewController', source)
+        self.assertIn('case "show-au-ui": showGoogleAUInterface()', source)
+        self.assertIn('app.run()', source)
+        self.assertIn('"native_model_selection_required"', source)
+        self.assertIn('"native_au_ui_visible"', source)
+
+    def test_google_picker_action_requires_existing_native_process(self):
+        with self.assertRaisesRegex(RuntimeError, "not running"):
+            self.host.command("show-au-ui", {})
+        # The action cannot start or fork a second native model.
+        self.assertIsNone(self.host.process)
 
     def test_native_prompt_validation(self):
         bad = [
