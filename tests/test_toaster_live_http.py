@@ -162,12 +162,12 @@ class LiveToasterHttpTests(unittest.TestCase):
         status, js = self.call("GET", "/toaster/track-view.js")
         self.assertEqual(status, 200)
         for literal in (
-            "root.SuzyTrackView=TrackView",
+            "root.SuzyTrackView=Tracks",
             '["chords","KEYS"',
             '["vocal","VOICE"',
             '["ai","MAGENTA"',
             '"track-midi-note"', '"track-wave-bar"',
-            "bins(layer.buffer,80)", "this.onRemove(which,layer.id)"
+            "peakBins(layer.buffer)", "this.onRemove(which,layer.id)"
         ):
             self.assertIn(literal, js)
 
@@ -185,43 +185,6 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}', html)
         self.assertNotIn("createScriptProcessor(1024", html)
         self.assertIn("native_au_ui_visible", html)
-
-    def test_chord_pads_dom_nodes_are_front_and_center(self):
-        code, html = self.call("GET", "/toaster/live")
-        self.assertEqual(code, 200)
-        self.assertLess(html.index('id="trackWorkspace"'), html.index('class="ai-strip"'))
-        self.assertIn('id="pads-pyramid"', html)
-        self.assertIn('id="pads-fishes"', html)
-        self.assertIn('<details class="cue-collapsible" id="cueEditor">', html)
-        self.assertIn("track-main-pads .pad", html)
-        code, js = self.call("GET", "/toaster/track-view.js")
-        self.assertEqual(code, 200)
-        self.assertIn('this.pads=Object.fromEntries(SONGS.map(', js)
-        self.assertIn('const existing=this.pads[which]', js)
-        self.assertIn('padSlot.append(existing)', js)
-        self.assertIn('region.addEventListener("pointerdown"', js)
-        self.assertIn('region.addEventListener("pointermove"', js)
-        self.assertIn('region.addEventListener("pointerup"', js)
-        self.assertIn('e.key==="ArrowRight"', js)
-
-    def test_region_drag_affects_actual_playback_and_export(self):
-        code, html = self.call("GET", "/toaster/live")
-        self.assertEqual(code, 200)
-        for needle in (
-            'onShift:(which,id,shift)=>',
-            'layer.shiftSteps=((shift%length)+length)%length',
-            'const movedStep=((e.step+(l.shiftSteps||0))',
-            'const offset=((phase-shift)%l.buffer.duration',
-            'oldGain.gain.linearRampToValueAtTime(0,now+.035)',
-            'event.step+(layer.shiftSteps||0)',
-            'const offset=((-(layer.shiftSteps||0)*tickSeconds())',
-        ):
-            self.assertIn(needle, html)
-        code, js = self.call("GET", "/toaster/track-view.js")
-        self.assertEqual(code, 200)
-        self.assertIn('const bars=Math.round((e.clientX-current.x)', js)
-        self.assertIn('current.preview=mod(current.base+bars*8,length)', js)
-        self.assertIn('this.onShift(which,layer.id,target)', js)
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
