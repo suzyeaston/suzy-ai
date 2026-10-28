@@ -17,8 +17,11 @@ final class MRT2Host {
     private var auUIRequestPending = false
     private var auUIError = ""
     private var auUIRequestCount = 0
-    // Set at server launch; never starts a second model instance.
-    private let selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
+    // Starts with the launch preference, but the performer can request Google's
+    // own model picker from TOASTER without restarting the HTTP server.
+    // Switching modes rebuilds the SAME AU instance; never create two models.
+    private var selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
+    private var showGoogleUIAfterRestart = false
     private var held: [UInt8] = []
     private var melodyHeld = Set<UInt8>()
     // A browser pointer tap can last less than the MRT2 neural control latency.
@@ -320,6 +323,10 @@ final class MRT2Host {
                 self.loading = false
                 guard let unit = unit else {
                     self.errorMessage = error?.localizedDescription ?? "MRT2 AU instantiation failed"
+                    if self.showGoogleUIAfterRestart {
+                        self.showGoogleUIAfterRestart = false
+                        self.auUIError = self.errorMessage
+                    }
                     return
                 }
                 self.generator = unit
@@ -439,9 +446,20 @@ final class MRT2Host {
                     self.engine = audio
                     self.active = true
                     self.configure()
+                    if self.showGoogleUIAfterRestart {
+                        self.showGoogleUIAfterRestart = false
+                        // The AU is now running without the external bookmark.
+                        // Open its real custom view so Google can authorize the
+                        // existing mrt2_small model under its own sandbox identity.
+                        self.showGoogleAUInterface()
+                    }
                 } catch {
                     self.active = false
                     self.errorMessage = "Native AU startup: \(error.localizedDescription)"
+                    if self.showGoogleUIAfterRestart {
+                        self.showGoogleUIAfterRestart = false
+                        self.auUIError = self.errorMessage
+                    }
                     self.generator = nil
                     self.reverbUnit = nil
                     self.engine = nil
@@ -450,12 +468,27 @@ final class MRT2Host {
         }
     }
     private func showGoogleAUInterface() {
-        guard active, let unit = generator else {
-            auUIError = "Start the native Magenta Audio Unit before opening its model selector."
+        // An explicit UI button click may switch from the default bookmark
+        // loader to Google's own model picker. Stop the current native AU
+        // before creating its replacement, preserving prompts, MIDI settings,
+        // transport preference, and all *browser* audio loops.
+        if !selectModelInGoogleUI {
+            guard active && !loading else {
+                auUIError = "Native Magenta is still starting. Wait for the AU to run, then open the model selector."
+                return
+            }
+            stop()
+            selectModelInGoogleUI = true
+            showGoogleUIAfterRestart = true
+            start()
+            if !loading {
+                showGoogleUIAfterRestart = false
+                auUIError = errorMessage.isEmpty ? "Unable to restart native AU in Google model-selection mode." : errorMessage
+            }
             return
         }
-        guard selectModelInGoogleUI else {
-            auUIError = "TOASTER was launched in bookmark mode. Stop the server and restart with SUZY_MRT2_MODEL_VIA_UI=1."
+        guard active, let unit = generator else {
+            auUIError = "Google model selector is waiting for the native AU to finish starting."
             return
         }
         auUIError = ""
@@ -498,6 +531,7 @@ final class MRT2Host {
         auUIWindow?.close()
         auUIWindow = nil
         auUIRequestPending = false
+        showGoogleUIAfterRestart = false
         auUIError = ""
         parameter(6, 1)
         engine?.stop()
