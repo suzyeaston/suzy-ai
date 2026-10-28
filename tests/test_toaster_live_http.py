@@ -272,6 +272,30 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'this.onAction({action,selected,target:{...this.target},clipboard:this.clipboard})'):
             self.assertIn(marker, script)
 
+    def test_monitor_record_playback_distinctions_and_timeline_transport(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for marker in ('id="vocalRecordState"', 'id="vocalLoopState"',
+                       'id="vocalRecordPyramid"', 'id="vocalRecordFishes"',
+                       'id="timelinePlay"', 'id="timelineStop"', 'id="timelineRewind"',
+                       'id="vocalEchoMode"', 'id="vocalEchoLevel"',
+                       'id="vocalEchoFeedback"', 'id="vocalAir"'):
+            self.assertIn(marker, page)
+        for implementation in (
+            'function updateVocalState()', 'function updateTransportUI()',
+            'async function timelineStop()', 'async function timelineRewind()',
+            'function updateVoiceEcho()', 'vocalEchoDelay=ctx.createDelay(2.0)',
+            'vocalEchoTone.type="lowpass"',
+            'vocalEchoTone.connect(vocalEchoFeedbackNode)',
+            'vocalEchoFeedbackNode.connect(vocalEchoDelay)',
+            'd.voiceBus.connect(vocalEchoInput)',
+            'monitorFilter.connect(vocalEchoInput)',
+            'clipActiveAt(l,bar)',
+            'MONITOR ON · live dry vocal + FX · NOT RECORDING',
+            'Browser loops only · Native Magenta independent',
+        ):
+            self.assertIn(implementation, page)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
