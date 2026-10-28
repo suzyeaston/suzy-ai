@@ -38,7 +38,7 @@ function rig(){
  class AudioContext{
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};
    this.audioWorklet={addModule:async src=>{calls.workletModule=src}};}
-  createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+  createGain(){return new AudioNode()}createAnalyser(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
    createDelay(){return new AudioNode()}
    createDynamicsCompressor(){return new AudioNode()}
   createBiquadFilter(){return new AudioNode()}
