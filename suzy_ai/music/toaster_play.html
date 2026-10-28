@@ -1485,6 +1485,8 @@ function record(which){
   }
   return;
  }
+ if(d.locked&&(!d.loopEnabled||d.loopToggleAt!==null))
+  return warn(Error("Restart the saved loop and let it settle on the next bar before overdubbing."));
  choose(which);
  const beginAt=Math.ceil((stepNumber+1)/8)*8; // First take and overdub start next bar.
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
