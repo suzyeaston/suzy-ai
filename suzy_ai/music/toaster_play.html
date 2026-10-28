@@ -1214,6 +1214,29 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
+$("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
+$("mixBoth").onclick=()=>{
+ blendBoth=!blendBoth;
+ $("mixBoth").setAttribute("aria-pressed",String(blendBoth));
+ $("mixBoth").textContent=blendBoth?"♫ BOTH SONGS LIVE":"♫ LAYER BOTH SONGS";
+ if(blendBoth)$("mix").value="50";
+ else $("mix").value=scene==="pyramid"?"0":"100";
+ updateMix();if(aiNativeReady)syncAIMix().catch(warn);
+ tell(blendBoth?"Both song loops play together. Each has its own sounds and key.":"Song crossfade follows the selected track.");
+};
+for(const which of Object.keys(decks)){
+ $("instrument-"+which).onchange=e=>setInstrument(which,e.target.value);
+ $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
+ $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
+ $("keyReset-"+which).onclick=()=>setKey(which,0);
+ $("keyUndo-"+which).onclick=()=>{
+  const d=decks[which];
+  if(d.keyHistoryIndex<=0)return;
+  d.keyHistoryIndex--;setKey(which,d.keyHistory[d.keyHistoryIndex],false);
+ };
+ updateKeyUI(which);
+}
 for(const k of Object.keys(decks)){
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
@@ -1255,7 +1278,7 @@ document.querySelectorAll(".note-pad").forEach(el=>{
 });
 window.addEventListener("blur",releaseAllChords);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
-$("mix").oninput=updateMix;
+$("mix").oninput=()=>{blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");$("mixBoth").textContent="♫ LAYER BOTH SONGS";updateMix();};
 $("mix").onchange=syncAIMix;
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
