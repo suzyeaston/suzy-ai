@@ -400,6 +400,12 @@ a{color:var(--mint)}
 <h2>Hear your voice as you sing</h2>
 <p class="subtle">Optional live dry + reverb monitoring through the selected browser audio output. Recording and looping still work with monitoring off. Use headphones, not speakers. Turn OFF Scarlett direct monitoring to prevent doubling or echo.</p></div></div>
 <div class="monitor-controls">
+<label for="micInput">VOICE INPUT · VE-22 THROUGH SCARLETT
+<select id="micInput" aria-describedby="micStatus"><option value="">Detect Scarlett</option></select></label>
+<button type="button" id="testMic">🎚 TEST INPUT</button>
+<span id="micStatus" role="status" aria-live="polite">NOT CONNECTED · Scarlett Solo USB required unless you choose another device</span>
+<label for="micMeter">LIVE MIC SIGNAL <meter id="micMeter" min="0" max="1" value="0" style="width:130px"></meter></label>
+<span id="micPeakLive" role="status">NO TEST YET · sing into the VE-22</span>
 <button type="button" id="monitorVoice" aria-pressed="false">🎙 MONITOR VOICE · OFF</button>
 <label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="100" value="55"></label>
 <label>LIVE REVERB <input id="monitorReverb" type="range" min="0" max="75" value="28"></label>
@@ -500,7 +506,7 @@ a{color:var(--mint)}
 <div class="settings">
 
 
-<div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
+<div><small class="subtle">Vocal input is selected and tested in LEAD VOICE above. Default: VE-22 → Scarlett Solo USB (not the MacBook microphone).</small></div>
 <div><label for="vocalHeadroom">Recorded vocal headroom · <span id="vocalHeadroomNumber">55%</span></label>
 <input id="vocalHeadroom" type="range" min="20" max="100" value="55">
 <small class="subtle" id="vocalPeak">Last vocal input peak: not measured yet. Adjust VE-22 / Scarlett input gain if it clips.</small></div>
@@ -544,6 +550,7 @@ let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEcho
 let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+let activeMicDeviceId=null,micMeterSource=null,micMeterAnalyser=null,micMeterTimer=null;
 let drumMeter="4/4",drumStyle="pulse";
 const DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6});
 const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental"});
@@ -624,6 +631,15 @@ async function findDevices(){
     const opt=document.createElement("option");opt.value=d.deviceId;opt.textContent=d.label||kind;el.add(opt);
   }
   if([...el.options].some(o=>o.value===prior)&&prior)el.value=prior;
+  else if(kind==="audioinput"){
+   const scarlett=list.find(d=>d.kind==="audioinput"&&/scarlett|focusrite/i.test(d.label)&&d.deviceId);
+   el.value=!el.dataset.manual&&scarlett?scarlett.deviceId:"";
+  }
+ }
+ if(!micStream?.active){
+  const name=$("micInput").selectedOptions?.[0]?.textContent||"";
+  $("micStatus").textContent=$("micInput").value?"SELECTED · "+name+" · press TEST INPUT":
+   "NO SCARLETT INPUT FOUND · connect Scarlett Solo, allow mic access, then RECHECK DEVICES";
  }
  const outs=list.filter(d=>d.kind==="audiooutput");
  const ideal=outs.find(d=>/scarlett|focusrite/i.test(d.label));
@@ -1449,19 +1465,93 @@ function renderClips(which){
   row.append(name,mute,remove);box.append(row);
  });
 }
+function stopMicMeter(){
+ if(micMeterTimer!==null)clearInterval(micMeterTimer);
+ micMeterTimer=null;
+ try{micMeterSource?.disconnect();micMeterAnalyser?.disconnect()}catch{}
+ micMeterSource=null;micMeterAnalyser=null;
+ $("micMeter").value=0;
+}
+function startMicMeter(stream){
+ stopMicMeter();
+ if(!ctx||!stream?.active)return;
+ micMeterSource=ctx.createMediaStreamSource(stream);
+ micMeterAnalyser=ctx.createAnalyser();
+ micMeterAnalyser.fftSize=512;
+ micMeterSource.connect(micMeterAnalyser); // Meter does not connect to output: no feedback.
+ if(typeof micMeterAnalyser.getFloatTimeDomainData!=="function")return;
+ const samples=new Float32Array(micMeterAnalyser.fftSize);
+ micMeterTimer=setInterval(()=>{
+  if(!stream.active){stopMicMeter();$("micStatus").textContent="MIC DISCONNECTED · recheck Scarlett";return;}
+  micMeterAnalyser.getFloatTimeDomainData(samples);
+  let peak=0;
+  for(const value of samples)peak=Math.max(peak,Math.abs(value));
+  $("micMeter").value=Math.min(1,peak);
+  $("micPeakLive").textContent=peak<.002?"NO SIGNAL · check VE-22 output and Scarlett gain":
+    "LIVE SIGNAL · "+(20*Math.log10(Math.max(.000001,peak))).toFixed(1)+" dBFS peak";
+ },120);
+}
 async function enableMic(){
  if(micStream?.active)return micStream;
- if(!navigator.mediaDevices?.getUserMedia)throw Error("Microphone not available in this browser");
+ if(!navigator.mediaDevices?.getUserMedia||!navigator.mediaDevices?.enumerateDevices)
+  throw Error("Microphone selection requires Chrome microphone permissions on localhost.");
  let devices=await navigator.mediaDevices.enumerateDevices();
  if(!devices.some(d=>d.kind==="audioinput"&&d.label)){
-   const provisional=await navigator.mediaDevices.getUserMedia({audio:true});
-   devices=await navigator.mediaDevices.enumerateDevices();
-   provisional.getTracks().forEach(t=>t.stop());
+  // Only unlock device labels; never use the provisional default mic for TOASTER.
+  const provisional=await navigator.mediaDevices.getUserMedia({audio:true});
+  try{devices=await navigator.mediaDevices.enumerateDevices();}
+  finally{provisional.getTracks().forEach(t=>t.stop());}
  }
- const chosen=$("micInput").value;
- const preferred=devices.find(d=>d.kind==="audioinput"&&/scarlett|focusrite/i.test(d.label));
- micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
- await findDevices();return micStream;
+ await findDevices();
+ const selected=$("micInput").value;
+ const preferred=devices.find(d=>d.kind==="audioinput"&&/scarlett|focusrite/i.test(d.label)&&d.deviceId);
+ const target=devices.find(d=>d.kind==="audioinput"&&d.deviceId===selected)||(!selected?preferred:null);
+ if(!target?.deviceId){
+  $("micStatus").textContent="NO SCARLETT INPUT · not using MacBook microphone";
+  throw Error("Scarlett Solo USB input not found. Connect VE-22 → Scarlett XLR, connect Scarlett USB, allow Chrome mic access, and press RECHECK DEVICES. To use a different input, select it explicitly.");
+ }
+ // 'ideal' silently permits Chrome to record the Mac microphone; 'exact' does not.
+ const stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:{exact:target.deviceId},
+  echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+ const track=stream.getAudioTracks?.()[0]||stream.getTracks?.()[0];
+ const actualId=track?.getSettings?.().deviceId;
+ if(actualId&&actualId!==target.deviceId){
+  stream.getTracks().forEach(t=>t.stop());
+  $("micStatus").textContent="WRONG MIC · browser did not open the selected input";
+  throw Error("Chrome opened a different microphone than "+target.label+". Vocal recording blocked.");
+ }
+ if(track?.label&&/macbook|built.in microphone|internal microphone/i.test(track.label)&&
+    !/macbook|built.in microphone|internal microphone/i.test(target.label)){
+  stream.getTracks().forEach(t=>t.stop());
+  $("micStatus").textContent="WRONG MIC · built-in input rejected";
+  throw Error("Chrome returned its built-in microphone instead of "+target.label+". Vocal recording blocked.");
+ }
+ micStream=stream;activeMicDeviceId=target.deviceId;
+ await findDevices();
+ $("micInput").value=target.deviceId;
+ $("micStatus").textContent=(actualId===target.deviceId?"VERIFIED":"REQUESTED")+
+  " INPUT · "+target.label+" · "+(actualId===target.deviceId?"browser device ID matches":"browser did not expose device ID");
+ $("micPeakLive").textContent="LISTENING · sing into VE-22 to check the signal";
+ startMicMeter(stream);
+ return micStream;
+}
+async function changeMicInput(){
+ if(recording?.kind==="vocal"){
+  $("micInput").value=activeMicDeviceId||"";
+  return warn(Error("Finish the vocal take before changing microphone. The recorded loop remains untouched."));
+ }
+ const wasMonitoring=monitoringVoice,wasFollowing=!!followMicNode;
+ if(wasMonitoring)stopVoiceMonitor();
+ if(wasFollowing)stopVoiceFollow();
+ stopMicMeter();
+ micStream?.getTracks().forEach(t=>t.stop());
+ micStream=null;activeMicDeviceId=null;
+ try{
+  await openAudio();await enableMic();
+  if(wasMonitoring)await startVoiceMonitor();
+  if(wasFollowing)await toggleVoiceFollow();
+  tell("Vocal input: "+$("micStatus").textContent+". Voice loops and monitoring share this verified source.");
+ }catch(e){$("micPeakLive").textContent="INPUT FAILED · no microphone recording";warn(e);}
 }
 // AudioWorklet captures the raw microphone on Web Audio's render thread.
 // Headroom is applied only to recorded playback, not the Scarlett hardware.
@@ -1984,12 +2074,14 @@ $("tone").oninput=()=>{
  if(mixFilter)mixFilter.frequency.setTargetAtTime(220+Math.pow(value/100,2)*19000,ctx.currentTime,.03);
 };
 $("findDevices").onclick=()=>findDevices().catch(warn);
+$("testMic").onclick=()=>changeMicInput();
 $("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
-$("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}tell("Mic change will apply on the next vocal recording.")};
+$("micInput").onchange=()=>{$("micInput").dataset.manual=$("micInput").value?"true":"";changeMicInput()};
 $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHeadroom").value+"%";};
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();updateVocalState();updateTransportUI();
+window.addEventListener("beforeunload",()=>{stopMicMeter();micStream?.getTracks().forEach(t=>t.stop());});
 aiStatus();
 if(!aiPoll)aiPoll=setInterval(aiStatus,1200);
 </script></body></html>
