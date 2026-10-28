@@ -158,6 +158,35 @@ a{color:var(--mint)}
 .track-loop-label{font:800 11px ui-monospace,monospace;color:var(--mint)}
 .track-loop-badge.loop-flash{color:var(--peach);text-shadow:0 0 5px #ffd8ac}
 @media(max-width:920px){.chord-center #decks{grid-template-columns:1fr}}
+
+/* Low-overhead mic-to-MIDI companion, no second large AI model. */
+.voice-ai-follow{border:1px solid #7c7e96;background:#262235;border-radius:14px;padding:12px;margin:14px 0}
+.voice-follow-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.voice-follow-actions button{padding:12px;font-size:12px;font-weight:800;border-radius:9px}
+#voiceFollowStatus{font:700 11px ui-monospace,monospace;color:var(--mint)}
+/* Scrolling project-length performance grid; deliberately compact on 8 GB Macs. */
+.full-arrangement{border:1px solid #8b7798;border-radius:16px;padding:14px;margin:12px 0;background:#1f1c28;scroll-margin-top:12px}
+.full-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.full-controls label{font-size:10px}
+.full-controls #fullZoom{max-width:120px}
+.full-controls button{padding:8px;font-size:11px}
+.full-viewport{margin:14px 0 7px;border:1px solid #776584;border-radius:11px;display:grid;grid-template-columns:126px minmax(0,1fr);overflow:hidden;background:#121019}
+.full-labels{z-index:2;background:#241e2d;display:flex;flex-direction:column}
+.full-label-head{height:51px;padding:15px 9px;font:750 10px ui-monospace,monospace;border-bottom:1px solid #665777}
+.full-label-row{height:62px;padding:18px 8px;font:750 10px ui-monospace,monospace;border-bottom:1px solid #665777;white-space:nowrap;overflow:hidden}
+.full-scroll{overflow-x:auto;position:relative;min-width:0;scrollbar-color:#866e95 #1c1822;scrollbar-width:thin}
+.full-ruler{height:51px;position:relative;background:#292033;border-bottom:1px solid #7b6385}
+.full-bar-label{position:absolute;top:5px;font:9px ui-monospace,monospace;color:#b6a8bf;border-left:1px solid #7a687c;padding-left:3px;height:14px}
+.full-section{position:absolute;top:24px;height:21px;overflow:hidden;white-space:nowrap;font:700 9px ui-monospace,monospace;color:#fff2e7;padding:3px;border-left:2px solid #f4d3ab}
+.full-section.pyramid{background:#806692}.full-section.fishes{background:#417a82}
+.full-lanes{position:relative}.full-lane{height:62px;position:relative;border-bottom:1px solid #594962;background:repeating-linear-gradient(to right,#ffffff10 0px 1px,transparent 1px 24px)}
+.full-clip{position:absolute;top:8px;height:46px;min-width:5px;box-sizing:border-box;padding:12px 15px 5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:5px;border:1px solid #b99fdb;touch-action:pan-y;cursor:grab;user-select:none;font:800 10px ui-monospace,monospace;color:#fff8eb;background:repeating-linear-gradient(to right,#9878c6 0 76%,#725993 76% 100%);background-size:48px 100%}
+.full-clip.vocal{border-color:#f6b1cc;background:repeating-linear-gradient(to right,#ae688a 0 76%,#864561 76% 100%);background-size:48px 100%}
+.full-clip.ai{border-color:#a2e0d3;background:repeating-linear-gradient(to right,#468d7f 0 76%,#2f6861 76% 100%);background-size:48px 100%}
+.full-clip.is-muted{opacity:.32}.full-clip.moving{outline:2px solid #ffe8ab;cursor:grabbing}
+.full-resize{position:absolute;right:0;top:0;bottom:0;width:13px;background:#fff2dd44;cursor:ew-resize;font-size:16px;display:grid;place-items:center}
+.full-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd75d;pointer-events:none;box-shadow:0 0 5px #ffe28c}
+@media(max-width:670px){.full-viewport{grid-template-columns:92px minmax(0,1fr)}.full-label-row{font-size:8px}.full-label-head{font-size:9px}}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -263,6 +292,24 @@ a{color:var(--mint)}
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
 </div></section>
+<section class="voice-ai-follow" aria-label="Voice controlled AI accompaniment">
+<div class="start"><div><div class="tiny">VOICE → AI · EXPERIMENTAL</div>
+<h2>Sing to steer Magenta</h2>
+<p class="subtle">TOASTER can follow your sung pitch from the Scarlett and send MIDI notes to the existing *instrumental* MRT2 model. Your microphone stays local. This does not create a synthetic singer or reproduce words; the VE-22 is still your vocal harmony option.</p></div>
+<div class="voice-follow-actions"><button type="button" id="voiceFollow">🎙 ENABLE VOICE → MAGENTA</button><span id="voiceFollowStatus" role="status">OFF · Requires working Magenta and microphone permission</span></div></div>
+</section>
+<section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
+<div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
+<p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
+<div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
+<div class="full-viewport" id="fullViewport">
+<div class="full-labels"><div class="full-label-head">SECTIONS</div>
+<div class="full-label-row">PYRAMID · KEYS</div><div class="full-label-row">PYRAMID · VOICE</div><div class="full-label-row">PYRAMID · AI</div>
+<div class="full-label-row">FISHES · KEYS</div><div class="full-label-row">FISHES · VOICE</div><div class="full-label-row">FISHES · AI</div></div>
+<div class="full-scroll"><div class="full-ruler" id="fullRuler"></div><div class="full-lanes" id="fullLanes"></div><div class="full-playhead" id="fullPlayhead"></div></div>
+</div>
+<small class="subtle">This is the full bar-based arrangement. Regions are actual takes; Magenta's native generated music is still a separate output until recorded/imported. Rehearsal changes apply on the next bar, not Logic-sample-accurate.</small>
+</section>
 <section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
 <div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
 <h2>Pyramid & Weird Fishes · Two live song timelines</h2>
@@ -332,6 +379,7 @@ a{color:var(--mint)}
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
 <script src="/toaster/arrangement.js"></script>
+<script src="/toaster/performance-timeline.js"></script>
 <script src="/toaster/track-view.js"></script>
 <script>
 "use strict";
@@ -351,6 +399,7 @@ let blendBoth=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false;
+let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -359,9 +408,10 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:32,liveBus:null,loopBus:null,
  instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
+let fullTimeline=null;
 let arranger=null;
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
@@ -785,6 +835,11 @@ function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function songCycleSteps(which){return decks[which].lengthSteps||16;}
 function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
+function clipActiveAt(layer,bar){
+ const start=Math.max(0,Number(layer.arrStartBar??0));
+ const end=Number(layer.arrEndBar??Number.POSITIVE_INFINITY);
+ return !layer.muted&&bar>=start&&bar<end;
+}
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
  return anchor+Math.max(0,Math.ceil((n-anchor)/length))*length;
@@ -829,6 +884,12 @@ function schedule(time,count){
  if(step===0&&arranger)arranger.onCycle(count/8);
  pulse(time,step);
  if(count%8===0){
+  // Shared bar clock gates real PCM and recorded MIDI on the same beat.
+  for(const d of Object.values(decks))for(const layer of d.layers){
+   if(!layer.buffer||!layer.gain)continue;
+   const level=clipActiveAt(layer,count/8)?.65:0;
+   layer.gain.gain.setValueAtTime(level,time);
+  }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
    tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
@@ -842,7 +903,7 @@ function schedule(time,count){
   if(count<(d.anchorStep||0))continue;
   const songStep=((count-(d.anchorStep||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
   for(const l of d.layers){
-   if(l.muted||l.kind!=="chords")continue;
+   if(l.kind!=="chords"||!clipActiveAt(l,Math.floor(count/8)))continue;
    for(const e of l.events){
     if(e.step===songStep){
       if(e.type==="note"){
@@ -890,12 +951,13 @@ function updateTimeline(){
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
  const t=$("toaster");t.classList.toggle("bop",Math.floor(phase*16)%4===0);
  trackView?.tick();
+ fullTimeline?.update();
 }
 async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
-   releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   releaseAllChords();stopVoiceFollow();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
     recording.finished=true;clearTimeout(recording.watchdog);
     recording.processor.port.postMessage({type:"stop"});
@@ -969,7 +1031,7 @@ function endRecord(){
  if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys"});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(stepNumber/8))});
  renderClips(r.scene);
  tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
 }
@@ -986,6 +1048,7 @@ function renderClips(which){
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
+ fullTimeline?.render();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
@@ -1011,9 +1074,57 @@ async function enableMic(){
 }
 // AudioWorklet captures the raw microphone on Web Audio's render thread.
 // Headroom is applied only to recorded playback, not the Scarlett hardware.
+async function toggleVoiceFollow(){
+ if(followMicNode){stopVoiceFollow();tell("Voice-to-Magenta MIDI steering stopped.");return;}
+ try{
+  if(!aiNativeReady)throw Error("Start Magenta and select its model before using Voice → AI.");
+  await openAudio();
+  const stream=await enableMic();
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Voice follower requires Chrome AudioWorklet.");
+  if(!followModuleReady){await ctx.audioWorklet.addModule("/toaster/voice-follow.js");followModuleReady=true;}
+  followMicSource=ctx.createMediaStreamSource(stream);
+  followMicNode=new AudioWorkletNode(ctx,"suzy-voice-follow",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});
+  followMicSilent=ctx.createGain();followMicSilent.gain.value=0;
+  followMicSource.connect(followMicNode);followMicNode.connect(followMicSilent);
+  followMicSilent.connect(ctx.destination);
+  followMicNode.port.onmessage=e=>{
+   if(e.data?.type!=="pitch")return;
+   const next=e.data.note;
+   if(next===followedMidi)return;
+   if(followedMidi!==null)aiMelody(followedMidi,false);
+   followedMidi=next;
+   $("voiceFollowStatus").textContent=next===null?"LISTENING · sing a sustained note":
+      "VOICE → MRT2 · MIDI "+next+" · "+Math.round((e.data.confidence||0)*100)+"% confidence";
+   if(next!==null&&aiNativeReady)aiMelody(next,true);
+  };
+  $("voiceFollow").textContent="■ STOP VOICE → MAGENTA";
+  $("voiceFollowStatus").textContent="LISTENING · sustained sung notes guide instrumental generation";
+ }catch(e){stopVoiceFollow();warn(e)}
+}
+function stopVoiceFollow(){
+ if(followedMidi!==null){aiMelody(followedMidi,false);followedMidi=null;}
+ try{followMicNode?.port.postMessage({type:"stop"});}catch{}
+ try{followMicSource?.disconnect();followMicNode?.disconnect();followMicSilent?.disconnect();}catch{}
+ followMicNode=null;followMicSource=null;followMicSilent=null;
+ $("voiceFollow").textContent="🎙 ENABLE VOICE → MAGENTA";
+ $("voiceFollowStatus").textContent="OFF · model continues independently";
+}
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(recording?.kind==="vocal"&&recording.scene===which&&recording.first){
+  const take=recording;
+  if(take.finishQueued)return tell("Vocal finish is already queued for a bar boundary.");
+  const nextBar=Math.ceil((stepNumber+1)/8)*8;
+  const endStep=Math.min(take.firstStep+take.steps,Math.max(take.firstStep+16,nextBar));
+  take.actualSteps=endStep-take.firstStep;
+  take.finishQueued=true;
+  take.processor.port.postMessage({type:"finish",frames:Math.round(take.actualSteps*tickSeconds()*ctx.sampleRate)});
+  $("vocal-"+which).textContent="🎙 FINISH QUEUED";
+  trackView?.draw();
+  tell("Vocal take will finish after "+(take.actualSteps/8)+" bars. Loop length follows your singing.");
+  return;
+ }
  if(recording)return warn(Error("Finish the current recording first"));
  let source=null,processor=null,silent=null,take=null;
  try{
@@ -1036,28 +1147,37 @@ async function voiceLoop(which){
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
   take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
-        first:!d.locked,firstStep,steps};
+        first:!d.locked,firstStep,steps,actualSteps:null,finishQueued:false};
   recording=take;
-  $("vocal-"+which).textContent="🎙 ARMED";
+  trackView?.draw();
+  $("vocal-"+which).textContent=take.first?"🎙 FINISH FIRST VOICE":"🎙 ARMED · "+bars+" BARS";
   const cleanup=()=>{
    if(take.finished)return false;
    take.finished=true;clearTimeout(take.watchdog);
    try{source.disconnect();processor.disconnect();silent.disconnect()}catch{}
    if(recording===take)recording=null;
+   trackView?.draw();
    $("vocal-"+which).textContent="🎙 LOOP VOICE";
    return true;
   };
   processor.port.onmessage=e=>{
    if(e.data?.type!=="complete"||!cleanup())return;
    const {data,peak,hot,missing}=e.data;
-   if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames)return warn(Error("Vocal capture returned incomplete PCM"));
-   const clip=ctx.createBuffer(1,frames,ctx.sampleRate),dst=clip.getChannelData(0);
+   const receivedFrames=Number(e.data.frames||frames);
+   if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
+      !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
+     return warn(Error("Vocal capture returned incomplete PCM"));
+   const actualSteps=take.first?(take.actualSteps||Math.round(receivedFrames/(ctx.sampleRate*tickSeconds()))):take.steps;
+   const clipFrames=Math.round(actualSteps*tickSeconds()*ctx.sampleRate);
+   if(clipFrames>receivedFrames)return warn(Error("Vocal capture ended short of the requested bar boundary"));
+   const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate),dst=clip.getChannelData(0);
    const headroom=Number($("vocalHeadroom").value)/100;
-   for(let n=0;n<frames;n++)dst[n]=data[n]*headroom;
-   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
-   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
-   if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8};
+   for(let n=0;n<clipFrames;n++)dst[n]=data[n]*headroom;
+   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(clipFrames/3));
+   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
+   if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
+     arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
    $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
@@ -1068,7 +1188,8 @@ async function voiceLoop(which){
   take.watchdog=setTimeout(()=>{
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
-  tell("VOICE armed: "+bars+" bars ("+duration.toFixed(1)+" seconds). First take sets the song cycle, or overdubs follow it.");
+  tell(take.first?"First voice armed. Sing your phrase, then press FINISH FIRST VOICE after at least 2 bars. Max "+bars+" bars.":
+   "Vocal overdub armed for exactly "+bars+" bars on the existing song clock.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
@@ -1081,9 +1202,11 @@ function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=l.muted?0:.65;
+ gain.gain.value=clipActiveAt(l,Math.floor(stepNumber/8))?.65:0;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
+ const when=ctx.currentTime+.025;
+ const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
+ const phase=((when-clipOrigin)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -1105,7 +1228,8 @@ async function importAudio(file){
    d.set(src.subarray(0,Math.min(d.length,src.length)));
   }
   if(!d.locked){d.locked=true;d.lengthSteps=bars*8;d.anchorStep=0;}
-  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars};
+  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars,
+    arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
   tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
@@ -1201,6 +1325,39 @@ arranger=new window.SuzyArrangement({
   }
  }
 });
+fullTimeline=new window.SuzyPerformanceTimeline({
+ decks,
+ getCues:()=>arranger?.cues||[],
+ getStep:()=>stepNumber,
+ getTempo:()=>bpm,
+ onSelect:choose,
+ onEdit:(which,id,start,end)=>{
+  const layer=decks[which].layers.find(l=>l.id===id);
+  if(!layer)return;
+  layer.arrStartBar=start;layer.arrEndBar=end;
+  if(layer.buffer&&stageStarted){
+   const oldSource=layer.source,oldGain=layer.gain,now=ctx.currentTime;
+   // Fade between the old loop phase and the newly dragged arrangement phase.
+   if(oldGain&&oldSource){
+    try{
+     oldGain.gain.cancelScheduledValues(now);
+     oldGain.gain.setValueAtTime(oldGain.gain.value,now);
+     oldGain.gain.linearRampToValueAtTime(0,now+.05);
+     oldSource.stop(now+.08);
+    }catch{}
+   }
+   startLoopAudio(which,layer);
+   if(layer.gain){
+    const target=layer.gain.gain.value;
+    layer.gain.gain.setValueAtTime(0,now);
+    layer.gain.gain.linearRampToValueAtTime(target,now+.06);
+   }
+  }
+  fullTimeline.render();
+  tell(which.toUpperCase()+" "+layer.kind+" enters bar "+(start+1)+
+    " and exits at bar "+end+". Changes apply at the next bar.");
+ }
+});
 trackView=new window.SuzyTrackView({
  decks,select:choose,record,voice:voiceLoop,
  getRecording:()=>recording,getStep:()=>stepNumber,getRunning:()=>stageStarted,
@@ -1214,6 +1371,7 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("voiceFollow").onclick=toggleVoiceFollow;
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{

@@ -68,6 +68,11 @@ class Tracks{
     rec.textContent=recState.active&&!d.locked?"■ FINISH FIRST TAKE":recState.active?"● OVERDUBBING…":"● ARMED";
     rec.classList.add("active");
    }
+   if(recState?.scene===which&&recState.kind==="vocal"){
+    mic.textContent=recState.first?(recState.finishQueued?"🎙 FINISH QUEUED":"■ FINISH FIRST VOICE"):
+      "🎙 VOCAL OVERDUB";
+    mic.classList.add("active");
+   }
    header.append(controls);
    const status=el("div","track-loop-label",d.locked?"LOOP READY · "+bars+" BARS":"FIRST LOOP NOT YET RECORDED");
    status.id="track-loop-label-"+which;header.append(status);

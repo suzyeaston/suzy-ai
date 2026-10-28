@@ -8,6 +8,8 @@ const file = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_pla
 const javascript = file.match(/<script>([\s\S]*?)<\/script>/)[1];
 const arrangementJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_arrangement.js"),"utf8");
 const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_track_view.js"),"utf8");
+const timelineJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_performance_timeline.js"),"utf8");
+const voiceFollowJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_voice_follow.js"),"utf8");
 function rig(){
  const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null};
  const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
@@ -56,7 +58,7 @@ function rig(){
  ];
  class AudioWorkletNode extends AudioNode{
   constructor(context,name,opts){super();this.name=name;this.opts=opts;
-   this.port={onmessage:null,postMessage(){}};calls.worklet=this;}
+   this.port={onmessage:null,postMessage(data){calls.workletMessage=data;}};calls.worklet=this;}
  }
  const env={
   document:doc,console,AudioWorkletNode,
@@ -74,6 +76,7 @@ function rig(){
  vm.createContext(env);
  vm.runInContext(arrangementJS,env,{filename:"toaster_arrangement.js"});
  vm.runInContext(tracksJS,env,{filename:"toaster_track_view.js"});
+ vm.runInContext(timelineJS,env,{filename:"toaster_performance_timeline.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
   const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
@@ -380,4 +383,71 @@ test("native status differentiates bookmark, assets and loaded model from host-r
  assert.match(get("aiDiagnostics").textContent,/not_confirmed/);
  run('aiDisplay({phase:"failed",error:"scope denied"})');
  assert.match(get("aiHostStatus").textContent,/scope denied/);
+});
+
+test("full timeline uses real MIDI/audio clips and gates source play by full-performance bars",async()=>{
+ const {run}=rig();await run("startStop()");
+ const beginning=run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},3)');
+ assert.equal(beginning,false);
+ assert.equal(run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},4)'),true);
+ assert.equal(run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},9)'),false);
+ run('decks.pyramid.layers.push({id:"demo",kind:"chords",muted:false,arrStartBar:4,arrEndBar:10,instrument:"keys",events:[{index:0,step:0,holdSteps:1}]})');
+ run('fullTimeline.render()');
+ const active=run('fullTimeline.totalBars()');
+ assert.ok(active>=32);
+ run('fullTimeline.onEdit("pyramid","demo",8,18)');
+ assert.equal(run("decks.pyramid.layers[0].arrStartBar"),8);
+ assert.equal(run("decks.pyramid.layers[0].arrEndBar"),18);
+ assert.equal(run('clipActiveAt(decks.pyramid.layers[0],12)'),true);
+});
+test("voice-follow module steers existing native model but does not claim synthetic singing",()=>{
+ assert.match(voiceFollowJS,/registerProcessor\("suzy-voice-follow"/);
+ assert.match(voiceFollowJS,/type:"pitch"/);
+ assert.match(file,/id="voiceFollow"/);
+ assert.match(file,/does not create a synthetic singer/);
+ assert.match(javascript,/aiMelody\(next,true\)/);
+ assert.match(javascript,/aiMelody\(followedMidi,false\)/);
+ assert.match(javascript,/fullTimeline=new window.SuzyPerformanceTimeline/);
+ assert.match(javascript,/fullTimeline\?\.render\(\)/);
+ assert.match(javascript,/clipActiveAt\(layer,count\/8\)/);
+});
+
+test("first sung take sets the same bar-quantized master length as keys",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.first"),true);
+ const original=run("recording.firstStep");
+ // Press Finish at the first possible four-bar boundary.
+ run("stepNumber="+(original+32-1));
+ await run('voiceLoop("pyramid")');
+ assert.equal(calls.workletMessage.type,"finish");
+ const takenSteps=run("recording.actualSteps");
+ assert.equal(takenSteps,32);
+ const totalFrames=calls.worklet.opts.processorOptions.frames;
+ const capturedFrames=calls.workletMessage.frames;
+ assert.ok(capturedFrames<totalFrames);
+ calls.worklet.port.onmessage({data:{type:"complete",
+  data:new Float32Array(totalFrames).fill(.25),frames:capturedFrames,
+  peak:.25,hot:0,missing:0}});
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),32);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),capturedFrames);
+ assert.equal(run("decks.pyramid.layers[0].bars"),4);
+});
+test("voice pitch follow recognizes A4 without an octave error",()=>{
+ const events=[];
+ class Base{constructor(){this.port={postMessage:message=>events.push(message),onmessage:null}}}
+ let kind=null;
+ const worker={AudioWorkletProcessor:Base,sampleRate:48000,Float32Array,Math,
+   registerProcessor:(name,type)=>{assert.equal(name,"suzy-voice-follow");kind=type}};
+ vm.runInNewContext(voiceFollowJS,worker,{filename:"toaster_voice_follow.js"});
+ assert.ok(kind);
+ const processor=new kind();
+ let t=0;
+ for(let block=0;block<145;block++){
+  const buffer=new Float32Array(128);
+  for(let n=0;n<128;n++)buffer[n]=.18*Math.sin(2*Math.PI*440*(t++/48000));
+  processor.process([[buffer]]);
+ }
+ assert.ok(events.some(x=>x.type==="pitch"&&x.note===69));
 });

@@ -150,7 +150,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'id="tracks-pyramid"', 'id="tracks-fishes"',
             '/toaster/track-view.js', 'window.SuzyTrackView',
             'songCycleSteps(which)', 'songCycleSeconds(which)',
-            'songPhaseSeconds(which,when)', 'function nextSongBoundary(which,n)',
+            'const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds()', 'function nextSongBoundary(which,n)',
             'r.first', 'recording.endAt', 'firstStep',
             'ctx.sampleRate*120', '"vocal"', 'd.anchorStep=r.beginAt',
             'd.lengthSteps=length', 'Math.min(256',
@@ -181,7 +181,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('first:!d.locked', html)
         self.assertIn('endAt:d.locked?beginAt+d.lengthSteps:null', html)
         self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}', html)
-        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}', html)
+        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}', html)
         self.assertIn('if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}', html)
         self.assertNotIn("createScriptProcessor(1024", html)
         self.assertIn("native_au_ui_visible", html)
@@ -217,6 +217,31 @@ class LiveToasterHttpTests(unittest.TestCase):
                        '"↻ LOOP "+pass', '"BAR "+bar+" / "',
                        'fill.style.width=((phase/length)*100)+"%"'):
             self.assertIn(marker, js)
+
+    def test_full_arrangement_and_local_voice_follow_are_served(self):
+        code, html = self.call("GET", "/toaster/live")
+        self.assertEqual(code, 200)
+        for marker in ('id="fullViewport"', 'id="fullLanes"',
+                       'id="fullPlayhead"', 'id="fullRuler"',
+                       'id="fullZoom"', 'id="fullFit"',
+                       'id="voiceFollow"', '/toaster/performance-timeline.js',
+                       'fullTimeline=new window.SuzyPerformanceTimeline'):
+            self.assertIn(marker, html)
+        for endpoint, markers in (
+            ("/toaster/performance-timeline.js",
+             ("root.SuzyPerformanceTimeline=PerformanceTimeline",
+              "this.onEdit(which,layer.id,start,end)",
+              'block.addEventListener("pointerdown"',
+              'handle.addEventListener("pointerdown"',
+              'this.zoom=clamp(')),
+            ("/toaster/voice-follow.js",
+             ('registerProcessor("suzy-voice-follow"',
+              'this.port.postMessage({type:"pitch",note,confidence})',
+              "Math.sqrt(energy/data.length)"))):
+            status, script = self.call("GET", endpoint)
+            self.assertEqual(status, 200)
+            for marker in markers:
+                self.assertIn(marker, script)
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
