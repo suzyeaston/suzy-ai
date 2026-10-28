@@ -13,6 +13,8 @@ final class MRT2Host {
     private var reverbUnit: AVAudioUnitReverb?
     private var auUIWindow: NSWindow?
     private var auUIRequestPending = false
+    private var auUIError = ""
+    private var auUIRequestCount = 0
     // Set at server launch; never starts a second model instance.
     private let selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
     private var held: [UInt8] = []
@@ -62,6 +64,8 @@ final class MRT2Host {
             "model_load_requested": modelRequested,
             "model_loading_source": selectModelInGoogleUI ? "native_google_au_ui" : "bookmarked_state_request",
             "native_au_ui_requested": auUIRequestPending,
+            "native_au_ui_error": auUIError,
+            "native_au_ui_request_count": auUIRequestCount,
             "native_au_ui_visible": auUIWindow?.isVisible ?? false,
             "native_model_selection_required": selectModelInGoogleUI,
             // Google's AU doesn't expose a public loaded/model-audible getter.
@@ -387,9 +391,14 @@ final class MRT2Host {
     }
     private func showGoogleAUInterface() {
         guard active, let unit = generator else {
-            errorMessage = "Start the native Magenta Audio Unit before opening its model selector."
+            auUIError = "Start the native Magenta Audio Unit before opening its model selector."
             return
         }
+        guard selectModelInGoogleUI else {
+            auUIError = "TOASTER was launched in bookmark mode. Stop the server and restart with SUZY_MRT2_MODEL_VIA_UI=1."
+            return
+        }
+        auUIError = ""
         if let window = auUIWindow {
             window.makeKeyAndOrderFront(nil)
             NSApplication.shared.activate(ignoringOtherApps: true)
@@ -397,13 +406,14 @@ final class MRT2Host {
         }
         if auUIRequestPending { return }
         auUIRequestPending = true
+        auUIRequestCount += 1
         // Request the official UI for the SAME running AU, never a second AU.
         unit.auAudioUnit.requestViewController { [weak self] controller in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.auUIRequestPending = false
                 guard let controller = controller else {
-                    self.errorMessage = "Google MRT2 AU did not provide a native model-selection view."
+                    self.auUIError = "Google MRT2 AU did not return a model-selection view. The AU may not expose its UI to this host."
                     return
                 }
                 let preferred = controller.preferredContentSize
@@ -428,6 +438,7 @@ final class MRT2Host {
         auUIWindow?.close()
         auUIWindow = nil
         auUIRequestPending = false
+        auUIError = ""
         parameter(6, 1)
         engine?.stop()
         engine = nil
