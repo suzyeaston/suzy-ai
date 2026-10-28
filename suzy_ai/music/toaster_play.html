@@ -1139,9 +1139,13 @@ async function timelineStop(){
 }
 async function timelineRewind(){
  if(recording){warn(Error("Finish the take before returning to start."));return;}
- const wasRunning=stageStarted;
+ const wasRunning=stageStarted,wasMonitoring=monitoringVoice;
  await timelineStop();
- if(wasRunning)await startStop();
+ if(wasRunning){
+  await startStop();
+  // Rewinding during a performance should not silently drop the lead mic.
+  if(wasMonitoring&&stageStarted)await startVoiceMonitor();
+ }
  tell(wasRunning?"Browser arrangement restarted at BAR 1.":"Browser playhead returned to BAR 1.");
 }
 function record(which){
