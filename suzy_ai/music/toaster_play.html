@@ -848,13 +848,8 @@ function schedule(time,count){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
-       const osc=ctx.createOscillator(),gain=ctx.createGain();
-       osc.type="triangle";osc.frequency.value=440*Math.pow(2,(pitch-69)/12);
-       gain.gain.setValueAtTime(.0001,start);
-       gain.gain.linearRampToValueAtTime(.08,start+.016);
-       gain.gain.setTargetAtTime(.0001,start+heldSec,.12);
-       osc.connect(gain);gain.connect(decks[which].bus);
-       osc.start(start);osc.stop(start+heldSec+.7);
+       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
+       releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
         const wait=Math.max(0,(time-ctx.currentTime)*1000);
         setTimeout(()=>{if(!aiNativeReady)return;aiMelody(pitch,true);
@@ -862,7 +857,7 @@ function schedule(time,count){
        }
        continue;
       }
-      synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()));
+      synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
        const wait=Math.max(0,(time-ctx.currentTime)*1000);
@@ -973,7 +968,8 @@ function endRecord(){
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
  if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
- d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8});
+ d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
+ instrument:r.events[0]?.instrument||"keys"});
  renderClips(r.scene);
  tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
 }
@@ -987,12 +983,13 @@ function removeSongLayer(which,id){
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
-  const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹":layer.kind==="vocal"?"🎙":"✦")+" Loop "+(i+1);
+  const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
   const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;renderClips(which);};
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
   row.append(name,mute,remove);box.append(row);
@@ -1140,12 +1137,13 @@ async function readAndExport(){
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
       const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+event.step)*tickSeconds();
+      const timbre=INSTRUMENTS[event.instrument]||INSTRUMENTS.keys;
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
-       o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
+       o.type=timbre.wave;o.frequency.value=440*Math.pow(2,(note+d.transpose+timbre.octave-69)/12);
        const end=Math.min(sec*2,time+Math.max(.12,(event.holdSteps||1)*tickSeconds())+.65);
        v.gain.setValueAtTime(.00001,time);
-       v.gain.linearRampToValueAtTime(.20/notes.length,Math.min(end,time+.025));
+       v.gain.linearRampToValueAtTime(.13/notes.length,Math.min(end,time+timbre.attack));
        if(end>time+.05)v.gain.exponentialRampToValueAtTime(.00001,end);
        o.connect(v);v.connect(gain);o.start(time);o.stop(end);
       }
