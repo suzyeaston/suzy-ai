@@ -853,7 +853,9 @@ async function openGoogleModelSelector(){
  try{
   const state=await aiFetch("show-au-ui");
   aiDisplay(state);
-  if(state.native_au_ui_visible){
+  if(state.phase==="initializing"&&state.native_model_selection_required){
+   help.textContent="Restarting native AU in Google model-selection mode. Its window will open when the AU is ready.";
+  }else if(state.native_au_ui_visible){
    help.textContent="Google AU window is open. Select the existing local mrt2_small model inside it.";
   }else if(state.native_au_ui_error){
    help.textContent="MODEL SELECTOR ERROR: "+state.native_au_ui_error;
@@ -899,20 +901,26 @@ function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
- $("aiGoogleModel").disabled=!aiNativeReady || s.native_model_selection_required!==true;
+ // Native AU exists in either mode. A click in bookmark mode switches the SAME
+ // native AU into Google's own picker; never require a Terminal environment flag.
+ $("aiGoogleModel").disabled=!aiNativeReady || s.native_au_ui_requested===true;
  const aiTransport=$("aiTransport");
  aiTransport.disabled=!aiNativeReady;
  aiTransport.dataset.playing=String(s.transport_playing===true);
  aiTransport.textContent=s.transport_playing===true?"⏸ PAUSE AI GENERATION":"▶ START AI GENERATION";
  const help=$("aiModelHelp");
  if(s.native_model_selection_required!==true){
-  help.textContent="Google model selector unavailable in bookmark mode. Stop the TOASTER server and relaunch with SUZY_MRT2_MODEL_VIA_UI=1.";
+  help.textContent=aiNativeReady?
+    "Click OPEN GOOGLE MODEL SELECTOR to switch this native AU to Google's model picker. It restarts the AU once; your browser loops remain intact.":
+    "Starting Magenta. Google model selection unlocks when the native AU is running.";
  }else if(s.native_au_ui_error){
   help.textContent="MODEL SELECTOR ERROR: "+s.native_au_ui_error;
  }else if(s.native_au_ui_visible){
   help.textContent="Google AU window is open. Select the installed mrt2_small model inside it.";
  }else if(s.native_au_ui_requested){
   help.textContent="Requesting Google's Audio Unit interface…";
+ }else if(aiNativeStarting){
+  help.textContent="Switching to Google's model picker · restarting the same native AU. Browser loops are unchanged.";
  }else if((s.native_au_ui_request_count||0)>0){
   help.textContent="Google interface request completed without a visible window. Inspect native AU logs or switch to the official plugin in Logic.";
  }else if(aiNativeReady){
