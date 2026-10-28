@@ -311,7 +311,7 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-pyramid" aria-label="pyramid lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-pyramid">▶ PLAY VIOLIN LEAD</button>
+  <button type="button" id="leadPlay-pyramid">▶ HEAR VIOLIN LEAD</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </div>
 <div class="instrument-tools">
@@ -350,7 +350,7 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-fishes" aria-label="fishes lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-fishes">▶ PLAY CLASSICAL GUITAR LEAD</button>
+  <button type="button" id="leadPlay-fishes">▶ HEAR CLASSICAL GUITAR LEAD</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </div>
 <div class="instrument-tools">
@@ -519,6 +519,9 @@ let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEcho
 let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+let drumMeter="4/4",drumStyle="pulse";
+const DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6});
+const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental"});
 const heldKeys=new Map();
 const heldNotes=new Map();
 const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
@@ -611,17 +614,45 @@ async function syncOutput(){
  try{await ctx.setSinkId($("audioOutput").value||"");tell("Browser audio routed to "+($("audioOutput").selectedOptions[0]?.textContent||"system output"));}
  catch(e){warn(e);}
 }
-function pulse(time,step){
- // Short soft kick on the first eighth of each group, shaker on alternating eighths.
- const acc=scene==="pyramid"?[0,3,6,10,13]:[0,4,8,12];
- const loud=acc.includes(step);
+function setDrumGroove(meter=drumMeter,style=drumStyle){
+ if(!DRUM_STEPS[meter]||!DRUM_STYLES[style])return;
+ drumMeter=meter;drumStyle=style;
+ $("drumMeter").value=meter;$("drumStyle").value=style;
+ $("drumStatus").textContent=meter+" · "+DRUM_STYLES[style]+
+  " · local drum accents. Song loops and arrangement still use the existing 4/4 grid.";
+ tell("DRUM GROOVE · "+meter+" "+DRUM_STYLES[style]+
+  ". Guitar, violin, vocals and Magenta unaffected; loop timeline remains 4/4.");
+}
+function pulse(time,count){
+ // Each drum meter has its OWN accent-cycle length in eighth-note units.
+ // The main 4/4 song/recording timeline is intentionally NOT remapped.
+ const len=DRUM_STEPS[drumMeter],beat=((count%len)+len)%len;
+ const down=beat===0,triplet=drumMeter==="6/8",secondary=triplet?beat===3:beat===Math.floor(len/2);
+ let kick=down,hat=false,snare=false;
+ if(drumStyle==="pulse"){
+  kick=down||(drumMeter==="4/4"&&beat===4);
+  hat=!kick&&(beat%2===1);
+ }else if(drumStyle==="brush"){
+  kick=down;snare=secondary;hat=!kick&&!snare;
+ }else if(drumStyle==="trip"){
+  kick=down||beat===(len>=8?len-3:len-2);
+  snare=secondary&&!kick;hat=beat%2===1&&!kick&&!snare;
+ }else{
+  kick=down||beat===Math.max(1,len-3);
+  snare=beat===Math.max(1,Math.floor(len/2)-1)&&!kick;
+  hat=!kick&&!snare;
+ }
  const o=ctx.createOscillator(),g=ctx.createGain();
- o.type="sine";o.frequency.setValueAtTime(loud?130:690,time);
- o.frequency.exponentialRampToValueAtTime(loud?52:530,time+.065);
+ const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
+ let pitch=hat?720:snare?214:128,duration=hat?.035:snare?.085:.12;
+ o.type=snare?"triangle":"sine";
+ o.frequency.setValueAtTime(pitch,time);
+ o.frequency.exponentialRampToValueAtTime(hat?470:snare?120:55,time+duration*.64);
+ const level=(kick?.24:snare?.11:.036)*amount*(down?1:secondary?.77:.65);
  g.gain.setValueAtTime(.0001,time);
- g.gain.exponentialRampToValueAtTime(loud?.22:.034,time+.004);
- g.gain.exponentialRampToValueAtTime(.0001,time+(loud?.11:.026));
- o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+.14);
+ g.gain.exponentialRampToValueAtTime(Math.max(.002,level),time+.004);
+ g.gain.exponentialRampToValueAtTime(.0001,time+duration);
+ o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+duration+.02);
 }
 // Looped chords are timed synth events; live chords are held until key-up.
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
@@ -667,6 +698,22 @@ function setInstrument(which,instrument){
  if(!INSTRUMENTS[instrument])return;
  decks[which].instrument=instrument;
  tell(which.toUpperCase()+" · new layers: "+INSTRUMENTS[instrument].name+". Recorded layers keep their own sounds.");
+}
+async function auditionLead(which){
+ try{
+  await openAudio();
+  choose(which);
+  const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
+  const now=ctx.currentTime+.03;
+  for(let i=0;i<notes.length;i++){
+   const pitch=notes[i]+d.leadOctave;
+   const at=now+i*.28;
+   const voice=makeVoice(which,pitch,at,d.leadInstrument,.18,true,"lead");
+   releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
+  }
+  tell(which.toUpperCase()+" · previewing "+INSTRUMENTS[d.leadInstrument].name+
+   " with three local notes. This does not trigger native Magenta.");
+ }catch(e){warn(e)}
 }
 function setLead(which,instrument){
  if(!INSTRUMENTS[instrument])return;
@@ -1075,7 +1122,7 @@ function schedule(time,count){
  const step=count%loopSteps;
  if(step===0)applyTempoAtBar(time,count);
  if(step===0&&arranger)arranger.onCycle(count/8);
- pulse(time,step);
+ pulse(time,count);
  if(count%8===0){
   // Shared bar clock gates real PCM and recorded MIDI on the same beat.
   for(const d of Object.values(decks))for(const layer of d.layers){
@@ -1736,7 +1783,7 @@ for(const which of Object.keys(decks)){
  $("lead-"+which).onchange=e=>setLead(which,e.target.value);
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
  $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
- $("leadPlay-"+which).onclick=()=>choose(which);
+ $("leadPlay-"+which).onclick=()=>auditionLead(which);
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);
@@ -1808,6 +1855,8 @@ $("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
+$("drumMeter").onchange=()=>setDrumGroove($("drumMeter").value,$("drumStyle").value);
+$("drumStyle").onchange=()=>setDrumGroove($("drumMeter").value,$("drumStyle").value);
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly?0:val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
