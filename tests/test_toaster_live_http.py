@@ -143,6 +143,49 @@ class LiveToasterHttpTests(unittest.TestCase):
                        "this.data[start+i]=sample", "this.hot++", "currentFrame"):
             self.assertIn(marker, js)
 
+    def test_real_song_track_lanes_and_long_loop_capture(self):
+        status, html = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for literal in (
+            'id="tracks-pyramid"', 'id="tracks-fishes"',
+            '/toaster/track-view.js', 'window.SuzyTrackView',
+            'songCycleSteps(which)', 'songCycleSeconds(which)',
+            'songPhaseSeconds(which,when)', 'function nextSongBoundary(which,n)',
+            'r.first', 'recording.endAt', 'firstStep',
+            'ctx.sampleRate*120', '"vocal"', 'd.anchorStep=r.beginAt',
+            'd.lengthSteps=length', 'Math.min(256',
+            'Export full cycle of one selected song'
+        ):
+            self.assertIn(literal, html)
+        self.assertIn('master cycle. Import this WAV into Logic.', html)
+
+        status, js = self.call("GET", "/toaster/track-view.js")
+        self.assertEqual(status, 200)
+        for literal in (
+            "root.SuzyTrackView=Tracks",
+            '["chords","KEYS"',
+            '["vocal","VOICE"',
+            '["ai","MAGENTA"',
+            '"track-midi-note"', '"track-wave-bar"',
+            "peakBins(layer.buffer)", "this.onRemove(which,layer.id)"
+        ):
+            self.assertIn(literal, js)
+
+        status, worklet = self.call("GET", "/toaster/vocal-capture.js")
+        self.assertEqual(status, 200)
+        self.assertIn("Math.floor(sampleRate*120)", worklet)
+        self.assertIn("this.port.postMessage", worklet)
+
+    def test_first_take_determines_song_cycle_without_resetting_native_au(self):
+        _, html = self.call("GET", "/toaster/live")
+        self.assertIn('first:!d.locked', html)
+        self.assertIn('endAt:d.locked?beginAt+d.lengthSteps:null', html)
+        self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}', html)
+        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}', html)
+        self.assertIn('if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}', html)
+        self.assertNotIn("createScriptProcessor(1024", html)
+        self.assertIn("native_au_ui_visible", html)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
