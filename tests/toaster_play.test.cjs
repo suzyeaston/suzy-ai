@@ -6,31 +6,35 @@ const path = require("node:path");
 const vm = require("node:vm");
 const file = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_play.html"),"utf8");
 const javascript = file.match(/<script>([\s\S]*?)<\/script>/)[1];
+const arrangementJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_arrangement.js"),"utf8");
+const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_track_view.js"),"utf8");
 function rig(){
  const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null};
- const klass=()=>({add(){},remove(){},toggle(){}});
+ const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
  const el=(v="")=>({
-   value:v,textContent:"",style:{},dataset:{},children:[],options:[],
+   value:v,textContent:"",style:{setProperty(name,value){this[name]=value}},dataset:{},children:[],options:[],
    classList:klass(),disabled:false,selectedOptions:[{textContent:"Automatic"}],
    setAttribute(){},addEventListener(){},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
  }
  class AudioContext{
-  constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};}
+  constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};
+   this.audioWorklet={addModule:async src=>{calls.workletModule=src}};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+   createDynamicsCompressor(){return new AudioNode()}
   createBiquadFilter(){return new AudioNode()}
   createBufferSource(){return new AudioNode()}
   createMediaStreamSource(){return new AudioNode()}
@@ -50,8 +54,14 @@ function rig(){
   {kind:"audiooutput",deviceId:"out1",label:"Scarlett Solo USB"},
   {kind:"audiooutput",deviceId:"out2",label:"External Headphones (Built-in)"}
  ];
+ class AudioWorkletNode extends AudioNode{
+  constructor(context,name,opts){super();this.name=name;this.opts=opts;
+   this.port={onmessage:null,postMessage(){}};calls.worklet=this;}
+ }
  const env={
-  document:doc,console,
+  document:doc,console,AudioWorkletNode,
+  localStorage:{getItem(){return null},setItem(){}},
+  confirm:()=>true,
   AudioContext,OfflineAudioContext,Blob,crypto:{randomUUID:()=>String(Math.random())},
   fetch:async (url,opts)=>{calls.midi.push({url,opts});return {ok:true,json:async()=>({})}},
   navigator:{mediaDevices:{enumerateDevices:async()=>io,getUserMedia:async()=>({active:true,getTracks:()=>[{stop(){}}]})}},
@@ -62,6 +72,8 @@ function rig(){
  };
  env.window=env;
  vm.createContext(env);
+ vm.runInContext(arrangementJS,env,{filename:"toaster_arrangement.js"});
+ vm.runInContext(tracksJS,env,{filename:"toaster_track_view.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
   const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
