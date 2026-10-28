@@ -326,7 +326,7 @@ a{color:var(--mint)}
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
 <div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
-<div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullDelete" type="button">DELETE</button>
+<div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullSplit" type="button">SPLIT AT PLAYHEAD</button><button id="fullDelete" type="button">DELETE</button>
 <span id="fullSelection" class="stat">Click a clip to select it. Click a lane to choose the paste destination. Cmd+C / X / V / Delete.</span></div>
 <div class="full-viewport" id="fullViewport">
 <div class="full-labels"><div class="full-label-head">SECTIONS</div>
@@ -1267,7 +1267,8 @@ function startLoopAudio(which,l){
  src.connect(gain);gain.connect(decks[which].voiceBus);
  const when=ctx.currentTime+.025;
  const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
- const phase=((when-clipOrigin)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
+ const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
+ const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -1392,6 +1393,45 @@ fullTimeline=new window.SuzyPerformanceTimeline({
  getStep:()=>stepNumber,
  getTempo:()=>bpm,
  onSelect:choose,
+ onAction:({action,selected,target,clipboard})=>{
+  if(action==="copy")return;
+  if(action==="cut"||action==="delete"){
+   removeSongLayer(selected.which,selected.id);
+   tell(action==="cut"?"Clip cut to clipboard; choose a destination lane/bar and paste.":"Clip deleted.");
+   return;
+  }
+  if(action==="paste"){
+   const original=clipboard.layer,dest=decks[target.which];
+   const start=Math.max(0,Math.min(target.bar,fullTimeline.total-1));
+   const duration=Math.max(1,(original.arrEndBar??fullTimeline.total)-(original.arrStartBar??0));
+   const copy={...original,id:crypto.randomUUID(),source:null,gain:null,muted:false,
+     events:original.events?.map(e=>({...e})),
+     arrStartBar:start,arrEndBar:Math.min(fullTimeline.total,start+duration)};
+   if(!dest.locked){dest.locked=true;dest.lengthSteps=decks[clipboard.which].lengthSteps||16;dest.anchorStep=start*8;}
+   dest.layers.push(copy);
+   if(stageStarted&&copy.buffer)startLoopAudio(target.which,copy);
+   renderClips(target.which);
+   fullTimeline.selected={which:target.which,kind:copy.kind,id:copy.id};
+   tell("Pasted "+copy.kind+" to "+target.which.toUpperCase()+" at bar "+(start+1)+
+     ". Audio remains un-stretched; chord indices use the destination song's harmony.");
+   return;
+  }
+  if(action==="split"){
+   const layer=decks[selected.which].layers.find(l=>l.id===selected.id);
+   if(!layer)return;
+   const start=Math.max(0,Number(layer.arrStartBar??0)),end=Number(layer.arrEndBar??fullTimeline.total);
+   const splitBar=Math.floor(stepNumber/8);
+   if(splitBar<=start||splitBar>=end){tell("Move the playhead inside the selected clip to SPLIT.");return;}
+   const second={...layer,id:crypto.randomUUID(),source:null,gain:null,
+     arrStartBar:splitBar,arrEndBar:end,events:layer.events?.map(e=>({...e})),
+     sourceOffsetBars:(layer.sourceOffsetBars||0)+(splitBar-start)};
+   layer.arrEndBar=splitBar;
+   decks[selected.which].layers.push(second);
+   if(second.buffer&&stageStarted)startLoopAudio(selected.which,second);
+   renderClips(selected.which);
+   tell("Split at bar "+(splitBar+1)+". Both regions can be moved independently.");
+  }
+ },
  onEdit:(which,id,start,end)=>{
   const layer=decks[which].layers.find(l=>l.id===id);
   if(!layer)return;
