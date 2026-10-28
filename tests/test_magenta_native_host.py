@@ -90,7 +90,7 @@ class NativeMRT2Tests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1]
                   / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
         self.assertIn("unit.auAudioUnit.transportStateBlock =", source)
-        self.assertIn("flags?.pointee = hostTransport.load(ordering: .relaxed) ? .moving : []", source)
+        self.assertIn("flags?.pointee = self.transportPlaying.load(ordering: .relaxed) ? .moving : []", source)
         self.assertIn("samplePosition?.pointee = seconds * 48000.0", source)
         self.assertIn('"transport_context_supplied": hostTransportSupplied', source)
         self.assertIn('"transport_moving":', source)
