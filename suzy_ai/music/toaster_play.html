@@ -158,6 +158,30 @@ a{color:var(--mint)}
 .track-loop-label{font:800 11px ui-monospace,monospace;color:var(--mint)}
 .track-loop-badge.loop-flash{color:var(--peach);text-shadow:0 0 5px #ffd8ac}
 @media(max-width:920px){.chord-center #decks{grid-template-columns:1fr}}
+
+/* Scrolling project-length performance grid; deliberately compact on 8 GB Macs. */
+.full-arrangement{border:1px solid #8b7798;border-radius:16px;padding:14px;margin:12px 0;background:#1f1c28;scroll-margin-top:12px}
+.full-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.full-controls label{font-size:10px}
+.full-controls #fullZoom{max-width:120px}
+.full-controls button{padding:8px;font-size:11px}
+.full-viewport{margin:14px 0 7px;border:1px solid #776584;border-radius:11px;display:grid;grid-template-columns:126px minmax(0,1fr);overflow:hidden;background:#121019}
+.full-labels{z-index:2;background:#241e2d;display:flex;flex-direction:column}
+.full-label-head{height:51px;padding:15px 9px;font:750 10px ui-monospace,monospace;border-bottom:1px solid #665777}
+.full-label-row{height:62px;padding:18px 8px;font:750 10px ui-monospace,monospace;border-bottom:1px solid #665777;white-space:nowrap;overflow:hidden}
+.full-scroll{overflow-x:auto;position:relative;min-width:0;scrollbar-color:#866e95 #1c1822;scrollbar-width:thin}
+.full-ruler{height:51px;position:relative;background:#292033;border-bottom:1px solid #7b6385}
+.full-bar-label{position:absolute;top:5px;font:9px ui-monospace,monospace;color:#b6a8bf;border-left:1px solid #7a687c;padding-left:3px;height:14px}
+.full-section{position:absolute;top:24px;height:21px;overflow:hidden;white-space:nowrap;font:700 9px ui-monospace,monospace;color:#fff2e7;padding:3px;border-left:2px solid #f4d3ab}
+.full-section.pyramid{background:#806692}.full-section.fishes{background:#417a82}
+.full-lanes{position:relative}.full-lane{height:62px;position:relative;border-bottom:1px solid #594962;background:repeating-linear-gradient(to right,#ffffff10 0px 1px,transparent 1px 24px)}
+.full-clip{position:absolute;top:8px;height:46px;min-width:5px;box-sizing:border-box;padding:12px 15px 5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:5px;border:1px solid #b99fdb;touch-action:pan-y;cursor:grab;user-select:none;font:800 10px ui-monospace,monospace;color:#fff8eb;background:repeating-linear-gradient(to right,#9878c6 0 76%,#725993 76% 100%);background-size:48px 100%}
+.full-clip.vocal{border-color:#f6b1cc;background:repeating-linear-gradient(to right,#ae688a 0 76%,#864561 76% 100%);background-size:48px 100%}
+.full-clip.ai{border-color:#a2e0d3;background:repeating-linear-gradient(to right,#468d7f 0 76%,#2f6861 76% 100%);background-size:48px 100%}
+.full-clip.is-muted{opacity:.32}.full-clip.moving{outline:2px solid #ffe8ab;cursor:grabbing}
+.full-resize{position:absolute;right:0;top:0;bottom:0;width:13px;background:#fff2dd44;cursor:ew-resize;font-size:16px;display:grid;place-items:center}
+.full-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd75d;pointer-events:none;box-shadow:0 0 5px #ffe28c}
+@media(max-width:670px){.full-viewport{grid-template-columns:92px minmax(0,1fr)}.full-label-row{font-size:8px}.full-label-head{font-size:9px}}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -263,6 +287,18 @@ a{color:var(--mint)}
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
 </div></section>
+<section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
+<div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
+<p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
+<div class="full-controls"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
+<div class="full-viewport" id="fullViewport">
+<div class="full-labels"><div class="full-label-head">SECTIONS</div>
+<div class="full-label-row">PYRAMID · KEYS</div><div class="full-label-row">PYRAMID · VOICE</div><div class="full-label-row">PYRAMID · AI</div>
+<div class="full-label-row">FISHES · KEYS</div><div class="full-label-row">FISHES · VOICE</div><div class="full-label-row">FISHES · AI</div></div>
+<div class="full-scroll"><div class="full-ruler" id="fullRuler"></div><div class="full-lanes" id="fullLanes"></div><div class="full-playhead" id="fullPlayhead"></div></div>
+</div>
+<small class="subtle">This is the full bar-based arrangement. Regions are actual takes; Magenta's native generated music is still a separate output until recorded/imported. Rehearsal changes apply on the next bar, not Logic-sample-accurate.</small>
+</section>
 <section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
 <div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
 <h2>Pyramid & Weird Fishes · Two live song timelines</h2>
@@ -332,6 +368,7 @@ a{color:var(--mint)}
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
 <script src="/toaster/arrangement.js"></script>
+<script src="/toaster/performance-timeline.js"></script>
 <script src="/toaster/track-view.js"></script>
 <script>
 "use strict";
