@@ -16,7 +16,7 @@ function rig(){
  const el=(v="")=>({
    value:v,textContent:"",style:{setProperty(name,value){this[name]=value}},dataset:{},children:[],options:[],
    classList:klass(),disabled:false,selectedOptions:[{textContent:"Automatic"}],
-   setAttribute(){},addEventListener(){},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
+   setAttribute(){},addEventListener(type,fn){this._events??={};(this._events[type]??=[]).push(fn);},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
@@ -27,7 +27,7 @@ function rig(){
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.buffer=null;this.type="";this.stopAt=null}connect(){return this}disconnect(){}start(){}stop(t){this.stopAt=t}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
@@ -79,10 +79,10 @@ function rig(){
  vm.runInContext(timelineJS,env,{filename:"toaster_performance_timeline.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
-  const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
+  const event={key,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
   for(const fn of listeners.get(name)||[])fn(event);
  };
- return {env,get,calls,run:(js)=>vm.runInContext(js,env),emit};
+ return {env,get,calls,pads,run:(js)=>vm.runInContext(js,env),emit};
 }
 test("the musician sees the toaster, one-click beat, two decks and hidden setup",()=>{
  assert.match(file,/Smiling pink toaster/);
@@ -152,41 +152,94 @@ test("export has genuine two-cycle offline audio rendering and WAV header",async
  assert.match(run('$("message").textContent'),/Exported pyramid/);
 });
 
-test("1–4 keyboard works while a button has focus; hold sustains and key-up releases",async()=>{
- const {get,run,emit}=rig();await run("startStop()");
- emit("keydown","1","BUTTON",false);
- assert.equal(run("heldKeys.size"),1);
- assert.equal(run('heldKeys.has("key:1")'),true);
- assert.equal(run("heldKeys.get('key:1').voices.length"),4);
- emit("keydown","1","BUTTON",true);
- assert.equal(run("heldKeys.size"),1,"OS auto-repeat must not retrigger chord");
- run("ctx.currentTime+=1.8");
- emit("keyup","1","BUTTON");
- assert.equal(run("heldKeys.size"),0,"key-up must stop held oscillators");
- emit("keydown","4","BODY");
- assert.equal(run("heldKeys.get('key:4').index"),3);
- emit("keyup","4","BODY");
- assert.equal(run("heldKeys.size"),0);
+test("Z X C V chords work from the computer keyboard, including focused buttons",async()=>{
+ const {run,emit}=rig();await run("startStop()");
+ for(const [i,key] of ["z","x","c","v"].entries()){
+  emit("keydown",key,"BUTTON",false);
+  assert.equal(run("heldKeys.size"),1);
+  assert.equal(run('heldKeys.get("key:'+key+'").index'),i);
+  assert.equal(run('heldKeys.get("key:'+key+'").voices.length'),4);
+  emit("keydown",key,"BUTTON",true);
+  assert.equal(run("heldKeys.size"),1,"OS repeat must not retrigger held chord");
+  emit("keyup",key,"BUTTON");
+  assert.equal(run("heldKeys.size"),0);
+ }
+ emit("keydown","1","BODY");
+ assert.equal(run("heldKeys.size"),0,"number keys do not trigger chords");
+ emit("keyup","1","BODY");
 });
 test("typing in editable controls never triggers chord keydown",async()=>{
  const {run,emit}=rig();await run("startStop()");
- emit("keydown","2","INPUT");
+ emit("keydown","x","INPUT");
  assert.equal(run("heldKeys.size"),0);
- emit("keydown","2","TEXTAREA");
+ emit("keydown","x","TEXTAREA");
  assert.equal(run("heldKeys.size"),0);
- emit("keydown","2","SELECT");
+ emit("keydown","x","SELECT");
  assert.equal(run("heldKeys.size"),0);
- emit("keydown","2","BUTTON");
+ emit("keydown","x","BUTTON");
  assert.equal(run("heldKeys.size"),1);
- emit("keyup","2","BUTTON");
+ emit("keyup","x","BUTTON");
+});
+test("Z X C V still plays immediately after moving a range fader",async()=>{
+ const {run,emit}=rig();await run("startStop()");
+ emit("keydown","x","RANGE");
+ assert.equal(run('heldKeys.get("key:x").index'),1);
+ emit("keyup","x","RANGE");
+ assert.equal(run("heldKeys.size"),0);
+ emit("keydown","z","TEXTAREA");
+ assert.equal(run("heldKeys.size"),0);
+});
+test("rapid mouse click switches chords and each chord has an audible attack",async()=>{
+ const {run,pads}=rig();await run("startStop()");
+ const fire=(el,type,pointerId=1)=>{
+  for(const fn of el._events?.[type]||[])fn({button:0,pointerId,preventDefault(){}});
+ };
+ const first=pads[0],second=pads[1];
+ fire(first,"pointerdown");
+ assert.equal(run("heldKeys.size"),1);
+ const start=run('heldKeys.get("pad:pyramid:0").start');
+ const voice=run('heldKeys.get("pad:pyramid:0").voices[0]');
+ fire(first,"pointerup");
+ assert.equal(run("heldKeys.size"),0);
+ assert.ok(voice.osc.stopAt>=start+.105,"short tap must survive attack");
+ fire(second,"pointerdown");
+ assert.equal(run("heldKeys.get('pad:pyramid:1').index"),1);
+ fire(second,"pointerup");
+ assert.equal(run("heldKeys.size"),0);
+ fire(first,"pointerdown");
+ assert.equal(run("heldKeys.get('pad:pyramid:0').index"),0);
+ fire(first,"pointercancel");
+ assert.equal(run("heldKeys.size"),0);
+});
+test("second mouse pointer-down retriggers after missing pointer-up",async()=>{
+ const {run,pads}=rig();await run("startStop()");
+ const e={button:0,pointerId:7,preventDefault(){}};
+ pads[0]._events.pointerdown[0](e);
+ const before=run('heldKeys.get("pad:pyramid:0").voices[0]');
+ // Simulate dropped mouse-up event. A fresh press must not be ignored.
+ pads[0]._events.pointerdown[0](e);
+ const after=run('heldKeys.get("pad:pyramid:0").voices[0]');
+ assert.notEqual(before,after);
+ assert.equal(run("heldKeys.size"),1);
+ pads[0]._events.pointerup[0](e);
+ assert.equal(run("heldKeys.size"),0);
+});
+test("short ambient-pad tap reaches its slower attack before stopping",async()=>{
+ const {run,pads}=rig();await run("startStop()");
+ run('setInstrument("pyramid","pad")');
+ pads[2]._events.pointerdown[0]({button:0,pointerId:3,preventDefault(){}});
+ const start=run('heldKeys.get("pad:pyramid:2").start');
+ const voice=run('heldKeys.get("pad:pyramid:2").voices[0]');
+ pads[2]._events.pointerup[0]();
+ assert.ok(voice.osc.stopAt>=start+.275,"pad attack must finish on quick clicks");
 });
 test("manual hold length is retained by event loops and renders sustained chord envelopes",async()=>{
  const {run,emit}=rig();await run("startStop()");
  run('record("pyramid")');
  run("ctx.currentTime=5;scheduler()");
- emit("keydown","1","BUTTON");
+ emit("keydown","z","BUTTON");
  run("ctx.currentTime+=1.2");
- emit("keyup","1","BUTTON");
+ emit("keyup","z","BUTTON");
  run('record("pyramid")'); // finish first take at a bar boundary
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
