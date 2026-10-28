@@ -222,6 +222,17 @@ a{color:var(--mint)}
 .lead-controls button{background:#98d9c5;color:#21312e;min-height:39px;padding:9px 12px}
 .drum-options{display:grid;gap:6px}.drum-options label{font:700 10px ui-monospace,monospace;color:#d6d1de}
 .drum-options select{width:100%;max-width:260px}.drum-options small{line-height:1.4}
+.lead-progress{display:grid;gap:8px;margin:6px 0;padding:8px 0;border-top:1px solid #625778}
+.lead-progress-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font:750 11px ui-monospace,monospace}
+.lead-progress-head span{color:#afe8d8}
+.lead-pad-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.lead-pad{min-height:70px;padding:8px 5px;display:grid;gap:5px;justify-items:center;background:#39475a;color:#f5eadf;border:1px solid #87a9ae;border-radius:9px;cursor:pointer}
+.lead-pad:active,.lead-pad.active{background:#7299a8;color:#17272c}
+.lead-pad kbd{font-size:11px}.lead-pad span{font-size:11px;font-weight:700}
+.harmonic-toggle{font:600 11px system-ui;display:flex;gap:7px;align-items:center}
+.lead-prompt-label{font:700 10px ui-monospace,monospace}
+.lead-prompt{width:100%;min-height:55px;font:500 12px system-ui;box-sizing:border-box;background:#1a1723;border:1px solid #6c6579;color:#fff;border-radius:8px;padding:9px}
+.record-hint{font:700 11px ui-monospace,monospace;color:#a7e8d5;max-width:220px;line-height:1.4}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -300,6 +311,20 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
 <div class="song-lead-panel" aria-label="pyramid independent lead instrument">
+<div class="lead-progress" aria-label="pyramid harmonized lead pads">
+ <div class="lead-progress-head"><strong>🎼 MELODY OVER EACH CHORD</strong><span id="harmonyLabel-pyramid">FOLLOW Z · chord tones</span></div>
+ <div class="lead-pad-row">
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="0"><kbd>OVER Z</kbd><span id="leadChord-pyramid-0">Play lead 1</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="1"><kbd>OVER X</kbd><span id="leadChord-pyramid-1">Play lead 2</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="2"><kbd>OVER C</kbd><span id="leadChord-pyramid-2">Play lead 3</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="3"><kbd>OVER V</kbd><span id="leadChord-pyramid-3">Play lead 4</span></button>
+ </div>
+ <label class="harmonic-toggle"><input id="harmonicLock-pyramid" type="checkbox" checked> Keep A–K melody in the current chord's notes</label>
+ <label class="harmonic-toggle"><input id="leadToAI-pyramid" type="checkbox"> Send these lead phrases to Magenta MIDI too (experimental)</label>
+ <label for="leadPrompt-pyramid" class="lead-prompt-label">MAGENTA LEAD TIMBRE · applied when restarting AI</label>
+ <textarea id="leadPrompt-pyramid" class="lead-prompt" maxlength="180">Warm bowed violin harmonics, intimate vibrato, slow sustained chamber-string swells over suspended piano harmony.</textarea>
+ <label class="harmonic-toggle"><input id="includeLeadPrompt-pyramid" type="checkbox"> Include this description in the existing Pyramid Magenta prompt at next AI start (not a second model)</label>
+ </div>
  <div class="lead-head">✧ PLAYABLE LEAD · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
@@ -325,7 +350,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><span class="record-hint" id="recordHint-pyramid">Ready · record next bar · tap again to finish</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -339,6 +364,20 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
 <div class="song-lead-panel" aria-label="fishes independent lead instrument">
+<div class="lead-progress" aria-label="fishes harmonized lead pads">
+ <div class="lead-progress-head"><strong>🎼 MELODY OVER EACH CHORD</strong><span id="harmonyLabel-fishes">FOLLOW Z · chord tones</span></div>
+ <div class="lead-pad-row">
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="0"><kbd>OVER Z</kbd><span id="leadChord-fishes-0">Play lead 1</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="1"><kbd>OVER X</kbd><span id="leadChord-fishes-1">Play lead 2</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="2"><kbd>OVER C</kbd><span id="leadChord-fishes-2">Play lead 3</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="3"><kbd>OVER V</kbd><span id="leadChord-fishes-3">Play lead 4</span></button>
+ </div>
+ <label class="harmonic-toggle"><input id="harmonicLock-fishes" type="checkbox" checked> Keep A–K melody in the current chord's notes</label>
+ <label class="harmonic-toggle"><input id="leadToAI-fishes" type="checkbox"> Send these lead phrases to Magenta MIDI too (experimental)</label>
+ <label for="leadPrompt-fishes" class="lead-prompt-label">MAGENTA LEAD TIMBRE · applied when restarting AI</label>
+ <textarea id="leadPrompt-fishes" class="lead-prompt" maxlength="180">Gentle nylon-string classical guitar, fingerpicked arpeggios, airy string resonance and understated rhythmic articulation.</textarea>
+ <label class="harmonic-toggle"><input id="includeLeadPrompt-fishes" type="checkbox"> Include this description in the existing Weird Fishes Magenta prompt at next AI start (not a second model)</label>
+ </div>
  <div class="lead-head">✧ PLAYABLE LEAD · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
@@ -364,7 +403,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><span class="record-hint" id="recordHint-fishes">Ready · record next bar · tap again to finish</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -533,7 +572,7 @@ let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=fals
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,harmonyIndex:0,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
@@ -663,7 +702,8 @@ function pulse(time,count){
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
 function makeVoice(which,pitch,time,instrument,peak,live,role="chord"){
  const preset=INSTRUMENTS[instrument]||INSTRUMENTS.keys;
- const freq=440*Math.pow(2,(pitch+decks[which].transpose+preset.octave-69)/12);
+ const transpose=role==="lead"?0:decks[which].transpose;
+ const freq=440*Math.pow(2,(pitch+transpose+preset.octave-69)/12);
  const gain=ctx.createGain(),osc=ctx.createOscillator(),soft=ctx.createOscillator(),og=ctx.createGain();
  osc.type=preset.wave;osc.frequency.value=freq;
  soft.type=preset.overtone;soft.frequency.value=freq*2;og.gain.value=preset.mix;
@@ -722,7 +762,7 @@ async function auditionLead(which){
   const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
   const now=ctx.currentTime+.03;
   for(let i=0;i<notes.length;i++){
-   const pitch=notes[i]+d.leadOctave;
+   const pitch=notes[i]+d.leadOctave+d.transpose;
    const at=now+i*.28;
    const voice=makeVoice(which,pitch,at,d.leadInstrument,.18,true,"lead");
    releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
@@ -742,6 +782,7 @@ function setLeadOctave(which,value){
  const n=Number(value);if(![-12,0,12].includes(n))return;
  decks[which].leadOctave=n;
  $("leadOctave-"+which).value=String(n);
+ updateHarmony(which,decks[which].harmonyIndex);
  tell(which.toUpperCase()+" · lead register "+(n>0?"+":"")+n+" semitones.");
 }
 function setLeadLevel(which,value){
@@ -920,7 +961,14 @@ async function aiStatus(){
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
 }
 function getPromptStrings(){
- const prompts=[$("promptPyramid").value.trim(),$("promptFishes").value.trim()];
+ // MRT2 exposes TWO prompt slots (one per song), not independent lead AUs.
+ // Preserve the proven original sound unless the performer opts into adding
+ // a lead-timbre description on the next explicit AI start/restart.
+ const prompts=["pyramid","fishes"].map(which=>{
+  const base=$(which==="pyramid"?"promptPyramid":"promptFishes").value.trim();
+  const lead=$("includeLeadPrompt-"+which).checked?$("leadPrompt-"+which).value.trim():"";
+  return lead?base+". "+lead:base;
+ });
  if(prompts.some(p=>!p||p.length>500))throw Error("Enter two AI prompts, maximum 500 characters each");
  return prompts;
 }
@@ -1014,12 +1062,64 @@ function choose(which){
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
  tell(which==="pyramid"?"PYRAMID · use Z X C V for chords":"WEIRD FISHES · use Z X C V for chords");
 }
+const MIDI_NAMES=Object.freeze(["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"]);
+function noteName(midi){return MIDI_NAMES[((midi%12)+12)%12]+(Math.floor(midi/12)-1)}
+function chordLeadNotes(which,index){
+ const d=decks[which],base=SCENES[which].notes[index].map(n=>n+d.transpose+d.leadOctave);
+ // Original song chord tones, moved to a comfortable melodic register.
+ // Retain each chord's actual intervals. The pattern wraps through octaves.
+ const out=[...base].sort((a,b)=>a-b);
+ while(out[0]<60+d.leadOctave)for(let i=0;i<out.length;i++)out[i]+=12;
+ return out;
+}
+function leadKeyboardMidi(which,rawMidi){
+ const d=decks[which],index=Math.max(0,Math.min(12,rawMidi-60));
+ if(!$("harmonicLock-"+which).checked)return rawMidi+d.leadOctave;
+ const chord=chordLeadNotes(which,d.harmonyIndex);
+ return chord[index%chord.length]+12*Math.floor(index/chord.length);
+}
+function updateHarmony(which,index){
+ const d=decks[which];d.harmonyIndex=index;
+ const chord=chordLeadNotes(which,index);
+ $("harmonyLabel-"+which).textContent="FOLLOW "+["Z","X","C","V"][index]+
+  " · "+SCENES[which].names[index]+" · "+chord.map(noteName).join(" ");
+ for(let i=0;i<4;i++){
+  const names=chordLeadNotes(which,i).map(noteName);
+  $("leadChord-"+which+"-"+i).textContent=SCENES[which].names[i]+" · "+names.slice(0,2).join(" ");
+ }
+}
+function playLeadPhrase(which,index){
+ if(!ctx||!stageStarted)return warn(Error("Start PLAY RHYTHM before playing or looping lead phrases."));
+ choose(which);updateHarmony(which,index);
+ const d=decks[which],notes=chordLeadNotes(which,index),inst=d.leadInstrument;
+ const initial=ctx.currentTime+.022,spacing=inst==="violin"?.31:.21,hold=inst==="violin"?.46:.19;
+ for(let i=0;i<4;i++){
+  const midi=notes[i%notes.length],at=initial+i*spacing;
+  const voice=makeVoice(which,midi,at,inst,.12,true,"lead");
+  releaseVoice(voice,at+hold);
+  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
+   const step=Math.round((at-recording.start)/tickSeconds());
+   // Event timestamps are relative to the same recording clock as chord pads.
+   if(step>=0&&step<256)recording.events.push({step,midi,holdSteps:hold/tickSeconds(),type:"note",instrument:inst});
+  }
+  if(aiNativeReady&&$("leadToAI-"+which).checked){
+   const rev=seekRevision,delay=Math.max(0,(at-ctx.currentTime)*1000);
+   setTimeout(()=>{
+    if(rev!==seekRevision||!aiNativeReady)return;
+    aiMelody(midi,true);
+    setTimeout(()=>{if(rev===seekRevision)aiMelody(midi,false)},hold*1000);
+   },delay);
+  }
+ }
+ tell(which.toUpperCase()+" "+INSTRUMENTS[inst].name+" · "+SCENES[which].names[index]+
+  " · "+notes.map(noteName).join(" ")+" · click LOOP MY CHORDS to record.");
+}
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
  // A fresh pointer-down or nonrepeating key-down must always articulate.
  // Recover from a lost pointer-up instead of silently ignoring the new tap.
  if(heldKeys.has(key))endChord(key);
- choose(which);
+ choose(which);updateHarmony(which,index);
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
  for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
@@ -1059,9 +1159,9 @@ function beginNote(midi,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM first"));
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
- const playedMidi=midi+d.leadOctave;
+ const playedMidi=leadKeyboardMidi(scene,midi);
  const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
- const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
+ const h={voice,midi:playedMidi,rawMidi:midi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi:playedMidi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
@@ -1078,7 +1178,7 @@ function endNote(key){
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
-  if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
+  if(Number(el.dataset.note)===h.rawMidi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.rawMidi===h.rawMidi));
  });
 }
 function releaseAllChords(){
@@ -1148,7 +1248,8 @@ function schedule(time,count){
   }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
-   tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
+   tell("● RECORDING "+recording.scene.toUpperCase()+" · play chords or lead phrases NOW!");
+   $("recordHint-"+recording.scene).textContent="● RECORDING · LIVE CAPTURE · press FINISH to set length";
    $("record-"+recording.scene).textContent=recording.first?"■ FINISH FIRST TAKE":"● OVERDUBBING…";
    trackView?.draw();
   }else if(recording?.kind==="chords"&&recording.active&&count>=(recording.endAt??recording.beginAt+256)){
@@ -1165,7 +1266,7 @@ function schedule(time,count){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
-       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
+       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false,"lead");
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
         const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
@@ -1177,6 +1278,7 @@ function schedule(time,count){
        }
        continue;
       }
+      if(which===scene)updateHarmony(which,e.index);
       synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
@@ -1339,23 +1441,29 @@ function record(which){
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish current take first."));
   if(!recording.active){
-   recording=null;$("record-"+which).textContent="● LOOP MY CHORDS";$("record-"+which).classList.remove("armed");
-   trackView?.draw();tell("Armed take cancelled.");return;
+   const startBar=Math.floor(recording.beginAt/8)+1;
+   $("recordHint-"+which).textContent="ARMED · waiting for BAR "+startBar+
+     " · play after the count-in · press FINISH when recording";
+   tell("Armed, not yet recording. Starts at BAR "+startBar+
+     " (next bar). Wait for red RECORDING, then play Z X C V or the lead pads.");
+   return;
   }
   if(!d.locked){
    recording.endAt=Math.min(recording.beginAt+256,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
    $("record-"+which).textContent="■ FINISH QUEUED";
+   $("recordHint-"+which).textContent="FINISH QUEUED · creating loop at next bar boundary";
    tell("Finishing at bar boundary. The first phrase sets the "+which+" loop length.");
   }else tell("Overdub finishes at the master loop boundary.");
   return;
  }
  choose(which);
- const beginAt=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+ const beginAt=Math.ceil((stepNumber+1)/8)*8; // NEXT BAR instead of 2 bars / full song cycle
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:d.locked?beginAt+d.lengthSteps:null};
- $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
+ $("record-"+which).classList.add("armed");$("record-"+which).textContent="◉ ARMING BAR "+(Math.floor(beginAt/8)+1);
+ $("recordHint-"+which).textContent="WAIT · starts BAR "+(Math.floor(beginAt/8)+1)+" · play then finish";
  trackView?.draw();
- tell(d.locked?"Overdub armed for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE ARMED. Play, then press FINISH after 2–32 bars.");
+ tell(d.locked?"Overdub starts NEXT BAR for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE starts NEXT BAR. Play chords or lead phrases, then press FINISH after 2–32 bars.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -1375,12 +1483,14 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
+ $("recordHint-"+r.scene).textContent="Loop ready · play or overdub on next bar";
+ if(!r.events.length){trackView?.draw();tell("No notes captured. Press LOOP MY CHORDS, wait for RECORDING, then play Z X C V or the lead pads.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(stepNumber/8))});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(r.beginAt/8))});
  renderClips(r.scene);
- tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
+ tell("↻ SAVED "+(length/8)+"-bar "+r.scene+" loop with "+r.events.length+
+  " notes/chords. Next cycle replays it beneath your live violin/guitar and vocal.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
@@ -1667,7 +1777,7 @@ async function readAndExport(){
       const timbre=INSTRUMENTS[event.instrument]||INSTRUMENTS.keys;
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
-       o.type=timbre.wave;o.frequency.value=440*Math.pow(2,(note+d.transpose+timbre.octave-69)/12);
+       o.type=timbre.wave;o.frequency.value=440*Math.pow(2,(note+(event.type==="note"?0:d.transpose)+timbre.octave-69)/12);
        const end=Math.min(sec*2,time+Math.max(.12,(event.holdSteps||1)*tickSeconds())+.65);
        v.gain.setValueAtTime(.00001,time);
        v.gain.linearRampToValueAtTime(.13/notes.length,Math.min(end,time+timbre.attack));
@@ -1843,6 +1953,10 @@ for(const which of Object.keys(decks)){
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
  $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
  $("leadPlay-"+which).onclick=()=>auditionLead(which);
+ $("harmonicLock-"+which).onchange=()=>tell(which.toUpperCase()+
+  ($("harmonicLock-"+which).checked?" · A–K now follows selected chord tones.":" · A–K chromatic melody restored."));
+ $("includeLeadPrompt-"+which).onchange=()=>tell("Native AI prompts are not updated until APPLY PROMPTS. Local lead pads already work.");
+ updateHarmony(which,0);
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);
@@ -1860,6 +1974,10 @@ for(const k of Object.keys(decks)){
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
  $("voice-"+k).oninput=()=>{$("voiceNum-"+k).textContent=$("voice-"+k).value+"%";updateMix()};
 }
+document.querySelectorAll(".lead-pad").forEach(el=>{
+ const which=el.dataset.leadScene,index=Number(el.dataset.leadChord);
+ el.onclick=()=>playLeadPhrase(which,index);
+});
 // Buttons keep focus after clicking. Ignore only *editable* fields, not BUTTON.
 // Capture keyup as well as keydown so sustain always ends, even after switching decks.
 document.querySelectorAll(".pad").forEach(el=>{

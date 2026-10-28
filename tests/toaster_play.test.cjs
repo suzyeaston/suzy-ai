@@ -21,12 +21,17 @@ function rig(){
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
- "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));
+ if(id.startsWith("harmonicLock-"))nodes.get(id).checked=true;
+ if(id.startsWith("includeLeadPrompt-"))nodes.get(id).checked=false;
+ }return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
+ const leadPads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>
+    Object.assign(el(),{dataset:{leadScene:scene,leadChord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
-  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
+  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".lead-pad"?leadPads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
  class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null;this.startAt=null;this.startOffset=null}connect(){return this}disconnect(){}start(t,offset){this.startAt=t;this.startOffset=offset}stop(t){this.stopAt=t}}
  class AudioBuffer{
@@ -84,7 +89,7 @@ function rig(){
   const event={key,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
   for(const fn of listeners.get(name)||[])fn(event);
  };
- return {env,get,calls,pads,run:(js)=>vm.runInContext(js,env),emit};
+ return {env,get,calls,pads,leadPads,run:(js)=>vm.runInContext(js,env),emit};
 }
 test("the musician sees the toaster, one-click beat, two decks and hidden setup",()=>{
  assert.match(file,/Smiling pink toaster/);
@@ -334,8 +339,8 @@ test("polyphonic melody keyboard A W S E D F T G Y H U J K sends native MIDI per
  emit("keydown","a","BUTTON");
  emit("keydown","w","BUTTON");
  assert.equal(run("heldNotes.size"),2);
- assert.equal(run('heldNotes.get("key-note:a").midi'),60);
- assert.equal(run('heldNotes.get("key-note:w").midi'),61);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),66);
+ assert.equal(run('heldNotes.get("key-note:w").midi'),70);
  emit("keyup","a","BUTTON");
  assert.equal(run("heldNotes.size"),1);
  emit("keyup","w","BUTTON");
@@ -425,7 +430,7 @@ test("each song has an independently playable lead under the Z/X/C/V chord pads"
  emit("keyup","z");
  emit("keydown","a");
  assert.equal(run('heldNotes.get("key-note:a").instrument'),"violin");
- assert.equal(run('heldNotes.get("key-note:a").midi'),60);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),66);
  emit("keyup","a");
  run('choose("fishes")');
  emit("keydown","a");
@@ -442,7 +447,7 @@ test("per-song lead register and volume do not transpose chord pads or change pr
  assert.equal(run("decks.pyramid.leadBus.gain.value"),.4);
  assert.equal(run("decks.fishes.leadBus.gain.value"),.72);
  emit("keydown","a");
- assert.equal(run('heldNotes.get("key-note:a").midi'),72);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),78);
  emit("keyup","a");
  emit("keydown","z");
  assert.equal(run('heldKeys.get("key:z").instrument'),"keys");
@@ -785,4 +790,72 @@ test("ruler navigation supports arrows, Home and End without modifying recorded 
  key("Home");assert.equal(run("parkedBar"),0);
  key("End");assert.equal(run("parkedBar"),run("fullTimeline.total")-1);
  key("ArrowLeft");assert.equal(run("parkedBar"),run("fullTimeline.total")-2);
+});
+
+
+test("two aligned rows of lead pads use actual chord tones, not random chromatic notes",async()=>{
+ const {run,leadPads,get}=rig();await run("startStop()");
+ assert.equal(leadPads.length,8);
+ assert.equal(run('chordLeadNotes("pyramid",0).length'),4);
+ assert.equal(run('chordLeadNotes("fishes",2).length'),4);
+ assert.equal(run("decks.pyramid.harmonyIndex"),0);
+ leadPads[2].onclick();
+ assert.equal(run("decks.pyramid.harmonyIndex"),2);
+ assert.match(get("harmonyLabel-pyramid").textContent,/FOLLOW C.*A6/);
+ assert.ok(run("decks.pyramid.layers.length")===0,"a lead pad alone does not pretend to record a loop");
+ leadPads[6].onclick();
+ assert.equal(run("scene"),"fishes");
+ assert.equal(run("decks.fishes.harmonyIndex"),2);
+ assert.match(get("harmonyLabel-fishes").textContent,/FOLLOW C.*A /);
+});
+test("chord tone lock and chromatic mode are independent per song and transpose once",async()=>{
+ const {get,run,emit}=rig();await run("startStop()");
+ run('beginChord("pyramid",1,"pad:pyramid:1")');
+ emit("keydown","a");
+ const original=run('heldNotes.get("key-note:a").midi');
+ assert.equal(original,run('chordLeadNotes("pyramid",1)[0]'));
+ emit("keyup","a");run('endChord("pad:pyramid:1")');
+ run('setKey("pyramid",2)');
+ emit("keydown","a");
+ assert.equal(run('heldNotes.get("key-note:a").midi'),original+2);
+ emit("keyup","a");
+ get("harmonicLock-pyramid").checked=false;
+ emit("keydown","a");
+ assert.equal(run('heldNotes.get("key-note:a").midi'),60);
+ emit("keyup","a");
+ run('choose("fishes")');
+ assert.equal(get("harmonicLock-fishes").checked,true);
+});
+test("lead phrases are recorded into original MIDI loop and align to first-take start bar",async()=>{
+ const {get,run,leadPads}=rig();await run("startStop()");
+ run('record("pyramid")');
+ const begin=run("recording.beginAt");
+ assert.equal(begin%8,0,"first take must arm at NEXT BAR");
+ assert.equal(begin,8);
+ assert.match(get("recordHint-pyramid").textContent,/WAIT/);
+ // Clicking twice before start does not silently erase the armed take.
+ run('record("pyramid")');assert.equal(run("recording.beginAt"),begin);
+ run("ctx.currentTime=4;scheduler()");
+ assert.equal(run("recording.active"),true);
+ leadPads[0].onclick();
+ assert.equal(run("recording.events.length"),4);
+ assert.equal(run("recording.events[0].type"),"note");
+ assert.equal(run("recording.events[0].instrument"),"violin");
+ run('record("pyramid")');
+ run("ctx.currentTime=10;scheduler()");
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.equal(run("decks.pyramid.layers[0].events.length"),4);
+ assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
+ assert.match(get("recordHint-pyramid").textContent,/Loop ready/);
+});
+test("native AI lead descriptions are opt in and do not create a second plugin",()=>{
+ const {run,get}=rig();
+ const original=run("getPromptStrings()[0]");
+ assert.equal(original,"piano and strings");
+ get("includeLeadPrompt-pyramid").checked=true;
+ get("leadPrompt-pyramid").value="Warm bowed violin over suspended chords";
+ const next=run("getPromptStrings()[0]");
+ assert.match(next,/piano and strings.*Warm bowed violin/);
+ assert.equal(run("getPromptStrings().length"),2);
+ assert.equal(run("getPromptStrings()[1]"),"guitar arpeggios");
 });
