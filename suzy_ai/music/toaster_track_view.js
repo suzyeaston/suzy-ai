@@ -1,137 +1,208 @@
-/* SUZY//TOAST Tracks: visible real loop regions, one cycle per song.
- * Designed for performance, not a mock DAW. Clip widths reflect stored takes.
- * No new model, no network, no fake AI audio, no redundant audio clock.
+/* TOASTER // CHORDS FIRST
+ * A compact Logic-inspired arrangement for two song-length loop cycles.
+ * Regions display real MIDI events or buffered PCM. Dragging (or arrows)
+ * shifts ACTUAL playback phase on the shared clock, snapped to whole bars.
  */
 (function(root){
 "use strict";
 const $=id=>root.document.getElementById(id);
-const ORDER=["pyramid","fishes"];
-const LANES=[
-  ["chords","KEYS","🎹"],
-  ["vocal","VOICE","🎙"],
-  ["ai","MAGENTA","✦"]
-];
+const SONGS=[["pyramid","01 · PYRAMID"],["fishes","02 · WEIRD FISHES"]];
+const LANES=[["chords","KEYS","🎹"],["vocal","VOICE","🎙"],["ai","MAGENTA","✦"]];
+const mod=(n,m)=>((n%m)+m)%m;
+const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
 function el(tag,cls,text){
  const n=root.document.createElement(tag);
  if(cls)n.className=cls;
  if(text!==undefined)n.textContent=String(text);
  return n;
 }
-function peakBins(buffer,count=44){
- if(!buffer||!buffer.numberOfChannels)return [];
+function bins(buffer,count=80){
+ if(!buffer?.numberOfChannels)return [];
  const ch=buffer.getChannelData(0),out=[];
  for(let i=0;i<count;i++){
-  const start=Math.floor(i*ch.length/count),end=Math.floor((i+1)*ch.length/count);
-  let peak=0;
-  const stride=Math.max(1,Math.floor((end-start)/80));
-  for(let j=start;j<end;j+=stride)peak=Math.max(peak,Math.abs(ch[j]));
+  const a=Math.floor(i*ch.length/count),b=Math.ceil((i+1)*ch.length/count);
+  let peak=0,delta=Math.max(1,Math.floor((b-a)/80));
+  for(let j=a;j<b&&j<ch.length;j+=delta)peak=Math.max(peak,Math.abs(ch[j]));
   out.push(Math.min(100,Math.round(peak*100)));
  }
  return out;
 }
-class Tracks{
- constructor({decks,select,record,voice,onMute,onRemove,getRecording,getStep,getRunning}){
+class TrackView {
+ constructor({decks,select,record,voice,onMute,onRemove,onShift,getRecording,getStep,getRunning}){
   this.decks=decks;this.select=select;this.record=record;this.voice=voice;
-  this.onMute=onMute;this.onRemove=onRemove;this.getRecording=getRecording;
-  this.getStep=getStep;this.getRunning=getRunning;
+  this.onMute=onMute;this.onRemove=onRemove;this.onShift=onShift;
+  this.getRecording=getRecording;this.getStep=getStep;this.getRunning=getRunning;
   this.draw();
  }
  draw(){
-  for(const which of ORDER){
-   const d=this.decks[which],bars=(d.lengthSteps||16)/8;
-   const column=$("tracks-"+which);if(!column)continue;column.replaceChildren();
-   const header=el("div","track-top");
-   const title=el("div","track-title",which==="pyramid"?"01 · PYRAMID":"02 · WEIRD FISHES");
-   const badge=el("span","track-loop-badge",d.locked?bars+"-BAR MASTER LOOP":"FIRST LOOP SETS LENGTH");
-   header.append(title,badge);
+  for(const [which,title] of SONGS){
+   const d=this.decks[which],length=d.lengthSteps||16,bars=length/8;
+   const col=$("tracks-"+which);if(!col)continue;
+   col.replaceChildren();
+   const head=el("div","track-top");
+   const heading=el("div","track-heading");
+   heading.append(el("div","track-title",title),
+     el("span","track-loop-badge",d.locked?bars+"-BAR LOOP":"FIRST TAKE SETS LOOP"));
+   head.append(heading);
+   const padSlot=el("div","track-pad-slot");
+   padSlot.id="track-pad-slot-"+which;
+   head.append(padSlot);
+   col.append(head);
+   // MOVES the existing pads, not clones. Their original pointer/MIDI handlers
+   // still work, and keyboard keys 1–4 still play the selected song.
+   const existing=$("pads-"+which);
+   if(existing){existing.classList.add("track-main-pads");padSlot.append(existing);}
    const controls=el("div","track-controls");
-   const select=el("button","track-select","↳ PLAY SONG");
-   select.type="button";select.onclick=()=>this.select(which);
-   const rec=el("button","track-record","● KEYS");
+   const play=el("button","track-select","▶ SELECT");
+   play.type="button";play.onclick=()=>this.select(which);
+   const rec=el("button","track-record","● LOOP KEYS");
    rec.type="button";rec.onclick=()=>this.record(which);
-   const mic=el("button","track-voice","🎙 VOICE");
+   const mic=el("button","track-voice","🎙 LOOP VOICE");
    mic.type="button";mic.onclick=()=>this.voice(which);
-   controls.append(select,rec,mic);
+   controls.append(play,rec,mic);
    if(!d.locked){
-    const first=el("label","track-first-length","If VOICE is the first take:");
-    const length=el("select","track-first-size");
-    length.setAttribute("aria-label","Length of first vocal loop for "+which);
-    for(const n of [2,4,8,16,32]){
-      const o=el("option","",n+" bars");o.value=String(n);length.append(o);
-    }
-    length.value=String(d.initialBars||8);
-    length.onchange=()=>{d.initialBars=Number(length.value);this.draw()};
-    first.append(length);controls.append(first);
+     const first=el("label","track-first-length","FIRST VOCAL TAKE");
+     const select=el("select","track-first-size");
+     select.setAttribute("aria-label",title+" first vocal loop length");
+     for(const n of [2,4,8,16,32]){
+       const o=el("option","",n+" bars");o.value=String(n);select.append(o);
+     }
+     select.value=String(d.initialBars||8);
+     select.onchange=()=>{d.initialBars=Number(select.value);};
+     first.append(select);controls.append(first);
    }
-   const recState=this.getRecording();
-   if(recState?.scene===which&&recState.kind==="chords"){
-    rec.textContent=recState.active&&!d.locked?"■ FINISH FIRST TAKE":recState.active?"● OVERDUBBING…":"● ARMED";
-    rec.classList.add("active");
+   const recording=this.getRecording();
+   if(recording?.scene===which&&recording.kind==="chords"){
+     rec.classList.add("active");
+     rec.textContent=recording.active&&!d.locked?"■ FINISH FIRST LOOP":
+       recording.active?"● OVERDUBBING":"● ARMED";
    }
-   header.append(controls);column.append(header);
+   col.append(controls);
    const ruler=el("div","track-ruler");
-   const n=Math.max(2,bars);
-   for(let i=0;i<n;i++){const mark=el("span","track-bar",i%4===0?"BAR "+(i+1):"·");ruler.append(mark)}
-   column.append(ruler);
+   for(let n=0;n<bars;n++){
+     const mark=el("span","track-bar",(n%4===0||bars<=8)?String(n+1):"·");
+     ruler.append(mark);
+   }
+   col.append(ruler);
    const lanes=el("div","track-lanes");
    for(const [kind,label,icon] of LANES){
      const row=el("div","track-lane");
-     const name=el("div","track-lane-name",icon+" "+label);
-     const surface=el("div","track-lane-surface lane-"+kind);
+     row.append(el("div","track-lane-name",icon+" "+label));
+     const surface=el("div","track-lane-surface");
      surface.style.setProperty("--bars",String(bars));
      const layers=d.layers.filter(l=>l.kind===kind);
-     if(layers.length===0)surface.append(el("div","track-empty",kind==="ai"?"Import a real Magenta take":kind==="vocal"?"Record a vocal take":"Play and record keys"));
-     else layers.forEach((layer,j)=>{
-       const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
-       region.title=(kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded MIDI-like chord events")+
-         " · "+(layer.bars||bars)+" bars";
-       const clipTitle=el("span","track-clip-title",(kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":"KEYS ")+(j+1));
-       const waveform=el("span","track-wave");
-       if(layer.buffer){
-         for(const height of peakBins(layer.buffer)){
-           const bar=el("i","track-wave-bar");bar.style.height=Math.max(8,height)+"%";waveform.append(bar);
-         }
-       }else{
-         for(const note of (layer.events||[])){
-           const noteEl=el("i","track-midi-note");
-           const step=Math.max(0,Math.min(d.lengthSteps||16,note.step||0));
-           noteEl.style.left=(step/(d.lengthSteps||16)*100)+"%";
-           noteEl.style.width=(Math.max(.4,Math.min(note.holdSteps||1,(d.lengthSteps||16)-step))/(d.lengthSteps||16)*100)+"%";
-           waveform.append(noteEl);
-         }
-       }
-       const button=el("button","track-clip-mute",layer.muted?"UNMUTE":"MUTE");
-       button.type="button";button.onclick=()=>this.onMute(which,layer.id);
-       const remove=el("button","track-clip-remove","×");
-       remove.type="button";remove.setAttribute("aria-label","Remove "+kind+" clip");
-       remove.onclick=()=>this.onRemove(which,layer.id);
-       region.append(clipTitle,waveform,button,remove);
-       surface.append(region);
-     });
-     row.append(name,surface);lanes.append(row);
+     if(!layers.length)surface.append(el("div","track-empty",
+       kind==="chords"?"Your recorded notes appear here":
+       kind==="vocal"?"Sing a first take or overdub":"Imported real Magenta audio"));
+     layers.forEach((layer,i)=>surface.append(this.region(which,layer,i,length)));
+     row.append(surface);lanes.append(row);
    }
-   const head=el("div","track-song-playhead");head.id="track-head-"+which;
-   lanes.append(head);column.append(lanes);
-   const summary=el("div","track-foot",d.locked
-     ?"All future overdubs follow this "+bars+"-bar loop. Remove every clip to reset the length."
-     :"First KEYS take: press Record, play, then press Finish after 2–32 bars. First VOICE take uses the selected bar length.");
-   column.append(summary);
+   const playhead=el("div","track-song-playhead");playhead.id="track-head-"+which;
+   lanes.append(playhead);col.append(lanes);
+   const footer=el("div","track-foot",
+      (d.locked?bars+"-bar master phrase · ":"Record the first phrase to set the loop length · ")+
+      "drag regions left/right to shift by a bar · click a chord to play");
+   col.append(footer);
   }
   this.tick();
  }
+ region(which,layer,i,length){
+   const kind=layer.kind,shift=mod(layer.shiftSteps||0,length),bars=length/8;
+   const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
+   region.tabIndex=0;region.setAttribute("role","group");
+   region.setAttribute("aria-label",
+     "Loop "+(i+1)+" "+kind+". Drag horizontally or use left/right arrow to shift playback by bars.");
+   region.title="Drag left/right to shift the actual loop by whole bars. Keyboard: left/right arrows.";
+   const head=el("div","track-region-head");
+   const text=el("span","track-clip-title",
+     (kind==="chords"?"KEYS ":kind==="vocal"?"VOICE ":"AI ")+(i+1));
+   const offset=el("span","track-offset",shift?"+"+(shift/8)+" bars":"BAR 1");
+   const mute=el("button","track-clip-mute",layer.muted?"UNMUTE":"MUTE");
+   mute.type="button";mute.onclick=()=>this.onMute(which,layer.id);
+   const remove=el("button","track-clip-remove","×");
+   remove.type="button";remove.setAttribute("aria-label","Remove "+kind+" loop");
+   remove.onclick=()=>this.onRemove(which,layer.id);
+   head.append(text,offset,mute,remove);
+   const visual=el("div","track-wave");
+   if(layer.buffer){
+     const values=bins(layer.buffer,80);
+     const displacement=Math.round(shift/length*values.length);
+     for(let n=0;n<values.length;n++){
+       const bar=el("i","track-wave-bar");
+       bar.style.height=Math.max(5,values[mod(n-displacement,values.length)])+"%";
+       visual.append(bar);
+     }
+   }else{
+     for(const note of (layer.events||[])){
+       const start=mod((note.step||0)+shift,length);
+       const duration=clamp(note.holdSteps||1,.25,length);
+       for(const [pos,span] of [[start,Math.min(duration,length-start)],
+          ...(duration>length-start?[[0,duration-(length-start)]]:[])]){
+         const noteEl=el("i","track-midi-note");
+         noteEl.style.left=(pos/length*100)+"%";
+         noteEl.style.width=(span/length*100)+"%";
+         visual.append(noteEl);
+       }
+     }
+   }
+   region.append(head,visual);
+   this.drag(region,which,layer,length,offset);
+   return region;
+ }
+ drag(region,which,layer,length,offset){
+   let current=null;
+   region.addEventListener("pointerdown",e=>{
+     if(e.button!==0||e.target.closest?.("button"))return;
+     if(!this.decks[which].locked)return;
+     const surface=region.closest(".track-lane-surface");
+     const width=surface.getBoundingClientRect().width;
+     if(width<=0)return;
+     current={pointerId:e.pointerId,x:e.clientX,base:mod(layer.shiftSteps||0,length),width,bars:length/8,preview:0};
+     region.setPointerCapture?.(e.pointerId);
+     region.classList.add("track-dragging");
+     e.preventDefault();
+   });
+   region.addEventListener("pointermove",e=>{
+     if(!current||e.pointerId!==current.pointerId)return;
+     const bars=Math.round((e.clientX-current.x)/(current.width/current.bars));
+     current.preview=mod(current.base+bars*8,length);
+     offset.textContent="MOVE → BAR "+(current.preview/8+1);
+     region.style.setProperty("--drag-preview",String(bars));
+   });
+   const finish=e=>{
+     if(!current||e.pointerId!==current.pointerId)return;
+     const target=current.preview;
+     region.classList.remove("track-dragging");
+     current=null;
+     this.onShift(which,layer.id,target);
+   };
+   region.addEventListener("pointerup",finish);
+   region.addEventListener("pointercancel",e=>{
+     if(!current||e.pointerId!==current.pointerId)return;
+     current=null;this.draw();
+   });
+   region.addEventListener("keydown",e=>{
+     if(!this.decks[which].locked)return;
+     if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
+     e.preventDefault();e.stopPropagation();
+     const next=mod((layer.shiftSteps||0)+(e.key==="ArrowRight"?8:-8),length);
+     this.onShift(which,layer.id,next);
+   });
+ }
  tick(){
-  const rec=this.getRecording(),step=this.getStep();
-  for(const which of ORDER){
-   const col=$("tracks-"+which),head=$("track-head-"+which);
-   if(!col||!head)continue;
-   const d=this.decks[which],length=d.lengthSteps||16,origin=d.anchorStep||0;
-   const phase=((step-origin)%length+length)%length;
-   head.style.left="calc(90px + (100% - 90px) * "+(phase/length)+")";
-   col.classList.toggle("is-playing",this.getRunning());
-   col.classList.toggle("is-recording",rec?.scene===which);
-   col.classList.toggle("is-selected",root.document.getElementById("deck-"+which)?.classList.contains("selected")||false);
-  }
+   const recording=this.getRecording(),step=this.getStep();
+   for(const [which] of SONGS){
+     const col=$("tracks-"+which),head=$("track-head-"+which);
+     if(!col||!head)continue;
+     const d=this.decks[which],length=d.lengthSteps||16,origin=d.anchorStep||0;
+     const phase=mod(step-origin,length);
+     head.style.left="calc(86px + (100% - 86px) * "+(phase/length)+")";
+     col.classList.toggle("is-playing",this.getRunning());
+     col.classList.toggle("is-recording",recording?.scene===which);
+     col.classList.toggle("is-selected",
+       root.document.getElementById("deck-"+which)?.classList.contains("selected")||false);
+   }
  }
 }
-root.SuzyTrackView=Tracks;
+root.SuzyTrackView=TrackView;
 })(window);
