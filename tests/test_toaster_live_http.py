@@ -352,6 +352,31 @@ class LiveToasterHttpTests(unittest.TestCase):
         ):
             self.assertIn(marker, timeline)
 
+    def test_harmonic_lead_pads_and_chord_recording_state(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for which in ("pyramid", "fishes"):
+            for idx in range(4):
+                self.assertIn(f'data-lead-scene="{which}" data-lead-chord="{idx}"', page)
+                self.assertIn(f'id="leadChord-{which}-{idx}"', page)
+            for prefix in ("recordHint-", "harmonicLock-", "leadToAI-",
+                           "leadPrompt-", "includeLeadPrompt-", "harmonyLabel-"):
+                self.assertIn(f'id="{prefix}{which}"', page)
+        for needle in (
+            "function playLeadPhrase(which,index)",
+            "function leadKeyboardMidi(which,rawMidi)",
+            "function chordLeadNotes(which,index)",
+            "function updateHarmony(which,index)",
+            "const beginAt=Math.ceil((stepNumber+1)/8)*8;",
+            "arrStartBar:Math.max(0,Math.floor(r.beginAt/8))",
+            "const transpose=role===\"lead\"?0:decks[which].transpose",
+            "aiMelody(midi,true)",
+            "includeLeadPrompt-",
+        ):
+            self.assertIn(needle, page)
+        # Native MRT2 retains two song prompt slots. This is not a second AI.
+        self.assertIn('const prompts=["pyramid","fishes"].map(which=>{', page)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
