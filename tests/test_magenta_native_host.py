@@ -123,6 +123,39 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('"midi_gate_parameter_readback"', source)
         self.assertIn('"midi_gate_enabled"', source)
 
+    def test_native_browser_chords_are_held_long_enough_for_neural_control(self):
+        # A rapid mouse tap used to send an immediate note-off after a note-on,
+        # unlike playing Google's on-screen AU keyboard. The AU responds to
+        # frame-level pitch activity, so give short clicks time to be audible.
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('SUZY_MRT2_CHORD_HOLD_MS', source)
+        self.assertIn('Double(ProcessInfo.processInfo.environment', source)
+        self.assertIn('?? 480', source)
+        self.assertIn('private var pendingChordRelease: DispatchWorkItem?', source)
+        self.assertIn('chordStartedAt = ProcessInfo.processInfo.systemUptime', source)
+        self.assertIn('let remaining = max(0, minimumChordHoldSeconds - elapsed)', source)
+        self.assertIn('DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: work)', source)
+        self.assertIn('case "release":\n            releaseChordAfterMinimumHold()', source)
+        self.assertIn('private func cancelPendingChordRelease()', source)
+        self.assertIn('pendingChordRelease?.cancel()', source)
+        self.assertIn('case "chord":', source)
+        self.assertLess(source.index('            noteOff()\n            held = notes[i]'),
+                        source.index('            chordStartedAt = ProcessInfo.processInfo.systemUptime'))
+        self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
+        self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
+
+    def test_reselecting_same_native_scene_does_not_cancel_current_notes(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        start = source.index('        case "scene":')
+        end = source.index('        case "mix":', start)
+        scene = source[start:end]
+        self.assertIn('if x != scene {', scene)
+        self.assertIn('allNotesOff()', scene)
+        self.assertLess(scene.index('if x != scene {'), scene.index('allNotesOff()'))
+        self.assertNotIn('allNotesOff();scene = x;', scene)
+
     def test_implicit_cross_process_bookmark_is_explicitly_opt_in(self):
         source = (Path(__file__).resolve().parents[1]
                   / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
