@@ -1017,6 +1017,22 @@ test("DONE is ignored during count-in and double DONE cannot shift loop end",asy
  assert.equal(run("recording.endAt"),requested);
  assert.match(get("recordHint-pyramid").textContent,/DONE/);
 });
+test("a chord held across next-pulse count-in becomes the first note, not a missing beat",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ const begin=run("recording.beginAt");
+ run('beginChord("pyramid",0,"key:downstroke")');
+ assert.equal(run("recording.events.length"),0,"not recording before clock starts");
+ run('ctx.currentTime=transportEpoch+(begin+.4)*tickSeconds();scheduler()');
+ assert.equal(run("recording.events.length"),1);
+ assert.equal(run("recording.events[0].step"),0);
+ run('ctx.currentTime=transportEpoch+(begin+4.5)*tickSeconds()');
+ run('record("pyramid")');
+ const finish=run("recording.endAt");
+ run('ctx.currentTime=transportEpoch+(finish+2)*tickSeconds();scheduler()');
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
+ assert.equal(run("decks.pyramid.lengthSteps"),finish-begin);
+});
 test("loop pedal stop and restart quantize to next bar and preserve absolute song phase",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0,holdSteps:2,instrument:"keys"}],arrStartBar:1})');
