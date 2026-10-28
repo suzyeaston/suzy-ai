@@ -129,6 +129,8 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .track-song-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd86a;pointer-events:none;box-shadow:0 0 5px #ffd86a;z-index:5}
 .track-foot{font-size:10px;color:#a6a1b7;padding:9px 12px;min-height:34px}
 .track-notice{font-size:12px;color:#d5bacb}
+#classicDecks{border:1px solid #6f5c7a;border-radius:14px;padding:10px;margin:12px 0}
+#classicDecks>summary{font:800 12px ui-monospace,monospace;color:var(--peach);padding:7px;cursor:pointer}
 @media(max-width:970px){.track-columns{grid-template-columns:minmax(0,1fr)}}
 .decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
@@ -235,7 +237,7 @@ a{color:var(--mint)}
 <button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
 </div>
 </section>
-<div id="decks">
+<details id="classicDecks"><summary>🎹 CLASSIC CHORD PADS & ORIGINAL LOOP BUTTONS</summary><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
@@ -262,7 +264,7 @@ a{color:var(--mint)}
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
-</div>
+</div></details>
 <section><div class="start"><div><div class="tiny">SAVED SOUNDS · ACTUAL MAGENTA AUDIO</div><h2>Add an AI take, when you're ready</h2><p class="subtle">Import audio recorded from Magenta in Logic. It becomes a real removable loop on the selected track.</p></div>
 <label for="aiImport" class="big" style="cursor:pointer;background:#5b4254;color:#ffe8d9;font-size:12px;padding:13px;border-radius:11px">+ IMPORT AI AUDIO <input id="aiImport" type="file" accept="audio/*,.wav,.mp3,.m4a,.aiff" style="display:block;font-size:10px;max-width:170px;margin-top:5px"></label></div>
 <details><summary>Sound settings / devices / export (optional)</summary>
