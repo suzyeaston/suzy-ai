@@ -315,7 +315,8 @@ a{color:var(--mint)}
  <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
  <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
 </div>
-<div class="song-lead-panel" aria-label="pyramid independent lead instrument">
+<details class="song-lead-panel" aria-label="pyramid optional local fallback instrument">
+ <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
  <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
@@ -329,7 +330,7 @@ a{color:var(--mint)}
   </select></label>
   <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
-</div>
+</details>
 <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
 <select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
@@ -361,7 +362,8 @@ a{color:var(--mint)}
  <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
  <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
 </div>
-<div class="song-lead-panel" aria-label="fishes independent lead instrument">
+<details class="song-lead-panel" aria-label="fishes optional local fallback instrument">
+ <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
  <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
@@ -375,7 +377,7 @@ a{color:var(--mint)}
   </select></label>
   <button type="button" id="leadPlay-fishes">▶ HEAR LOCAL GUITAR</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
-</div>
+</details>
 <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
 <select id="instrument-fishes" aria-label="fishes instrument for next overdub">
