@@ -6,13 +6,17 @@
   "use strict";
   const KEY="suzy-toaster-arrangement-v1";
   const BAR_OPTIONS=[2,4,8,16,32,64];
+  // 392 bars ≈ 14.9 minutes at 105 BPM; all sections remain editable,
+  // cueable and skippable. No auto-triggered chords in the starter arrangement.
   const starter=[
-    {name:"Pyramid · space",scene:"pyramid",bars:16,chord:-1,mix:0},
-    {name:"Pyramid · piano",scene:"pyramid",bars:32,chord:0,mix:0},
-    {name:"Suspended passage",scene:"pyramid",bars:8,chord:-1,mix:45},
-    {name:"Fishes · emerge",scene:"fishes",bars:16,chord:0,mix:75},
-    {name:"Fishes · build",scene:"fishes",bars:32,chord:2,mix:100},
-    {name:"Fishes · dissolve",scene:"fishes",bars:16,chord:-1,mix:100}
+    {name:"Pyramid · opening space",scene:"pyramid",bars:64,chord:-1,mix:0},
+    {name:"Pyramid · live piano & voice",scene:"pyramid",bars:64,chord:-1,mix:0},
+    {name:"Pyramid · improvisation",scene:"pyramid",bars:32,chord:-1,mix:0},
+    {name:"Suspended transition",scene:"pyramid",bars:32,chord:-1,mix:50},
+    {name:"Fishes · enter the current",scene:"fishes",bars:64,chord:-1,mix:75},
+    {name:"Fishes · live arpeggios",scene:"fishes",bars:64,chord:-1,mix:100},
+    {name:"Fishes · build / evolve",scene:"fishes",bars:64,chord:-1,mix:100},
+    {name:"Fishes · resolve",scene:"fishes",bars:8,chord:-1,mix:100}
   ];
   const $=id=>root.document.getElementById(id);
   const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number(v)||0));
@@ -36,7 +40,7 @@
       $("arrNext").onclick=()=>{if(this.armed){this.skip=true;this.status("Next cue queued for the next two-bar boundary.");}};
       $("arrAdd").onclick=()=>{if(this.cues.length>=32)return this.status("32 cue limit reached.");this.cues.push(valid({name:"New cue",scene:"fishes",bars:8,chord:-1,mix:100},this.cues.length));this.save();this.render();};
       $("arrReset").onclick=()=>{
-        if(!root.confirm("Restore the six starter cues? Your edited timeline will be replaced."))return;
+        if(!root.confirm("Restore the eight starter cues? Your edited timeline will be replaced."))return;
         this.cues=starter.map(valid);this.arm(false);this.save();this.render();
       };
       $("arrCues").addEventListener("change",e=>this.change(e));
