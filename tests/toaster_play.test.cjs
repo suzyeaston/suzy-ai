@@ -589,7 +589,7 @@ test("voice-follow module steers existing native model but does not claim synthe
  assert.match(javascript,/aiMelody\(followedMidi,false\)/);
  assert.match(javascript,/fullTimeline=new window.SuzyPerformanceTimeline/);
  assert.match(javascript,/fullTimeline\?\.render\(\)/);
- assert.match(javascript,/clipActiveAt\(layer,count\/8\)/);
+ assert.match(javascript,/songLayerAudible\(which,layer,count\/8\)/);
 });
 
 test("first sung take sets the same bar-quantized master length as keys",async()=>{
