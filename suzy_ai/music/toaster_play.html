@@ -278,7 +278,7 @@ a{color:var(--mint)}
 <small class="subtle">Takes effect when browser audio starts; reload to change. Doesn't alter Scarlett input or native Magenta buffer.</small></div>
 <div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
 <div><button id="findDevices">↻ RECHECK DEVICES</button></div>
-<div><button id="export">↓ EXPORT WAV MIX</button></div>
+<div><button id="export">↓ EXPORT SELECTED SONG WAV</button></div>
 </div></details>
 </section>
 <div id="message" role="status" aria-live="polite">Press PLAY RHYTHM. Then 1–4. Use LOOP MY CHORDS to build.</div>
@@ -1051,18 +1051,19 @@ function updateMix(){
 async function readAndExport(){
  try{
   await openAudio();
-  if(!Object.values(decks).some(d=>d.layers.some(l=>!l.muted)))throw Error("Record a loop before exporting");
-  const sec=cycleSeconds(),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
+  if(!decks[scene].layers.some(l=>!l.muted))throw Error("Record a loop on the selected song before exporting");
+  const sec=songCycleSeconds(scene),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
   const masterOut=offline.createGain();masterOut.gain.value=Number($("master").value)/100;masterOut.connect(offline.destination);
   for(const [which,d] of Object.entries(decks)){
-   const side=which==="pyramid"?1-Number($("mix").value)/100:Number($("mix").value)/100;
+   if(which!==scene)continue; // Export full cycle of one selected song; their cycles are independent.
+   const side=1;
    for(const layer of d.layers){
     if(layer.muted)continue;
     const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
-      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
+      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+event.step)*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
@@ -1093,9 +1094,9 @@ async function readAndExport(){
    }
   }
   const url=URL.createObjectURL(new Blob([data],{type:"audio/wav"}));
-  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_2BAR_MIX.wav";
+  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_"+scene.toUpperCase()+"_"+(songCycleSteps(scene)/8)+"BARS.wav";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
-  tell("Mix exported! Import SUZY_TOAST_2BAR_MIX.wav into Logic.");
+  tell("Exported "+scene+" "+(songCycleSteps(scene)/8)+"-bar master cycle. Import this WAV into Logic.");
  }catch(e){warn(e)}
 }
 arranger=new window.SuzyArrangement({
