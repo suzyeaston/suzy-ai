@@ -119,7 +119,8 @@ a{color:var(--mint)}
  <p>One MRT2 Small model, with preloaded Pyramid and Fishes text prompts. Your chord keys steer its harmony. Browser piano stays available.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
- <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button></div>
+ <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button>
+ <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button></div>
  <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
@@ -338,6 +339,14 @@ async function aiFetch(action,data={}){
  if(!response.ok||result.error)throw Error(result.error||"MRT2 native host unavailable");
  return result;
 }
+async function openGoogleModelSelector(){
+ if(!aiNativeReady){tell("ENABLE MAGENTA first.");return;}
+ try{
+  const state=await aiFetch("show-au-ui");
+  aiDisplay(state);
+  tell("Google's official AU window requested. Select the local mrt2_small model there; loading and sound remain unverified until tested.");
+ }catch(e){warn(e);}
+}
 function toggleAISolo(){
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
@@ -349,6 +358,7 @@ function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
+ $("aiGoogleModel").disabled=!aiNativeReady;
  if(typeof s.muted==="boolean")aiMuted=s.muted;
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
@@ -363,6 +373,8 @@ function aiDisplay(s){
     " · "+(s.model_file_bytes?Math.round(s.model_file_bytes/1048576)+" MB":"unknown size")+
     " · assets: "+(s.musiccoca_assets_path||"not found in normal folders")+
     " · model load: "+(s.host_model_load_state||"unknown")+
+    (s.native_model_selection_required?" · SELECT mrt2_small IN GOOGLE AU WINDOW":"")+
+    (s.native_au_ui_visible?" · Google model selector shown":"")+
     " · native transport: "+(s.transport_moving?"MOVING":"STOPPED / NOT VERIFIED")+
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
@@ -940,6 +952,7 @@ $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
 $("aiSolo").onclick=toggleAISolo;
+$("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
