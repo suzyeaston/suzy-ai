@@ -121,6 +121,14 @@ class NativeMRT2Tests(unittest.TestCase):
         # successful MLX initialization inside Google's AUv3 extension.
         self.assertIn('self.bookmarkScopeVerified = false', source)
 
+    def test_google_custom_view_api_imports_and_links_coreaudiokit(self):
+        root = Path(__file__).resolve().parents[1]
+        swift = (root / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        build = (root / "scripts/build-toaster-magenta.sh").read_text()
+        self.assertIn("import CoreAudioKit", swift)
+        self.assertIn("-framework CoreAudioKit", build)
+        self.assertIn("unit.auAudioUnit.requestViewController", swift)
+
     def test_google_native_picker_avoids_cross_identity_bookmark(self):
         source = (Path(__file__).resolve().parents[1]
                   / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
