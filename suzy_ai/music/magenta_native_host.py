@@ -26,6 +26,7 @@ ACTIONS = {
     "scene": frozenset({"scene"}),
     "configure-prompts": frozenset({"prompts"}),
     "mix": frozenset({"value"}),
+    "lead-mix": frozenset({"scene", "value"}),
     "volume": frozenset({"value"}),
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
@@ -38,6 +39,8 @@ ACTIONS = {
 PROMPTS = {
     "pyramid": "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
     "fishes": "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
+    "pyramid_violin": "Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals",
+    "fishes_guitar": "Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals",
 }
 
 
@@ -204,14 +207,17 @@ class NativeMagentaHost:
                 strings = data["prompts"]
                 if (
                     not isinstance(strings, list)
-                    or len(strings) != 2
+                    or len(strings) != 4
                     or any(type(p) is not str or not p.strip() or len(p) > 500 for p in strings)
                 ):
-                    raise ValueError("provide two nonempty text prompts, each at most 500 characters")
+                    raise ValueError("provide four nonempty text prompts, each at most 500 characters")
             if action == "scene":
-                if type(data["scene"]) is not str or data["scene"] not in PROMPTS:
+                if type(data["scene"]) is not str or data["scene"] not in ("pyramid", "fishes"):
                     raise ValueError("scene must be pyramid or fishes")
-            if action in ("mix", "volume", "reverb"):
+            if action == "lead-mix":
+                if type(data["scene"]) is not str or data["scene"] not in ("pyramid", "fishes"):
+                    raise ValueError("lead-mix scene must be pyramid or fishes")
+            if action in ("mix", "volume", "reverb", "lead-mix"):
                 v = data["value"]
                 if type(v) not in (int, float) or not 0 <= v <= 1:
                     raise ValueError("value must be 0..1")
