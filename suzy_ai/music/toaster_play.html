@@ -436,7 +436,7 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:32,liveBus:null,loopBus:null,
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
@@ -1195,7 +1195,8 @@ async function voiceLoop(which){
   const d=decks[which];
   const bars=d.locked?d.lengthSteps/8:d.initialBars;
   const steps=bars*8;
-  const firstStep=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+  // Arm at next bar, not after a potentially long full song cycle.
+  const firstStep=Math.ceil((stepNumber+1)/8)*8;
   const start=transportEpoch+firstStep*tickSeconds();
   const duration=steps*tickSeconds(),frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
@@ -1237,7 +1238,7 @@ async function voiceLoop(which){
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
    const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
-     arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
+     arrStartBar:Math.max(0,Math.floor(take.firstStep/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
    $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
@@ -1249,7 +1250,7 @@ async function voiceLoop(which){
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?"First voice armed. Sing your phrase, then press FINISH FIRST VOICE after at least 2 bars. Max "+bars+" bars.":
-   "Vocal overdub armed for exactly "+bars+" bars on the existing song clock.");
+   "Vocal overdub armed for the NEXT BAR, recording "+bars+" bars on the existing song clock.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
