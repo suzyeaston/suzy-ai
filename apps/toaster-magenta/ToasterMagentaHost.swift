@@ -6,6 +6,7 @@ import Foundation
 import AVFoundation
 import AudioToolbox
 import CoreAudioKit // AUv3's custom-view controller API is exposed by CoreAudioKit.
+import Synchronization // Lock-free state read on the real-time render callback.
 import AppKit
 
 final class MRT2Host {
@@ -20,6 +21,11 @@ final class MRT2Host {
     private let selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
     private var held: [UInt8] = []
     private var melodyHeld = Set<UInt8>()
+    // Google plays when its own UI says PLAY OR the AU host says transport MOVING.
+    // Atomic avoids a lock/data race on the audio-render thread. Default stays
+    // auto-playing for existing live sessions. Set AUTOPLAY=0 to start paused.
+    private let transportPlaying = Atomic<Bool>(
+        ProcessInfo.processInfo.environment["SUZY_MRT2_TRANSPORT_AUTOPLAY"] != "0")
     private var tempoBpm: Double = 105.0
     private var tempoStart = ProcessInfo.processInfo.systemUptime
     private var active = false
@@ -87,7 +93,10 @@ final class MRT2Host {
             "tempo_bpm": tempoBpm,
             "tempo_context_supplied": generator != nil,
             "transport_context_supplied": hostTransportSupplied,
-            "transport_moving": hostTransportSupplied && (engine?.isRunning ?? false),
+            "transport_moving": hostTransportSupplied && (engine?.isRunning ?? false)
+                && transportPlaying.load(ordering: .relaxed),
+            "transport_playing": transportPlaying.load(ordering: .relaxed),
+            "native_loop_capture_supported": false, // Browser's current recorder cannot capture this AU's PCM.
             "text_prompts": prompts,
             "au_component": auComponentName,
             "musiccoca_assets_path": assetPath,
@@ -272,12 +281,13 @@ final class MRT2Host {
                     // writes ONLY SILENCE while both UI playback and host
                     // transport are stopped. Since TOASTER has no plugin UI,
                     // supplying BPM alone never moved the native transport.
-                    // Expose an always-running host transport for this dedicated
-                    // audio-generating engine. This is the real sample clock,
-                    // distinct from the browser's loop clock.
+                    // Give the performer control over the HOST transport.
+                    // UI pause alone cannot stop MRT2 while host transport moves.
+                    // This is the native clock, distinct from browser loop clock.
                     let transportOrigin = ProcessInfo.processInfo.systemUptime
-                    unit.auAudioUnit.transportStateBlock = { flags, samplePosition, cycleStart, cycleEnd in
-                        flags?.pointee = .moving
+                    unit.auAudioUnit.transportStateBlock = { [weak self] flags, samplePosition, cycleStart, cycleEnd in
+                        guard let self = self else { return false }
+                        flags?.pointee = self.transportPlaying.load(ordering: .relaxed) ? .moving : []
                         let seconds = max(0, ProcessInfo.processInfo.systemUptime - transportOrigin)
                         samplePosition?.pointee = seconds * 48000.0
                         cycleStart?.pointee = 0
@@ -460,6 +470,12 @@ final class MRT2Host {
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
+        case "transport-play":
+            guard active else { return ["error":"AI host not ready"] }
+            transportPlaying.store(true, ordering: .relaxed)
+        case "transport-pause":
+            guard active else { return ["error":"AI host not ready"] }
+            transportPlaying.store(false, ordering: .relaxed)
         case "configure-prompts":
             // Google's AU reads the text strings while loading the model.
             // Changing fullState AFTER it is loaded doesn't update embeddings;

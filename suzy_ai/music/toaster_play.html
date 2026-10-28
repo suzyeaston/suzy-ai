@@ -127,6 +127,7 @@ a{color:var(--mint)}
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
+ <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
  <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
@@ -374,6 +375,10 @@ function aiDisplay(s){
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
  $("aiGoogleModel").disabled=!aiNativeReady || s.native_model_selection_required!==true;
+ const aiTransport=$("aiTransport");
+ aiTransport.disabled=!aiNativeReady;
+ aiTransport.dataset.playing=String(s.transport_playing===true);
+ aiTransport.textContent=s.transport_playing===true?"⏸ PAUSE AI GENERATION":"▶ START AI GENERATION";
  const help=$("aiModelHelp");
  if(s.native_model_selection_required!==true){
   help.textContent="Google model selector unavailable in bookmark mode. Stop the TOASTER server and relaunch with SUZY_MRT2_MODEL_VIA_UI=1.";
@@ -406,7 +411,8 @@ function aiDisplay(s){
     " · model load: "+(s.host_model_load_state||"unknown")+
     (s.native_model_selection_required?" · SELECT mrt2_small IN GOOGLE AU WINDOW":"")+
     (s.native_au_ui_visible?" · Google model selector shown":"")+
-    " · native transport: "+(s.transport_moving?"MOVING":"STOPPED / NOT VERIFIED")+
+    " · native transport: "+(s.transport_playing?"PLAYING":"PAUSED")+
+    " · host transport state: "+(s.transport_moving?"MOVING":"STOPPED / NOT VERIFIED")+
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
@@ -484,6 +490,15 @@ function aiNote(which,index){
   if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
   await aiFetch("chord",{index});aiNoteHeld=true;
  }).catch(e=>{$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message});
+}
+async function toggleAITransport(){
+ if(!aiNativeReady){tell("Start Magenta first.");return;}
+ const on=$("aiTransport").dataset.playing==="true";
+ try{
+  const result=await aiFetch(on?"transport-pause":"transport-play");
+  aiDisplay(result);
+  tell(on?"AI host transport PAUSED. Google's own Play button can still start playback.":"AI host transport PLAYING. Google can generate continuously.");
+ }catch(e){warn(e);}
 }
 async function toggleAIMute(){
  aiMuted=!aiMuted;
@@ -984,6 +999,7 @@ $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
 $("aiSolo").onclick=toggleAISolo;
 $("aiGoogleModel").onclick=openGoogleModelSelector;
+$("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
