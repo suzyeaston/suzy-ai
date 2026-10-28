@@ -124,6 +124,7 @@ test("record chord events at cycle boundary and switch to track 2 without losing
  run('beginChord("pyramid",2,"key:3")');
  run("ctx.currentTime+=.75");
  run('endChord("key:3")');
+ run('record("pyramid")'); // finish first take at a bar boundary
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.pyramid.layers[0].kind"),"chords");
@@ -145,7 +146,7 @@ test("export has genuine two-cycle offline audio rendering and WAV header",async
  assert.match(javascript,/left\[i\+oneCycle\]/);
  assert.match(javascript,/tag\(0,"RIFF"\)/);
  await run("readAndExport()");
- assert.match(run('$("message").textContent'),/Mix exported/);
+ assert.match(run('$("message").textContent'),/Exported pyramid/);
 });
 
 test("1–4 keyboard works while a button has focus; hold sustains and key-up releases",async()=>{
@@ -183,6 +184,7 @@ test("manual hold length is retained by event loops and renders sustained chord 
  emit("keydown","1","BUTTON");
  run("ctx.currentTime+=1.2");
  emit("keyup","1","BUTTON");
+ run('record("pyramid")'); // finish first take at a bar boundary
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
@@ -267,21 +269,20 @@ test("polyphonic melody keyboard A W S E D F T G Y H U J K sends native MIDI per
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note"));
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note-off"));
 });
-test("vocal recording uses AudioContext buffer timestamps and identical transport epoch",async()=>{
+test("vocal AudioWorklet records a song-length cycle without ScriptProcessor",async()=>{
  const {run,calls}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.kind"),"vocal");
- assert.ok(calls.processor?.onaudioprocess);
- const first=run("recording.start");
- const frame=run("ctx.sampleRate");
- const input={length:1024,getChannelData(){return new Float32Array(1024).fill(.4)}};
- const frameCount=run("Math.round(cycleSeconds()*ctx.sampleRate)");
- for(let position=0;position<frameCount+1024;position+=1024){
-  calls.processor.onaudioprocess?.({playbackTime:first+position/frame,inputBuffer:input});
- }
+ assert.equal(calls.worklet?.name,"suzy-vocal-capture");
+ assert.equal(calls.workletModule,"/toaster/vocal-capture.js");
+ const frames=run("Math.round((decks.pyramid.initialBars*8)*tickSeconds()*ctx.sampleRate)");
+ assert.equal(calls.worklet.opts.processorOptions.frames,frames);
+ calls.worklet.port.onmessage({data:{
+  type:"complete",data:new Float32Array(frames).fill(.4),peak:.4,hot:0,missing:0
+ }});
  assert.equal(run("recording"),null);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),frameCount);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
 });
 test("tempo stays fixed if a real audio loop exists rather than shifting its pitch",async()=>{
  const {run,get}=rig();await run("startStop()");
@@ -335,6 +336,41 @@ test("AI SOLO lets musician hear real Magenta without the always-on browser chor
  assert.equal(get("aiSolo").textContent,"🎹 RESTORE LOCAL KEYS");
  run("toggleAISolo()");
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
+});
+test("overdubs preserve instruments and live/loop levels are independent",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ run('setInstrument("pyramid","pad")');
+ run('beginChord("pyramid",0,"live")');
+ assert.equal(run('heldKeys.get("live").voices[0].osc.type'),"sine");
+ run('endChord("live")');
+ run('decks.pyramid.layers.push({kind:"chords",muted:false,instrument:"keys",events:[{index:1,step:0,holdSteps:2,instrument:"keys"}]})');
+ get("liveLevel").value="60";get("loopLevel").value="110";
+ run("updateOverdubBalance()");
+ assert.equal(run("decks.pyramid.liveBus.gain.value"),.6);
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),1.1);
+ run('setInstrument("pyramid","bass")');
+ assert.equal(run('decks.pyramid.layers[0].events[0].instrument'),"keys");
+});
+test("key changes can return to previous and original pitch",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ run('setKey("pyramid",2)');run('setKey("pyramid",4)');
+ assert.equal(run("decks.pyramid.transpose"),4);
+ run("decks.pyramid.keyHistoryIndex--;setKey('pyramid',decks.pyramid.keyHistory[decks.pyramid.keyHistoryIndex],false)");
+ assert.equal(run("decks.pyramid.transpose"),2);
+ run('setKey("pyramid",0)');
+ assert.equal(run("decks.pyramid.transpose"),0);
+ assert.equal(run("decks.fishes.transpose"),0);
+ assert.equal(get("keyValue-pyramid").textContent,"ORIGINAL");
+});
+test("both song decks may play together while choosing a different instrument",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ get("mixBoth").onclick();
+ assert.equal(run("blendBoth"),true);
+ assert.equal(get("mix").value,"50");
+ run('choose("fishes")');
+ assert.equal(get("mix").value,"50");
+ assert.equal(run("decks.pyramid.bus.gain.value"),.5);
+ assert.equal(run("decks.fishes.bus.gain.value"),.5);
 });
 test("native status differentiates bookmark, assets and loaded model from host-running",()=>{
  const {run,get}=rig();
