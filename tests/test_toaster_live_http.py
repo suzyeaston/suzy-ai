@@ -181,7 +181,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('first:!d.locked', html)
         self.assertIn('endAt:d.locked?beginAt+d.lengthSteps:null', html)
         self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}', html)
-        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}', html)
+        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}', html)
         self.assertIn('if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}', html)
         self.assertNotIn("createScriptProcessor(1024", html)
         self.assertIn("native_au_ui_visible", html)
