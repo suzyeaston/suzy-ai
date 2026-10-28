@@ -127,6 +127,22 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn("this.skip=true", js)
         self.assertNotIn("eval(", js)
 
+    def test_vocal_worklet_headroom_and_browser_buffering(self):
+        code, html = self.call("GET", "/toaster/live")
+        self.assertEqual(code, 200)
+        for marker in ('id="vocalHeadroom"', 'id="browserLatency"',
+                       'id="vocalPeak"', 'latencyHint:', 'createDynamicsCompressor',
+                       'new AudioWorkletNode(', 'audioWorklet.addModule(',
+                       'near-clip samples:', 'Scarlett input gain'):
+            self.assertIn(marker, html)
+        self.assertNotIn("ctx.createScriptProcessor(1024", html)
+        code, js = self.call("GET", "/toaster/vocal-capture.js")
+        self.assertEqual(code, 200)
+        for marker in ("extends AudioWorkletProcessor",
+                       'registerProcessor("suzy-vocal-capture"',
+                       "this.data[start+i]=sample", "this.hot++", "currentFrame"):
+            self.assertIn(marker, js)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)

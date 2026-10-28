@@ -233,6 +233,12 @@ a{color:var(--mint)}
 
 
 <div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
+<div><label for="vocalHeadroom">Recorded vocal headroom · <span id="vocalHeadroomNumber">55%</span></label>
+<input id="vocalHeadroom" type="range" min="20" max="100" value="55">
+<small class="subtle" id="vocalPeak">Last vocal input peak: not measured yet. Adjust VE-22 / Scarlett input gain if it clips.</small></div>
+<div><label for="browserLatency">Browser output buffering (before starting)</label>
+<select id="browserLatency"><option value="balanced" selected>Balanced</option><option value="playback">Larger buffer / smoother</option><option value="interactive">Low latency</option></select>
+<small class="subtle">Takes effect when browser audio starts; reload to change. Doesn't alter Scarlett input or native Magenta buffer.</small></div>
 <div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
 <div><button id="findDevices">↻ RECHECK DEVICES</button></div>
 <div><button id="export">↓ EXPORT WAV MIX</button></div>
@@ -252,6 +258,7 @@ const SCENES={
 };
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
+let vocalCaptureReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -275,8 +282,14 @@ function makeReverb(){
 }
 async function openAudio(){
  if(!ctx){
-  ctx=new (window.AudioContext||window.webkitAudioContext)();
-  master=ctx.createGain();master.gain.value=Number($("master").value)/100;master.connect(ctx.destination);
+  ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:$("browserLatency").value});
+  $("browserLatency").disabled=true;
+  master=ctx.createGain();master.gain.value=Number($("master").value)/100;
+  // Browser-only compressor for stacked loops. Doesn't touch native MRT2 or the Scarlett ADC.
+  const safety=ctx.createDynamicsCompressor();
+  safety.threshold.value=-9;safety.knee.value=4;safety.ratio.value=14;
+  safety.attack.value=.004;safety.release.value=.16;
+  master.connect(safety);safety.connect(ctx.destination);
   mixFilter=ctx.createBiquadFilter();mixFilter.type="lowpass";
   mixFilter.frequency.value=220+Math.pow(Number($("tone").value)/100,2)*19000;
   mixFilter.Q.value=.65;mixFilter.connect(master);
@@ -759,7 +772,8 @@ async function startStop(){
   if(stageStarted){
    releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
-    recording.processor.onaudioprocess=null;
+    recording.finished=true;clearTimeout(recording.watchdog);
+    recording.processor.port.postMessage({type:"stop"});
     try{recording.source.disconnect();recording.processor.disconnect();recording.silent.disconnect()}catch{}
     $("vocal-"+recording.scene).textContent="🎙 LOOP VOICE";
    }
@@ -835,64 +849,68 @@ async function enableMic(){
  micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
  await findDevices();return micStream;
 }
-// Record exactly one transport-aligned cycle of microphone PCM.
-// MediaRecorder starts/stops on browser timers (which caused drifting
-// vocal loops). Web Audio processing timestamps and fixed frame counts
-// keep this capture in the very same clock as the rhythm scheduler.
-// Chrome ScriptProcessor is deprecated but stable on the performance Mac;
-// it can later be replaced with an AudioWorklet without changing the UI.
+// AudioWorklet captures the raw microphone on Web Audio's render thread.
+// Headroom is applied only to recorded playback, not the Scarlett hardware.
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
  if(recording)return warn(Error("Finish the current recording first"));
+ let source=null,processor=null,silent=null,take=null;
  try{
   await openAudio();
   const stream=await enableMic();
-  if(!ctx.createScriptProcessor)throw Error("Chrome AudioContext recording unavailable. Use Advanced Studio for vocals.");
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
+  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
   const firstStep=Math.ceil((stepNumber+1)/loopSteps)*loopSteps;
   const start=transportEpoch+firstStep*tickSeconds();
   const duration=cycleSeconds(),frames=Math.round(duration*ctx.sampleRate);
-  if(frames>ctx.sampleRate*12)throw Error("Loop cycle too long for live microphone recording");
-  const data=new Float32Array(frames);
-  const source=ctx.createMediaStreamSource(stream);
-  const processor=ctx.createScriptProcessor(1024,1,1);
-  const silent=ctx.createGain();silent.gain.value=0;
+  if(frames>ctx.sampleRate*12)throw Error("Vocal loop too long (maximum 12 seconds)");
+  source=ctx.createMediaStreamSource(stream);
+  processor=new AudioWorkletNode(ctx,"suzy-vocal-capture",{
+   numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],
+   processorOptions:{startFrame:Math.round(start*ctx.sampleRate),frames}
+  });
+  silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
-  const take={kind:"vocal",scene:which,active:false,beginAt:firstStep,start,
-              processor,source,silent,finished:false};
+  take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null};
   recording=take;
   $("vocal-"+which).textContent="🎙 ARMED";
-  const finish=()=>{
-   if(take.finished)return;
-   take.finished=true;
-   processor.onaudioprocess=null;
-   source.disconnect();processor.disconnect();silent.disconnect();
-   if(recording!==take)return;
-   const clip=ctx.createBuffer(1,frames,ctx.sampleRate);
-   clip.getChannelData(0).set(data);
-   const dst=clip.getChannelData(0),fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
+  const cleanup=()=>{
+   if(take.finished)return false;
+   take.finished=true;clearTimeout(take.watchdog);
+   try{source.disconnect();processor.disconnect();silent.disconnect()}catch{}
+   if(recording===take)recording=null;
+   $("vocal-"+which).textContent="🎙 LOOP VOICE";
+   return true;
+  };
+  processor.port.onmessage=e=>{
+   if(e.data?.type!=="complete"||!cleanup())return;
+   const {data,peak,hot,missing}=e.data;
+   if(!(data instanceof Float32Array)||data.length!==frames)return warn(Error("Vocal capture returned incomplete PCM"));
+   const clip=ctx.createBuffer(1,frames,ctx.sampleRate),dst=clip.getChannelData(0);
+   const headroom=Number($("vocalHeadroom").value)/100;
+   for(let n=0;n<frames;n++)dst[n]=data[n]*headroom;
+   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
    const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null};
-   decks[which].layers.push(layer);
-   recording=null;
-   startLoopAudio(which,layer);
-   renderClips(which);
-   $("vocal-"+which).textContent="🎙 LOOP VOICE";
-   tell("Vocal loop aligned to rhythm: "+bpm+" BPM. VE-22 → Scarlett stays connected.");
+   decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
+   const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
+   $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
+   if(hot>0)warn(Error("Vocal input near clipping. Turn DOWN VE-22 or Scarlett input gain. Browser headroom cannot repair clipped ADC input."));
+   else if(missing>0)warn(Error("Vocal capture had "+missing+" missing frames; check Scarlett connection."));
+   else tell("Vocal saved: "+db.toFixed(1)+" dBFS raw peak · "+Math.round(headroom*100)+"% loop gain.");
   };
-  processor.onaudioprocess=e=>{
-   if(take.finished)return;
-   const relative=Math.round((e.playbackTime-start)*ctx.sampleRate);
-   const inAudio=e.inputBuffer.getChannelData(0);
-   const from=Math.max(0,-relative),to=Math.min(inAudio.length,frames-relative);
-   if(to>from){
-    if(!take.active){take.active=true;$("vocal-"+which).textContent="🎙 RECORDING…";}
-    data.set(inAudio.subarray(from,to),Math.max(0,relative));
-   }
-   if(relative+inAudio.length>=frames)finish();
-  };
-  tell("Voice armed. Sing at the next 2-bar downbeat; the shared clock aligns the loop.");
- }catch(e){recording=null;$("vocal-"+which).textContent="🎙 LOOP VOICE";warn(e)}
+  take.watchdog=setTimeout(()=>{
+   if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
+  },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
+  tell("Voice armed for the next two-bar boundary. Render-thread recorder active.");
+ }catch(e){
+  if(take){take.finished=true;clearTimeout(take.watchdog);}
+  try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
+  if(recording===take)recording=null;
+  $("vocal-"+which).textContent="🎙 LOOP VOICE";
+  warn(e);
+ }
 }
 function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
@@ -1086,6 +1104,7 @@ $("tone").oninput=()=>{
 $("findDevices").onclick=()=>findDevices().catch(warn);
 $("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
 $("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}tell("Mic change will apply on the next vocal recording.")};
+$("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHeadroom").value+"%";};
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();

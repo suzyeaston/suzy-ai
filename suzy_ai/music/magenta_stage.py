@@ -24,6 +24,7 @@ LIVE_PAGE = Path(__file__).with_name("toaster_live.html")
 PLAY_PAGE = Path(__file__).with_name("toaster_play.html")
 LOOP_RACK_SCRIPT = Path(__file__).with_name("toaster_loop_rack.js")
 ARRANGEMENT_SCRIPT = Path(__file__).with_name("toaster_arrangement.js")
+VOCAL_CAPTURE_SCRIPT = Path(__file__).with_name("toaster_vocal_capture.js")
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
@@ -69,6 +70,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             return self.reply(200, LOOP_RACK_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/toaster/arrangement.js":
             return self.reply(200, ARRANGEMENT_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
+        if self.path == "/toaster/vocal-capture.js":
+            return self.reply(200, VOCAL_CAPTURE_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/api/ai/status":
             return self.reply(200, self.native_host.status() if self.native_host else {"phase":"not-configured"})
         if self.path == "/api/perform/status":
