@@ -314,10 +314,10 @@ a{color:var(--mint)}
 <div class="lead-progress" aria-label="pyramid harmonized lead pads">
  <div class="lead-progress-head"><strong>🎼 MELODY OVER EACH CHORD</strong><span id="harmonyLabel-pyramid">FOLLOW Z · chord tones</span></div>
  <div class="lead-pad-row">
- <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="0"><kbd>Z</kbd><span id="leadChord-pyramid-0">Play lead 1</span></button>
- <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="1"><kbd>X</kbd><span id="leadChord-pyramid-1">Play lead 2</span></button>
- <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="2"><kbd>C</kbd><span id="leadChord-pyramid-2">Play lead 3</span></button>
- <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="3"><kbd>V</kbd><span id="leadChord-pyramid-3">Play lead 4</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="0"><kbd>OVER Z</kbd><span id="leadChord-pyramid-0">Play lead 1</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="1"><kbd>OVER X</kbd><span id="leadChord-pyramid-1">Play lead 2</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="2"><kbd>OVER C</kbd><span id="leadChord-pyramid-2">Play lead 3</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="pyramid" data-lead-chord="3"><kbd>OVER V</kbd><span id="leadChord-pyramid-3">Play lead 4</span></button>
  </div>
  <label class="harmonic-toggle"><input id="harmonicLock-pyramid" type="checkbox" checked> Keep A–K melody in the current chord's notes</label>
  <label class="harmonic-toggle"><input id="leadToAI-pyramid" type="checkbox"> Send these lead phrases to Magenta MIDI too (experimental)</label>
@@ -367,10 +367,10 @@ a{color:var(--mint)}
 <div class="lead-progress" aria-label="fishes harmonized lead pads">
  <div class="lead-progress-head"><strong>🎼 MELODY OVER EACH CHORD</strong><span id="harmonyLabel-fishes">FOLLOW Z · chord tones</span></div>
  <div class="lead-pad-row">
- <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="0"><kbd>Z</kbd><span id="leadChord-fishes-0">Play lead 1</span></button>
- <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="1"><kbd>X</kbd><span id="leadChord-fishes-1">Play lead 2</span></button>
- <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="2"><kbd>C</kbd><span id="leadChord-fishes-2">Play lead 3</span></button>
- <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="3"><kbd>V</kbd><span id="leadChord-fishes-3">Play lead 4</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="0"><kbd>OVER Z</kbd><span id="leadChord-fishes-0">Play lead 1</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="1"><kbd>OVER X</kbd><span id="leadChord-fishes-1">Play lead 2</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="2"><kbd>OVER C</kbd><span id="leadChord-fishes-2">Play lead 3</span></button>
+ <button class="lead-pad" type="button" data-lead-scene="fishes" data-lead-chord="3"><kbd>OVER V</kbd><span id="leadChord-fishes-3">Play lead 4</span></button>
  </div>
  <label class="harmonic-toggle"><input id="harmonicLock-fishes" type="checkbox" checked> Keep A–K melody in the current chord's notes</label>
  <label class="harmonic-toggle"><input id="leadToAI-fishes" type="checkbox"> Send these lead phrases to Magenta MIDI too (experimental)</label>
@@ -702,7 +702,8 @@ function pulse(time,count){
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
 function makeVoice(which,pitch,time,instrument,peak,live,role="chord"){
  const preset=INSTRUMENTS[instrument]||INSTRUMENTS.keys;
- const freq=440*Math.pow(2,(pitch+decks[which].transpose+preset.octave-69)/12);
+ const transpose=role==="lead"?0:decks[which].transpose;
+ const freq=440*Math.pow(2,(pitch+transpose+preset.octave-69)/12);
  const gain=ctx.createGain(),osc=ctx.createOscillator(),soft=ctx.createOscillator(),og=ctx.createGain();
  osc.type=preset.wave;osc.frequency.value=freq;
  soft.type=preset.overtone;soft.frequency.value=freq*2;og.gain.value=preset.mix;
@@ -761,7 +762,7 @@ async function auditionLead(which){
   const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
   const now=ctx.currentTime+.03;
   for(let i=0;i<notes.length;i++){
-   const pitch=notes[i]+d.leadOctave;
+   const pitch=notes[i]+d.leadOctave+d.transpose;
    const at=now+i*.28;
    const voice=makeVoice(which,pitch,at,d.leadInstrument,.18,true,"lead");
    releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
@@ -1265,7 +1266,7 @@ function schedule(time,count){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
-       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
+       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false,"lead");
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
         const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
@@ -1277,6 +1278,7 @@ function schedule(time,count){
        }
        continue;
       }
+      if(which===scene)updateHarmony(which,e.index);
       synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
@@ -1775,7 +1777,7 @@ async function readAndExport(){
       const timbre=INSTRUMENTS[event.instrument]||INSTRUMENTS.keys;
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
-       o.type=timbre.wave;o.frequency.value=440*Math.pow(2,(note+d.transpose+timbre.octave-69)/12);
+       o.type=timbre.wave;o.frequency.value=440*Math.pow(2,(note+(event.type==="note"?0:d.transpose)+timbre.octave-69)/12);
        const end=Math.min(sec*2,time+Math.max(.12,(event.holdSteps||1)*tickSeconds())+.65);
        v.gain.setValueAtTime(.00001,time);
        v.gain.linearRampToValueAtTime(.13/notes.length,Math.min(end,time+timbre.attack));
