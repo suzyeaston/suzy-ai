@@ -675,17 +675,28 @@ function makeVoice(which,pitch,time,instrument,peak,live,role="chord"){
  soundOut.connect(live?(role==="lead"?decks[which].leadBus:decks[which].liveBus):decks[which].loopBus);
  gain.gain.setValueAtTime(.00001,time);
  gain.gain.linearRampToValueAtTime(peak,time+preset.attack);
- gain.gain.setTargetAtTime(peak*preset.sustain,time+preset.attack,.25);
+ if(instrument==="nylon")
+  gain.gain.setTargetAtTime(.00001,time+.025,.27); // physical-like plucked decay
+ else gain.gain.setTargetAtTime(peak*preset.sustain,time+preset.attack,.25);
+ let vibrato=null;
+ if(instrument==="violin"){
+  // Slow, restrained bow vibrato applied to the two partials. No worklets.
+  const lfo=ctx.createOscillator(),depth=ctx.createGain();
+  lfo.type="sine";lfo.frequency.value=5.2;depth.gain.value=freq*.0026;
+  lfo.connect(depth);depth.connect(osc.frequency);depth.connect(soft.frequency);
+  lfo.start(time);vibrato=lfo;
+ }
  osc.start(time);soft.start(time);
- return {amp:gain,osc,soft,release:preset.release};
+ return {amp:gain,osc,soft,vibrato,release:preset.release};
 }
 function releaseVoice(voice,time){
- const {amp,osc,soft,release}=voice;
+ const {amp,osc,soft,vibrato,release}=voice;
  try{
   amp.gain.cancelScheduledValues(time);
   amp.gain.setTargetAtTime(.00001,time,release);
   osc.stop(time+Math.max(.50,release*5));
   soft.stop(time+Math.max(.50,release*5));
+  vibrato?.stop(time+Math.max(.50,release*5));
  }catch{}
 }
 function updateOverdubBalance(){
