@@ -139,43 +139,6 @@ details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{c
 #warning{font-size:12px;color:#ffc5b3}
 a{color:var(--mint)}
 @media(max-width:650px){main{padding:11px}.toaster{transform:scale(.78);margin-right:-11px}.brand{gap:8px}.mixer{grid-template-columns:1fr}.pads{gap:5px}.pad{height:70px;padding:5px}.settings{grid-template-columns:1fr}.deck{padding:11px}header{align-items:start}}
-/* CHORD-FIRST PERFORMANCE WORKSPACE: the song IS the interface. */
-.track-workspace{padding:16px;background:#1d1b25;border-color:#81768d}
-.track-columns{gap:16px}
-.track-column{border-color:#6c6379;background:#191820}
-.track-top{background:#282530;padding:14px 13px 10px;gap:8px}
-.track-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.track-title{font-size:15px;letter-spacing:.02em}
-.track-loop-badge{font-size:10px;white-space:nowrap}
-.track-pad-slot{width:100%;min-width:0}
-.track-main-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:3px 0 5px}
-.track-main-pads .pad{min-height:88px;height:auto;padding:8px 3px;border-radius:10px;border:1px solid #cfb0c0;background:linear-gradient(145deg,#8e536d,#4e364f)}
-.track-main-pads .pad kbd{font:800 14px ui-monospace,monospace;color:#fff0d7}
-.track-main-pads .pad b{font-size:clamp(13px,1.6vw,21px);line-height:1.2}
-.track-main-pads .pad.on{background:var(--peach);color:#3c2835}
-.track-controls{padding:0 12px 11px;background:#282530;gap:8px}
-.track-controls button{padding:9px 13px;font-size:12px;font-weight:750}
-.track-first-length{margin-left:auto}
-.track-ruler{padding-left:86px;min-height:27px}
-.track-lane{grid-template-columns:86px minmax(0,1fr);min-height:80px}
-.track-lane-name{background:#26232d;font-size:11px;padding:14px 8px}
-.track-lane-surface{padding:7px;gap:5px;background:repeating-linear-gradient(to right,#ffffff12 0 1px,transparent 1px calc(100%/var(--bars))),#16141d}
-.track-region{display:flex;flex-direction:column;gap:6px;padding:7px;min-height:64px;cursor:grab;touch-action:pan-y;user-select:none;transition:box-shadow .12s}
-.track-region.track-dragging{cursor:grabbing;outline:2px solid #fff0c5;box-shadow:0 0 16px #b3f3cf66}
-.track-region-head{display:flex;align-items:center;gap:8px;min-height:20px}
-.track-clip-title{margin-right:auto;letter-spacing:.04em}
-.track-offset{font:700 10px ui-monospace,monospace;color:#f9e2ae;white-space:nowrap}
-.track-region button{cursor:pointer}
-.track-wave{min-height:30px;height:34px}
-.track-wave-bar{opacity:.87}
-.track-song-playhead{background:#ffd77c;box-shadow:0 0 8px #ffd77c}
-.track-foot{font-size:11px;min-height:27px}
-.track-empty{align-self:center}
-.cue-collapsible{border:1px solid #534b63;border-radius:12px;padding:10px 14px;margin:10px 0;background:#211d27}
-.cue-collapsible>summary{padding:4px;color:#cfbacf;font:800 11px ui-monospace,monospace}
-.cue-collapsible .arranger{margin:8px 0 0}
-@media(max-width:1100px){.track-columns{grid-template-columns:1fr}}
-@media(max-width:560px){.track-main-pads .pad{min-height:76px}.track-main-pads .pad b{font-size:13px}.track-first-length{margin-left:0}}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -186,7 +149,7 @@ a{color:var(--mint)}
 <div class="start"><a class="track-jump" href="#trackWorkspace">🎛 OPEN TRACKS</a><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
 <section aria-label="Session rhythm and master">
-<div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">Start the shared beat clock. Your first recorded phrase determines each song's loop length.</p></div>
+<div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
 <div class="mixer">
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
@@ -202,13 +165,6 @@ a{color:var(--mint)}
 <small class="subtle">Warm ↔ bright · browser instruments and loops</small></div>
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
 </div>
-</section>
-<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
-<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
-<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
-<p class="track-notice">Play either song's chord pads first. Record a phrase to set its loop length, then drag your real loop regions across the bar ruler to change what you hear.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
-<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
-<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
@@ -236,8 +192,13 @@ a{color:var(--mint)}
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
 </section>
-<details class="cue-collapsible" id="cueEditor">
-<summary>▸ ADVANCED SONG CUES · optional automation</summary>
+<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
+<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
+<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
+<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
+<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
+<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
+</section>
 <section class="arranger" aria-label="Editable live song arrangement">
 <div class="start"><div><div class="tiny">02 / LIVE ARRANGEMENT · TWO-BAR QUANTIZED CUES</div>
 <h2>Program the journey · Pyramid → Weird Fishes</h2>
@@ -255,8 +216,6 @@ a{color:var(--mint)}
 <div id="arrCues" aria-label="Editable arrangement cue list"></div>
 <small class="subtle">No automatic audio recording; vocal/AI clips are still separate. 32 cues maximum. Edited arrangement is saved in this browser.</small>
 </section>
-
-</details>
 <section class="note-bank" aria-label="Playable computer keyboard">
 <div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
 <h2>1–4 are your chords. A–K is your piano.</h2>
@@ -278,7 +237,7 @@ a{color:var(--mint)}
 <button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
 </div>
 </section>
-<details id="classicDecks"><summary>ADVANCED TRACK FADERS / LEGACY CONTROLS</summary><div id="decks">
+<details id="classicDecks"><summary>🎹 CLASSIC CHORD PADS & ORIGINAL LOOP BUTTONS</summary><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
@@ -811,8 +770,7 @@ function schedule(time,count){
   for(const l of d.layers){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
-    const movedStep=((e.step+(l.shiftSteps||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
-    if(movedStep===songStep){
+    if(e.step===songStep){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
@@ -1050,26 +1008,14 @@ async function voiceLoop(which){
 }
 function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
- const now=ctx.currentTime,old=l.source,oldGain=l.gain;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- const level=l.muted?0:.65;
- if(old&&oldGain){
-  try{
-   oldGain.gain.cancelScheduledValues(now);
-   oldGain.gain.setValueAtTime(oldGain.gain.value,now);
-   oldGain.gain.linearRampToValueAtTime(0,now+.035);
-   old.stop(now+.07);
-  }catch{}
- }
- gain.gain.setValueAtTime(0,now);
- gain.gain.linearRampToValueAtTime(level,now+.055);
+ gain.gain.value=l.muted?0:.65;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=now+.025,phase=songPhaseSeconds(which,when);
- const shift=((l.shiftSteps||0)*tickSeconds())%l.buffer.duration;
- const offset=((phase-shift)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
- if(stageStarted)src.start(when,offset);
+ const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
+ if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
+
  l.source=src;l.gain=gain;
 }
 async function importAudio(file){
@@ -1119,7 +1065,7 @@ async function readAndExport(){
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
-      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+((event.step+(layer.shiftSteps||0))%songCycleSteps(which)))*tickSeconds();
+      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+event.step)*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
@@ -1131,9 +1077,7 @@ async function readAndExport(){
       }
      }
     }else if(layer.buffer){
-     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);
-    const offset=((-(layer.shiftSteps||0)*tickSeconds())%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
-    src.start(0,offset);
+     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);src.start(0);
     }
    }
   }
@@ -1195,18 +1139,7 @@ trackView=new window.SuzyTrackView({
   if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;
   renderClips(which);
  },
- onRemove:removeSongLayer,
- onShift:(which,id,shift)=>{
-  const layer=decks[which].layers.find(l=>l.id===id);
-  if(!layer)return;
-  const length=songCycleSteps(which);
-  layer.shiftSteps=((shift%length)+length)%length;
-  // Chords are shifted at schedule time; audio gets an actual new loop offset.
-  if(layer.buffer&&stageStarted)startLoopAudio(which,layer);
-  trackView.draw();
-  tell((layer.kind==="chords"?"Chord":layer.kind==="vocal"?"Vocal":"AI")+
-    " loop shifted to bar "+(layer.shiftSteps/8+1)+" in "+which+".");
- }
+ onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
 for(const k of Object.keys(decks)){
