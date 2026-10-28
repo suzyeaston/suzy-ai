@@ -211,6 +211,19 @@ test("rapid mouse click switches chords and each chord has an audible attack",as
  fire(first,"pointercancel");
  assert.equal(run("heldKeys.size"),0);
 });
+test("second mouse pointer-down retriggers after missing pointer-up",async()=>{
+ const {run,pads}=rig();await run("startStop()");
+ const e={button:0,pointerId:7,preventDefault(){}};
+ pads[0]._events.pointerdown[0](e);
+ const before=run('heldKeys.get("pad:pyramid:0").voices[0]');
+ // Simulate dropped mouse-up event. A fresh press must not be ignored.
+ pads[0]._events.pointerdown[0](e);
+ const after=run('heldKeys.get("pad:pyramid:0").voices[0]');
+ assert.notEqual(before,after);
+ assert.equal(run("heldKeys.size"),1);
+ pads[0]._events.pointerup[0](e);
+ assert.equal(run("heldKeys.size"),0);
+});
 test("short ambient-pad tap reaches its slower attack before stopping",async()=>{
  const {run,pads}=rig();await run("startStop()");
  run('setInstrument("pyramid","pad")');
