@@ -159,6 +159,11 @@ a{color:var(--mint)}
 .track-loop-badge.loop-flash{color:var(--peach);text-shadow:0 0 5px #ffd8ac}
 @media(max-width:920px){.chord-center #decks{grid-template-columns:1fr}}
 
+/* Low-overhead mic-to-MIDI companion, no second large AI model. */
+.voice-ai-follow{border:1px solid #7c7e96;background:#262235;border-radius:14px;padding:12px;margin:14px 0}
+.voice-follow-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.voice-follow-actions button{padding:12px;font-size:12px;font-weight:800;border-radius:9px}
+#voiceFollowStatus{font:700 11px ui-monospace,monospace;color:var(--mint)}
 /* Scrolling project-length performance grid; deliberately compact on 8 GB Macs. */
 .full-arrangement{border:1px solid #8b7798;border-radius:16px;padding:14px;margin:12px 0;background:#1f1c28;scroll-margin-top:12px}
 .full-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -287,6 +292,12 @@ a{color:var(--mint)}
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
 </div></section>
+<section class="voice-ai-follow" aria-label="Voice controlled AI accompaniment">
+<div class="start"><div><div class="tiny">VOICE → AI · EXPERIMENTAL</div>
+<h2>Sing to steer Magenta</h2>
+<p class="subtle">TOASTER can follow your sung pitch from the Scarlett and send MIDI notes to the existing *instrumental* MRT2 model. Your microphone stays local. This does not create a synthetic singer or reproduce words; the VE-22 is still your vocal harmony option.</p></div>
+<div class="voice-follow-actions"><button type="button" id="voiceFollow">🎙 ENABLE VOICE → MAGENTA</button><span id="voiceFollowStatus" role="status">OFF · Requires working Magenta and microphone permission</span></div></div>
+</section>
 <section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
@@ -388,6 +399,7 @@ let blendBoth=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false;
+let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -945,7 +957,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
-   releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   releaseAllChords();stopVoiceFollow();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
     recording.finished=true;clearTimeout(recording.watchdog);
     recording.processor.port.postMessage({type:"stop"});
@@ -1062,6 +1074,41 @@ async function enableMic(){
 }
 // AudioWorklet captures the raw microphone on Web Audio's render thread.
 // Headroom is applied only to recorded playback, not the Scarlett hardware.
+async function toggleVoiceFollow(){
+ if(followMicNode){stopVoiceFollow();tell("Voice-to-Magenta MIDI steering stopped.");return;}
+ try{
+  if(!aiNativeReady)throw Error("Start Magenta and select its model before using Voice → AI.");
+  await openAudio();
+  const stream=await enableMic();
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Voice follower requires Chrome AudioWorklet.");
+  if(!followModuleReady){await ctx.audioWorklet.addModule("/toaster/voice-follow.js");followModuleReady=true;}
+  followMicSource=ctx.createMediaStreamSource(stream);
+  followMicNode=new AudioWorkletNode(ctx,"suzy-voice-follow",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});
+  followMicSilent=ctx.createGain();followMicSilent.gain.value=0;
+  followMicSource.connect(followMicNode);followMicNode.connect(followMicSilent);
+  followMicSilent.connect(ctx.destination);
+  followMicNode.port.onmessage=e=>{
+   if(e.data?.type!=="pitch")return;
+   const next=e.data.note;
+   if(next===followedMidi)return;
+   if(followedMidi!==null)aiMelody(followedMidi,false);
+   followedMidi=next;
+   $("voiceFollowStatus").textContent=next===null?"LISTENING · sing a sustained note":
+      "VOICE → MRT2 · MIDI "+next+" · "+Math.round((e.data.confidence||0)*100)+"% confidence";
+   if(next!==null&&aiNativeReady)aiMelody(next,true);
+  };
+  $("voiceFollow").textContent="■ STOP VOICE → MAGENTA";
+  $("voiceFollowStatus").textContent="LISTENING · sustained sung notes guide instrumental generation";
+ }catch(e){stopVoiceFollow();warn(e)}
+}
+function stopVoiceFollow(){
+ if(followedMidi!==null){aiMelody(followedMidi,false);followedMidi=null;}
+ try{followMicNode?.port.postMessage({type:"stop"});}catch{}
+ try{followMicSource?.disconnect();followMicNode?.disconnect();followMicSilent?.disconnect();}catch{}
+ followMicNode=null;followMicSource=null;followMicSilent=null;
+ $("voiceFollow").textContent="🎙 ENABLE VOICE → MAGENTA";
+ $("voiceFollowStatus").textContent="OFF · model continues independently";
+}
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
@@ -1289,6 +1336,7 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("voiceFollow").onclick=toggleVoiceFollow;
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{
