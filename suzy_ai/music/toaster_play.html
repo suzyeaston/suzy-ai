@@ -187,6 +187,18 @@ a{color:var(--mint)}
 .full-resize{position:absolute;right:0;top:0;bottom:0;width:13px;background:#fff2dd44;cursor:ew-resize;font-size:16px;display:grid;place-items:center}
 .full-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd75d;pointer-events:none;box-shadow:0 0 5px #ffe28c}
 @media(max-width:670px){.full-viewport{grid-template-columns:92px minmax(0,1fr)}.full-label-row{font-size:8px}.full-label-head{font-size:9px}}
+.arranger[hidden],.track-workspace[hidden]{display:none!important}
+.live-voice-monitor{border:1px solid #799d95;border-radius:14px;padding:14px;margin:12px 0;background:#19282a}
+.live-voice-monitor .monitor-controls{display:flex;gap:11px;align-items:center;flex-wrap:wrap}
+.live-voice-monitor .monitor-controls label{display:grid;gap:3px;font-size:11px;min-width:120px}
+.live-voice-monitor .monitor-controls input{width:130px}
+.live-voice-monitor button{background:#aee8d8;color:#20332d;min-height:46px}
+.live-voice-monitor button[aria-pressed=true]{background:#f2ccab;color:#3d2d35}
+#monitorStatus{font-size:11px;color:var(--mint)}
+.full-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:7px 0}
+.full-toolbar button{font-size:11px;padding:8px 10px}
+.full-clip.is-selected{outline:3px solid #ffe7ab;outline-offset:2px}
+.full-lane.is-paste-target{background-color:#355343}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -194,7 +206,7 @@ a{color:var(--mint)}
 <div class="bread"></div><div class="slot"></div><div class="body"><div class="face">• •</div><div class="smile"></div></div><div class="lever"></div><div class="foot"></div></div>
 <div><div class="tiny">FUTUREPROOF · THE APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST 🍞</h1><p class="subtle">Play it. Loop it. Add a voice. Make it evolve.</p></div>
 </div>
-<div class="start"><a class="track-jump" href="#trackWorkspace">🎛 OPEN TRACKS</a><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
+<div class="start"><a class="track-jump" href="#fullArrangement">🎛 OPEN TRACKS</a><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
@@ -222,6 +234,7 @@ a{color:var(--mint)}
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button>
+<button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
@@ -292,6 +305,17 @@ a{color:var(--mint)}
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
 </div></section>
+<section class="live-voice-monitor" aria-label="Live lead vocal headphone monitoring">
+<div class="start"><div><div class="tiny">LEAD VOICE · HEADPHONES</div>
+<h2>Hear your voice as you sing</h2>
+<p class="subtle">Optional live dry + reverb monitoring through the selected browser audio output. Recording and looping still work with monitoring off. Use headphones, not speakers. Turn OFF Scarlett direct monitoring to prevent doubling or echo.</p></div></div>
+<div class="monitor-controls">
+<button type="button" id="monitorVoice" aria-pressed="false">🎙 MONITOR VOICE · OFF</button>
+<label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="100" value="55"></label>
+<label>LIVE REVERB <input id="monitorReverb" type="range" min="0" max="75" value="28"></label>
+<span id="monitorStatus" role="status">OFF · headphones required to prevent feedback</span>
+</div>
+</section>
 <section class="voice-ai-follow" aria-label="Voice controlled AI accompaniment">
 <div class="start"><div><div class="tiny">VOICE → AI · EXPERIMENTAL</div>
 <h2>Sing to steer Magenta</h2>
@@ -302,6 +326,8 @@ a{color:var(--mint)}
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
 <div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
+<div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullSplit" type="button">SPLIT AT PLAYHEAD</button><button id="fullDelete" type="button">DELETE</button>
+<span id="fullSelection" class="stat">Click a clip to select it. Click a lane to choose the paste destination. Cmd+C / X / V / Delete.</span></div>
 <div class="full-viewport" id="fullViewport">
 <div class="full-labels"><div class="full-label-head">SECTIONS</div>
 <div class="full-label-row">PYRAMID · KEYS</div><div class="full-label-row">PYRAMID · VOICE</div><div class="full-label-row">PYRAMID · AI</div>
@@ -310,14 +336,14 @@ a{color:var(--mint)}
 </div>
 <small class="subtle">This is the full bar-based arrangement. Regions are actual takes; Magenta's native generated music is still a separate output until recorded/imported. Rehearsal changes apply on the next bar, not Logic-sample-accurate.</small>
 </section>
-<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
+<section class="track-workspace" id="trackWorkspace" hidden aria-label="Logic inspired live loop timeline">
 <div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
 <h2>Pyramid & Weird Fishes · Two live song timelines</h2>
 <p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
 <div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
 <small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
 </section>
-<section class="arranger" aria-label="Editable live song arrangement">
+<section class="arranger" aria-label="Legacy automation cue editor" hidden>
 <div class="start"><div><div class="tiny">02 / LIVE ARRANGEMENT · TWO-BAR QUANTIZED CUES</div>
 <h2>Program the journey · Pyramid → Weird Fishes</h2>
 <p class="subtle">Edit cues while playing. Song, duration, optional chord pattern, and crossfade update at the next two-bar boundary. This controls TOASTER's browser clock and MIDI prompts, not Logic's timeline.</p>
@@ -399,6 +425,8 @@ let blendBoth=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false;
+let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
+let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
@@ -408,7 +436,7 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:32,liveBus:null,loopBus:null,
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
@@ -524,7 +552,7 @@ function updateOverdubBalance(){
   const active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
   d.liveBus.gain.value=Number($("liveLevel").value)/100;
   // Multiple recorded overdubs gain compensated; they still remain independent.
-  d.loopBus.gain.value=Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
+  d.loopBus.gain.value=localKeysOnly?0:Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
  }
 }
 function setInstrument(which,instrument){
@@ -603,7 +631,33 @@ async function openGoogleModelSelector(){
   }
  }catch(e){help.textContent="MODEL SELECTOR ERROR: "+e.message;warn(e);}
 }
+async function toggleLocalKeysOnly(){
+ const enabling=!localKeysOnly;
+ if(enabling){
+  if(aiSolo)toggleAISolo();
+  preKeysSoloMuted=aiMuted;localKeysOnly=true;
+  if(aiNativeReady&&!aiMuted){
+   try{await aiFetch("mute",{value:true});aiMuted=true}
+   catch(e){localKeysOnly=false;warn(e);return}
+  }
+ }else{
+  localKeysOnly=false;
+  if(aiNativeReady&&preKeysSoloMuted!==null){
+   try{await aiFetch("mute",{value:preKeysSoloMuted});aiMuted=preKeysSoloMuted}
+   catch(e){warn(e)}
+  }
+  preKeysSoloMuted=null;
+ }
+ $("localKeysSolo").setAttribute("aria-pressed",String(localKeysOnly));
+ $("localKeysSolo").textContent=localKeysOnly?"🎹 RESTORE FULL MIX":"🎹 SOLO LOCAL KEYS";
+ $("aiMute").setAttribute("aria-pressed",String(aiMuted));
+ $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
+ updateMix();updateOverdubBalance();
+ if(beatBus)beatBus.gain.value=localKeysOnly?0:Number($("rhythmLevel").value)/100;
+ tell(localKeysOnly?"LOCAL KEYS ONLY · AI, rhythm, vocal loops and overdubs temporarily silenced.":"Restored rhythm, loops and the previous Magenta mute setting.");
+}
 function toggleAISolo(){
+ if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE LOCAL KEYS":"🎧 HEAR AI ONLY";
@@ -957,7 +1011,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
-   releaseAllChords();stopVoiceFollow();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   releaseAllChords();stopVoiceFollow();stopVoiceMonitor();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
     recording.finished=true;clearTimeout(recording.watchdog);
     recording.processor.port.postMessage({type:"stop"});
@@ -1109,6 +1163,38 @@ function stopVoiceFollow(){
  $("voiceFollow").textContent="🎙 ENABLE VOICE → MAGENTA";
  $("voiceFollowStatus").textContent="OFF · model continues independently";
 }
+async function startVoiceMonitor(){
+ if(monitoringVoice)return;
+ if(!stageStarted)throw Error("Start PLAY RHYTHM and choose headphones before enabling lead monitoring.");
+ await openAudio();
+ const stream=await enableMic();
+ // Monitoring is a separate dry/wet path. The recorder still captures clean
+ // pre-effects PCM, so its loop and overdubs are not contaminated by reverb.
+ monitorSource=ctx.createMediaStreamSource(stream);
+ monitorFilter=ctx.createBiquadFilter();monitorFilter.type="highpass";monitorFilter.frequency.value=90;
+ monitorDry=ctx.createGain();monitorSend=ctx.createGain();
+ monitorDry.gain.value=Number($("monitorLevel").value)/100;
+ monitorSend.gain.value=Number($("monitorReverb").value)/100;
+ monitorSource.connect(monitorFilter);
+ monitorFilter.connect(monitorDry);monitorFilter.connect(monitorSend);
+ monitorDry.connect(mainBus);monitorSend.connect(verb);
+ monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
+ $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
+ $("monitorStatus").textContent="LIVE · Scarlett → dry + reverb → headphone output";
+}
+function stopVoiceMonitor(){
+ for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend]){
+  try{n?.disconnect()}catch{}
+ }
+ monitorSource=null;monitorFilter=null;monitorDry=null;monitorSend=null;
+ monitoringVoice=false;$("monitorVoice").setAttribute("aria-pressed","false");
+ $("monitorVoice").textContent="🎙 MONITOR VOICE · OFF";
+ $("monitorStatus").textContent="OFF · live microphone no longer routed to speakers";
+}
+async function toggleVoiceMonitor(){
+ if(monitoringVoice)stopVoiceMonitor();
+ else try{await startVoiceMonitor()}catch(e){stopVoiceMonitor();warn(e)}
+}
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
@@ -1135,7 +1221,8 @@ async function voiceLoop(which){
   const d=decks[which];
   const bars=d.locked?d.lengthSteps/8:d.initialBars;
   const steps=bars*8;
-  const firstStep=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+  // Arm at next bar, not after a potentially long full song cycle.
+  const firstStep=Math.ceil((stepNumber+1)/8)*8;
   const start=transportEpoch+firstStep*tickSeconds();
   const duration=steps*tickSeconds(),frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
@@ -1177,7 +1264,7 @@ async function voiceLoop(which){
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
    const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
-     arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
+     arrStartBar:Math.max(0,Math.floor(take.firstStep/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
    $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
@@ -1189,7 +1276,7 @@ async function voiceLoop(which){
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?"First voice armed. Sing your phrase, then press FINISH FIRST VOICE after at least 2 bars. Max "+bars+" bars.":
-   "Vocal overdub armed for exactly "+bars+" bars on the existing song clock.");
+   "Vocal overdub armed for the NEXT BAR, recording "+bars+" bars on the existing song clock.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
@@ -1206,7 +1293,8 @@ function startLoopAudio(which,l){
  src.connect(gain);gain.connect(decks[which].voiceBus);
  const when=ctx.currentTime+.025;
  const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
- const phase=((when-clipOrigin)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
+ const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
+ const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -1242,7 +1330,7 @@ function updateMix(){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=(aiSolo?0:level*side);
-  decks[k].voiceBus.gain.value=Number($("voice-"+k).value)/100*side;
+  decks[k].voiceBus.gain.value=localKeysOnly?0:Number($("voice-"+k).value)/100*side;
  }
 }
 async function readAndExport(){
@@ -1331,6 +1419,45 @@ fullTimeline=new window.SuzyPerformanceTimeline({
  getStep:()=>stepNumber,
  getTempo:()=>bpm,
  onSelect:choose,
+ onAction:({action,selected,target,clipboard})=>{
+  if(action==="copy")return;
+  if(action==="cut"||action==="delete"){
+   removeSongLayer(selected.which,selected.id);
+   tell(action==="cut"?"Clip cut to clipboard; choose a destination lane/bar and paste.":"Clip deleted.");
+   return;
+  }
+  if(action==="paste"){
+   const original=clipboard.layer,dest=decks[target.which];
+   const start=Math.max(0,Math.min(target.bar,fullTimeline.total-1));
+   const duration=Math.max(1,(original.arrEndBar??fullTimeline.total)-(original.arrStartBar??0));
+   const copy={...original,id:crypto.randomUUID(),source:null,gain:null,muted:false,
+     events:original.events?.map(e=>({...e})),
+     arrStartBar:start,arrEndBar:Math.min(fullTimeline.total,start+duration)};
+   if(!dest.locked){dest.locked=true;dest.lengthSteps=decks[clipboard.which].lengthSteps||16;dest.anchorStep=start*8;}
+   dest.layers.push(copy);
+   if(stageStarted&&copy.buffer)startLoopAudio(target.which,copy);
+   renderClips(target.which);
+   fullTimeline.selected={which:target.which,kind:copy.kind,id:copy.id};
+   tell("Pasted "+copy.kind+" to "+target.which.toUpperCase()+" at bar "+(start+1)+
+     ". Audio remains un-stretched; chord indices use the destination song's harmony.");
+   return;
+  }
+  if(action==="split"){
+   const layer=decks[selected.which].layers.find(l=>l.id===selected.id);
+   if(!layer)return;
+   const start=Math.max(0,Number(layer.arrStartBar??0)),end=Number(layer.arrEndBar??fullTimeline.total);
+   const splitBar=Math.floor(stepNumber/8);
+   if(splitBar<=start||splitBar>=end){tell("Move the playhead inside the selected clip to SPLIT.");return;}
+   const second={...layer,id:crypto.randomUUID(),source:null,gain:null,
+     arrStartBar:splitBar,arrEndBar:end,events:layer.events?.map(e=>({...e})),
+     sourceOffsetBars:(layer.sourceOffsetBars||0)+(splitBar-start)};
+   layer.arrEndBar=splitBar;
+   decks[selected.which].layers.push(second);
+   if(second.buffer&&stageStarted)startLoopAudio(selected.which,second);
+   renderClips(selected.which);
+   tell("Split at bar "+(splitBar+1)+". Both regions can be moved independently.");
+  }
+ },
  onEdit:(which,id,start,end)=>{
   const layer=decks[which].layers.find(l=>l.id===id);
   if(!layer)return;
@@ -1372,6 +1499,10 @@ trackView=new window.SuzyTrackView({
 });
 $("rhythm").onclick=startStop;
 $("voiceFollow").onclick=toggleVoiceFollow;
+$("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
+$("monitorVoice").onclick=toggleVoiceMonitor;
+$("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=Number($("monitorLevel").value)/100;};
+$("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{
@@ -1447,7 +1578,7 @@ $("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
-$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
+$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly?0:val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
 function updateRoomFx(){

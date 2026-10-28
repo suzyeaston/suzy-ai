@@ -243,6 +243,35 @@ class LiveToasterHttpTests(unittest.TestCase):
             for marker in markers:
                 self.assertIn(marker, script)
 
+    def test_single_visible_timeline_and_live_mic_monitoring(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        self.assertIn('id="fullArrangement"', page)
+        self.assertIn('<section class="arranger" aria-label="Legacy automation cue editor" hidden>', page)
+        self.assertIn('id="monitorVoice"', page)
+        self.assertIn('id="monitorLevel"', page)
+        self.assertIn('id="monitorReverb"', page)
+        self.assertIn('id="localKeysSolo"', page)
+        for marker in ('id="fullCopy"', 'id="fullCut"', 'id="fullPaste"',
+                       'id="fullSplit"', 'id="fullDelete"'):
+            self.assertIn(marker, page)
+        for marker in ('async function startVoiceMonitor()',
+                       'monitorSource.connect(monitorFilter)',
+                       'monitorDry.connect(mainBus)',
+                       'monitorSend.connect(verb)',
+                       'const firstStep=Math.ceil((stepNumber+1)/8)*8',
+                       'arrStartBar:Math.max(0,Math.floor(take.firstStep/8))',
+                       'function toggleLocalKeysOnly()',
+                       'onAction:({action,selected,target,clipboard})',
+                       'sourceOffsetBars:(layer.sourceOffsetBars||0)+(splitBar-start)'):
+            self.assertIn(marker, page)
+        status, script = self.call("GET", "/toaster/performance-timeline.js")
+        self.assertEqual(status, 200)
+        for marker in ('this.perform(action)',
+                       'this.clipboard={which:selected.which,kind:selected.kind',
+                       'this.onAction({action,selected,target:{...this.target},clipboard:this.clipboard})'):
+            self.assertIn(marker, script)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)

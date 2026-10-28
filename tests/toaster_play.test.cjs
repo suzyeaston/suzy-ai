@@ -451,3 +451,70 @@ test("voice pitch follow recognizes A4 without an octave error",()=>{
  }
  assert.ok(events.some(x=>x.type==="pitch"&&x.note===69));
 });
+
+
+test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake reverb into vocal capture",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ assert.equal(run("monitoringVoice"),false);
+ get("monitorLevel").value="55";get("monitorReverb").value="28";
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ assert.equal(run("monitorDry.gain.value"),.55);
+ assert.equal(run("monitorSend.gain.value"),.28);
+ assert.equal(get("monitorVoice").textContent.includes("ON"),true);
+ assert.match(file,/source.connect\(processor\);processor.connect\(silent\);silent.connect\(ctx.destination\)/);
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.kind"),"vocal");
+ assert.equal(run("monitoringVoice"),true);
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),false);
+ assert.equal(run("recording.kind"),"vocal");
+});
+test("a vocal overdub arms at the next BAR instead of waiting for the next 32-bar cycle",async()=>{
+ const {run}=rig();await run("startStop()");
+ run("decks.pyramid.locked=true;decks.pyramid.lengthSteps=256;decks.pyramid.anchorStep=0;stepNumber=23");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.firstStep"),24);
+ assert.equal(run("recording.steps"),256);
+ assert.equal(run("recording.first"),false);
+});
+test("solo LOCAL keys isolates browser pads without mutating the underlying AI prompt",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ const prompts=run("getPromptStrings().join('|')");
+ await run("toggleLocalKeysOnly()");
+ assert.equal(run("localKeysOnly"),true);
+ assert.equal(run("beatBus.gain.value"),0);
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),0);
+ assert.equal(run("decks.pyramid.voiceBus.gain.value"),0);
+ assert.ok(run("decks.pyramid.liveBus.gain.value")>0);
+ await run("toggleLocalKeysOnly()");
+ assert.equal(run("localKeysOnly"),false);
+ assert.equal(run("beatBus.gain.value"),.35);
+ assert.equal(run("getPromptStrings().join('|')"),prompts);
+});
+test("the full timeline edits real clips with copy, cut, cross-song paste, split, and delete",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=32;decks.pyramid.layers.push({id:"first",kind:"chords",instrument:"keys",muted:false,arrStartBar:2,arrEndBar:50,events:[{step:0,index:1,holdSteps:2}]})');
+ run('fullTimeline.selected={which:"pyramid",kind:"chords",id:"first"}');
+ run('fullTimeline.perform("copy")');
+ assert.equal(run("fullTimeline.clipboard.layer.id"),"first");
+ run('fullTimeline.target={which:"fishes",kind:"chords",bar:12}');
+ run('fullTimeline.perform("paste")');
+ assert.equal(run("decks.fishes.layers.length"),1);
+ assert.equal(run("decks.fishes.layers[0].arrStartBar"),12);
+ assert.equal(run("decks.fishes.layers[0].events[0].index"),1);
+ const pasted=run("decks.fishes.layers[0].id");
+ run('fullTimeline.selected={which:"fishes",kind:"chords",id:decks.fishes.layers[0].id};stepNumber=144');
+ run('fullTimeline.perform("split")');
+ assert.equal(run("decks.fishes.layers.length"),2);
+ assert.equal(run("decks.fishes.layers[0].arrEndBar"),18);
+ assert.equal(run("decks.fishes.layers[1].arrStartBar"),18);
+ run('fullTimeline.selected={which:"fishes",kind:"chords",id:decks.fishes.layers[1].id}');
+ run('fullTimeline.perform("delete")');
+ assert.equal(run("decks.fishes.layers.length"),1);
+ run('fullTimeline.selected={which:"fishes",kind:"chords",id:decks.fishes.layers[0].id}');
+ run('fullTimeline.perform("cut")');
+ assert.equal(run("decks.fishes.layers.length"),0);
+ assert.equal(run("fullTimeline.clipboard.kind"),"chords");
+});
