@@ -347,7 +347,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -394,7 +394,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -462,7 +462,7 @@ a{color:var(--mint)}
 <section class="track-workspace" id="trackWorkspace" hidden aria-label="Logic inspired live loop timeline">
 <div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
 <h2>Pyramid & Weird Fishes · Two live song timelines</h2>
-<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
+<p class="track-notice">Your first chord phrase sets its OWN loop length when you press DONE. The loop immediately repeats on the next short clock tick, with no preselected bar count. Keys, vocal takes and imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
 <div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
 <small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
 </section>
@@ -1433,7 +1433,7 @@ async function startStop(){
    }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
-   tell("Rhythm live! Play Z X C V, then tap LOOP MY CHORDS.");
+   tell("Rhythm live! Press RECORD FIRST LOOP, play Z X C V, then press DONE to start repeating.");
    updateVocalState();updateTransportUI();
   }
  }catch(e){warn(e);}
