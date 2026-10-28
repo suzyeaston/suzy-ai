@@ -99,6 +99,14 @@ class NativeMRT2Tests(unittest.TestCase):
             "The AU must receive transport before render resources are started",
         )
 
+    def test_gate_off_diagnostic_defaults_to_existing_behavior(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('ProcessInfo.processInfo.environment["SUZY_MRT2_MIDI_GATE"] != "0"', source)
+        self.assertIn('parameter(45, midiGateEnabled ? 1.0 : 0.0)', source)
+        self.assertIn('"midi_gate_parameter_readback"', source)
+        self.assertIn('"midi_gate_enabled"', source)
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},
