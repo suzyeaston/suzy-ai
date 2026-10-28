@@ -106,7 +106,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/id="tempo"/);
  assert.match(file,/TRACK 01/);
  assert.match(file,/TRACK 02/);
- assert.match(file,/LOOP MY CHORDS/);
+ assert.match(file,/RECORD FIRST LOOP/);
  assert.match(file,/LOOP VOICE/);
  assert.match(file,/VOICE INPUT · VE-22 THROUGH SCARLETT/);
  assert.match(file,/id="testMic"/);
