@@ -11,7 +11,7 @@ const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster
 const timelineJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_performance_timeline.js"),"utf8");
 const voiceFollowJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_voice_follow.js"),"utf8");
 function rig(){
- const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null};
+ const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null,inputs:[],forceDeviceId:null};
  const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
  const el=(v="")=>({
    value:v,textContent:"",style:{setProperty(name,value){this[name]=value}},dataset:{},children:[],options:[],
@@ -30,7 +30,7 @@ function rig(){
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null;this.startAt=null;this.startOffset=null}connect(){return this}disconnect(){}start(t,offset){this.startAt=t;this.startOffset=offset}stop(t){this.stopAt=t}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null;this.startAt=null;this.startOffset=null}connect(){return this}disconnect(){}start(t,offset){this.startAt=t;this.startOffset=offset}stop(t){this.stopAt=t}getFloatTimeDomainData(samples){samples.fill(0)}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
@@ -38,7 +38,7 @@ function rig(){
  class AudioContext{
   constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};
    this.audioWorklet={addModule:async src=>{calls.workletModule=src}};}
-  createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+  createGain(){return new AudioNode()}createAnalyser(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
    createDelay(){return new AudioNode()}
    createDynamicsCompressor(){return new AudioNode()}
   createBiquadFilter(){return new AudioNode()}
@@ -56,6 +56,7 @@ function rig(){
   async startRendering(){return new AudioBuffer(this.ch,this.len,this.sampleRate)}
  }
  const io=[
+  {kind:"audioinput",deviceId:"mac0",label:"MacBook Pro Microphone"},
   {kind:"audioinput",deviceId:"mic1",label:"Scarlett Solo USB"},
   {kind:"audiooutput",deviceId:"out1",label:"Scarlett Solo USB"},
   {kind:"audiooutput",deviceId:"out2",label:"External Headphones (Built-in)"}
@@ -70,7 +71,17 @@ function rig(){
   confirm:()=>true,
   AudioContext,OfflineAudioContext,Blob,crypto:{randomUUID:()=>String(Math.random())},
   fetch:async (url,opts)=>{calls.midi.push({url,opts});return {ok:true,json:async()=>({})}},
-  navigator:{mediaDevices:{enumerateDevices:async()=>io,getUserMedia:async()=>({active:true,getTracks:()=>[{stop(){}}]})}},
+  navigator:{mediaDevices:{enumerateDevices:async()=>io,getUserMedia:async constraints=>{
+   calls.inputs.push(constraints);
+   const requested=constraints.audio===true?"mac0":constraints.audio.deviceId?.exact||constraints.audio.deviceId?.ideal||"mac0";
+   const device=io.find(d=>d.kind==="audioinput"&&d.deviceId===requested);
+   if(!device)throw Error("Requested audio input unavailable: "+requested);
+   const opened=io.find(d=>d.kind==="audioinput"&&d.deviceId===(calls.forceDeviceId||requested))||device;
+   const stream={active:true,getAudioTracks:()=>[track],getTracks:()=>[track]};
+   const track={label:opened.label,getSettings:()=>({deviceId:opened.deviceId}),readyState:"live",
+    stop(){this.readyState="ended";stream.active=false;}};
+   return stream;
+  }}},
   addEventListener(type,fn){if(!listeners.has('window:'+type))listeners.set('window:'+type,[]);listeners.get('window:'+type).push(fn)},
   setInterval:()=>1,clearInterval(){},setTimeout(){},clearTimeout(){},
   URL:{createObjectURL(){return "blob:test"},revokeObjectURL(){}},
@@ -86,7 +97,7 @@ function rig(){
   const event={key,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
   for(const fn of listeners.get(name)||[])fn(event);
  };
- return {env,get,calls,pads,run:(js)=>vm.runInContext(js,env),emit};
+ return {env,get,calls,io,pads,run:(js)=>vm.runInContext(js,env),emit};
 }
 test("the musician sees the toaster, one-click beat, two decks and hidden setup",()=>{
  assert.match(file,/Smiling pink toaster/);
@@ -97,7 +108,9 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/TRACK 02/);
  assert.match(file,/LOOP MY CHORDS/);
  assert.match(file,/LOOP VOICE/);
- assert.match(file,/auto Scarlett/);
+ assert.match(file,/VOICE INPUT · VE-22 THROUGH SCARLETT/);
+ assert.match(file,/id="testMic"/);
+ assert.match(file,/id="micMeter"/);
  assert.match(file,/MRT2 prompt/);
  assert.match(file,/ENABLE MAGENTA/);
  assert.match(file,/Native Google Magenta AU is optional/);
@@ -817,4 +830,63 @@ test("ruler navigation supports arrows, Home and End without modifying recorded 
  key("Home");assert.equal(run("parkedBar"),0);
  key("End");assert.equal(run("parkedBar"),run("fullTimeline.total")-1);
  key("ArrowLeft");assert.equal(run("parkedBar"),run("fullTimeline.total")-2);
+});
+
+test("all vocal paths bind to the verified Scarlett Solo, never the default Mac mic",async()=>{
+ const {get,calls,run}=rig();
+ await run("startStop()");
+ await run("enableMic()");
+ assert.equal(get("micInput").value,"mic1");
+ assert.equal(run("activeMicDeviceId"),"mic1");
+ assert.equal(calls.inputs.at(-1).audio.deviceId.exact,"mic1");
+ assert.match(get("micStatus").textContent,/VERIFIED INPUT.*Scarlett Solo USB/);
+ assert.match(get("micPeakLive").textContent,/LISTENING/);
+ assert.equal(run("micStream.getAudioTracks()[0].getSettings().deviceId"),"mic1");
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ assert.equal(calls.inputs.length,1,"live monitoring reuses the verified mic");
+});
+test("without Scarlett block the browser default mic even if the MacBook mic exists",async()=>{
+ const {io,get,calls,run}=rig();
+ io.splice(io.findIndex(d=>d.deviceId==="mic1"),1);
+ await run("startStop()");
+ await assert.rejects(()=>run("enableMic()"),/Scarlett Solo USB input not found/);
+ assert.equal(run("micStream"),null);
+ assert.equal(calls.inputs.length,0,"do not open built-in microphone");
+ assert.match(get("micStatus").textContent,/NO SCARLETT INPUT/);
+});
+test("a mismatched exact device must be rejected before recording or monitoring",async()=>{
+ const {get,calls,run}=rig();
+ calls.forceDeviceId="mac0";
+ await run("startStop()");
+ await assert.rejects(()=>run("enableMic()"),/different microphone/);
+ assert.equal(run("micStream"),null);
+ assert.equal(run("activeMicDeviceId"),null);
+ assert.match(get("micStatus").textContent,/WRONG MIC/);
+ assert.equal(calls.inputs.at(-1).audio.deviceId.exact,"mic1");
+});
+test("manual alternate mic selection can reconnect live monitoring immediately",async()=>{
+ const {get,calls,run}=rig();
+ await run("startStop()");
+ await run("startVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ get("micInput").value="mac0";get("micInput").dataset.manual="true";
+ await run("changeMicInput()");
+ assert.equal(run("activeMicDeviceId"),"mac0");
+ assert.equal(calls.inputs.at(-1).audio.deviceId.exact,"mac0");
+ assert.equal(run("monitoringVoice"),true);
+ assert.match(get("micStatus").textContent,/VERIFIED INPUT.*MacBook Pro Microphone/);
+});
+test("changing the microphone during an armed vocal take is refused",async()=>{
+ const {get,calls,run}=rig();
+ await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.kind"),"vocal");
+ const count=calls.inputs.length;
+ get("micInput").value="mac0";
+ await run("changeMicInput()");
+ assert.equal(calls.inputs.length,count);
+ assert.equal(run("activeMicDeviceId"),"mic1");
+ assert.equal(get("micInput").value,"mic1");
+ assert.equal(run("recording.kind"),"vocal");
 });
