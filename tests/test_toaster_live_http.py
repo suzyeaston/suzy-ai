@@ -218,6 +218,31 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'fill.style.width=((phase/length)*100)+"%"'):
             self.assertIn(marker, js)
 
+    def test_full_arrangement_and_local_voice_follow_are_served(self):
+        code, html = self.call("GET", "/toaster/live")
+        self.assertEqual(code, 200)
+        for marker in ('id="fullViewport"', 'id="fullLanes"',
+                       'id="fullPlayhead"', 'id="fullRuler"',
+                       'id="fullZoom"', 'id="fullFit"',
+                       'id="voiceFollow"', '/toaster/performance-timeline.js',
+                       'fullTimeline=new window.SuzyPerformanceTimeline'):
+            self.assertIn(marker, html)
+        for endpoint, markers in (
+            ("/toaster/performance-timeline.js",
+             ("root.SuzyPerformanceTimeline=PerformanceTimeline",
+              "this.onEdit(which,layer.id,start,end)",
+              'block.addEventListener("pointerdown"',
+              'handle.addEventListener("pointerdown"',
+              'this.zoom=clamp(')),
+            ("/toaster/voice-follow.js",
+             ('registerProcessor("suzy-voice-follow"',
+              'this.port.postMessage({type:"pitch",note,confidence})',
+              "Math.sqrt(energy/data.length)"))):
+            status, script = self.call("GET", endpoint)
+            self.assertEqual(status, 200)
+            for marker in markers:
+                self.assertIn(marker, script)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
