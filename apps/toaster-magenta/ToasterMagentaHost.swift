@@ -21,6 +21,14 @@ final class MRT2Host {
     private let selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
     private var held: [UInt8] = []
     private var melodyHeld = Set<UInt8>()
+    // A browser pointer tap can last less than the MRT2 neural control latency.
+    // Native chord notes should outlive a click; a new chord still wins instantly.
+    private var chordStartedAt: TimeInterval = 0
+    private var pendingChordRelease: DispatchWorkItem?
+    private let minimumChordHoldSeconds: TimeInterval = {
+        let value = Double(ProcessInfo.processInfo.environment["SUZY_MRT2_CHORD_HOLD_MS"] ?? "") ?? 480
+        return max(200, min(1200, value)) / 1000.0
+    }()
     // Google plays when its own UI says PLAY OR the AU host says transport MOVING.
     // Atomic avoids a lock/data race on the audio-render thread. Default stays
     // auto-playing for existing live sessions. Set AUTOPLAY=0 to start paused.
@@ -90,6 +98,8 @@ final class MRT2Host {
             "reverb": Double(reverbAmount),
             "muted": muted,
             "held_notes": (held + Array(melodyHeld)).map(Int.init),
+            "chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000),
+            "chord_release_pending": pendingChordRelease != nil,
             "tempo_bpm": tempoBpm,
             "tempo_context_supplied": generator != nil,
             "transport_context_supplied": hostTransportSupplied,
@@ -143,9 +153,34 @@ final class MRT2Host {
             cb(AUEventSampleTimeImmediate, 0, bytes.count, base)
         }
     }
+    private func cancelPendingChordRelease() {
+        pendingChordRelease?.cancel()
+        pendingChordRelease = nil
+    }
     private func noteOff() {
+        cancelPendingChordRelease()
         for note in held where !melodyHeld.contains(note) { rawMIDI([0x80, note, 0]) }
         held.removeAll()
+        chordStartedAt = 0
+    }
+    private func releaseChordAfterMinimumHold() {
+        cancelPendingChordRelease()
+        guard !held.isEmpty else { return }
+        let elapsed = ProcessInfo.processInfo.systemUptime - chordStartedAt
+        let remaining = max(0, minimumChordHoldSeconds - elapsed)
+        if remaining <= 0 {
+            noteOff()
+            return
+        }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.pendingChordRelease = nil
+            self.noteOff()
+        }
+        pendingChordRelease = work
+        // The AU MIDI keyboard remains responsive; only a brief note-off
+        // is deferred. A newer chord cancels this pending release immediately.
+        DispatchQueue.main.asyncAfter(deadline: .now() + remaining, execute: work)
     }
     private func allNotesOff() {
         for note in melodyHeld { rawMIDI([0x80, note, 0]) }
@@ -491,7 +526,14 @@ final class MRT2Host {
             guard let x = request["scene"] as? String, chords[x] != nil else {
                 return ["error":"scene must be pyramid or fishes"]
             }
-            allNotesOff();scene = x;blend = x == "pyramid" ? 0 : 1;configure()
+            // Re-selecting the same scene must not turn off notes currently
+            // held by a browser click or the Google AU's built-in keyboard.
+            if x != scene {
+                allNotesOff()
+                scene = x
+                blend = x == "pyramid" ? 0 : 1
+                configure()
+            }
         case "mix":
             guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
                 return ["error":"blend must be 0..1"]
@@ -544,9 +586,10 @@ final class MRT2Host {
             }
             noteOff()
             held = notes[i]
+            chordStartedAt = ProcessInfo.processInfo.systemUptime
             for note in held where !melodyHeld.contains(note) { rawMIDI([0x90, note, 77]) }
         case "release":
-            noteOff()
+            releaseChordAfterMinimumHold()
         default: return ["error":"unknown operation"]
         }
         return report()
