@@ -301,7 +301,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'vocalEchoFeedbackNode.connect(vocalEchoDelay)',
             'd.voiceBus.connect(vocalEchoInput)',
             'monitorFilter.connect(vocalEchoInput)',
-            'clipActiveAt(l,bar)',
+            'songLayerAudible(which,l,bar)',
             'MONITOR ON · dry vocal + FX · see recorder state below',
             'Browser loops only · Native Magenta independent',
         ):
