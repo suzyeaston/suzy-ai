@@ -399,6 +399,7 @@ let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
+let fullTimeline=null;
 let arranger=null;
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
@@ -822,6 +823,11 @@ function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function songCycleSteps(which){return decks[which].lengthSteps||16;}
 function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
+function clipActiveAt(layer,bar){
+ const start=Math.max(0,Number(layer.arrStartBar??0));
+ const end=Number(layer.arrEndBar??Number.POSITIVE_INFINITY);
+ return !layer.muted&&bar>=start&&bar<end;
+}
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
  return anchor+Math.max(0,Math.ceil((n-anchor)/length))*length;
@@ -866,6 +872,12 @@ function schedule(time,count){
  if(step===0&&arranger)arranger.onCycle(count/8);
  pulse(time,step);
  if(count%8===0){
+  // Shared bar clock gates real PCM and recorded MIDI on the same beat.
+  for(const d of Object.values(decks))for(const layer of d.layers){
+   if(!layer.buffer||!layer.gain)continue;
+   const level=clipActiveAt(layer,count/8)?.65:0;
+   layer.gain.gain.setValueAtTime(level,time);
+  }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
    tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
@@ -879,7 +891,7 @@ function schedule(time,count){
   if(count<(d.anchorStep||0))continue;
   const songStep=((count-(d.anchorStep||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
   for(const l of d.layers){
-   if(l.muted||l.kind!=="chords")continue;
+   if(l.kind!=="chords"||!clipActiveAt(l,Math.floor(count/8)))continue;
    for(const e of l.events){
     if(e.step===songStep){
       if(e.type==="note"){
@@ -927,6 +939,7 @@ function updateTimeline(){
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
  const t=$("toaster");t.classList.toggle("bop",Math.floor(phase*16)%4===0);
  trackView?.tick();
+ fullTimeline?.update();
 }
 async function startStop(){
  try{
@@ -1006,7 +1019,7 @@ function endRecord(){
  if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys"});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(stepNumber/8))});
  renderClips(r.scene);
  tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
 }
@@ -1023,6 +1036,7 @@ function renderClips(which){
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
+ fullTimeline?.render();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
@@ -1094,7 +1108,8 @@ async function voiceLoop(which){
    const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8};
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8,
+     arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
    $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
@@ -1118,9 +1133,11 @@ function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=l.muted?0:.65;
+ gain.gain.value=clipActiveAt(l,Math.floor(stepNumber/8))?.65:0;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
+ const when=ctx.currentTime+.025;
+ const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
+ const phase=((when-clipOrigin)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -1142,7 +1159,8 @@ async function importAudio(file){
    d.set(src.subarray(0,Math.min(d.length,src.length)));
   }
   if(!d.locked){d.locked=true;d.lengthSteps=bars*8;d.anchorStep=0;}
-  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars};
+  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars,
+    arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
   tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
@@ -1236,6 +1254,26 @@ arranger=new window.SuzyArrangement({
    aiNote(c.scene,c.chord);
    setTimeout(()=>{if(!heldKeys.size)aiRelease();},1400);
   }
+ }
+});
+fullTimeline=new window.SuzyPerformanceTimeline({
+ decks,
+ getCues:()=>arranger?.cues||[],
+ getStep:()=>stepNumber,
+ getTempo:()=>bpm,
+ onSelect:choose,
+ onEdit:(which,id,start,end)=>{
+  const layer=decks[which].layers.find(l=>l.id===id);
+  if(!layer)return;
+  layer.arrStartBar=start;layer.arrEndBar=end;
+  if(layer.buffer&&stageStarted){
+   try{layer.source?.stop(ctx.currentTime+.015)}catch{}
+   try{layer.source?.disconnect()}catch{}
+   startLoopAudio(which,layer);
+  }
+  fullTimeline.render();
+  tell(which.toUpperCase()+" "+layer.kind+" enters bar "+(start+1)+
+    " and exits at bar "+end+". Changes apply at the next bar.");
  }
 });
 trackView=new window.SuzyTrackView({
