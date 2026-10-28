@@ -408,7 +408,7 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:32,liveBus:null,loopBus:null,
  instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
@@ -1112,6 +1112,18 @@ function stopVoiceFollow(){
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(recording?.kind==="vocal"&&recording.scene===which&&recording.first){
+  const take=recording;
+  if(take.finishQueued)return tell("Vocal finish is already queued for a bar boundary.");
+  const nextBar=Math.ceil((stepNumber+1)/8)*8;
+  const endStep=Math.min(take.firstStep+take.steps,Math.max(take.firstStep+16,nextBar));
+  take.actualSteps=endStep-take.firstStep;
+  take.finishQueued=true;
+  take.processor.port.postMessage({type:"finish",frames:Math.round(take.actualSteps*tickSeconds()*ctx.sampleRate)});
+  $("vocal-"+which).textContent="🎙 FINISH QUEUED";
+  tell("Vocal take will finish after "+(take.actualSteps/8)+" bars. Loop length follows your singing.");
+  return;
+ }
  if(recording)return warn(Error("Finish the current recording first"));
  let source=null,processor=null,silent=null,take=null;
  try{
@@ -1134,9 +1146,9 @@ async function voiceLoop(which){
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
   take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
-        first:!d.locked,firstStep,steps};
+        first:!d.locked,firstStep,steps,actualSteps:null,finishQueued:false};
   recording=take;
-  $("vocal-"+which).textContent="🎙 ARMED";
+  $("vocal-"+which).textContent=take.first?"🎙 FINISH FIRST VOICE":"🎙 ARMED · "+bars+" BARS";
   const cleanup=()=>{
    if(take.finished)return false;
    take.finished=true;clearTimeout(take.watchdog);
@@ -1148,14 +1160,20 @@ async function voiceLoop(which){
   processor.port.onmessage=e=>{
    if(e.data?.type!=="complete"||!cleanup())return;
    const {data,peak,hot,missing}=e.data;
-   if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames)return warn(Error("Vocal capture returned incomplete PCM"));
-   const clip=ctx.createBuffer(1,frames,ctx.sampleRate),dst=clip.getChannelData(0);
+   const receivedFrames=Number(e.data.frames||frames);
+   if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
+      !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
+     return warn(Error("Vocal capture returned incomplete PCM"));
+   const actualSteps=take.first?(take.actualSteps||Math.round(receivedFrames/(ctx.sampleRate*tickSeconds()))):take.steps;
+   const clipFrames=Math.round(actualSteps*tickSeconds()*ctx.sampleRate);
+   if(clipFrames>receivedFrames)return warn(Error("Vocal capture ended short of the requested bar boundary"));
+   const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate),dst=clip.getChannelData(0);
    const headroom=Number($("vocalHeadroom").value)/100;
-   for(let n=0;n<frames;n++)dst[n]=data[n]*headroom;
-   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
-   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
-   if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8,
+   for(let n=0;n<clipFrames;n++)dst[n]=data[n]*headroom;
+   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(clipFrames/3));
+   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
+   if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
      arrStartBar:Math.max(0,Math.floor(stepNumber/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
@@ -1167,7 +1185,8 @@ async function voiceLoop(which){
   take.watchdog=setTimeout(()=>{
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
-  tell("VOICE armed: "+bars+" bars ("+duration.toFixed(1)+" seconds). First take sets the song cycle, or overdubs follow it.");
+  tell(take.first?"First voice armed. Sing your phrase, then press FINISH FIRST VOICE after at least 2 bars. Max "+bars+" bars.":
+   "Vocal overdub armed for exactly "+bars+" bars on the existing song clock.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
