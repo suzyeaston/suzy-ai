@@ -31,6 +31,12 @@ final class MRT2Host {
     private var auComponentName = ""
     private var assetPath = ""
     private var bookmarkScopeVerified = false
+    private var bookmarkSelfResolutionVerified = false
+    // Apple recommends ordinary implicit-scope bookmarks for IPC. Google AU's
+    // current upstream resolver uses WithSecurityScope, so whether it accepts
+    // this cross-process form MUST be tested on the installed extension.
+    private let bookmarkFormat = ProcessInfo.processInfo.environment["SUZY_MRT2_BOOKMARK_MODE"] == "implicit"
+        ? "implicit_cross_process" : "explicit_app_scoped"
     private var modelFileBytes: Int64 = 0
     private var outputRate: Double = 0
     private var hostTransportSupplied = false
@@ -72,6 +78,9 @@ final class MRT2Host {
             "au_component": auComponentName,
             "musiccoca_assets_path": assetPath,
             "bookmark_scope_verified": bookmarkScopeVerified,
+            "bookmark_self_resolution_verified": bookmarkSelfResolutionVerified,
+            "bookmark_format": bookmarkFormat,
+            "bookmark_recipient_verified": false, // Native Google AU exposes no status response.
             "host_model_loaded": false,
             "host_model_load_state": modelRequested ? "requested_asynchronously_by_google_AU_not_confirmed" : "not_requested",
             "native_output_sample_rate": outputRate,
@@ -301,22 +310,40 @@ final class MRT2Host {
                     // Bookmark + text prompts are consumed by Google's AU's
                     // applyCustomState and set_text_prompts during model load.
                     let modelURL = URL(fileURLWithPath: path)
-                    // A plain unscoped fallback bookmark cannot satisfy Google's
-                    // exact AU loader, which requires startAccessingSecurityScopedResource.
-                    // Reject it explicitly instead of reporting a running but silent AU.
-                    let bookmark = try modelURL.bookmarkData(options: [.withSecurityScope],
+                    // Explicit app-scoped bookmarks resolve in this helper but
+                    // fail (Cocoa 259) in Google's different-code-identity AUv3.
+                    // This opt-in experiment sends Apple's cross-process
+                    // implicit-scope form. Google's unchanged AU *still* calls
+                    // NSURLBookmarkResolutionWithSecurityScope; actual extension
+                    // behavior must be verified through its own NSLog messages.
+                    let implicit = self.bookmarkFormat == "implicit_cross_process"
+                    let bookmark = try modelURL.bookmarkData(
+                        options: implicit ? [] : [.withSecurityScope],
                         includingResourceValuesForKeys: nil, relativeTo: nil)
                     var stale = false
-                    let checkedURL = try URL(resolvingBookmarkData: bookmark,
-                        options: [.withSecurityScope, .withoutUI], relativeTo: nil,
-                        bookmarkDataIsStale: &stale)
-                    let scoped = checkedURL.startAccessingSecurityScopedResource()
-                    self.bookmarkScopeVerified = scoped
-                    if scoped { checkedURL.stopAccessingSecurityScopedResource() }
-                    guard scoped, !stale else {
+                    let checkedURL = try URL(
+                        resolvingBookmarkData: bookmark,
+                        options: implicit ? [.withoutUI] : [.withSecurityScope, .withoutUI],
+                        relativeTo: nil, bookmarkDataIsStale: &stale)
+                    self.bookmarkSelfResolutionVerified = !stale &&
+                        checkedURL.standardizedFileURL == modelURL.standardizedFileURL
+                    guard self.bookmarkSelfResolutionVerified else {
                         throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
                             userInfo: [NSLocalizedDescriptionKey:
-                                "Google AU needs a usable security-scoped model bookmark. Bookmark scope could not be verified."])
+                                "Model bookmark does not resolve locally to the expected file."])
+                    }
+                    if !implicit {
+                        let scoped = checkedURL.startAccessingSecurityScopedResource()
+                        self.bookmarkScopeVerified = scoped
+                        if scoped { checkedURL.stopAccessingSecurityScopedResource() }
+                        guard scoped else {
+                            throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
+                                userInfo: [NSLocalizedDescriptionKey:
+                                    "App-scoped model bookmark access failed in Swift host."])
+                        }
+                    } else {
+                        // Host-side scope is not evidence of recipient AU access.
+                        self.bookmarkScopeVerified = false
                     }
                     var state = unit.auAudioUnit.fullState ?? [:]
                     let weighted = self.prompts.enumerated().map { (i,text) in
@@ -354,6 +381,7 @@ final class MRT2Host {
         modelRequested = false
         outputSignalDetected = false
         bookmarkScopeVerified = false
+        bookmarkSelfResolutionVerified = false
         hostTransportSupplied = false
     }
     func command(_ request: [String: Any]) -> [String: Any] {
