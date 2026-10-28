@@ -7,7 +7,7 @@ class SuzyVocalCaptureProcessor extends AudioWorkletProcessor {
     super();
     const p=options.processorOptions||{};
     this.startFrame=Math.max(0,Math.round(Number(p.startFrame)||0));
-    this.frames=Math.min(Math.floor(sampleRate*12),Math.max(1,Math.round(Number(p.frames)||1)));
+    this.frames=Math.min(Math.floor(sampleRate*120),Math.max(1,Math.round(Number(p.frames)||1)));
     this.data=new Float32Array(this.frames);
     this.peak=0;this.hot=0;this.missing=0;this.done=false;
     this.port.onmessage=e=>{if(e.data?.type==="stop"){this.done=true;this.data=null;}};
