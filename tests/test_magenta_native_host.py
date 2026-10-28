@@ -139,6 +139,7 @@ class NativeMRT2Tests(unittest.TestCase):
                  patch("suzy_ai.music.magenta_native_host.EXECUTABLE", binary), \
                  patch("suzy_ai.music.magenta_native_host.platform.system", return_value="Darwin"), \
                  patch("suzy_ai.music.magenta_native_host.subprocess.run", return_value=completed) as build, \
+                 patch.object(host, "_register_installed_au", return_value=None), \
                  patch.object(host, "_start"), \
                  patch.object(host, "_request", return_value={"phase": "host-running"}):
                 host._launch_worker()
