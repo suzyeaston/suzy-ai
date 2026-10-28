@@ -31,6 +31,12 @@ For actual Magenta, our native Audio Unit host also supplies **host musical cont
 
 **On Swift build errors:** Swift 6.3.3 cannot compile against a macOS 27 SDK's Swift 6.4 interface. The updated `bash scripts/build-toaster-magenta.sh` selects an installed compiler/SDK pair that matches (including older macOS 26 SDKs and full Xcode), or exits with actionable instructions instead of showing pages of incompatible Swift-interface failures. If none are installed, install or select a matching full Xcode/Command Line Tools toolchain. Don't rerun the old command expecting an SDK mismatch to disappear on its own.
 
+### Google model selector from TOASTER (October 28)
+
+On the local [TOASTER LIVE](http://127.0.0.1:7345/toaster/live) page, **OPEN GOOGLE MODEL SELECTOR** works even if the host originally started in bookmark mode. A click stops and rebuilds **only the single native AU** in Google's UI-selection mode, then requests the installed AU's real model-picker window. It does not restart the local Python server, browser audio, recorded chord/vocal loops, or the Scarlett input.
+
+In the Google window, select the already installed `mrt2_small` model from `~/Documents/Magenta/magenta-rt-v2/models/mrt2_small/`. Wait for it to finish loading and click **START AI GENERATION** if the native transport is PAUSED. To hear only true native Magenta output, enable **HEAR AI ONLY** and audition the Pyramid/Weird Fishes MIDI chords and the violin/guitar prompt blends. **Four prompt slots shown** and **AU running** are not proof of model readiness: the AU does not expose a reliable load-success bit. Confirm real `output_signal_detected` and sound in headphones. If Google's AU does not return a UI view, TOASTER shows the actual error; do not repeatedly instantiate a second model in Logic on the same 8 GB Mac.
+
 ### Registered and rendering but silent: native AU transport (October 27)
 
 The hardware status reported `native_au: true`, `audio_engine_running: true`, 48 kHz output and a valid scoped MRT2 Small bookmark, **but `output_signal_detected: false`**. After inspecting Google's `examples/mrt2/auv3/MagentaRT_AudioUnit.mm`, we found a fundamental host omission: the native AU render block **writes zeros when both the AU UI and the host transport are stopped**. Our headless TOASTER host never opened Google's plugin UI and only supplied a musical tempo context, **not** a moving transport state. Thus the model could be loaded and still remain silent.
