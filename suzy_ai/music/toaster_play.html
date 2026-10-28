@@ -623,7 +623,7 @@ function setDrumGroove(meter=drumMeter,style=drumStyle){
  tell("DRUM GROOVE · "+meter+" "+DRUM_STYLES[style]+
   ". Guitar, violin, vocals and Magenta unaffected; loop timeline remains 4/4.");
 }
-function pulse(time,count){
+function drumPattern(count){
  // Each drum meter has its OWN accent-cycle length in eighth-note units.
  // The main 4/4 song/recording timeline is intentionally NOT remapped.
  const len=DRUM_STEPS[drumMeter],beat=((count%len)+len)%len;
@@ -642,6 +642,10 @@ function pulse(time,count){
   snare=beat===Math.max(1,Math.floor(len/2)-1)&&!kick;
   hat=!kick&&!snare;
  }
+ return {meter:drumMeter,style:drumStyle,beat,len,kick,snare,hat,down,secondary};
+}
+function pulse(time,count){
+ const {kick,snare,hat,down,secondary}=drumPattern(count);
  const o=ctx.createOscillator(),g=ctx.createGain();
  const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
  let pitch=hat?720:snare?214:128,duration=hat?.035:snare?.085:.12;
