@@ -62,7 +62,7 @@ fi
 if [[ ! -x "$native_out" || "$swift_src" -nt "$native_out" ]]; then
   echo "Compiling real MRT2 Audio Unit host with $SWIFTC"
   echo "Using matching SDK: $SDK"
-  "$SWIFTC" -sdk "$SDK" -O -framework AVFoundation -framework AudioToolbox -framework AppKit \
+  "$SWIFTC" -sdk "$SDK" -O -framework AVFoundation -framework AudioToolbox -framework CoreAudioKit -framework AppKit \
     "$swift_src" -o "$native_out"
 fi
 echo "Native Magenta host built successfully."
