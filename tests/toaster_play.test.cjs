@@ -6,31 +6,35 @@ const path = require("node:path");
 const vm = require("node:vm");
 const file = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_play.html"),"utf8");
 const javascript = file.match(/<script>([\s\S]*?)<\/script>/)[1];
+const arrangementJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_arrangement.js"),"utf8");
+const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_track_view.js"),"utf8");
 function rig(){
  const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null};
- const klass=()=>({add(){},remove(){},toggle(){}});
+ const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
  const el=(v="")=>({
-   value:v,textContent:"",style:{},dataset:{},children:[],options:[],
+   value:v,textContent:"",style:{setProperty(name,value){this[name]=value}},dataset:{},children:[],options:[],
    classList:klass(),disabled:false,selectedOptions:[{textContent:"Automatic"}],
    setAttribute(){},addEventListener(){},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.buffer=null;this.type=""}connect(){return this}disconnect(){}start(){}stop(){}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
  }
  class AudioContext{
-  constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};}
+  constructor(){this.state="running";this.currentTime=0;this.sampleRate=48000;this.destination={};
+   this.audioWorklet={addModule:async src=>{calls.workletModule=src}};}
   createGain(){return new AudioNode()}createConvolver(){return new AudioNode()}createOscillator(){return new AudioNode()}
+   createDynamicsCompressor(){return new AudioNode()}
   createBiquadFilter(){return new AudioNode()}
   createBufferSource(){return new AudioNode()}
   createMediaStreamSource(){return new AudioNode()}
@@ -50,8 +54,14 @@ function rig(){
   {kind:"audiooutput",deviceId:"out1",label:"Scarlett Solo USB"},
   {kind:"audiooutput",deviceId:"out2",label:"External Headphones (Built-in)"}
  ];
+ class AudioWorkletNode extends AudioNode{
+  constructor(context,name,opts){super();this.name=name;this.opts=opts;
+   this.port={onmessage:null,postMessage(){}};calls.worklet=this;}
+ }
  const env={
-  document:doc,console,
+  document:doc,console,AudioWorkletNode,
+  localStorage:{getItem(){return null},setItem(){}},
+  confirm:()=>true,
   AudioContext,OfflineAudioContext,Blob,crypto:{randomUUID:()=>String(Math.random())},
   fetch:async (url,opts)=>{calls.midi.push({url,opts});return {ok:true,json:async()=>({})}},
   navigator:{mediaDevices:{enumerateDevices:async()=>io,getUserMedia:async()=>({active:true,getTracks:()=>[{stop(){}}]})}},
@@ -62,6 +72,8 @@ function rig(){
  };
  env.window=env;
  vm.createContext(env);
+ vm.runInContext(arrangementJS,env,{filename:"toaster_arrangement.js"});
+ vm.runInContext(tracksJS,env,{filename:"toaster_track_view.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
   const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
@@ -112,6 +124,7 @@ test("record chord events at cycle boundary and switch to track 2 without losing
  run('beginChord("pyramid",2,"key:3")');
  run("ctx.currentTime+=.75");
  run('endChord("key:3")');
+ run('record("pyramid")'); // finish first take at a bar boundary
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.pyramid.layers[0].kind"),"chords");
@@ -133,7 +146,7 @@ test("export has genuine two-cycle offline audio rendering and WAV header",async
  assert.match(javascript,/left\[i\+oneCycle\]/);
  assert.match(javascript,/tag\(0,"RIFF"\)/);
  await run("readAndExport()");
- assert.match(run('$("message").textContent'),/Mix exported/);
+ assert.match(run('$("message").textContent'),/Exported pyramid/);
 });
 
 test("1–4 keyboard works while a button has focus; hold sustains and key-up releases",async()=>{
@@ -171,6 +184,7 @@ test("manual hold length is retained by event loops and renders sustained chord 
  emit("keydown","1","BUTTON");
  run("ctx.currentTime+=1.2");
  emit("keyup","1","BUTTON");
+ run('record("pyramid")'); // finish first take at a bar boundary
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
@@ -255,21 +269,20 @@ test("polyphonic melody keyboard A W S E D F T G Y H U J K sends native MIDI per
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note"));
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note-off"));
 });
-test("vocal recording uses AudioContext buffer timestamps and identical transport epoch",async()=>{
+test("vocal AudioWorklet records a song-length cycle without ScriptProcessor",async()=>{
  const {run,calls}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.kind"),"vocal");
- assert.ok(calls.processor?.onaudioprocess);
- const first=run("recording.start");
- const frame=run("ctx.sampleRate");
- const input={length:1024,getChannelData(){return new Float32Array(1024).fill(.4)}};
- const frameCount=run("Math.round(cycleSeconds()*ctx.sampleRate)");
- for(let position=0;position<frameCount+1024;position+=1024){
-  calls.processor.onaudioprocess?.({playbackTime:first+position/frame,inputBuffer:input});
- }
+ assert.equal(calls.worklet?.name,"suzy-vocal-capture");
+ assert.equal(calls.workletModule,"/toaster/vocal-capture.js");
+ const frames=run("Math.round((decks.pyramid.initialBars*8)*tickSeconds()*ctx.sampleRate)");
+ assert.equal(calls.worklet.opts.processorOptions.frames,frames);
+ calls.worklet.port.onmessage({data:{
+  type:"complete",data:new Float32Array(frames).fill(.4),peak:.4,hot:0,missing:0
+ }});
  assert.equal(run("recording"),null);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),frameCount);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
 });
 test("tempo stays fixed if a real audio loop exists rather than shifting its pitch",async()=>{
  const {run,get}=rig();await run("startStop()");
@@ -323,6 +336,41 @@ test("AI SOLO lets musician hear real Magenta without the always-on browser chor
  assert.equal(get("aiSolo").textContent,"🎹 RESTORE LOCAL KEYS");
  run("toggleAISolo()");
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
+});
+test("overdubs preserve instruments and live/loop levels are independent",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ run('setInstrument("pyramid","pad")');
+ run('beginChord("pyramid",0,"live")');
+ assert.equal(run('heldKeys.get("live").voices[0].osc.type'),"sine");
+ run('endChord("live")');
+ run('decks.pyramid.layers.push({kind:"chords",muted:false,instrument:"keys",events:[{index:1,step:0,holdSteps:2,instrument:"keys"}]})');
+ get("liveLevel").value="60";get("loopLevel").value="110";
+ run("updateOverdubBalance()");
+ assert.equal(run("decks.pyramid.liveBus.gain.value"),.6);
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),1.1);
+ run('setInstrument("pyramid","bass")');
+ assert.equal(run('decks.pyramid.layers[0].events[0].instrument'),"keys");
+});
+test("key changes can return to previous and original pitch",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ run('setKey("pyramid",2)');run('setKey("pyramid",4)');
+ assert.equal(run("decks.pyramid.transpose"),4);
+ run("decks.pyramid.keyHistoryIndex--;setKey('pyramid',decks.pyramid.keyHistory[decks.pyramid.keyHistoryIndex],false)");
+ assert.equal(run("decks.pyramid.transpose"),2);
+ run('setKey("pyramid",0)');
+ assert.equal(run("decks.pyramid.transpose"),0);
+ assert.equal(run("decks.fishes.transpose"),0);
+ assert.equal(get("keyValue-pyramid").textContent,"ORIGINAL");
+});
+test("both song decks may play together while choosing a different instrument",async()=>{
+ const {get,run}=rig();await run("startStop()");
+ get("mixBoth").onclick();
+ assert.equal(run("blendBoth"),true);
+ assert.equal(get("mix").value,"50");
+ run('choose("fishes")');
+ assert.equal(get("mix").value,"50");
+ assert.equal(run("decks.pyramid.bus.gain.value"),.5);
+ assert.equal(run("decks.fishes.bus.gain.value"),.5);
 });
 test("native status differentiates bookmark, assets and loaded model from host-running",()=>{
  const {run,get}=rig();

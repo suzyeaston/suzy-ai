@@ -186,6 +186,38 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertNotIn("createScriptProcessor(1024", html)
         self.assertIn("native_au_ui_visible", html)
 
+    def test_balanced_multitimbral_overdub_and_key_undo(self):
+        code, html = self.call("GET", "/toaster/live")
+        self.assertEqual(code, 200)
+        # Real, existing pad buttons remain visible, not moved into a collapsed drawer.
+        self.assertIn('id="classicDecks" class="chord-center"', html)
+        self.assertLess(html.index('id="pads-pyramid"'), html.index('id="trackWorkspace"'))
+        for which in ("pyramid", "fishes"):
+            for marker in (f'id="instrument-{which}"',
+                           f'id="keyDown-{which}"',
+                           f'id="keyUp-{which}"',
+                           f'id="keyUndo-{which}"',
+                           f'id="keyReset-{which}"'):
+                self.assertIn(marker, html)
+        for marker in ('id="mixBoth"', 'id="liveLevel"', 'id="loopLevel"',
+                       'const INSTRUMENTS={', 'function makeVoice(',
+                       'const instrument=decks[which].instrument;',
+                       'h.event={step,index,holdSteps:1,instrument};',
+                       'e.instrument||"keys"',
+                       'd.keyHistory.push(next)',
+                       'd.keyHistoryIndex--;setKey(which,d.keyHistory[d.keyHistoryIndex],false);',
+                       'updateOverdubBalance();',
+                       'Math.sqrt(Math.max(1,active))'):
+            self.assertIn(marker, html)
+
+    def test_each_song_displays_true_loop_pass_and_bar(self):
+        code, js = self.call("GET", "/toaster/track-view.js")
+        self.assertEqual(code, 200)
+        for marker in ('track-loop-label-', 'track-loop-fill-',
+                       '"↻ LOOP "+pass', '"BAR "+bar+" / "',
+                       'fill.style.width=((phase/length)*100)+"%"'):
+            self.assertIn(marker, js)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
