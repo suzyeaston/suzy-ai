@@ -57,6 +57,26 @@
       this.render();
     }
     resetClock(){this.index=-1;this.lastBar=0;this.skip=false;this.jumpTo=null;this.render();}
+    seekToBar(bar){
+      // Align automation to the absolute bar on the visible performance ruler.
+      // A seek to Weird Fishes must not incorrectly restart cue #1.
+      this.lastBar=bar;this.skip=false;this.jumpTo=null;this.changed=false;
+      let start=0;
+      const index=this.cues.findIndex(c=>{
+        const match=bar>=start&&bar<start+c.bars;
+        if(!match)start+=c.bars;
+        return match;
+      });
+      this.index=index;
+      if(index>=0){
+        this.startBar=start;this.endBar=start+this.cues[index].bars;
+        if(this.armed)this.apply();else this.render();
+        this.update();
+      }else{
+        this.index=-1;this.render();
+        this.status("Playhead is beyond the programmed cues; manual playing continues.");
+      }
+    }
     status(message){$("arrStatus").textContent=message;}
     totalBars(){return this.cues.reduce((n,c)=>n+c.bars,0);}
     render(){

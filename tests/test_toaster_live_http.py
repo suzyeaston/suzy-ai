@@ -324,6 +324,34 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('Math.floor(count/8)', page)
         self.assertIn('Song loops and arrangement still use the existing 4/4 grid.', page)
 
+    def test_clickable_transport_ruler_locates_audio_in_named_song_sections(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for marker in (
+            'function locateTimelineBar(rawBar)',
+            'function currentTransportBar()',
+            'function sectionAtBar(bar)',
+            'let parkedBar=0,seekRevision=0;',
+            'const when=ctx.currentTime+.10;',
+            'nextStepAt=when;',
+            'onSeek:locateTimelineBar',
+            'startLoopAudio(which,layer,when)',
+            '▶ PLAY FROM BAR 1',
+            'Click a bar number or song section on the ruler',
+        ):
+            self.assertIn(marker, page)
+        status, timeline = self.call("GET", "/toaster/performance-timeline.js")
+        self.assertEqual(status, 200)
+        for marker in (
+            'this.onAction=onAction;this.onSeek=onSeek;',
+            'ruler.onpointerdown=e=>this.seekFromPointer(e,ruler);',
+            'ruler.onkeydown=e=>{',
+            'this.onSeek(index);',
+            'this.seek(bar);',
+            'aria-valuenow',
+        ):
+            self.assertIn(marker, timeline)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)

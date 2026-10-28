@@ -28,7 +28,7 @@ function rig(){
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
   querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
- class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null}connect(){return this}disconnect(){}start(){}stop(t){this.stopAt=t}}
+ class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null;this.startAt=null;this.startOffset=null}connect(){return this}disconnect(){}start(t,offset){this.startAt=t;this.startOffset=offset}stop(t){this.stopAt=t}}
  class AudioBuffer{
    constructor(ch,length,sr){this.numberOfChannels=ch;this.length=length;this.sampleRate=sr;this.duration=length/sr;this.buf=Array.from({length:ch},()=>new Float32Array(length));}
    getChannelData(k){return this.buf[k]}
@@ -711,4 +711,78 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  await run('voiceLoop("pyramid")');
  assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
  assert.equal(run("recording.kind"),"vocal");
+});
+
+test("clicking bar ruler locates real cursor while stopped, and Play begins from clicked Fishes section",async()=>{
+ const {get,run}=rig();
+ const ruler=get("fullRuler");
+ ruler.getBoundingClientRect=()=>({left:0});
+ assert.equal(typeof ruler.onpointerdown,"function");
+ // The visible sections occupy one clock: Fishes begins after Pyramid.
+ const fishesStart=run('arranger.cues.filter(c=>c.scene==="pyramid").reduce((a,c)=>a+c.bars,0)');
+ const bar=fishesStart+8;
+ ruler.onpointerdown({button:0,clientX:bar*6+.5});
+ assert.equal(run("parkedBar"),bar);
+ assert.equal(run("stepNumber"),bar*8);
+ assert.equal(run("scene"),"fishes");
+ assert.match(get("fullPosition").textContent,new RegExp("BAR "+(bar+1)));
+ assert.match(get("timelinePlay").textContent,new RegExp("PLAY FROM BAR "+(bar+1)));
+ assert.equal(run("stageStarted"),false);
+ await run("startStop()");
+ assert.equal(run("stageStarted"),true);
+ assert.ok(run("stepNumber")>=bar*8);
+ assert.equal(run("currentTransportBar()"),bar);
+});
+test("click ruler during playback rephases actual vocal loops and starts matching cue without restarting native model",async()=>{
+ const {get,run}=rig();
+ await run("startStop()");
+ run('decks.fishes.layers.push({id:"voice",kind:"vocal",muted:false,arrStartBar:0,buffer:ctx.createBuffer(1,48000,48000)})');
+ run('startLoopAudio("fishes",decks.fishes.layers[0])');
+ const oldSource=run('decks.fishes.layers[0].source');
+ run("ctx.currentTime=1");
+ const ruler=get("fullRuler");
+ ruler.getBoundingClientRect=()=>({left:0});
+ ruler.onpointerdown({button:0,clientX:205*6+.5});
+ const newSource=run('decks.fishes.layers[0].source');
+ assert.notEqual(newSource,oldSource,"audio buffer must be rescheduled at new cursor");
+ assert.ok(oldSource.stopAt>=1.09,"old source stops at the new bar");
+ assert.ok(newSource.startAt>=1.09,"new source starts with new bar");
+ assert.equal(run("parkedBar"),205);
+ assert.equal(run("currentTransportBar()"),205);
+ assert.equal(run("scene"),"fishes");
+ assert.equal(run("stageStarted"),true);
+ assert.match(get("fullPosition").textContent,/BAR 206/);
+});
+test("Stop parks the playhead at its current bar; rewind returns to 1, with real clips preserved",async()=>{
+ const {get,run}=rig();
+ await run("startStop()");
+ run("ctx.currentTime=transportEpoch+75*8*tickSeconds()+.05");
+ run('decks.pyramid.layers.push({id:"take",kind:"chords",muted:false,events:[],arrStartBar:2})');
+ await run("timelineStop()");
+ assert.equal(run("stageStarted"),false);
+ assert.equal(run("parkedBar"),75);
+ assert.equal(run("stepNumber"),75*8);
+ assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 76/);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ await run("timelineRewind()");
+ assert.equal(run("parkedBar"),0);
+ assert.equal(run("stepNumber"),0);
+ assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 1/);
+});
+test("click seeking during an active recording is refused without moving clock",async()=>{
+ const {run}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ const before=run("stepNumber");
+ run("locateTimelineBar(150)");
+ assert.equal(run("parkedBar"),0);
+ assert.equal(run("stepNumber"),before);
+});
+test("ruler navigation supports arrows, Home and End without modifying recorded clips",()=>{
+ const {get,run}=rig();
+ const ruler=get("fullRuler");
+ const key=key=>ruler.onkeydown({key,preventDefault(){},stopPropagation(){}});
+ key("ArrowRight");assert.equal(run("parkedBar"),1);
+ key("Home");assert.equal(run("parkedBar"),0);
+ key("End");assert.equal(run("parkedBar"),run("fullTimeline.total")-1);
+ key("ArrowLeft");assert.equal(run("parkedBar"),run("fullTimeline.total")-2);
 });

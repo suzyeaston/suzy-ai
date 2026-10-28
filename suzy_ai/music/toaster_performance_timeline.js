@@ -15,10 +15,10 @@ const node=(tag,cls,txt)=>{
 };
 const mod=(x,n)=>((x%n)+n)%n;
 class PerformanceTimeline{
- constructor({decks,getCues,getStep,getTempo,onEdit,onSelect,onAction}){
+ constructor({decks,getCues,getStep,getTempo,onEdit,onSelect,onAction,onSeek}){
   this.decks=decks;this.getCues=getCues;this.getStep=getStep;
   this.getTempo=getTempo;this.onEdit=onEdit;this.onSelect=onSelect;
-  this.onAction=onAction;this.selected=null;this.clipboard=null;
+  this.onAction=onAction;this.onSeek=onSeek;this.selected=null;this.clipboard=null;
   this.target={which:"pyramid",kind:"chords",bar:0};
   this.zoom=6;this.total=320;
   this.minutes=15;
@@ -44,6 +44,18 @@ class PerformanceTimeline{
   };
   this.render();
  }
+ seek(bar){
+  const index=clamp(Math.round(bar),0,this.total-1);
+  // The callback changes real Web Audio scheduling/loop source phases.
+  // Do not move only the decorative marker.
+  this.onSeek(index);
+  this.update();
+ }
+ seekFromPointer(e,element){
+  if(e.button!==0)return;
+  const left=element.getBoundingClientRect().left;
+  this.seek(Math.floor((e.clientX-left)/this.barWidth()));
+ }
  barWidth(){return this.zoom}
  totalBars(){
   const cues=this.getCues(),n=cues.reduce((sum,c)=>sum+(Number(c.bars)||0),0);
@@ -59,6 +71,25 @@ class PerformanceTimeline{
   const list=$("fullLanes");list.replaceChildren();
   list.style.width=width+"px";
   const ruler=$("fullRuler");ruler.replaceChildren();ruler.style.width=width+"px";
+  // Click any bar number or named song section to LOCATE the playhead.
+  // Arrow keys and Home/End make the same control accessible without a mouse.
+  ruler.title="Click to locate playhead at a bar; press PLAY from that position";
+  ruler.setAttribute("role","slider");
+  ruler.setAttribute("tabindex","0");
+  ruler.setAttribute("aria-label","Performance playhead position");
+  ruler.setAttribute("aria-valuemin","1");
+  ruler.setAttribute("aria-valuemax",String(this.total));
+  ruler.onpointerdown=e=>this.seekFromPointer(e,ruler);
+  ruler.onkeydown=e=>{
+   let next;
+   const current=clamp(Math.floor((this.getStep()||0)/8),0,this.total-1);
+   if(e.key==="Home")next=0;
+   else if(e.key==="End")next=this.total-1;
+   else if(e.key==="ArrowLeft")next=current-1;
+   else if(e.key==="ArrowRight")next=current+1;
+   else return;
+   e.preventDefault();e.stopPropagation();this.seek(next);
+  };
   for(let bar=0;bar<this.total;bar+=4){
    const tick=node("span","full-bar-label",String(bar+1));
    tick.style.left=(bar*px)+"px";ruler.append(tick);
@@ -85,7 +116,8 @@ class PerformanceTimeline{
       const rect=row.getBoundingClientRect();
       const bar=clamp(Math.round((e.clientX-rect.left)/this.barWidth()),0,this.total-1);
       this.target={which,kind,bar};
-      this.announce("Paste target: "+title+" / "+label+" bar "+(bar+1));
+      this.seek(bar);
+      this.announce("Playhead at bar "+(bar+1)+" · Paste target: "+title+" / "+label);
     });
     row.style.width=width+"px";
     const entries=this.decks[which].layers.filter(l=>l.kind===kind);
@@ -203,6 +235,7 @@ class PerformanceTimeline{
   const bar=Math.max(0,Math.floor((Number(this.getStep())||0)/8));
   const marker=$("fullPlayhead");if(marker)marker.style.left=(bar*this.barWidth())+"px";
   const readout=$("fullPosition");if(readout)readout.textContent="BAR "+(bar+1)+" / "+this.total;
+  const ruler=$("fullRuler");if(ruler)ruler.setAttribute("aria-valuenow",String(bar+1));
  }
 }
 root.SuzyPerformanceTimeline=PerformanceTimeline;
