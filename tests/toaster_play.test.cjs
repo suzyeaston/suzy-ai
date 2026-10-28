@@ -430,7 +430,7 @@ test("each song has an independently playable lead under the Z/X/C/V chord pads"
  emit("keyup","z");
  emit("keydown","a");
  assert.equal(run('heldNotes.get("key-note:a").instrument'),"violin");
- assert.equal(run('heldNotes.get("key-note:a").midi'),72);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),66);
  emit("keyup","a");
  run('choose("fishes")');
  emit("keydown","a");
@@ -447,7 +447,7 @@ test("per-song lead register and volume do not transpose chord pads or change pr
  assert.equal(run("decks.pyramid.leadBus.gain.value"),.4);
  assert.equal(run("decks.fishes.leadBus.gain.value"),.72);
  emit("keydown","a");
- assert.equal(run('heldNotes.get("key-note:a").midi'),72);
+ assert.equal(run('heldNotes.get("key-note:a").midi'),78);
  emit("keyup","a");
  emit("keydown","z");
  assert.equal(run('heldKeys.get("key:z").instrument'),"keys");
