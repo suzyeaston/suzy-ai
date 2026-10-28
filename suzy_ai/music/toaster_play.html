@@ -60,25 +60,31 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .note-pad.on{background:var(--mint);color:#233729}
 .note-pad kbd{font:800 13px ui-monospace,monospace}.note-pad span{font-size:10px}
 @media(max-width:720px){.note-keys{grid-template-columns:repeat(7,minmax(0,1fr))}}
-.ai-strip{margin:12px 0;border:1px solid #af8cb1;border-radius:16px;background:linear-gradient(100deg,#34233c,#241e37);padding:13px 16px;display:grid;grid-template-columns:1.25fr auto 1fr;gap:12px;align-items:center}
+.ai-strip{margin:12px 0;border:1px solid #af8cb1;border-radius:16px;background:linear-gradient(100deg,#34233c,#241e37);padding:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.ai-strip>div:first-child,.ai-actions,.ai-faders,.ai-strip>.prompt-editor,.ai-strip>.ai-state{min-width:0}
+.ai-strip>.ai-faders,.ai-strip>.prompt-editor,.ai-strip>.ai-state{grid-column:1/-1}
+.ai-strip>.ai-state{overflow-wrap:anywhere;line-height:1.6}
+#aiModelHelp{grid-column:1/-1;min-height:24px;color:var(--peach);font-size:12px;font-weight:650;line-height:1.5;overflow-wrap:anywhere}
+#aiGoogleModel{grid-column:1/-1;background:#62465e;border-color:#ab8bac}
 .ai-strip .tiny{color:#d9b7ff}.ai-strip button{padding:11px 14px}
 .ai-strip #aiEnable[aria-pressed=true]{background:var(--mint);color:#23362d}
 .ai-strip label{display:block}.ai-strip input{margin:6px 0}
 .ai-strip p{font-size:12px;max-width:400px}
 .ai-faders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ai-faders label{display:block}
-.ai-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ai-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;align-content:start;align-items:stretch}
+.ai-actions button{min-width:0;min-height:54px;line-height:1.3;overflow-wrap:anywhere}
 .prompt-editor{margin:12px 0;padding:10px;border:1px solid #735d84;border-radius:11px;background:#241d2b}
 .prompt-editor summary{font-size:12px;color:var(--peach);font-weight:700}
 .prompt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
 .prompt-grid label{display:block}
 .prompt-grid textarea{display:block;width:100%;min-height:82px;background:#17131f;color:#fff4e8;resize:vertical;border:1px solid #927e91;border-radius:9px;padding:9px;margin-top:5px;font:12px/1.5 system-ui}
 @media(max-width:650px){.prompt-grid{grid-template-columns:1fr}}
-.ai-actions button{flex:1}
+.ai-actions button{width:100%}
 #aiMute[aria-pressed=true]{background:var(--red);color:#331d25}
 @media(max-width:740px){.ai-faders{grid-template-columns:1fr}}
 #aiHostStatus{font:750 11px/1.4 ui-monospace,monospace;color:var(--muted)}
-@media(max-width:740px){.ai-strip{grid-template-columns:1fr 1fr}.ai-strip>div:first-child{grid-column:1/-1}}
+@media(max-width:740px){.ai-strip{grid-template-columns:minmax(0,1fr)}.ai-strip>div:first-child,.ai-actions,.ai-faders,.ai-strip>.prompt-editor,.ai-strip>.ai-state{grid-column:1/-1}}
 
 .decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
@@ -120,7 +126,8 @@ a{color:var(--mint)}
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button>
- <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button></div>
+ <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
+ <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
  <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
@@ -340,12 +347,20 @@ async function aiFetch(action,data={}){
  return result;
 }
 async function openGoogleModelSelector(){
- if(!aiNativeReady){tell("ENABLE MAGENTA first.");return;}
+ if(!aiNativeReady){$("aiModelHelp").textContent="Enable Magenta first.";return;}
+ const help=$("aiModelHelp");
+ help.textContent="Requesting Google's AU window…";
  try{
   const state=await aiFetch("show-au-ui");
   aiDisplay(state);
-  tell("Google's official AU window requested. Select the local mrt2_small model there; loading and sound remain unverified until tested.");
- }catch(e){warn(e);}
+  if(state.native_au_ui_visible){
+   help.textContent="Google AU window is open. Select the existing local mrt2_small model inside it.";
+  }else if(state.native_au_ui_error){
+   help.textContent="MODEL SELECTOR ERROR: "+state.native_au_ui_error;
+  }else{
+   help.textContent="Waiting for Google's AU window…";
+  }
+ }catch(e){help.textContent="MODEL SELECTOR ERROR: "+e.message;warn(e);}
 }
 function toggleAISolo(){
  aiSolo=!aiSolo;
@@ -358,7 +373,23 @@ function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
- $("aiGoogleModel").disabled=!aiNativeReady;
+ $("aiGoogleModel").disabled=!aiNativeReady || s.native_model_selection_required!==true;
+ const help=$("aiModelHelp");
+ if(s.native_model_selection_required!==true){
+  help.textContent="Google model selector unavailable in bookmark mode. Stop the TOASTER server and relaunch with SUZY_MRT2_MODEL_VIA_UI=1.";
+ }else if(s.native_au_ui_error){
+  help.textContent="MODEL SELECTOR ERROR: "+s.native_au_ui_error;
+ }else if(s.native_au_ui_visible){
+  help.textContent="Google AU window is open. Select the installed mrt2_small model inside it.";
+ }else if(s.native_au_ui_requested){
+  help.textContent="Requesting Google's Audio Unit interface…";
+ }else if((s.native_au_ui_request_count||0)>0){
+  help.textContent="Google interface request completed without a visible window. Inspect native AU logs or switch to the official plugin in Logic.";
+ }else if(aiNativeReady){
+  help.textContent="Ready. Open Google's model selector to choose the existing local mrt2_small model.";
+ }else{
+  help.textContent="Starting Magenta. Model selector will unlock when the native AU is running.";
+ }
  if(typeof s.muted==="boolean")aiMuted=s.muted;
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";

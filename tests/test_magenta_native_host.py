@@ -139,6 +139,15 @@ class NativeMRT2Tests(unittest.TestCase):
         # The action cannot start or fork a second native model.
         self.assertIsNone(self.host.process)
 
+    def test_model_selector_reports_real_state_and_rejects_bookmark_mode(self):
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('"native_au_ui_error"', swift)
+        self.assertIn('"native_au_ui_request_count"', swift)
+        self.assertIn('guard selectModelInGoogleUI else', swift)
+        self.assertIn('auUIRequestCount += 1', swift)
+        self.assertIn('self.auUIError = "Google MRT2 AU did not return', swift)
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},
