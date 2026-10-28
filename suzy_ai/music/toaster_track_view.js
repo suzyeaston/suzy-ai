@@ -32,6 +32,8 @@ class TrackView {
   this.decks=decks;this.select=select;this.record=record;this.voice=voice;
   this.onMute=onMute;this.onRemove=onRemove;this.onShift=onShift;
   this.getRecording=getRecording;this.getStep=getStep;this.getRunning=getRunning;
+  // Preserve original playable nodes between renders, including event listeners.
+  this.pads=Object.fromEntries(SONGS.map(([which])=>[which,$("pads-"+which)]));
   this.draw();
  }
  draw(){
@@ -50,7 +52,7 @@ class TrackView {
    col.append(head);
    // MOVES the existing pads, not clones. Their original pointer/MIDI handlers
    // still work, and keyboard keys 1–4 still play the selected song.
-   const existing=$("pads-"+which);
+   const existing=this.pads[which];
    if(existing){existing.classList.add("track-main-pads");padSlot.append(existing);}
    const controls=el("div","track-controls");
    const play=el("button","track-select","▶ SELECT");
