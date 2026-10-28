@@ -132,13 +132,32 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 #classicDecks{border:1px solid #6f5c7a;border-radius:14px;padding:10px;margin:12px 0}
 #classicDecks>summary{font:800 12px ui-monospace,monospace;color:var(--peach);padding:7px;cursor:pointer}
 @media(max-width:970px){.track-columns{grid-template-columns:minmax(0,1fr)}}
-.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)
+.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 #message{min-height:26px;color:var(--mint);font:700 12px ui-monospace,monospace;white-space:normal}
 #warning{font-size:12px;color:#ffc5b3}
 a{color:var(--mint)}
 @media(max-width:650px){main{padding:11px}.toaster{transform:scale(.78);margin-right:-11px}.brand{gap:8px}.mixer{grid-template-columns:1fr}.pads{gap:5px}.pad{height:70px;padding:5px}.settings{grid-template-columns:1fr}.deck{padding:11px}header{align-items:start}}
+/* Chords are the instrument; track view is the recorder. */
+.chord-center{border:1px solid #9c7b99;border-radius:16px;margin:14px 0;padding:10px}
+.chord-center #decks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.chord-center .deck{margin:0}
+.chord-center .pad{min-height:96px}
+.chord-center .pad b{font-size:clamp(17px,2vw,23px)}
+.instrument-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0 10px}
+.instrument-tools label{color:var(--peach);font-size:11px}
+.instrument-tools select{min-width:110px}
+.instrument-tools button{padding:7px 10px;min-height:38px;border-radius:8px;font-size:11px}
+.instrument-tools .key-display{min-width:61px;color:var(--mint);font:800 11px ui-monospace,monospace}
+#mixBoth[aria-pressed=true]{background:var(--mint);color:#29392c}
+.loop-audition{display:flex;gap:7px;align-items:center}
+.loop-audition label{flex:1}
+.track-loop-progress{height:7px;border-radius:5px;background:#342b39;margin:6px 0;overflow:hidden}
+.track-loop-fill{height:100%;width:0;background:var(--mint);transition:width .06s linear}
+.track-loop-label{font:800 11px ui-monospace,monospace;color:var(--mint)}
+.track-loop-badge.loop-flash{color:var(--peach);text-shadow:0 0 5px #ffd8ac}
+@media(max-width:920px){.chord-center #decks{grid-template-columns:1fr}}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -156,7 +175,7 @@ a{color:var(--mint)}
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
 <small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
 <div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">soft pulse, no busy AI drums</small></div>
-<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small></div>
+<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
 <small class="subtle">Applies to browser mix and native AI reverb</small></div>
@@ -164,6 +183,8 @@ a{color:var(--mint)}
 <input id="tone" aria-label="Browser mix tone and lowpass" type="range" min="0" max="100" value="75">
 <small class="subtle">Warm ↔ bright · browser instruments and loops</small></div>
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
+<div class="strip"><div class="strip-header"><strong>LIVE KEYS</strong><span id="liveLevelValue">80%</span></div><input id="liveLevel" type="range" min="15" max="125" value="80" aria-label="Live instrument monitoring volume"><small class="subtle">What your hands play right now</small></div>
+<div class="strip"><div class="strip-header"><strong>RECORDED KEYS</strong><span id="loopLevelValue">100%</span></div><input id="loopLevel" type="range" min="15" max="125" value="100" aria-label="Recorded loop playback level"><small class="subtle">Balance against live notes · compensates for stacked layers</small></div>
 </div>
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
@@ -192,6 +213,56 @@ a{color:var(--mint)}
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
 </section>
+<section id="classicDecks" class="chord-center" aria-label="Playable chord pads and instruments"><div id="decks">
+<section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
+<div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
+<div class="pads" id="pads-pyramid">
+<button class="pad" data-scene="pyramid" data-chord="0"><kbd>1</kbd><b>F♯</b></button>
+<button class="pad" data-scene="pyramid" data-chord="1"><kbd>2</kbd><b>Gmaj7</b></button>
+<button class="pad" data-scene="pyramid" data-chord="2"><kbd>3</kbd><b>A6</b></button>
+<button class="pad" data-scene="pyramid" data-chord="3"><kbd>4</kbd><b>F♯</b></button>
+</div>
+<div class="instrument-tools">
+<label for="instrument-pyramid">NEW LAYER SOUND</label>
+<select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
+<option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
+</select>
+<label>KEY SHIFT</label><button type="button" id="keyDown-pyramid" aria-label="pyramid transpose down semitone">−</button>
+<span class="key-display" id="keyValue-pyramid">ORIGINAL</span>
+<button type="button" id="keyUp-pyramid" aria-label="pyramid transpose up semitone">+</button>
+<button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
+<button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
+</div>
+<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
+<div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
+<div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
+</section>
+<section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
+<div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
+<div class="pads" id="pads-fishes">
+<button class="pad" data-scene="fishes" data-chord="0"><kbd>1</kbd><b>Em7</b></button>
+<button class="pad" data-scene="fishes" data-chord="1"><kbd>2</kbd><b>F♯m7</b></button>
+<button class="pad" data-scene="fishes" data-chord="2"><kbd>3</kbd><b>A</b></button>
+<button class="pad" data-scene="fishes" data-chord="3"><kbd>4</kbd><b>Gmaj7</b></button>
+</div>
+<div class="instrument-tools">
+<label for="instrument-fishes">NEW LAYER SOUND</label>
+<select id="instrument-fishes" aria-label="fishes instrument for next overdub">
+<option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
+</select>
+<label>KEY SHIFT</label><button type="button" id="keyDown-fishes" aria-label="fishes transpose down semitone">−</button>
+<span class="key-display" id="keyValue-fishes">ORIGINAL</span>
+<button type="button" id="keyUp-fishes" aria-label="fishes transpose up semitone">+</button>
+<button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
+<button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
+</div>
+<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
+<div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
+<div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
+</section>
+</div></section>
 <section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
 <div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
 <h2>Pyramid & Weird Fishes · Two live song timelines</h2>
@@ -237,34 +308,7 @@ a{color:var(--mint)}
 <button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
 </div>
 </section>
-<details id="classicDecks"><summary>🎹 CLASSIC CHORD PADS & ORIGINAL LOOP BUTTONS</summary><div id="decks">
-<section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
-<div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
-<div class="pads" id="pads-pyramid">
-<button class="pad" data-scene="pyramid" data-chord="0"><kbd>1</kbd><b>F♯</b></button>
-<button class="pad" data-scene="pyramid" data-chord="1"><kbd>2</kbd><b>Gmaj7</b></button>
-<button class="pad" data-scene="pyramid" data-chord="2"><kbd>3</kbd><b>A6</b></button>
-<button class="pad" data-scene="pyramid" data-chord="3"><kbd>4</kbd><b>F♯</b></button>
-</div>
-<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
-<div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
-<div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
-<div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
-</section>
-<section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
-<div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
-<div class="pads" id="pads-fishes">
-<button class="pad" data-scene="fishes" data-chord="0"><kbd>1</kbd><b>Em7</b></button>
-<button class="pad" data-scene="fishes" data-chord="1"><kbd>2</kbd><b>F♯m7</b></button>
-<button class="pad" data-scene="fishes" data-chord="2"><kbd>3</kbd><b>A</b></button>
-<button class="pad" data-scene="fishes" data-chord="3"><kbd>4</kbd><b>Gmaj7</b></button>
-</div>
-<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
-<div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
-<div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
-<div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
-</section>
-</div></details>
+
 <section><div class="start"><div><div class="tiny">SAVED SOUNDS · ACTUAL MAGENTA AUDIO</div><h2>Add an AI take, when you're ready</h2><p class="subtle">Import audio recorded from Magenta in Logic. It becomes a real removable loop on the selected track.</p></div>
 <label for="aiImport" class="big" style="cursor:pointer;background:#5b4254;color:#ffe8d9;font-size:12px;padding:13px;border-radius:11px">+ IMPORT AI AUDIO <input id="aiImport" type="file" accept="audio/*,.wav,.mp3,.m4a,.aiff" style="display:block;font-size:10px;max-width:170px;margin-top:5px"></label></div>
 <details><summary>Sound settings / devices / export (optional)</summary>
