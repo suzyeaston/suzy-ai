@@ -20,6 +20,7 @@ ACTIONS = {
     "start": frozenset(),
     "stop": frozenset(),
     "status": frozenset(),
+    "show-au-ui": frozenset(),
     "scene": frozenset({"scene"}),
     "configure-prompts": frozenset({"prompts"}),
     "mix": frozenset({"value"}),
