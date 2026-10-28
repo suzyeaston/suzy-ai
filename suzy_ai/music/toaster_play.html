@@ -350,7 +350,7 @@ a{color:var(--mint)}
 <div class="deck-transport"><label class="loop-size" for="loopBars-pyramid">FIRST LOOP
 <select id="loopBars-pyramid" aria-label="pyramid keyboard loop length">
 <option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option><option value="32">32 bars</option>
-</select></label><button class="rec" id="record-pyramid">● RECORD / OVERDUB</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+</select></label><button class="rec" id="record-pyramid" title="Record a pattern then automatically play it. Press again for overdubs.">● LOOP MY CHORDS</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -400,7 +400,7 @@ a{color:var(--mint)}
 <div class="deck-transport"><label class="loop-size" for="loopBars-fishes">FIRST LOOP
 <select id="loopBars-fishes" aria-label="fishes keyboard loop length">
 <option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option><option value="32">32 bars</option>
-</select></label><button class="rec" id="record-fishes">● RECORD / OVERDUB</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+</select></label><button class="rec" id="record-fishes" title="Record a pattern then automatically play it. Press again for overdubs.">● LOOP MY CHORDS</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -1513,7 +1513,7 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · "+r.events.length+" events":"EMPTY · try recording again";
+ $("recordHint-"+r.scene).textContent=r.events.length?"↻ READY · LOOP PLAYING · "+r.events.length+" events":"EMPTY · try recording again";
  if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
  else {
