@@ -626,6 +626,16 @@ test("browser timeline stop and rewind preserve vocal clips while resetting bar 
  assert.ok(run("stepNumber")<=3);
  assert.equal(run("decks.pyramid.layers.length"),1);
 });
+test("return to start while playing keeps live lead monitoring engaged",async()=>{
+ const {run}=rig();await run("startStop()");
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ run("stepNumber=96");
+ await run("timelineRewind()");
+ assert.equal(run("stageStarted"),true);
+ assert.equal(run("monitoringVoice"),true);
+ assert.ok(run("stepNumber")<=3);
+});
 test("live monitor and recording are separate states, vocal loop tally is explicit",async()=>{
  const {run,get}=rig();await run("startStop()");
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
