@@ -79,7 +79,7 @@ function rig(){
  vm.runInContext(timelineJS,env,{filename:"toaster_performance_timeline.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
-  const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
+  const event={key,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
   for(const fn of listeners.get(name)||[])fn(event);
  };
  return {env,get,calls,pads,run:(js)=>vm.runInContext(js,env),emit};
@@ -179,6 +179,15 @@ test("typing in editable controls never triggers chord keydown",async()=>{
  emit("keydown","x","BUTTON");
  assert.equal(run("heldKeys.size"),1);
  emit("keyup","x","BUTTON");
+});
+test("Z X C V still plays immediately after moving a range fader",async()=>{
+ const {run,emit}=rig();await run("startStop()");
+ emit("keydown","x","RANGE");
+ assert.equal(run('heldKeys.get("key:x").index'),1);
+ emit("keyup","x","RANGE");
+ assert.equal(run("heldKeys.size"),0);
+ emit("keydown","z","TEXTAREA");
+ assert.equal(run("heldKeys.size"),0);
 });
 test("rapid mouse click switches chords and each chord has an audible attack",async()=>{
  const {run,pads}=rig();await run("startStop()");
