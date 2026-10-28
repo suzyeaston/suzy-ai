@@ -21,6 +21,8 @@ ACTIONS = {
     "stop": frozenset(),
     "status": frozenset(),
     "show-au-ui": frozenset(),
+    "transport-play": frozenset(),
+    "transport-pause": frozenset(),
     "scene": frozenset({"scene"}),
     "configure-prompts": frozenset({"prompts"}),
     "mix": frozenset({"value"}),
