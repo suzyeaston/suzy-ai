@@ -979,6 +979,7 @@ function changeTempo(value){
   $("tempoValue").textContent=bpm+" → "+next+" BPM (next cycle)";
  }else{
   bpm=next;pendingBpm=null;$("tempoValue").textContent=bpm+" BPM";
+  updateVoiceEcho();
   if(aiNativeReady)aiFetch("tempo",{bpm}).catch(warn);
  }
 }
@@ -986,6 +987,7 @@ function applyTempoAtBar(time,count){
  if(pendingBpm===null)return;
  bpm=pendingBpm;pendingBpm=null;
  transportEpoch=time-count*tickSeconds();
+ updateVoiceEcho();
  $("tempoValue").textContent=bpm+" BPM";
  if(aiNativeReady)aiFetch("tempo",{bpm}).catch(warn);
 }
