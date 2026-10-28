@@ -20,7 +20,8 @@ function rig(){
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
@@ -430,7 +431,7 @@ test("each song has an independently playable lead under the Z/X/C/V chord pads"
  emit("keydown","a");
  assert.equal(run('heldNotes.get("key-note:a").instrument'),"nylon");
  emit("keyup","a");
- assert.equal(get("lead-pyramid").value,"");
+ assert.equal(get("lead-pyramid").value,"violin");
  await run('auditionLead("pyramid")');
  assert.equal(run("scene"),"pyramid");
 });
