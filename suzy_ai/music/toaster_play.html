@@ -363,6 +363,7 @@ function aiDisplay(s){
     " · "+(s.model_file_bytes?Math.round(s.model_file_bytes/1048576)+" MB":"unknown size")+
     " · assets: "+(s.musiccoca_assets_path||"not found in normal folders")+
     " · model load: "+(s.host_model_load_state||"unknown")+
+    " · native transport: "+(s.transport_moving?"MOVING":"STOPPED / NOT VERIFIED")+
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
