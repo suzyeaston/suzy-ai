@@ -26,6 +26,7 @@ LOOP_RACK_SCRIPT = Path(__file__).with_name("toaster_loop_rack.js")
 ARRANGEMENT_SCRIPT = Path(__file__).with_name("toaster_arrangement.js")
 TRACK_VIEW_SCRIPT = Path(__file__).with_name("toaster_track_view.js")
 VOCAL_CAPTURE_SCRIPT = Path(__file__).with_name("toaster_vocal_capture.js")
+PERFORMANCE_TIMELINE_SCRIPT = Path(__file__).with_name("toaster_performance_timeline.js")
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
@@ -69,6 +70,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
         if self.path == "/toaster/loop-rack.js":
             return self.reply(200, LOOP_RACK_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
+        if self.path == "/toaster/performance-timeline.js":
+            return self.reply(200, PERFORMANCE_TIMELINE_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/toaster/track-view.js":
             return self.reply(200, TRACK_VIEW_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/toaster/arrangement.js":
