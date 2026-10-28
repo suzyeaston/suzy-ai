@@ -79,8 +79,8 @@ class PerformanceTimeline{
   ruler.setAttribute("aria-label","Performance playhead position");
   ruler.setAttribute("aria-valuemin","1");
   ruler.setAttribute("aria-valuemax",String(this.total));
-  ruler.addEventListener("pointerdown",e=>this.seekFromPointer(e,ruler));
-  ruler.addEventListener("keydown",e=>{
+  ruler.onpointerdown=e=>this.seekFromPointer(e,ruler);
+  ruler.onkeydown=e=>{
    let next;
    const current=clamp(Math.floor((this.getStep()||0)/8),0,this.total-1);
    if(e.key==="Home")next=0;
@@ -89,7 +89,7 @@ class PerformanceTimeline{
    else if(e.key==="ArrowRight")next=current+1;
    else return;
    e.preventDefault();e.stopPropagation();this.seek(next);
-  });
+  };
   for(let bar=0;bar<this.total;bar+=4){
    const tick=node("span","full-bar-label",String(bar+1));
    tick.style.left=(bar*px)+"px";ruler.append(tick);
