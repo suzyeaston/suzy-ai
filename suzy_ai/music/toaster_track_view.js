@@ -42,7 +42,7 @@ class Tracks{
    const column=$("tracks-"+which);if(!column)continue;column.replaceChildren();
    const header=el("div","track-top");
    const title=el("div","track-title",which==="pyramid"?"01 · PYRAMID":"02 · WEIRD FISHES");
-   const badge=el("span","track-loop-badge",d.locked?bars+"-BAR MASTER LOOP":"FIRST LOOP SETS LENGTH");
+   const badge=el("span","track-loop-badge",d.locked?bars+"-BAR MASTER LOOP · "+(d.loopEnabled?"ON":"OFF"):"FIRST LOOP SETS LENGTH");
    header.append(title,badge);
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
@@ -144,7 +144,7 @@ class Tracks{
    if(label){
      const bar=Math.floor(phase/8)+1,pass=Math.floor(Math.max(0,step-origin)/length)+1;
      label.textContent=(d.locked?"↻ LOOP "+pass+" · ":"○ NOT RECORDED · ")+
-       "BAR "+bar+" / "+(length/8)+(this.getRunning()?" · PLAYING":" · PAUSED")+
+       "BAR "+bar+" / "+(length/8)+(this.getRunning()?(d.loopEnabled?" · PLAYING":" · LOOP STOPPED"):" · TRANSPORT PAUSED")+
        (rec?.scene===which?" · ● RECORDING":"");
    }
    if(fill)fill.style.width=((phase/length)*100)+"%";

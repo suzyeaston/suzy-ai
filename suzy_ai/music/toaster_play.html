@@ -45,6 +45,10 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .deck-transport button{font-size:12px;padding:10px 13px}
 .deck-transport button.rec{background:#813e53}
 .deck-transport button.rec.armed{background:var(--red);color:#3b1d32}
+.loop-size{display:flex;align-items:center;gap:6px;font:700 10px ui-monospace,monospace}
+.loop-size select{background:#201e2a;color:#e7f8e9;border:1px solid #a9bdaf;border-radius:5px;padding:7px}
+.loop-pedal{background:#98d9c5;color:#18362d;border:1px solid #76ac95;min-width:120px}
+.loop-pedal.queued{background:#f3d49a;color:#362716}
 .timeline{position:relative;height:13px;background:#131019;border:1px solid #68566e;border-radius:20px;flex:1;min-width:70px;overflow:hidden}
 .timeline::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 49.5%,#ffffff35 50%,transparent 50.5%)}
 .playhead{position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--mint);box-shadow:0 0 8px var(--mint)}
@@ -343,7 +347,10 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><label class="loop-size" for="loopBars-pyramid">FIRST LOOP
+<select id="loopBars-pyramid" aria-label="pyramid keyboard loop length">
+<option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option><option value="32">32 bars</option>
+</select></label><button class="rec" id="record-pyramid" title="Record a pattern then automatically play it. Press again for overdubs.">● LOOP MY CHORDS</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -390,7 +397,10 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><label class="loop-size" for="loopBars-fishes">FIRST LOOP
+<select id="loopBars-fishes" aria-label="fishes keyboard loop length">
+<option value="2" selected>2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option><option value="32">32 bars</option>
+</select></label><button class="rec" id="record-fishes" title="Record a pattern then automatically play it. Press again for overdubs.">● LOOP MY CHORDS</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -567,6 +577,7 @@ let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ chordBars:2,loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
@@ -1162,6 +1173,43 @@ function clipActiveAt(layer,bar){
  const end=Number(layer.arrEndBar??Number.POSITIVE_INFINITY);
  return !layer.muted&&bar>=start&&bar<end;
 }
+// A BOSS-style pause/restart gates ALL saved song loops, never the shared
+// rhythm clock. The source's phase keeps running silently while stopped.
+function songLayerAudible(which,layer,bar){
+ return decks[which].loopEnabled!==false && clipActiveAt(layer,bar);
+}
+function updateLoopControls(which){
+ const d=decks[which],button=$("loopToggle-"+which);
+ button.disabled=!d.locked||!d.layers.length;
+ button.classList.toggle("queued",d.loopToggleAt!==null);
+ button.textContent=!d.locked?"↻ NO LOOP YET":d.loopToggleAt!==null?
+  (d.loopToggleTarget?"▶ START NEXT BAR":"■ STOP NEXT BAR"):
+  d.loopEnabled?"■ STOP LOOP":"▶ RESTART LOOP";
+ $("loopBars-"+which).disabled=d.locked;
+}
+function setChordLoopBars(which,value){
+ const d=decks[which],bars=Number(value);
+ if(d.locked||recording?.scene===which||![2,4,8,16,32].includes(bars)){
+  $("loopBars-"+which).value=String(d.chordBars);return;
+ }
+ d.chordBars=bars;
+ tell(which.toUpperCase()+" · first keyboard phrase records for "+bars+" bars, then immediately loops.");
+}
+function toggleLoop(which){
+ const d=decks[which];
+ if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before using LOOP ON/OFF."));
+ if(recording)return warn(Error("Finish recording before stopping or restarting a loop."));
+ const target=d.loopToggleAt!==null?!d.loopToggleTarget:!d.loopEnabled;
+ if(!stageStarted){
+  d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
+  updateLoopControls(which);renderClips(which);
+  return tell(which.toUpperCase()+" loops "+(target?"ready to play":"stopped")+". The original bar phase is preserved.");
+ }
+ d.loopToggleAt=Math.ceil((stepNumber+1)/8)*8;
+ d.loopToggleTarget=target;
+ updateLoopControls(which);
+ tell(which.toUpperCase()+" · "+(target?"RESTART":"STOP")+" LOOP queued for next bar, in the original pattern.");
+}
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
  return anchor+Math.max(0,Math.ceil((n-anchor)/length))*length;
@@ -1209,15 +1257,23 @@ function schedule(time,count){
  pulse(time,count);
  if(count%8===0){
   // Shared bar clock gates real PCM and recorded MIDI on the same beat.
-  for(const d of Object.values(decks))for(const layer of d.layers){
-   if(!layer.buffer||!layer.gain)continue;
-   const level=clipActiveAt(layer,count/8)?.65:0;
-   layer.gain.gain.setValueAtTime(level,time);
+  for(const [which,d] of Object.entries(decks)){
+   if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
+    d.loopEnabled=d.loopToggleTarget;
+    d.loopToggleAt=null;d.loopToggleTarget=null;
+    updateLoopControls(which);
+    trackView?.draw();
+   }
+   for(const layer of d.layers){
+    if(!layer.buffer||!layer.gain)continue;
+    layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?.65:0,time);
+   }
   }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
    tell("● RECORDING "+recording.scene.toUpperCase()+" · play chords or melody now");
-   $("recordHint-"+recording.scene).textContent="● RECORDING · press FINISH to set first take length";
+   $("recordHint-"+recording.scene).textContent="● RECORDING · "+(recording.endAt-recording.beginAt)/8+
+    " bars → automatic LOOP PLAY; tap again to finish sooner";
    $("record-"+recording.scene).textContent=recording.first?"■ FINISH FIRST TAKE":"● OVERDUBBING…";
    trackView?.draw();
   }else if(recording?.kind==="chords"&&recording.active&&count>=(recording.endAt??recording.beginAt+256)){
@@ -1228,7 +1284,7 @@ function schedule(time,count){
   if(count<(d.anchorStep||0))continue;
   const songStep=((count-(d.anchorStep||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
   for(const l of d.layers){
-   if(l.kind!=="chords"||!clipActiveAt(l,Math.floor(count/8)))continue;
+   if(l.kind!=="chords"||!songLayerAudible(which,l,Math.floor(count/8)))continue;
    for(const e of l.events){
     if(e.step===songStep){
       if(e.type==="note"){
@@ -1285,7 +1341,7 @@ function updateVocalState(){
  if(readout.textContent!==status)readout.textContent=status;
  readout.classList.toggle("is-recording",!!take&&stepNumber>=take.firstStep&&!take.finished);
  const loops=Object.values(decks).flatMap(d=>d.layers.filter(l=>l.kind==="vocal"));
- const active=loops.filter(l=>stageStarted&&clipActiveAt(l,bar)).length;
+ const active=Object.entries(decks).flatMap(([which,d])=>d.layers.filter(l=>l.kind==="vocal"&&stageStarted&&songLayerAudible(which,l,bar))).length;
  const loopStatus=loops.length?"↻ "+loops.length+" VOCAL LOOP"+(loops.length===1?"":"S")+
   " SAVED · "+active+" PLAYING · "+(stageStarted?"BAR "+(bar+1):"TRANSPORT STOPPED"):
   "NO VOCAL LOOPS YET · Monitoring alone never records";
@@ -1364,6 +1420,9 @@ async function startStop(){
    }
    if(recording)warn(Error("Recording stopped with rhythm; discard incomplete take."));
    recording=null;
+   for(const [which,d] of Object.entries(decks)){
+    d.loopToggleAt=null;d.loopToggleTarget=null;updateLoopControls(which);
+   }
    for(const d of Object.values(decks))for(const layer of d.layers){
     if(layer.source){try{layer.source.stop()}catch{}layer.source=null;}
    }
@@ -1373,7 +1432,8 @@ async function startStop(){
   }else{
    stepNumber=parkedBar*8;nextStepAt=ctx.currentTime+.09;
    transportEpoch=nextStepAt-stepNumber*tickSeconds();
-   for(const d of Object.values(decks))d.anchorStep=0;
+   // Keep each song's original first-loop downbeat across pause/resume.
+   // Resetting anchorStep here made saved chord and vocal loops drift.
    if(arranger){
     arranger.resetClock();
     if(parkedBar>0)arranger.seekToBar(parkedBar);
@@ -1413,22 +1473,29 @@ function record(which){
    return;
   }
   if(!d.locked){
-   recording.endAt=Math.min(recording.beginAt+256,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
+   recording.endAt=Math.min(recording.endAt,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
    $("record-"+which).textContent="■ FINISH QUEUED";
    $("recordHint-"+which).textContent="FINISH QUEUED · loop closes next bar";
    tell("Finishing at bar boundary. The first phrase sets the "+which+" loop length.");
-  }else tell("Overdub finishes at the master loop boundary.");
+  }else{
+   recording.endAt=Math.min(recording.endAt,Math.max(recording.beginAt+8,Math.ceil((stepNumber+1)/8)*8));
+   $("record-"+which).textContent="■ OVERDUB FINISH QUEUED";
+   $("recordHint-"+which).textContent="OVERDUB FINISH QUEUED · original loop keeps playing";
+   tell("Overdub finishes next bar. Playback continues on the unchanged master clock.");
+  }
   return;
  }
+ if(d.locked&&(!d.loopEnabled||d.loopToggleAt!==null))
+  return warn(Error("Restart the saved loop and let it settle on the next bar before overdubbing."));
  choose(which);
  const beginAt=Math.ceil((stepNumber+1)/8)*8; // First take and overdub start next bar.
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
-            first:!d.locked,endAt:d.locked?beginAt+d.lengthSteps:null};
+            first:!d.locked,endAt:beginAt+(d.locked?d.lengthSteps:d.chordBars*8)};
  $("record-"+which).classList.add("armed");
  $("record-"+which).textContent="◉ ARMING BAR "+(Math.floor(beginAt/8)+1);
  $("recordHint-"+which).textContent="WAIT · starts BAR "+(Math.floor(beginAt/8)+1);
  trackView?.draw();
- tell(d.locked?"Overdub starts NEXT BAR for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE starts NEXT BAR. Play, then press FINISH after 2–32 bars.");
+ tell(d.locked?"Overdub starts NEXT BAR and returns to PLAY automatically.":"FIRST TAKE starts NEXT BAR for "+d.chordBars+" bars, then automatically switches to looping playback.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -1448,9 +1515,9 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- $("recordHint-"+r.scene).textContent="READY · last take "+r.events.length+" events";
+ $("recordHint-"+r.scene).textContent=r.events.length?"↻ READY · LOOP PLAYING · "+r.events.length+" events":"EMPTY · try recording again";
  if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
- if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
+ if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
  else {
   // An overdub may begin on any bar. Rephase its events to the original
   // master anchor or the notes would play at the wrong point next cycle.
@@ -1460,19 +1527,20 @@ function endRecord(){
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
  instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(r.first?r.beginAt:d.anchorStep)/8)});
  renderClips(r.scene);
- tell("↻ SAVED "+(length/8)+"-bar "+r.scene+" loop with "+r.events.length+
-  " notes/chords. The next cycle repeats it with your vocals and AI.");
+ tell("↻ LOOP PLAYING NOW · "+(length/8)+"-bar "+r.scene+" master pattern, "+
+  r.events.length+" notes/chords. Press STOP LOOP to gate it at the next bar; overdub anytime.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  if(layer.source)try{layer.source.stop()}catch{}
  d.layers=d.layers.filter(l=>l.id!==id);
- if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}
+ if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
  renderClips(which);
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ updateLoopControls(which);
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
@@ -1482,7 +1550,7 @@ function renderClips(which){
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
   const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
-  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;renderClips(which);};
+  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=songLayerAudible(which,layer,Math.floor(stepNumber/8))?.65:0;renderClips(which);};
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
   row.append(name,mute,remove);box.append(row);
  });
@@ -1759,7 +1827,7 @@ function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=clipActiveAt(l,Math.floor(stepNumber/8))?.65:0;
+ gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?.65:0;
  src.connect(gain);gain.connect(decks[which].voiceBus);
  const when=startAt??(ctx.currentTime+.025);
  const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
@@ -2018,6 +2086,9 @@ for(const which of Object.keys(decks)){
 for(const k of Object.keys(decks)){
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
+ $("loopToggle-"+k).onclick=()=>toggleLoop(k);
+ $("loopBars-"+k).onchange=()=>setChordLoopBars(k,$("loopBars-"+k).value);
+ updateLoopControls(k);
  $("vocal-"+k).onclick=()=>voiceLoop(k);
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
  $("voice-"+k).oninput=()=>{$("voiceNum-"+k).textContent=$("voice-"+k).value+"%";updateMix()};
