@@ -890,3 +890,49 @@ test("changing the microphone during an armed vocal take is refused",async()=>{
  assert.equal(get("micInput").value,"mic1");
  assert.equal(run("recording.kind"),"vocal");
 });
+
+test("first chord take arms at the NEXT bar and repeated tap does not cancel count-in",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ run('record("pyramid")');
+ assert.equal(run("recording.beginAt"),8);
+ assert.equal(run("recording.active"),false);
+ assert.match(get("recordHint-pyramid").textContent,/WAIT.*BAR 2/);
+ run('record("pyramid")');
+ assert.equal(run("recording.beginAt"),8);
+ assert.equal(run("recording.active"),false);
+ assert.match(get("recordHint-pyramid").textContent,/ARMED/);
+});
+test("recorded chord clip anchors to actual first captured bar, not the finish cursor",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true; recording.start=1; recording.endAt=recording.beginAt+16; recording.events.push({step:0,index:0,instrument:"keys",holdSteps:2}); stepNumber=96');
+ run("endRecord()");
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.equal(run("decks.pyramid.anchorStep"),8);
+ assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
+ assert.match(get("recordHint-pyramid").textContent,/READY/);
+});
+test("next-bar overdub events rephase to existing master anchor instead of drifting",async()=>{
+ const {run,get}=rig();
+ await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;stepNumber=14');
+ run('record("pyramid")');
+ assert.equal(run("recording.beginAt"),16,"overdub starts next bar, not 2 bars later");
+ run('recording.active=true;recording.start=1;recording.events.push({step:0,type:"note",midi:68,holdSteps:1,instrument:"violin"})');
+ run("endRecord()");
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),8,"align MIDI relative to first take bar");
+ assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
+ assert.match(get("recordHint-pyramid").textContent,/READY/);
+});
+test("repair keeps native four-prompt design and VE-22 microphone controls unchanged",()=>{
+ const {get,run}=rig();
+ assert.equal(run("getPromptStrings().length"),4);
+ assert.ok(file.includes('id="promptViolin"'));
+ assert.ok(file.includes('id="promptGuitar"'));
+ assert.ok(file.includes('id="testMic"'));
+ assert.ok(file.includes('id="micMeter"'));
+ assert.ok(!file.includes('id="includeLeadPrompt-pyramid"'));
+});
