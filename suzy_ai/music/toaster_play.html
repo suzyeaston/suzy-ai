@@ -948,10 +948,13 @@ async function voiceLoop(which){
   const stream=await enableMic();
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
   if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
-  const firstStep=Math.ceil((stepNumber+1)/loopSteps)*loopSteps;
+  const d=decks[which];
+  const bars=d.locked?d.lengthSteps/8:d.initialBars;
+  const steps=bars*8;
+  const firstStep=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
   const start=transportEpoch+firstStep*tickSeconds();
-  const duration=cycleSeconds(),frames=Math.round(duration*ctx.sampleRate);
-  if(frames>ctx.sampleRate*12)throw Error("Vocal loop too long (maximum 12 seconds)");
+  const duration=steps*tickSeconds(),frames=Math.round(duration*ctx.sampleRate);
+  if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
   source=ctx.createMediaStreamSource(stream);
   processor=new AudioWorkletNode(ctx,"suzy-vocal-capture",{
    numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],
@@ -959,7 +962,8 @@ async function voiceLoop(which){
   });
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
-  take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null};
+  take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
+        first:!d.locked,firstStep,steps};
   recording=take;
   $("vocal-"+which).textContent="🎙 ARMED";
   const cleanup=()=>{
@@ -979,7 +983,8 @@ async function voiceLoop(which){
    for(let n=0;n<frames;n++)dst[n]=data[n]*headroom;
    const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null};
+   if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
    $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
@@ -990,7 +995,7 @@ async function voiceLoop(which){
   take.watchdog=setTimeout(()=>{
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
-  tell("Voice armed for the next two-bar boundary. Render-thread recorder active.");
+  tell("VOICE armed: "+bars+" bars ("+duration.toFixed(1)+" seconds). First take sets the song cycle, or overdubs follow it.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
@@ -1005,7 +1010,7 @@ function startLoopAudio(which,l){
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=l.muted?0:.65;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025,phase=phaseSeconds(when);
+ const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -1018,15 +1023,18 @@ async function importAudio(file){
   if(file.size>30*1024*1024)throw Error("Maximum audio size 30 MB");
   const buffer=await ctx.decodeAudioData(await file.arrayBuffer());
   const which=scene;
-  const length=Math.floor(cycleSeconds()*ctx.sampleRate);
+  const d=decks[which],rawBars=buffer.duration*bpm/240;
+  const bars=d.locked?d.lengthSteps/8:Math.max(2,Math.min(32,Math.round(rawBars)));
+  const length=Math.round(bars*8*tickSeconds()*ctx.sampleRate);
   const out=ctx.createBuffer(Math.min(2,buffer.numberOfChannels),length,ctx.sampleRate);
   for(let c=0;c<out.numberOfChannels;c++){
    const d=out.getChannelData(c),src=buffer.getChannelData(c);
    d.set(src.subarray(0,Math.min(d.length,src.length)));
   }
-  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false};
+  if(!d.locked){d.locked=true;d.lengthSteps=bars*8;d.anchorStep=0;}
+  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars};
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
-  tell("Audio imported into the AI lane on "+which+". Confirm this file was really printed from MRT2.");
+  tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
 }
 function updateMix(){
