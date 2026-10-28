@@ -1247,7 +1247,8 @@ function schedule(time,count){
   }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
-   tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
+   tell("● RECORDING "+recording.scene.toUpperCase()+" · play chords or lead phrases NOW!");
+   $("recordHint-"+recording.scene).textContent="● RECORDING · LIVE CAPTURE · press FINISH to set length";
    $("record-"+recording.scene).textContent=recording.first?"■ FINISH FIRST TAKE":"● OVERDUBBING…";
    trackView?.draw();
   }else if(recording?.kind==="chords"&&recording.active&&count>=(recording.endAt??recording.beginAt+256)){
@@ -1438,23 +1439,29 @@ function record(which){
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish current take first."));
   if(!recording.active){
-   recording=null;$("record-"+which).textContent="● LOOP MY CHORDS";$("record-"+which).classList.remove("armed");
-   trackView?.draw();tell("Armed take cancelled.");return;
+   const startBar=Math.floor(recording.beginAt/8)+1;
+   $("recordHint-"+which).textContent="ARMED · waiting for BAR "+startBar+
+     " · play after the count-in · press FINISH when recording";
+   tell("Armed, not yet recording. Starts at BAR "+startBar+
+     " (next bar). Wait for red RECORDING, then play Z X C V or the lead pads.");
+   return;
   }
   if(!d.locked){
    recording.endAt=Math.min(recording.beginAt+256,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
    $("record-"+which).textContent="■ FINISH QUEUED";
+   $("recordHint-"+which).textContent="FINISH QUEUED · creating loop at next bar boundary";
    tell("Finishing at bar boundary. The first phrase sets the "+which+" loop length.");
   }else tell("Overdub finishes at the master loop boundary.");
   return;
  }
  choose(which);
- const beginAt=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+ const beginAt=Math.ceil((stepNumber+1)/8)*8; // NEXT BAR instead of 2 bars / full song cycle
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:d.locked?beginAt+d.lengthSteps:null};
- $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
+ $("record-"+which).classList.add("armed");$("record-"+which).textContent="◉ ARMING BAR "+(Math.floor(beginAt/8)+1);
+ $("recordHint-"+which).textContent="WAIT · starts BAR "+(Math.floor(beginAt/8)+1)+" · play then finish";
  trackView?.draw();
- tell(d.locked?"Overdub armed for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE ARMED. Play, then press FINISH after 2–32 bars.");
+ tell(d.locked?"Overdub starts NEXT BAR for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE starts NEXT BAR. Play chords or lead phrases, then press FINISH after 2–32 bars.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -1474,12 +1481,14 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
+ $("recordHint-"+r.scene).textContent="Loop ready · play or overdub on next bar";
+ if(!r.events.length){trackView?.draw();tell("No notes captured. Press LOOP MY CHORDS, wait for RECORDING, then play Z X C V or the lead pads.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(stepNumber/8))});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(r.beginAt/8))});
  renderClips(r.scene);
- tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
+ tell("↻ SAVED "+(length/8)+"-bar "+r.scene+" loop with "+r.events.length+
+  " notes/chords. Next cycle replays it beneath your live violin/guitar and vocal.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
