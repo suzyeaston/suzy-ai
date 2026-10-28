@@ -811,7 +811,8 @@ function schedule(time,count){
   for(const l of d.layers){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
-    if(e.step===songStep){
+    const movedStep=((e.step+(l.shiftSteps||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
+    if(movedStep===songStep){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
@@ -1049,14 +1050,26 @@ async function voiceLoop(which){
 }
 function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
+ const now=ctx.currentTime,old=l.source,oldGain=l.gain;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=l.muted?0:.65;
+ const level=l.muted?0:.65;
+ if(old&&oldGain){
+  try{
+   oldGain.gain.cancelScheduledValues(now);
+   oldGain.gain.setValueAtTime(oldGain.gain.value,now);
+   oldGain.gain.linearRampToValueAtTime(0,now+.035);
+   old.stop(now+.07);
+  }catch{}
+ }
+ gain.gain.setValueAtTime(0,now);
+ gain.gain.linearRampToValueAtTime(level,now+.055);
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
- if(stageStarted)src.start(when,phase);
+ const when=now+.025,phase=songPhaseSeconds(which,when);
+ const shift=((l.shiftSteps||0)*tickSeconds())%l.buffer.duration;
+ const offset=((phase-shift)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
+ if(stageStarted)src.start(when,offset);
  else{l.source=null;l.gain=null;return;}
-
  l.source=src;l.gain=gain;
 }
 async function importAudio(file){
@@ -1180,7 +1193,18 @@ trackView=new window.SuzyTrackView({
   if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;
   renderClips(which);
  },
- onRemove:removeSongLayer
+ onRemove:removeSongLayer,
+ onShift:(which,id,shift)=>{
+  const layer=decks[which].layers.find(l=>l.id===id);
+  if(!layer)return;
+  const length=songCycleSteps(which);
+  layer.shiftSteps=((shift%length)+length)%length;
+  // Chords are shifted at schedule time; audio gets an actual new loop offset.
+  if(layer.buffer&&stageStarted)startLoopAudio(which,layer);
+  trackView.draw();
+  tell((layer.kind==="chords"?"Chord":layer.kind==="vocal"?"Vocal":"AI")+
+    " loop shifted to bar "+(layer.shiftSteps/8+1)+" in "+which+".");
+ }
 });
 $("rhythm").onclick=startStop;
 for(const k of Object.keys(decks)){
