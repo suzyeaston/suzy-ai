@@ -459,6 +459,7 @@ const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
+let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
@@ -512,6 +513,15 @@ async function openAudio(){
     d.loopBus=ctx.createGain();d.loopBus.connect(d.bus);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
   }
+  // Shared low-memory voice send. Both live mic and stored vocal loops stay DRY.
+  vocalEchoInput=ctx.createGain();vocalEchoDelay=ctx.createDelay(2.0);
+  vocalEchoTone=ctx.createBiquadFilter();vocalEchoTone.type="lowpass";
+  vocalEchoFeedbackNode=ctx.createGain();vocalEchoWet=ctx.createGain();
+  vocalEchoInput.connect(vocalEchoDelay);vocalEchoDelay.connect(vocalEchoTone);
+  vocalEchoTone.connect(vocalEchoWet);vocalEchoWet.connect(mainBus);
+  vocalEchoTone.connect(vocalEchoFeedbackNode);vocalEchoFeedbackNode.connect(vocalEchoDelay);
+  for(const d of Object.values(decks))d.voiceBus.connect(vocalEchoInput);
+  updateVoiceEcho();
   updateMix();updateOverdubBalance();
  }
  if(ctx.state!=="running")await ctx.resume();
@@ -1222,10 +1232,26 @@ async function startVoiceMonitor(){
  monitorSend.gain.value=Number($("monitorReverb").value)/100;
  monitorSource.connect(monitorFilter);
  monitorFilter.connect(monitorDry);monitorFilter.connect(monitorSend);
+ if(vocalEchoInput)monitorFilter.connect(vocalEchoInput);
  monitorDry.connect(mainBus);monitorSend.connect(verb);
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
- $("monitorStatus").textContent="LIVE · Scarlett → dry + reverb → headphone output";
+ $("monitorStatus").textContent="MONITOR ON · live dry vocal + FX · NOT RECORDING";
+ updateVocalState();
+}
+function updateVoiceEcho(){
+ const mode=$("vocalEchoMode").value;
+ const delayMs={eighth:30000/bpm,dotted:45000/bpm,quarter:60000/bpm}[mode]||60000/bpm;
+ const mix=Number($("vocalEchoLevel").value)/100,feedback=Number($("vocalEchoFeedback").value)/100;
+ const tone=Number($("vocalAir").value)/100;
+ $("vocalEchoAmount").textContent=Math.round(mix*100)+"%";
+ $("vocalRepeatAmount").textContent=Math.round(feedback*100)+"%";
+ $("vocalAirAmount").textContent=Math.round(tone*100)+"%";
+ if(!ctx||!vocalEchoDelay)return;
+ vocalEchoDelay.delayTime.setTargetAtTime(delayMs/1000,ctx.currentTime,.035);
+ vocalEchoWet.gain.setTargetAtTime(mode==="off"?0:mix,ctx.currentTime,.025);
+ vocalEchoFeedbackNode.gain.setTargetAtTime(mode==="off"?0:Math.min(.48,feedback),ctx.currentTime,.025);
+ vocalEchoTone.frequency.setTargetAtTime(1700+tone*8200,ctx.currentTime,.03);
 }
 function stopVoiceMonitor(){
  for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend]){
@@ -1234,7 +1260,8 @@ function stopVoiceMonitor(){
  monitorSource=null;monitorFilter=null;monitorDry=null;monitorSend=null;
  monitoringVoice=false;$("monitorVoice").setAttribute("aria-pressed","false");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · OFF";
- $("monitorStatus").textContent="OFF · live microphone no longer routed to speakers";
+ $("monitorStatus").textContent="MONITOR OFF · mic not routed to headphones";
+ updateVocalState();
 }
 async function toggleVoiceMonitor(){
  if(monitoringVoice)stopVoiceMonitor();
