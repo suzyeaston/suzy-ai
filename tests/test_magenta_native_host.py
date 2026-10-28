@@ -195,14 +195,25 @@ class NativeMRT2Tests(unittest.TestCase):
         # The action cannot start or fork a second native model.
         self.assertIsNone(self.host.process)
 
-    def test_model_selector_reports_real_state_and_rejects_bookmark_mode(self):
+    def test_google_model_picker_switches_same_au_out_of_bookmark_mode(self):
         swift = (Path(__file__).resolve().parents[1]
                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
         self.assertIn('"native_au_ui_error"', swift)
         self.assertIn('"native_au_ui_request_count"', swift)
-        self.assertIn('guard selectModelInGoogleUI else', swift)
         self.assertIn('auUIRequestCount += 1', swift)
         self.assertIn('self.auUIError = "Google MRT2 AU did not return', swift)
+        self.assertIn('private var selectModelInGoogleUI =', swift)
+        self.assertIn('private var showGoogleUIAfterRestart = false', swift)
+        self.assertIn('if !selectModelInGoogleUI {', swift)
+        self.assertIn('selectModelInGoogleUI = true', swift)
+        self.assertIn('showGoogleUIAfterRestart = true', swift)
+        self.assertIn('self.showGoogleAUInterface()', swift)
+        self.assertIn('state.removeValue(forKey: "MGRT_ModelBookmark")', swift)
+        self.assertIn('state.removeValue(forKey: "MGRT_ModelName")', swift)
+        self.assertNotIn('guard selectModelInGoogleUI else', swift)
+        self.assertIn('let app = NSApplication.shared', swift)
+        # One generator instance in the same host, no second Popen.
+        self.assertEqual(swift.count('AVAudioUnit.instantiate(with:'), 1)
 
     def test_four_native_au_prompt_slots_and_live_weights(self):
         from suzy_ai.music.magenta_native_host import PROMPTS, ACTIONS
