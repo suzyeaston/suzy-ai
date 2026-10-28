@@ -139,6 +139,43 @@ details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{c
 #warning{font-size:12px;color:#ffc5b3}
 a{color:var(--mint)}
 @media(max-width:650px){main{padding:11px}.toaster{transform:scale(.78);margin-right:-11px}.brand{gap:8px}.mixer{grid-template-columns:1fr}.pads{gap:5px}.pad{height:70px;padding:5px}.settings{grid-template-columns:1fr}.deck{padding:11px}header{align-items:start}}
+/* CHORD-FIRST PERFORMANCE WORKSPACE: the song IS the interface. */
+.track-workspace{padding:16px;background:#1d1b25;border-color:#81768d}
+.track-columns{gap:16px}
+.track-column{border-color:#6c6379;background:#191820}
+.track-top{background:#282530;padding:14px 13px 10px;gap:8px}
+.track-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.track-title{font-size:15px;letter-spacing:.02em}
+.track-loop-badge{font-size:10px;white-space:nowrap}
+.track-pad-slot{width:100%;min-width:0}
+.track-main-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:3px 0 5px}
+.track-main-pads .pad{min-height:88px;height:auto;padding:8px 3px;border-radius:10px;border:1px solid #cfb0c0;background:linear-gradient(145deg,#8e536d,#4e364f)}
+.track-main-pads .pad kbd{font:800 14px ui-monospace,monospace;color:#fff0d7}
+.track-main-pads .pad b{font-size:clamp(13px,1.6vw,21px);line-height:1.2}
+.track-main-pads .pad.on{background:var(--peach);color:#3c2835}
+.track-controls{padding:0 12px 11px;background:#282530;gap:8px}
+.track-controls button{padding:9px 13px;font-size:12px;font-weight:750}
+.track-first-length{margin-left:auto}
+.track-ruler{padding-left:86px;min-height:27px}
+.track-lane{grid-template-columns:86px minmax(0,1fr);min-height:80px}
+.track-lane-name{background:#26232d;font-size:11px;padding:14px 8px}
+.track-lane-surface{padding:7px;gap:5px;background:repeating-linear-gradient(to right,#ffffff12 0 1px,transparent 1px calc(100%/var(--bars))),#16141d}
+.track-region{display:flex;flex-direction:column;gap:6px;padding:7px;min-height:64px;cursor:grab;touch-action:pan-y;user-select:none;transition:box-shadow .12s}
+.track-region.track-dragging{cursor:grabbing;outline:2px solid #fff0c5;box-shadow:0 0 16px #b3f3cf66}
+.track-region-head{display:flex;align-items:center;gap:8px;min-height:20px}
+.track-clip-title{margin-right:auto;letter-spacing:.04em}
+.track-offset{font:700 10px ui-monospace,monospace;color:#f9e2ae;white-space:nowrap}
+.track-region button{cursor:pointer}
+.track-wave{min-height:30px;height:34px}
+.track-wave-bar{opacity:.87}
+.track-song-playhead{background:#ffd77c;box-shadow:0 0 8px #ffd77c}
+.track-foot{font-size:11px;min-height:27px}
+.track-empty{align-self:center}
+.cue-collapsible{border:1px solid #534b63;border-radius:12px;padding:10px 14px;margin:10px 0;background:#211d27}
+.cue-collapsible>summary{padding:4px;color:#cfbacf;font:800 11px ui-monospace,monospace}
+.cue-collapsible .arranger{margin:8px 0 0}
+@media(max-width:1100px){.track-columns{grid-template-columns:1fr}}
+@media(max-width:560px){.track-main-pads .pad{min-height:76px}.track-main-pads .pad b{font-size:13px}.track-first-length{margin-left:0}}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -166,6 +203,13 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
 </div>
 </section>
+<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
+<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
+<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
+<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
+<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
+<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
+</section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
  <p>One MRT2 Small model, with preloaded Pyramid and Fishes text prompts. Your chord keys steer its harmony. Browser piano stays available.</p>
@@ -192,13 +236,8 @@ a{color:var(--mint)}
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
 </section>
-<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
-<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
-<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
-<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
-<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
-<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
-</section>
+<details class="cue-collapsible" id="cueEditor">
+<summary>▸ ADVANCED SONG CUES · optional automation</summary>
 <section class="arranger" aria-label="Editable live song arrangement">
 <div class="start"><div><div class="tiny">02 / LIVE ARRANGEMENT · TWO-BAR QUANTIZED CUES</div>
 <h2>Program the journey · Pyramid → Weird Fishes</h2>
@@ -216,6 +255,8 @@ a{color:var(--mint)}
 <div id="arrCues" aria-label="Editable arrangement cue list"></div>
 <small class="subtle">No automatic audio recording; vocal/AI clips are still separate. 32 cues maximum. Edited arrangement is saved in this browser.</small>
 </section>
+
+</details>
 <section class="note-bank" aria-label="Playable computer keyboard">
 <div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
 <h2>1–4 are your chords. A–K is your piano.</h2>
