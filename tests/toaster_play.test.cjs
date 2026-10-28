@@ -642,7 +642,7 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  assert.match(get("vocalLoopState").textContent,/NO VOCAL LOOPS/);
  await run("toggleVoiceMonitor()");
  assert.equal(run("monitoringVoice"),true);
- assert.match(get("monitorStatus").textContent,/NOT RECORDING/);
+ assert.match(get("monitorStatus").textContent,/recorder state below/);
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
  await run('voiceLoop("pyramid")');
  assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
