@@ -317,7 +317,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'function drumPattern(count)',
                        'function setDrumGroove(meter=drumMeter,style=drumStyle)',
                        'const playedMidi=midi+d.leadOctave;',
-                       'const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
+                       'const voice=nativeLead?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
                        'DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6})'):
             self.assertIn(marker, page)
         # The same 4/4 recording bar lengths remain intentional.
@@ -351,6 +351,23 @@ class LiveToasterHttpTests(unittest.TestCase):
             'aria-valuenow',
         ):
             self.assertIn(marker, timeline)
+
+    def test_four_actual_magenta_prompts_are_available_with_native_blend_controls(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for marker in ('id="promptPyramid"', 'id="promptFishes"',
+                       'id="promptViolin"', 'id="promptGuitar"',
+                       'id="aiLeadMix-pyramid"', 'id="aiLeadMix-fishes"',
+                       'id="aiChords-pyramid"', 'id="aiChords-fishes"',
+                       'id="aiLead-pyramid"', 'id="aiLead-fishes"',
+                       'function setNativeLeadMix(which,percent)',
+                       'await aiFetch("lead-mix",{scene:which,value:value/100})',
+                       'const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;',
+                       'CHORDS 100% · LEAD 0%',
+                       'One MRT2 Small model, four genuine Google AU sound prompts'):
+            self.assertIn(marker, page)
+        self.assertIn('["promptPyramid","promptFishes","promptViolin","promptGuitar"]', page)
+        self.assertIn('Enter four AI prompts', page)
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)

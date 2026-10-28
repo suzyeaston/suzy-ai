@@ -222,6 +222,11 @@ a{color:var(--mint)}
 .lead-controls button{background:#98d9c5;color:#21312e;min-height:39px;padding:9px 12px}
 .drum-options{display:grid;gap:6px}.drum-options label{font:700 10px ui-monospace,monospace;color:#d6d1de}
 .drum-options select{width:100%;max-width:260px}.drum-options small{line-height:1.4}
+.native-lead-strip{padding:12px;margin:9px 0;border:1px solid #a6e7ca;background:#173128;border-radius:10px;display:grid;gap:8px}
+.native-lead-title{color:#b4f3d7;font:800 11px ui-monospace,monospace}
+.native-lead-actions{display:flex;gap:9px;flex-wrap:wrap}.native-lead-actions button{padding:9px 12px;font-size:11px}
+.native-lead-strip label{font:700 11px ui-monospace,monospace;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+.native-lead-strip input{width:100%;accent-color:#a6e7ca}.native-lead-strip small{color:#bad3c8;font-size:11px}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -265,7 +270,7 @@ a{color:var(--mint)}
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
- <p>One MRT2 Small model, with preloaded Pyramid and Fishes text prompts. Your chord keys steer its harmony. Browser piano stays available.</p>
+ <p>One MRT2 Small model, four genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, and Fishes classical guitar. Live blending uses the same native engine.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button">🎧 HEAR AI ONLY</button>
@@ -278,14 +283,18 @@ a{color:var(--mint)}
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
  <small class="subtle" style="grid-column:1/-1">Independent native AI volume and mute; ROOM FX above also adjusts its reverb. Native audio does not enter browser loop capture.</small></div>
-<details class="prompt-editor" id="promptEditor"><summary>✦ EDIT THE TWO AI SOUND PROMPTS</summary>
+<details class="prompt-editor" id="promptEditor"><summary>✦ EDIT FOUR MAGENTA SOUND PROMPTS</summary>
 <div class="prompt-grid">
 <div><label for="promptPyramid">01 · PYRAMID · intimate piano</label>
 <textarea id="promptPyramid" maxlength="500">Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals</textarea></div>
 <div><label for="promptFishes">02 · WEIRD FISHES · shimmering arpeggios</label>
 <textarea id="promptFishes" maxlength="500">Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals</textarea></div>
+<div><label for="promptViolin">03 · PYRAMID · MAGENTA VIOLIN LEAD</label>
+<textarea id="promptViolin" maxlength="500">Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals</textarea></div>
+<div><label for="promptGuitar">04 · WEIRD FISHES · MAGENTA CLASSICAL GUITAR LEAD</label>
+<textarea id="promptGuitar" maxlength="500">Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals</textarea></div>
 </div>
-<div class="start"><span class="subtle">Apply prompts by restarting just the AI model. Browser audio and loops continue.</span>
+<div class="start"><span class="subtle">Restart only the native AI to apply edited text. You may need to select mrt2_small in Google's UI again. Existing browser loops stay intact.</span>
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
@@ -299,8 +308,16 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
-<div class="song-lead-panel" aria-label="pyramid independent lead instrument">
- <div class="lead-head">✧ PLAYABLE LEAD · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+<div class="native-lead-strip" aria-label="pyramid Magenta sound prompt blend">
+ <div class="native-lead-title">✦ MAGENTA AI · VIOLIN · PROMPT 03</div>
+ <div class="native-lead-actions"><button id="aiChords-pyramid" type="button">🎹 CHORD PROMPT</button><button id="aiLead-pyramid" type="button">✦ VIOLIN PROMPT</button></div>
+ <label for="aiLeadMix-pyramid">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-pyramid">CHORDS 100% · LEAD 0%</strong></label>
+ <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
+ <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+</div>
+<details class="song-lead-panel" aria-label="pyramid optional local fallback instrument">
+ <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
    <option value="violin" selected>Bowed violin (synth)</option>
@@ -311,9 +328,9 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-pyramid" aria-label="pyramid lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-pyramid">▶ HEAR VIOLIN LEAD</button>
+  <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
-</div>
+</details>
 <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
 <select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
@@ -338,8 +355,16 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
-<div class="song-lead-panel" aria-label="fishes independent lead instrument">
- <div class="lead-head">✧ PLAYABLE LEAD · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+<div class="native-lead-strip" aria-label="fishes Magenta sound prompt blend">
+ <div class="native-lead-title">✦ MAGENTA AI · CLASSICAL GUITAR · PROMPT 04</div>
+ <div class="native-lead-actions"><button id="aiChords-fishes" type="button">🎹 CHORD PROMPT</button><button id="aiLead-fishes" type="button">✦ CLASSICAL GUITAR PROMPT</button></div>
+ <label for="aiLeadMix-fishes">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-fishes">CHORDS 100% · LEAD 0%</strong></label>
+ <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
+ <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+</div>
+<details class="song-lead-panel" aria-label="fishes optional local fallback instrument">
+ <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
    <option value="violin">Bowed violin (synth)</option>
@@ -350,9 +375,9 @@ a{color:var(--mint)}
   <label>REGISTER <select id="leadOctave-fishes" aria-label="fishes lead octave">
     <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
   </select></label>
-  <button type="button" id="leadPlay-fishes">▶ HEAR CLASSICAL GUITAR LEAD</button>
+  <button type="button" id="leadPlay-fishes">▶ HEAR LOCAL GUITAR</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
-</div>
+</details>
 <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
 <select id="instrument-fishes" aria-label="fishes instrument for next overdub">
@@ -728,7 +753,7 @@ async function auditionLead(which){
    releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
   }
   tell(which.toUpperCase()+" · previewing "+INSTRUMENTS[d.leadInstrument].name+
-   " with three local notes. This does not trigger native Magenta.");
+   " with three fallback local notes. Use the green native AI PROMPT controls for genuine Magenta sounds.");
  }catch(e){warn(e)}
 }
 function setLead(which,instrument){
@@ -899,6 +924,8 @@ function aiDisplay(s){
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     (s.chord_min_hold_ms?" · native click-hold "+s.chord_min_hold_ms+" ms":"")+
     (s.chord_release_pending?" · chord release pending":"")+
+    (s.prompt_slot_count?" · "+s.prompt_slot_count+" MAGENTA PROMPTS":"")+
+    (Array.isArray(s.prompt_weights)?" · weights "+s.prompt_weights.map(x=>Number(x).toFixed(2)).join("/"):"")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
     " · "+(s.output||"macOS default output"):
@@ -920,8 +947,8 @@ async function aiStatus(){
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
 }
 function getPromptStrings(){
- const prompts=[$("promptPyramid").value.trim(),$("promptFishes").value.trim()];
- if(prompts.some(p=>!p||p.length>500))throw Error("Enter two AI prompts, maximum 500 characters each");
+ const prompts=["promptPyramid","promptFishes","promptViolin","promptGuitar"].map(id=>$(id).value.trim());
+ if(prompts.some(p=>!p||p.length>500))throw Error("Enter four AI prompts, maximum 500 characters each");
  return prompts;
 }
 async function applyPrompts(){
@@ -933,7 +960,7 @@ async function applyPrompts(){
   const result=await aiFetch("start",{prompts});
   aiDisplay(result);
   if(aiNativeReady)await syncAIMix();
-  tell("Both AI prompts updated; audition a held key when model sound is detected.");
+  tell("Four Magenta prompts configured. Select mrt2_small in the Google UI if prompted, then audition the chord and lead blend controls.");
  }catch(e){warn(e);$("aiHostStatus").textContent="PROMPT UPDATE FAILED · "+e.message;}
 }
 async function toggleAI(){
@@ -950,10 +977,25 @@ async function toggleAI(){
  }catch(e){aiNativeReady=false;warn(e);
   $("aiHostStatus").textContent="AI UNAVAILABLE · "+e.message+" · browser piano still works";}
 }
+function setNativeLeadMix(which,percent){
+ const value=clamp(percent,0,100);
+ $("aiLeadMix-"+which).value=String(value);
+ $("aiLeadMixValue-"+which).textContent="CHORDS "+(100-value)+"% · LEAD "+value+"%";
+ if(!aiNativeReady){
+  tell("MAGENTA "+which.toUpperCase()+" lead set to "+value+"%. Start Google AU to hear it.");
+  return;
+ }
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  await aiFetch("lead-mix",{scene:which,value:value/100});
+ }).catch(e=>warn(e));
+}
 async function syncAIMix(){
  if(!aiNativeReady)return;
  try{
   await aiFetch("mix",{value:Number($("mix").value)/100});
+  for(const which of ["pyramid","fishes"])
+   await aiFetch("lead-mix",{scene:which,value:Number($("aiLeadMix-"+which).value)/100});
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
@@ -1060,7 +1102,8 @@ function beginNote(midi,key){
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
  const playedMidi=midi+d.leadOctave;
- const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
+ const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;
+ const voice=nativeLead?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
  const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
@@ -1074,7 +1117,7 @@ function endNote(key){
  heldNotes.delete(key);
  const now=ctx?.currentTime??0;
  const attack=INSTRUMENTS[h.instrument]?.attack??.028;
- releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
+ if(h.voice)releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
@@ -1843,6 +1886,13 @@ for(const which of Object.keys(decks)){
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
  $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
  $("leadPlay-"+which).onclick=()=>auditionLead(which);
+ $("aiChords-"+which).onclick=()=>{choose(which);setNativeLeadMix(which,0);};
+ $("aiLead-"+which).onclick=()=>{choose(which);setNativeLeadMix(which,100);};
+ $("aiLeadMix-"+which).oninput=e=>{
+  const value=Number(e.target.value);
+  $("aiLeadMixValue-"+which).textContent="CHORDS "+(100-value)+"% · LEAD "+value+"%";
+ };
+ $("aiLeadMix-"+which).onchange=e=>{choose(which);setNativeLeadMix(which,e.target.value);};
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);

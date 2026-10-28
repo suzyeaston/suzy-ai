@@ -43,6 +43,7 @@ final class MRT2Host {
     private var modelPath = ""
     private var scene = "pyramid"
     private var blend: Float = 0
+    private var leadMix: [String: Float] = ["pyramid":0, "fishes":0]
     private var level: Float = 0.28
     private var reverbAmount: Float = 0.18
     private var muted = false
@@ -65,6 +66,8 @@ final class MRT2Host {
     private var prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
         "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
+        "Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals",
+        "Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals",
     ]
     private let chords: [String: [[UInt8]]] = [
         "pyramid": [[54, 58, 61, 66], [55, 59, 62, 66], [57, 61, 64, 66], [54, 58, 61, 66]],
@@ -108,6 +111,10 @@ final class MRT2Host {
             "transport_playing": transportPlaying.load(ordering: .relaxed),
             "native_loop_capture_supported": false, // Browser's current recorder cannot capture this AU's PCM.
             "text_prompts": prompts,
+            "prompt_slot_count": prompts.count,
+            "prompt_weights": (10...13).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
+            "lead_mix": ["pyramid": Double(leadMix["pyramid"] ?? 0),
+                         "fishes": Double(leadMix["fishes"] ?? 0)],
             "au_component": auComponentName,
             "musiccoca_assets_path": assetPath,
             "bookmark_scope_verified": bookmarkScopeVerified,
@@ -131,9 +138,16 @@ final class MRT2Host {
         p.value = AUValue(value)
     }
     private func configure() {
-        // Weights 0/1 are real native AU text-prompt weights, not browser presets.
-        parameter(10, 1.0 - blend)
-        parameter(11, blend)
+        // Four REAL AU prompt slots, blended within one shared Small model.
+        // 0=Pyramid chords, 1=Fishes chords, 2=violin, 3=nylon guitar.
+        let p = max(0, min(1, leadMix["pyramid"] ?? 0))
+        let f = max(0, min(1, leadMix["fishes"] ?? 0))
+        parameter(10, (1.0 - blend) * (1.0 - p))
+        parameter(11, blend * (1.0 - f))
+        parameter(12, (1.0 - blend) * p)
+        parameter(13, blend * f)
+        parameter(14, 0)
+        parameter(15, 0)
         parameter(39, 1.0) // Google "Filter Drums"
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
         parameter(3, 2.5)  // Prompt Adherence
@@ -377,7 +391,7 @@ final class MRT2Host {
                     let weighted = self.prompts.enumerated().map { (i,text) in
                         ["text": text, "weight": i == 0 ? 1.0 : 0.0] as [String: Any]
                     }
-                    state["MGRT_Prompts"] = weighted + (0..<4).map { _ in
+                    state["MGRT_Prompts"] = weighted + (0..<2).map { _ in
                         ["text":"","weight":0.0] as [String:Any]
                     }
                     if self.selectModelInGoogleUI {
@@ -517,9 +531,9 @@ final class MRT2Host {
             // require a new ENABLE instead of pretending to hot-swap sound.
             guard !active && !loading,
                   let list = request["prompts"] as? [String],
-                  list.count == 2,
+                  list.count == 4,
                   list.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 500 }) else {
-                return ["error":"Stop Magenta before saving two prompts (maximum 500 characters each)"]
+                return ["error":"Stop Magenta before saving four prompts (maximum 500 characters each)"]
             }
             prompts = list
         case "scene":
@@ -539,6 +553,12 @@ final class MRT2Host {
                 return ["error":"blend must be 0..1"]
             }
             blend = Float(x);configure()
+        case "lead-mix":
+            guard let which = request["scene"] as? String, chords[which] != nil,
+                  let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
+                return ["error":"lead-mix requires pyramid/fishes scene and a 0..1 mix"]
+            }
+            leadMix[which] = Float(x);configure()
         case "volume":
             guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
                 return ["error":"volume must be 0..1"]
