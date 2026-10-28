@@ -8,6 +8,8 @@ const file = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_pla
 const javascript = file.match(/<script>([\s\S]*?)<\/script>/)[1];
 const arrangementJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_arrangement.js"),"utf8");
 const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_track_view.js"),"utf8");
+const timelineJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_performance_timeline.js"),"utf8");
+const voiceFollowJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_voice_follow.js"),"utf8");
 function rig(){
  const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null};
  const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
@@ -74,6 +76,7 @@ function rig(){
  vm.createContext(env);
  vm.runInContext(arrangementJS,env,{filename:"toaster_arrangement.js"});
  vm.runInContext(tracksJS,env,{filename:"toaster_track_view.js"});
+ vm.runInContext(timelineJS,env,{filename:"toaster_performance_timeline.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
   const event={key,repeat,target:{tagName:target,isContentEditable:false,closest(){return null}},preventDefault(){}};
@@ -380,4 +383,31 @@ test("native status differentiates bookmark, assets and loaded model from host-r
  assert.match(get("aiDiagnostics").textContent,/not_confirmed/);
  run('aiDisplay({phase:"failed",error:"scope denied"})');
  assert.match(get("aiHostStatus").textContent,/scope denied/);
+});
+
+test("full timeline uses real MIDI/audio clips and gates source play by full-performance bars",async()=>{
+ const {run}=rig();await run("startStop()");
+ const beginning=run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},3)');
+ assert.equal(beginning,false);
+ assert.equal(run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},4)'),true);
+ assert.equal(run('clipActiveAt({muted:false,arrStartBar:4,arrEndBar:9},9)'),false);
+ run('decks.pyramid.layers.push({id:"demo",kind:"chords",muted:false,arrStartBar:4,arrEndBar:10,instrument:"keys",events:[{index:0,step:0,holdSteps:1}]})');
+ run('fullTimeline.render()');
+ const active=run('fullTimeline.totalBars()');
+ assert.ok(active>=32);
+ run('fullTimeline.onEdit("pyramid","demo",8,18)');
+ assert.equal(run("decks.pyramid.layers[0].arrStartBar"),8);
+ assert.equal(run("decks.pyramid.layers[0].arrEndBar"),18);
+ assert.equal(run('clipActiveAt(decks.pyramid.layers[0],12)'),true);
+});
+test("voice-follow module steers existing native model but does not claim synthetic singing",()=>{
+ assert.match(voiceFollowJS,/registerProcessor\("suzy-voice-follow"/);
+ assert.match(voiceFollowJS,/type:"pitch"/);
+ assert.match(file,/id="voiceFollow"/);
+ assert.match(file,/does not create a synthetic singer/);
+ assert.match(javascript,/aiMelody\(next,true\)/);
+ assert.match(javascript,/aiMelody\(followedMidi,false\)/);
+ assert.match(javascript,/fullTimeline=new window.SuzyPerformanceTimeline/);
+ assert.match(javascript,/fullTimeline\?\.render\(\)/);
+ assert.match(javascript,/clipActiveAt\(layer,count\/8\)/);
 });
