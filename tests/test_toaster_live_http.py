@@ -296,6 +296,34 @@ class LiveToasterHttpTests(unittest.TestCase):
         ):
             self.assertIn(implementation, page)
 
+    def test_separate_per_song_violin_and_guitar_leads_and_local_drum_grooves(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        self.assertLess(page.index('id="pads-pyramid"'), page.index('id="lead-pyramid"'))
+        self.assertLess(page.index('id="pads-fishes"'), page.index('id="lead-fishes"'))
+        for marker in ('id="lead-pyramid"', 'id="lead-fishes"',
+                       'id="leadLevel-pyramid"', 'id="leadLevel-fishes"',
+                       'id="leadOctave-pyramid"', 'id="leadOctave-fishes"',
+                       'id="leadPlay-pyramid"', 'id="leadPlay-fishes"',
+                       'id="drumMeter"', 'id="drumStyle"', 'id="drumStatus"',
+                       'value="3/4"', 'value="4/4"', 'value="6/8"', 'value="5/4"',
+                       'value="pulse"', 'value="brush"', 'value="trip"',
+                       'value="broken"'):
+            self.assertIn(marker, page)
+        for marker in ('function setLead(which,instrument)',
+                       'function setLeadOctave(which,value)',
+                       'function setLeadLevel(which,value)',
+                       'async function auditionLead(which)',
+                       'function drumPattern(count)',
+                       'function setDrumGroove(meter=drumMeter,style=drumStyle)',
+                       'const playedMidi=midi+d.leadOctave;',
+                       'const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
+                       'DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6})'):
+            self.assertIn(marker, page)
+        # The same 4/4 recording bar lengths remain intentional.
+        self.assertIn('Math.floor(count/8)', page)
+        self.assertIn('Song loops and arrangement still use the existing 4/4 grid.', page)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
