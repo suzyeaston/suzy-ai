@@ -4,7 +4,7 @@
 <style>
 :root{color-scheme:dark;--bg:#191420;--panel:#302637;--border:#78607b;--pink:#ffc9d8;--peach:#ffdbb0;--mint:#b4f1d0;--muted:#c2afc7;--red:#fc9cac}
 *{box-sizing:border-box}body{background:radial-gradient(ellipse at 25% -15%,#66425c 0,transparent 58%),var(--bg);color:#fff2e9;margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif}
-main{max-width:1040px;margin:0 auto;padding:18px 18px 55px}h1{margin:0;font-size:clamp(30px,4.5vw,47px);letter-spacing:-.07em;line-height:1.04}h2{margin:0;font-size:clamp(18px,2.5vw,24px)}p{margin:5px 0}small,.subtle{font-size:12px;color:var(--muted)}
+main{max-width:1460px;margin:0 auto;padding:18px 18px 55px}h1{margin:0;font-size:clamp(30px,4.5vw,47px);letter-spacing:-.07em;line-height:1.04}h2{margin:0;font-size:clamp(18px,2.5vw,24px)}p{margin:5px 0}small,.subtle{font-size:12px;color:var(--muted)}
 label{font-size:12px;font-weight:750}button,input,select{font:inherit}button{border:1px solid #926e8f;color:#fff7ed;background:#4b3b50;border-radius:12px;padding:11px;cursor:pointer;font-weight:800;touch-action:manipulation}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 button:disabled{opacity:.48;cursor:default}button[aria-pressed=true],button.active{background:var(--mint);border-color:var(--mint);color:#222d27}
 input[type=range]{accent-color:var(--mint);width:100%}select{background:#241c2c;color:#fff;border:1px solid var(--border);border-radius:9px;padding:8px;max-width:100%}
@@ -100,7 +100,39 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .arr-number{font:800 11px ui-monospace,monospace;color:var(--peach)}
 #arrStatus{font-size:11px;color:var(--peach);min-height:20px}
 @media(max-width:880px){.arr-row{grid-template-columns:25px repeat(4,minmax(0,1fr));}.arr-row input{grid-column:2/-1}.arr-row select{grid-column:span 2}.arr-row select:last-of-type{grid-column:span 3}}
-.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
+.track-workspace{scroll-margin-top:16px;border:1px solid #705d87;background:#201b2a;border-radius:18px;padding:16px;margin:16px 0}
+.track-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:13px}
+.track-column{min-width:0;border:1px solid #615a73;border-radius:12px;background:#16151d;overflow:hidden}
+.track-column.is-selected{border-color:#d1b4e4}
+.track-top{padding:11px;background:#2a2633;display:grid;gap:9px}
+.track-title{font-weight:850;letter-spacing:.065em;font-size:12px}
+.track-loop-badge{font:700 10px ui-monospace,monospace;color:var(--mint)}
+.track-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.track-controls button{font-size:11px;padding:7px 9px;border-radius:7px}
+.track-record.active{background:#b75366;color:#fff}
+.track-first-length{display:flex;align-items:center;gap:5px;font-size:10px;color:#dac8e0}
+.track-first-size{font-size:11px;padding:5px}
+.track-ruler{display:flex;padding-left:90px;min-height:24px;background:#29242d;border-bottom:1px solid #7d6c85;overflow:hidden}
+.track-bar{flex:1;min-width:0;text-align:left;border-left:1px solid #ffffff24;padding-left:3px;font:650 9px ui-monospace,monospace;color:#ac9aaf;white-space:nowrap;overflow:hidden}
+.track-lanes{position:relative}
+.track-lane{display:grid;grid-template-columns:90px minmax(0,1fr);min-height:73px;border-bottom:1px solid #514959}
+.track-lane-name{font:800 10px ui-monospace,monospace;padding:14px 8px;color:#dccce6;background:#211c29}
+.track-lane-surface{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:5px;background:repeating-linear-gradient(to right,#ffffff0b 0 1px,transparent 1px calc(100%/var(--bars))),#18141f;min-width:0}
+.track-empty{align-self:center;color:#827b8c;font:11px ui-monospace,monospace}
+.track-region{flex:0 0 auto;width:100%;min-width:0;min-height:56px;position:relative;border-radius:6px;padding:6px;background:#715b9d;border:1px solid #b59cdf;display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:16px 1fr;gap:2px;overflow:hidden}
+.region-vocal{background:#a75f80;border-color:#efa6ba}.region-ai{background:#3b847f;border-color:#a4e0d0}
+.track-muted{opacity:.38}.track-clip-title{font:750 10px ui-monospace,monospace;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;align-self:center}
+.track-clip-mute,.track-clip-remove{padding:1px 4px;font-size:9px;border:0;border-radius:4px;background:#241e2c}
+.track-wave{grid-column:1/-1;display:flex;align-items:center;position:relative;gap:1px;min-height:22px}
+.track-wave-bar{display:block;flex:1;min-width:1px;background:#f1e0ff;border-radius:1px;opacity:.8}.region-vocal .track-wave-bar{background:#ffd3df}.region-ai .track-wave-bar{background:#d1fff3}
+.track-midi-note{position:absolute;top:35%;height:9px;background:#fff1bb;border-radius:3px;min-width:2px}
+.track-song-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd86a;pointer-events:none;box-shadow:0 0 5px #ffd86a;z-index:5}
+.track-foot{font-size:10px;color:#a6a1b7;padding:9px 12px;min-height:34px}
+.track-notice{font-size:12px;color:#d5bacb}
+#classicDecks{border:1px solid #6f5c7a;border-radius:14px;padding:10px;margin:12px 0}
+#classicDecks>summary{font:800 12px ui-monospace,monospace;color:var(--peach);padding:7px;cursor:pointer}
+@media(max-width:970px){.track-columns{grid-template-columns:minmax(0,1fr)}}
+.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 #message{min-height:26px;color:var(--mint);font:700 12px ui-monospace,monospace;white-space:normal}
@@ -114,7 +146,7 @@ a{color:var(--mint)}
 <div class="bread"></div><div class="slot"></div><div class="body"><div class="face">• •</div><div class="smile"></div></div><div class="lever"></div><div class="foot"></div></div>
 <div><div class="tiny">FUTUREPROOF · THE APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST 🍞</h1><p class="subtle">Play it. Loop it. Add a voice. Make it evolve.</p></div>
 </div>
-<div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div>
+<div class="start"><a class="track-jump" href="#trackWorkspace">🎛 OPEN TRACKS</a><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
@@ -160,6 +192,13 @@ a{color:var(--mint)}
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
 </section>
+<section class="track-workspace" id="trackWorkspace" aria-label="Logic inspired live loop timeline">
+<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
+<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
+<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
+<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
+<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
+</section>
 <section class="arranger" aria-label="Editable live song arrangement">
 <div class="start"><div><div class="tiny">02 / LIVE ARRANGEMENT · TWO-BAR QUANTIZED CUES</div>
 <h2>Program the journey · Pyramid → Weird Fishes</h2>
@@ -198,7 +237,7 @@ a{color:var(--mint)}
 <button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
 </div>
 </section>
-<div id="decks">
+<details id="classicDecks"><summary>🎹 CLASSIC CHORD PADS & ORIGINAL LOOP BUTTONS</summary><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
@@ -225,7 +264,7 @@ a{color:var(--mint)}
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
 </section>
-</div>
+</div></details>
 <section><div class="start"><div><div class="tiny">SAVED SOUNDS · ACTUAL MAGENTA AUDIO</div><h2>Add an AI take, when you're ready</h2><p class="subtle">Import audio recorded from Magenta in Logic. It becomes a real removable loop on the selected track.</p></div>
 <label for="aiImport" class="big" style="cursor:pointer;background:#5b4254;color:#ffe8d9;font-size:12px;padding:13px;border-radius:11px">+ IMPORT AI AUDIO <input id="aiImport" type="file" accept="audio/*,.wav,.mp3,.m4a,.aiff" style="display:block;font-size:10px;max-width:170px;margin-top:5px"></label></div>
 <details><summary>Sound settings / devices / export (optional)</summary>
@@ -233,9 +272,15 @@ a{color:var(--mint)}
 
 
 <div><label for="micInput">Microphone input · auto Scarlett</label><select id="micInput"><option value="">Automatic</option></select></div>
+<div><label for="vocalHeadroom">Recorded vocal headroom · <span id="vocalHeadroomNumber">55%</span></label>
+<input id="vocalHeadroom" type="range" min="20" max="100" value="55">
+<small class="subtle" id="vocalPeak">Last vocal input peak: not measured yet. Adjust VE-22 / Scarlett input gain if it clips.</small></div>
+<div><label for="browserLatency">Browser output buffering (before starting)</label>
+<select id="browserLatency"><option value="balanced" selected>Balanced</option><option value="playback">Larger buffer / smoother</option><option value="interactive">Low latency</option></select>
+<small class="subtle">Takes effect when browser audio starts; reload to change. Doesn't alter Scarlett input or native Magenta buffer.</small></div>
 <div><label for="audioOutput">Output · auto Scarlett when supported</label><select id="audioOutput"><option value="">Automatic / system output</option></select></div>
 <div><button id="findDevices">↻ RECHECK DEVICES</button></div>
-<div><button id="export">↓ EXPORT WAV MIX</button></div>
+<div><button id="export">↓ EXPORT SELECTED SONG WAV</button></div>
 </div></details>
 </section>
 <div id="message" role="status" aria-live="polite">Press PLAY RHYTHM. Then 1–4. Use LOOP MY CHORDS to build.</div>
@@ -243,6 +288,7 @@ a{color:var(--mint)}
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
 <script src="/toaster/arrangement.js"></script>
+<script src="/toaster/track-view.js"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -252,6 +298,7 @@ const SCENES={
 };
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
+let vocalCaptureReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -260,7 +307,8 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8}]));
+let trackView=null;
 let arranger=null;
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
@@ -275,8 +323,14 @@ function makeReverb(){
 }
 async function openAudio(){
  if(!ctx){
-  ctx=new (window.AudioContext||window.webkitAudioContext)();
-  master=ctx.createGain();master.gain.value=Number($("master").value)/100;master.connect(ctx.destination);
+  ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:$("browserLatency").value});
+  $("browserLatency").disabled=true;
+  master=ctx.createGain();master.gain.value=Number($("master").value)/100;
+  // Browser-only compressor for stacked loops. Doesn't touch native MRT2 or the Scarlett ADC.
+  const safety=ctx.createDynamicsCompressor();
+  safety.threshold.value=-9;safety.knee.value=4;safety.ratio.value=14;
+  safety.attack.value=.004;safety.release.value=.16;
+  master.connect(safety);safety.connect(ctx.destination);
   mixFilter=ctx.createBiquadFilter();mixFilter.type="lowpass";
   mixFilter.frequency.value=220+Math.pow(Number($("tone").value)/100,2)*19000;
   mixFilter.Q.value=.65;mixFilter.connect(master);
@@ -582,7 +636,7 @@ function beginChord(which,index,key){
  }
  const h={which,index,voices,start,event:null};heldKeys.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
-  const step=Math.max(0,Math.min(15,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
+  const step=Math.max(0,Math.min(255,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
   h.event={step,index,holdSteps:1};recording.events.push(h.event);
  }
  midi(which,index);
@@ -629,7 +683,7 @@ function beginNote(midi,key){
  const h={osc,tone,gain,midi,scene,start,event:null};
  heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
-  const step=Math.max(0,Math.min(15,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
+  const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi,holdSteps:1,type:"note"};
   recording.events.push(h.event);
  }
@@ -655,6 +709,17 @@ function releaseAllChords(){
 }
 function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
+function songCycleSteps(which){return decks[which].lengthSteps||16;}
+function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
+function nextSongBoundary(which,n){
+ const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
+ return anchor+Math.max(0,Math.ceil((n-anchor)/length))*length;
+}
+function songPhaseSeconds(which,at=ctx.currentTime){
+ const d=decks[which],length=songCycleSeconds(which);
+ const origin=transportEpoch+(d.anchorStep||0)*tickSeconds();
+ return ((at-origin)%length+length)%length;
+}
 function phaseSeconds(at=ctx.currentTime){
  return ((at-transportEpoch)%cycleSeconds()+cycleSeconds())%cycleSeconds();
 }
@@ -689,20 +754,23 @@ function schedule(time,count){
  if(step===0)applyTempoAtBar(time,count);
  if(step===0&&arranger)arranger.onCycle(count/8);
  pulse(time,step);
- if(step===0){
+ if(count%8===0){
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
    tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
-   $("record-"+recording.scene).textContent="● RECORDING…";
-  }else if(recording?.kind==="chords"&&recording.active&&count>=recording.beginAt+loopSteps){
+   $("record-"+recording.scene).textContent=recording.first?"■ FINISH FIRST TAKE":"● OVERDUBBING…";
+   trackView?.draw();
+  }else if(recording?.kind==="chords"&&recording.active&&count>=(recording.endAt??recording.beginAt+256)){
    endRecord();
   }
  }
  for(const [which,d] of Object.entries(decks)){
+  if(count<(d.anchorStep||0))continue;
+  const songStep=((count-(d.anchorStep||0))%songCycleSteps(which)+songCycleSteps(which))%songCycleSteps(which);
   for(const l of d.layers){
    if(l.muted||l.kind!=="chords")continue;
    for(const e of l.events){
-    if(e.step===step){
+    if(e.step===songStep){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
@@ -752,6 +820,7 @@ function updateTimeline(){
  const phase=phaseSeconds()/cycleSeconds();
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
  const t=$("toaster");t.classList.toggle("bop",Math.floor(phase*16)%4===0);
+ trackView?.tick();
 }
 async function startStop(){
  try{
@@ -759,7 +828,8 @@ async function startStop(){
   if(stageStarted){
    releaseAllChords();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
-    recording.processor.onaudioprocess=null;
+    recording.finished=true;clearTimeout(recording.watchdog);
+    recording.processor.port.postMessage({type:"stop"});
     try{recording.source.disconnect();recording.processor.disconnect();recording.silent.disconnect()}catch{}
     $("vocal-"+recording.scene).textContent="🎙 LOOP VOICE";
    }
@@ -772,7 +842,9 @@ async function startStop(){
    tell("Rhythm paused. Your loops are preserved.");
   }else{
    stepNumber=0;transportEpoch=ctx.currentTime+.09;nextStepAt=transportEpoch;
+   for(const d of Object.values(decks))d.anchorStep=0;
    if(arranger)arranger.resetClock();
+   trackView?.draw();
    stageStarted=true;
    for(const [which,d] of Object.entries(decks)){
     for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer);
@@ -784,40 +856,71 @@ async function startStop(){
  }catch(e){warn(e);}
 }
 function record(which){
- if(!stageStarted)return warn(Error("Start the rhythm first, then record"));
+ if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
+ const d=decks[which];
+ if(recording){
+  if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish current take first."));
+  if(!recording.active){
+   recording=null;$("record-"+which).textContent="● LOOP MY CHORDS";$("record-"+which).classList.remove("armed");
+   trackView?.draw();tell("Armed take cancelled.");return;
+  }
+  if(!d.locked){
+   recording.endAt=Math.min(recording.beginAt+256,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
+   $("record-"+which).textContent="■ FINISH QUEUED";
+   tell("Finishing at bar boundary. The first phrase sets the "+which+" loop length.");
+  }else tell("Overdub finishes at the master loop boundary.");
+  return;
+ }
  choose(which);
- if(recording)return warn(Error("Finish the current recording first"));
- recording={kind:"chords",scene:which,active:false,events:[],beginAt:Math.ceil((stepNumber+1)/16)*16,start:0};
+ const beginAt=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+ recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
+            first:!d.locked,endAt:d.locked?beginAt+d.lengthSteps:null};
  $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
- tell("Ready: chord recording begins on the next loop. Press keys 1–4.");
+ trackView?.draw();
+ tell(d.locked?"Overdub armed for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE ARMED. Play, then press FINISH after 2–32 bars.");
 }
 function endRecord(){
- if(!recording)return;
- const r=recording;
+ if(!recording||recording.kind!=="chords")return;
+ const r=recording,d=decks[r.scene];
+ const length=r.first?Math.max(16,Math.min(256,(r.endAt||r.beginAt+256)-r.beginAt)):d.lengthSteps;
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
-   h.event.holdSteps=Math.max(.25,Math.min(loopSteps,(r.start+cycleSeconds()-h.start)/tickSeconds()));
+   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-h.start)/tickSeconds()));
    h.event=null;
   }
  }
- recording=null;
- $("record-"+r.scene).classList.remove("armed");
+ for(const h of heldNotes.values()){
+  if(h.event&&h.scene===r.scene){
+   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-h.start)/tickSeconds()));
+   h.event=null;
+  }
+ }
+ recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- if(!r.events.length){tell("No notes captured. Tap LOOP MY CHORDS and play again.");return;}
- const d=decks[r.scene];
- d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false});
+ if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
+ if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
+ d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8});
  renderClips(r.scene);
- tell("Loop saved. It repeats without chopping chord tails. Record another layer!");
+ tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
+}
+function removeSongLayer(which,id){
+ const d=decks[which],layer=d.layers.find(l=>l.id===id);
+ if(!layer)return;
+ if(layer.source)try{layer.source.stop()}catch{}
+ d.layers=d.layers.filter(l=>l.id!==id);
+ if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;}
+ renderClips(which);
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
+ trackView?.draw();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
   const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹":layer.kind==="vocal"?"🎙":"✦")+" Loop "+(i+1);
   const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;renderClips(which);};
-  const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>{if(layer.source)try{layer.source.stop()}catch{}d.layers=d.layers.filter(l=>l!==layer);renderClips(which);};
+  const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
   row.append(name,mute,remove);box.append(row);
  });
 }
@@ -835,64 +938,73 @@ async function enableMic(){
  micStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:chosen?{ideal:chosen}:preferred?{ideal:preferred.deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
  await findDevices();return micStream;
 }
-// Record exactly one transport-aligned cycle of microphone PCM.
-// MediaRecorder starts/stops on browser timers (which caused drifting
-// vocal loops). Web Audio processing timestamps and fixed frame counts
-// keep this capture in the very same clock as the rhythm scheduler.
-// Chrome ScriptProcessor is deprecated but stable on the performance Mac;
-// it can later be replaced with an AudioWorklet without changing the UI.
+// AudioWorklet captures the raw microphone on Web Audio's render thread.
+// Headroom is applied only to recorded playback, not the Scarlett hardware.
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
  if(recording)return warn(Error("Finish the current recording first"));
+ let source=null,processor=null,silent=null,take=null;
  try{
   await openAudio();
   const stream=await enableMic();
-  if(!ctx.createScriptProcessor)throw Error("Chrome AudioContext recording unavailable. Use Advanced Studio for vocals.");
-  const firstStep=Math.ceil((stepNumber+1)/loopSteps)*loopSteps;
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
+  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
+  const d=decks[which];
+  const bars=d.locked?d.lengthSteps/8:d.initialBars;
+  const steps=bars*8;
+  const firstStep=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
   const start=transportEpoch+firstStep*tickSeconds();
-  const duration=cycleSeconds(),frames=Math.round(duration*ctx.sampleRate);
-  if(frames>ctx.sampleRate*12)throw Error("Loop cycle too long for live microphone recording");
-  const data=new Float32Array(frames);
-  const source=ctx.createMediaStreamSource(stream);
-  const processor=ctx.createScriptProcessor(1024,1,1);
-  const silent=ctx.createGain();silent.gain.value=0;
+  const duration=steps*tickSeconds(),frames=Math.round(duration*ctx.sampleRate);
+  if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
+  source=ctx.createMediaStreamSource(stream);
+  processor=new AudioWorkletNode(ctx,"suzy-vocal-capture",{
+   numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],
+   processorOptions:{startFrame:Math.round(start*ctx.sampleRate),frames}
+  });
+  silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
-  const take={kind:"vocal",scene:which,active:false,beginAt:firstStep,start,
-              processor,source,silent,finished:false};
+  take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
+        first:!d.locked,firstStep,steps};
   recording=take;
   $("vocal-"+which).textContent="🎙 ARMED";
-  const finish=()=>{
-   if(take.finished)return;
-   take.finished=true;
-   processor.onaudioprocess=null;
-   source.disconnect();processor.disconnect();silent.disconnect();
-   if(recording!==take)return;
-   const clip=ctx.createBuffer(1,frames,ctx.sampleRate);
-   clip.getChannelData(0).set(data);
-   const dst=clip.getChannelData(0),fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
-   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null};
-   decks[which].layers.push(layer);
-   recording=null;
-   startLoopAudio(which,layer);
-   renderClips(which);
+  const cleanup=()=>{
+   if(take.finished)return false;
+   take.finished=true;clearTimeout(take.watchdog);
+   try{source.disconnect();processor.disconnect();silent.disconnect()}catch{}
+   if(recording===take)recording=null;
    $("vocal-"+which).textContent="🎙 LOOP VOICE";
-   tell("Vocal loop aligned to rhythm: "+bpm+" BPM. VE-22 → Scarlett stays connected.");
+   return true;
   };
-  processor.onaudioprocess=e=>{
-   if(take.finished)return;
-   const relative=Math.round((e.playbackTime-start)*ctx.sampleRate);
-   const inAudio=e.inputBuffer.getChannelData(0);
-   const from=Math.max(0,-relative),to=Math.min(inAudio.length,frames-relative);
-   if(to>from){
-    if(!take.active){take.active=true;$("vocal-"+which).textContent="🎙 RECORDING…";}
-    data.set(inAudio.subarray(from,to),Math.max(0,relative));
-   }
-   if(relative+inAudio.length>=frames)finish();
+  processor.port.onmessage=e=>{
+   if(e.data?.type!=="complete"||!cleanup())return;
+   const {data,peak,hot,missing}=e.data;
+   if(!(data instanceof Float32Array)||data.length!==frames)return warn(Error("Vocal capture returned incomplete PCM"));
+   const clip=ctx.createBuffer(1,frames,ctx.sampleRate),dst=clip.getChannelData(0);
+   const headroom=Number($("vocalHeadroom").value)/100;
+   for(let n=0;n<frames;n++)dst[n]=data[n]*headroom;
+   const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(frames/3));
+   for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[frames-n-1]*=n/fade;}
+   if(take.first){d.locked=true;d.lengthSteps=take.steps;d.anchorStep=take.firstStep;}
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:steps/8};
+   decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
+   const db=20*Math.log10(Math.max(0.000001,Number(peak)||0));
+   $("vocalPeak").textContent="Last raw input peak: "+db.toFixed(1)+" dBFS · near-clip samples: "+hot;
+   if(hot>0)warn(Error("Vocal input near clipping. Turn DOWN VE-22 or Scarlett input gain. Browser headroom cannot repair clipped ADC input."));
+   else if(missing>0)warn(Error("Vocal capture had "+missing+" missing frames; check Scarlett connection."));
+   else tell("Vocal saved: "+db.toFixed(1)+" dBFS raw peak · "+Math.round(headroom*100)+"% loop gain.");
   };
-  tell("Voice armed. Sing at the next 2-bar downbeat; the shared clock aligns the loop.");
- }catch(e){recording=null;$("vocal-"+which).textContent="🎙 LOOP VOICE";warn(e)}
+  take.watchdog=setTimeout(()=>{
+   if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
+  },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
+  tell("VOICE armed: "+bars+" bars ("+duration.toFixed(1)+" seconds). First take sets the song cycle, or overdubs follow it.");
+ }catch(e){
+  if(take){take.finished=true;clearTimeout(take.watchdog);}
+  try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
+  if(recording===take)recording=null;
+  $("vocal-"+which).textContent="🎙 LOOP VOICE";
+  warn(e);
+ }
 }
 function startLoopAudio(which,l){
  if(!ctx||!l.buffer)return;
@@ -900,7 +1012,7 @@ function startLoopAudio(which,l){
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=l.muted?0:.65;
  src.connect(gain);gain.connect(decks[which].voiceBus);
- const when=ctx.currentTime+.025,phase=phaseSeconds(when);
+ const when=ctx.currentTime+.025,phase=songPhaseSeconds(which,when);
  if(stageStarted)src.start(when,phase);
  else{l.source=null;l.gain=null;return;}
 
@@ -913,15 +1025,18 @@ async function importAudio(file){
   if(file.size>30*1024*1024)throw Error("Maximum audio size 30 MB");
   const buffer=await ctx.decodeAudioData(await file.arrayBuffer());
   const which=scene;
-  const length=Math.floor(cycleSeconds()*ctx.sampleRate);
+  const d=decks[which],rawBars=buffer.duration*bpm/240;
+  const bars=d.locked?d.lengthSteps/8:Math.max(2,Math.min(32,Math.round(rawBars)));
+  const length=Math.round(bars*8*tickSeconds()*ctx.sampleRate);
   const out=ctx.createBuffer(Math.min(2,buffer.numberOfChannels),length,ctx.sampleRate);
   for(let c=0;c<out.numberOfChannels;c++){
    const d=out.getChannelData(c),src=buffer.getChannelData(c);
    d.set(src.subarray(0,Math.min(d.length,src.length)));
   }
-  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false};
+  if(!d.locked){d.locked=true;d.lengthSteps=bars*8;d.anchorStep=0;}
+  const l={id:crypto.randomUUID(),kind:"ai",buffer:out,muted:false,bars};
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
-  tell("Audio imported into the AI lane on "+which+". Confirm this file was really printed from MRT2.");
+  tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
 }
 function updateMix(){
@@ -938,18 +1053,19 @@ function updateMix(){
 async function readAndExport(){
  try{
   await openAudio();
-  if(!Object.values(decks).some(d=>d.layers.some(l=>!l.muted)))throw Error("Record a loop before exporting");
-  const sec=cycleSeconds(),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
+  if(!decks[scene].layers.some(l=>!l.muted))throw Error("Record a loop on the selected song before exporting");
+  const sec=songCycleSeconds(scene),sr=ctx.sampleRate,oneCycle=Math.ceil(sec*sr),offline=new OfflineAudioContext(2,oneCycle*2,sr);
   const masterOut=offline.createGain();masterOut.gain.value=Number($("master").value)/100;masterOut.connect(offline.destination);
   for(const [which,d] of Object.entries(decks)){
-   const side=which==="pyramid"?1-Number($("mix").value)/100:Number($("mix").value)/100;
+   if(which!==scene)continue; // Export full cycle of one selected song; their cycles are independent.
+   const side=1;
    for(const layer of d.layers){
     if(layer.muted)continue;
     const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
-      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*loopSteps+event.step)*tickSeconds();
+      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+event.step)*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
@@ -980,9 +1096,9 @@ async function readAndExport(){
    }
   }
   const url=URL.createObjectURL(new Blob([data],{type:"audio/wav"}));
-  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_2BAR_MIX.wav";
+  const a=document.createElement("a");a.href=url;a.download="SUZY_TOAST_"+scene.toUpperCase()+"_"+(songCycleSteps(scene)/8)+"BARS.wav";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
-  tell("Mix exported! Import SUZY_TOAST_2BAR_MIX.wav into Logic.");
+  tell("Exported "+scene+" "+(songCycleSteps(scene)/8)+"-bar master cycle. Import this WAV into Logic.");
  }catch(e){warn(e)}
 }
 arranger=new window.SuzyArrangement({
@@ -1012,6 +1128,18 @@ arranger=new window.SuzyArrangement({
    setTimeout(()=>{if(!heldKeys.size)aiRelease();},1400);
   }
  }
+});
+trackView=new window.SuzyTrackView({
+ decks,select:choose,record,voice:voiceLoop,
+ getRecording:()=>recording,getStep:()=>stepNumber,getRunning:()=>stageStarted,
+ onMute:(which,id)=>{
+  const layer=decks[which].layers.find(l=>l.id===id);
+  if(!layer)return;
+  layer.muted=!layer.muted;
+  if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;
+  renderClips(which);
+ },
+ onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
 for(const k of Object.keys(decks)){
@@ -1086,6 +1214,7 @@ $("tone").oninput=()=>{
 $("findDevices").onclick=()=>findDevices().catch(warn);
 $("audioOutput").onchange=()=>{$("audioOutput").dataset.manual="true";syncOutput()};
 $("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}tell("Mic change will apply on the next vocal recording.")};
+$("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHeadroom").value+"%";};
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();
