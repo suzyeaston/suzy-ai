@@ -212,6 +212,16 @@ a{color:var(--mint)}
 .vocal-fx-settings select{background:#201c2b;color:#fff3e9;border:1px solid #78607b;border-radius:7px;padding:5px}
 .vocal-fx-settings span{font-size:10px;color:var(--mint)}
 .vocal-fx-note{font-size:11px;color:var(--muted);margin:9px 0 0}
+.song-lead-panel{border:1px solid #7d7291;background:#231d30;border-radius:11px;margin:10px 0;padding:12px;display:grid;gap:9px}
+.lead-head{font:800 12px ui-monospace,monospace;color:#adebd3;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.lead-head strong{color:#f6e5db}.lead-head small{font:500 11px system-ui;color:#c1b3c5}
+.lead-controls{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.lead-controls label{display:grid;gap:4px;font:750 10px ui-monospace,monospace;color:#c5b5cf}
+.lead-controls select,.drum-options select{background:#191522;color:#e9ddf6;border:1px solid #8b709a;border-radius:8px;padding:9px;min-height:39px}
+.lead-controls input{width:120px}
+.lead-controls button{background:#98d9c5;color:#21312e;min-height:39px;padding:9px 12px}
+.drum-options{display:grid;gap:6px}.drum-options label{font:700 10px ui-monospace,monospace;color:#d6d1de}
+.drum-options select{width:100%;max-width:260px}.drum-options small{line-height:1.4}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -228,7 +238,19 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
 <small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
-<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">soft pulse, no busy AI drums</small></div>
+<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">Local drums only; native Magenta generation stays separate.</small></div>
+<div class="strip drum-options">
+ <label for="drumMeter">DRUM METER</label>
+ <select id="drumMeter" aria-label="Local drum meter grouping">
+  <option value="4/4" selected>4/4 · straight</option><option value="3/4">3/4 · waltz</option><option value="6/8">6/8 · rolling</option><option value="5/4">5/4 · asymmetric</option>
+ </select>
+ <label for="drumStyle">DRUM STYLE</label>
+ <select id="drumStyle" aria-label="Local drum style">
+  <option value="pulse" selected>Soft pulse</option><option value="brush">Brushed / ghost</option>
+  <option value="trip">Downtempo trip-hop</option><option value="broken">Broken / experimental</option>
+ </select>
+ <small id="drumStatus" class="subtle">4/4 · Soft pulse · independent drum accents. Recorded clips still use the 4/4 song grid.</small>
+</div>
 <div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
@@ -277,6 +299,21 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
+<div class="song-lead-panel" aria-label="pyramid independent lead instrument">
+ <div class="lead-head">✧ PLAYABLE LEAD · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-controls">
+  <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
+   <option value="violin" selected>Bowed violin (synth)</option>
+   <option value="nylon">Nylon classical guitar (synth)</option>
+   <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck</option>
+  </select></label>
+  <label>LEAD LEVEL <input id="leadLevel-pyramid" type="range" min="0" max="125" value="72"><span id="leadLevelValue-pyramid">72%</span></label>
+  <label>REGISTER <select id="leadOctave-pyramid" aria-label="pyramid lead octave">
+    <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
+  </select></label>
+  <button type="button" id="leadPlay-pyramid">▶ HEAR VIOLIN LEAD</button>
+ </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
+</div>
 <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
 <select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
@@ -300,6 +337,21 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="1"><kbd>X</kbd><b>F♯m7</b></button>
 <button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
+</div>
+<div class="song-lead-panel" aria-label="fishes independent lead instrument">
+ <div class="lead-head">✧ PLAYABLE LEAD · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-controls">
+  <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
+   <option value="violin">Bowed violin (synth)</option>
+   <option value="nylon" selected>Nylon classical guitar (synth)</option>
+   <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck</option>
+  </select></label>
+  <label>LEAD LEVEL <input id="leadLevel-fishes" type="range" min="0" max="125" value="72"><span id="leadLevelValue-fishes">72%</span></label>
+  <label>REGISTER <select id="leadOctave-fishes" aria-label="fishes lead octave">
+    <option value="-12">Low · −12</option><option value="0" selected>Original</option><option value="12">High · +12</option>
+  </select></label>
+  <button type="button" id="leadPlay-fishes">▶ HEAR CLASSICAL GUITAR LEAD</button>
+ </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </div>
 <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
@@ -453,7 +505,9 @@ const INSTRUMENTS={
  keys:{name:"Electric piano",wave:"triangle",overtone:"sine",mix:.08,attack:.028,release:.14,sustain:.70,octave:0},
  pad:{name:"Ambient pad",wave:"sine",overtone:"triangle",mix:.20,attack:.22,release:.42,sustain:.84,octave:0},
  pluck:{name:"Pluck",wave:"triangle",overtone:"sine",mix:.13,attack:.008,release:.10,sustain:.43,octave:0},
- bass:{name:"Sub bass",wave:"sine",overtone:"triangle",mix:.035,attack:.028,release:.23,sustain:.83,octave:-12}
+ bass:{name:"Sub bass",wave:"sine",overtone:"triangle",mix:.035,attack:.028,release:.23,sustain:.83,octave:-12},
+ violin:{name:"Bowed violin (synth)",wave:"sawtooth",overtone:"triangle",mix:.18,attack:.15,release:.37,sustain:.78,octave:0,filter:2550},
+ nylon:{name:"Nylon classical guitar (synth)",wave:"triangle",overtone:"sine",mix:.24,attack:.009,release:.18,sustain:.17,octave:0,filter:3300}
 };
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false;
@@ -465,6 +519,9 @@ let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEcho
 let localKeysOnly=false,preKeysSoloMuted=null;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
+let drumMeter="4/4",drumStyle="pulse";
+const DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6});
+const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental"});
 let parkedBar=0,seekRevision=0;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -476,7 +533,8 @@ let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=fals
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
+ instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
 let fullTimeline=null;
 let arranger=null;
@@ -513,6 +571,7 @@ async function openAudio(){
     const d=decks[k];d.bus=ctx.createGain();d.bus.gain.value=1;
     d.bus.connect(mainBus);d.bus.connect(verb);
     d.liveBus=ctx.createGain();d.liveBus.connect(d.bus);
+     d.leadBus=ctx.createGain();d.leadBus.gain.value=Number($("leadLevel-"+k).value)/100;d.leadBus.connect(d.bus);
     d.loopBus=ctx.createGain();d.loopBus.connect(d.bus);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
   }
@@ -556,41 +615,89 @@ async function syncOutput(){
  try{await ctx.setSinkId($("audioOutput").value||"");tell("Browser audio routed to "+($("audioOutput").selectedOptions[0]?.textContent||"system output"));}
  catch(e){warn(e);}
 }
-function pulse(time,step){
- // Short soft kick on the first eighth of each group, shaker on alternating eighths.
- const acc=scene==="pyramid"?[0,3,6,10,13]:[0,4,8,12];
- const loud=acc.includes(step);
+function setDrumGroove(meter=drumMeter,style=drumStyle){
+ if(!DRUM_STEPS[meter]||!DRUM_STYLES[style])return;
+ drumMeter=meter;drumStyle=style;
+ $("drumMeter").value=meter;$("drumStyle").value=style;
+ $("drumStatus").textContent=meter+" · "+DRUM_STYLES[style]+
+  " · local drum accents. Song loops and arrangement still use the existing 4/4 grid.";
+ tell("DRUM GROOVE · "+meter+" "+DRUM_STYLES[style]+
+  ". Guitar, violin, vocals and Magenta unaffected; loop timeline remains 4/4.");
+}
+function drumPattern(count){
+ // Each drum meter has its OWN accent-cycle length in eighth-note units.
+ // The main 4/4 song/recording timeline is intentionally NOT remapped.
+ const len=DRUM_STEPS[drumMeter],beat=((count%len)+len)%len;
+ const down=beat===0,triplet=drumMeter==="6/8",secondary=triplet?beat===3:beat===Math.floor(len/2);
+ let kick=down,hat=false,snare=false;
+ if(drumStyle==="pulse"){
+  kick=down||(drumMeter==="4/4"&&beat===4);
+  hat=!kick&&(beat%2===1);
+ }else if(drumStyle==="brush"){
+  kick=down;snare=secondary;hat=!kick&&!snare;
+ }else if(drumStyle==="trip"){
+  kick=down||beat===(len>=8?len-3:len-2);
+  snare=secondary&&!kick;hat=beat%2===1&&!kick&&!snare;
+ }else{
+  kick=down||beat===Math.max(1,len-3);
+  snare=beat===Math.max(1,Math.floor(len/2)-1)&&!kick;
+  hat=!kick&&!snare;
+ }
+ return {meter:drumMeter,style:drumStyle,beat,len,kick,snare,hat,down,secondary};
+}
+function pulse(time,count){
+ const {kick,snare,hat,down,secondary}=drumPattern(count);
  const o=ctx.createOscillator(),g=ctx.createGain();
- o.type="sine";o.frequency.setValueAtTime(loud?130:690,time);
- o.frequency.exponentialRampToValueAtTime(loud?52:530,time+.065);
+ const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
+ let pitch=hat?720:snare?214:128,duration=hat?.035:snare?.085:.12;
+ o.type=snare?"triangle":"sine";
+ o.frequency.setValueAtTime(pitch,time);
+ o.frequency.exponentialRampToValueAtTime(hat?470:snare?120:55,time+duration*.64);
+ const level=(kick?.24:snare?.11:.036)*amount*(down?1:secondary?.77:.65);
  g.gain.setValueAtTime(.0001,time);
- g.gain.exponentialRampToValueAtTime(loud?.22:.034,time+.004);
- g.gain.exponentialRampToValueAtTime(.0001,time+(loud?.11:.026));
- o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+.14);
+ g.gain.exponentialRampToValueAtTime(Math.max(.002,level),time+.004);
+ g.gain.exponentialRampToValueAtTime(.0001,time+duration);
+ o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+duration+.02);
 }
 // Looped chords are timed synth events; live chords are held until key-up.
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
-function makeVoice(which,pitch,time,instrument,peak,live){
+function makeVoice(which,pitch,time,instrument,peak,live,role="chord"){
  const preset=INSTRUMENTS[instrument]||INSTRUMENTS.keys;
  const freq=440*Math.pow(2,(pitch+decks[which].transpose+preset.octave-69)/12);
  const gain=ctx.createGain(),osc=ctx.createOscillator(),soft=ctx.createOscillator(),og=ctx.createGain();
  osc.type=preset.wave;osc.frequency.value=freq;
  soft.type=preset.overtone;soft.frequency.value=freq*2;og.gain.value=preset.mix;
+ let soundOut=gain;
+ if(preset.filter){
+  const filter=ctx.createBiquadFilter();filter.type="lowpass";filter.frequency.value=preset.filter;filter.Q.value=.45;
+  gain.connect(filter);soundOut=filter;
+ }
  osc.connect(gain);soft.connect(og);og.connect(gain);
- gain.connect(live?decks[which].liveBus:decks[which].loopBus);
+ soundOut.connect(live?(role==="lead"?decks[which].leadBus:decks[which].liveBus):decks[which].loopBus);
  gain.gain.setValueAtTime(.00001,time);
  gain.gain.linearRampToValueAtTime(peak,time+preset.attack);
- gain.gain.setTargetAtTime(peak*preset.sustain,time+preset.attack,.25);
+ if(instrument==="nylon")
+  gain.gain.setTargetAtTime(.00001,time+.025,.27); // physical-like plucked decay
+ else gain.gain.setTargetAtTime(peak*preset.sustain,time+preset.attack,.25);
+ let vibrato=null;
+ if(instrument==="violin"){
+  // Slow, restrained bow vibrato applied to the two partials. No worklets.
+  const lfo=ctx.createOscillator(),depth=ctx.createGain();
+  lfo.type="sine";lfo.frequency.value=5.2;depth.gain.value=freq*.0026;
+  lfo.connect(depth);depth.connect(osc.frequency);depth.connect(soft.frequency);
+  lfo.start(time);vibrato=lfo;
+ }
  osc.start(time);soft.start(time);
- return {amp:gain,osc,soft,release:preset.release};
+ return {amp:gain,osc,soft,vibrato,release:preset.release};
 }
 function releaseVoice(voice,time){
- const {amp,osc,soft,release}=voice;
+ const {amp,osc,soft,vibrato,release}=voice;
  try{
   amp.gain.cancelScheduledValues(time);
   amp.gain.setTargetAtTime(.00001,time,release);
   osc.stop(time+Math.max(.50,release*5));
   soft.stop(time+Math.max(.50,release*5));
+  vibrato?.stop(time+Math.max(.50,release*5));
  }catch{}
 }
 function updateOverdubBalance(){
@@ -607,6 +714,40 @@ function setInstrument(which,instrument){
  if(!INSTRUMENTS[instrument])return;
  decks[which].instrument=instrument;
  tell(which.toUpperCase()+" · new layers: "+INSTRUMENTS[instrument].name+". Recorded layers keep their own sounds.");
+}
+async function auditionLead(which){
+ try{
+  await openAudio();
+  choose(which);
+  const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
+  const now=ctx.currentTime+.03;
+  for(let i=0;i<notes.length;i++){
+   const pitch=notes[i]+d.leadOctave;
+   const at=now+i*.28;
+   const voice=makeVoice(which,pitch,at,d.leadInstrument,.18,true,"lead");
+   releaseVoice(voice,at+(d.leadInstrument==="violin"?.56:.26));
+  }
+  tell(which.toUpperCase()+" · previewing "+INSTRUMENTS[d.leadInstrument].name+
+   " with three local notes. This does not trigger native Magenta.");
+ }catch(e){warn(e)}
+}
+function setLead(which,instrument){
+ if(!INSTRUMENTS[instrument])return;
+ decks[which].leadInstrument=instrument;
+ $("lead-"+which).value=instrument;
+ tell(which.toUpperCase()+" · lead "+INSTRUMENTS[instrument].name+
+  ". Chord pad timbre is separate; recorded MIDI layers keep their patches.");
+}
+function setLeadOctave(which,value){
+ const n=Number(value);if(![-12,0,12].includes(n))return;
+ decks[which].leadOctave=n;
+ $("leadOctave-"+which).value=String(n);
+ tell(which.toUpperCase()+" · lead register "+(n>0?"+":"")+n+" semitones.");
+}
+function setLeadLevel(which,value){
+ const level=clamp(value,0,125);
+ $("leadLevelValue-"+which).textContent=level+"%";
+ if(decks[which].leadBus)decks[which].leadBus.gain.value=level/100;
 }
 function updateKeyUI(which){
  const d=decks[which],n=d.transpose;
@@ -917,14 +1058,15 @@ function endChord(key){
 function beginNote(midi,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM first"));
  if(heldNotes.has(key))return;
- const start=ctx.currentTime+.006,instrument=decks[scene].instrument;
- const voice=makeVoice(scene,midi,start,instrument,.11,true);
- const h={voice,midi,scene,start,instrument,event:null};heldNotes.set(key,h);
+ const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
+ const playedMidi=midi+d.leadOctave;
+ const voice=makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
+ const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
-  h.event={step,midi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
+  h.event={step,midi:playedMidi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
  }
- aiMelody(midi,true);
+ aiMelody(playedMidi,true);
  document.querySelectorAll(".note-pad").forEach(el=>{if(Number(el.dataset.note)===midi)el.classList.add("on")});
 }
 function endNote(key){
@@ -996,7 +1138,7 @@ function schedule(time,count){
  const step=count%loopSteps;
  if(step===0)applyTempoAtBar(time,count);
  if(step===0&&arranger)arranger.onCycle(count/8);
- pulse(time,step);
+ pulse(time,count);
  if(count%8===0){
   // Shared bar clock gates real PCM and recorded MIDI on the same beat.
   for(const d of Object.values(decks))for(const layer of d.layers){
@@ -1697,6 +1839,10 @@ $("mixBoth").onclick=()=>{
 };
 for(const which of Object.keys(decks)){
  $("instrument-"+which).onchange=e=>setInstrument(which,e.target.value);
+ $("lead-"+which).onchange=e=>setLead(which,e.target.value);
+ $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
+ $("leadLevel-"+which).oninput=e=>setLeadLevel(which,e.target.value);
+ $("leadPlay-"+which).onclick=()=>auditionLead(which);
  $("keyDown-"+which).onclick=()=>setKey(which,decks[which].transpose-1);
  $("keyUp-"+which).onclick=()=>setKey(which,decks[which].transpose+1);
  $("keyReset-"+which).onclick=()=>setKey(which,0);
@@ -1768,6 +1914,8 @@ $("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
+$("drumMeter").onchange=()=>setDrumGroove($("drumMeter").value,$("drumStyle").value);
+$("drumStyle").onchange=()=>setDrumGroove($("drumMeter").value,$("drumStyle").value);
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly?0:val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>changeTempo($("tempo").value);

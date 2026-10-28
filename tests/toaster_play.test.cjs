@@ -20,7 +20,8 @@ function rig(){
    add(x){this.options.push(x);},remove(){},click(){},
    closest(){return null;},
  });
- function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
+ function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
@@ -410,6 +411,69 @@ test("AI SOLO lets musician hear real Magenta without the always-on browser chor
  assert.equal(get("aiSolo").textContent,"🎹 RESTORE LOCAL KEYS");
  run("toggleAISolo()");
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
+});
+test("each song has an independently playable lead under the Z/X/C/V chord pads",async()=>{
+ const {run,emit,get}=rig();await run("startStop()");
+ assert.equal(run("decks.pyramid.leadInstrument"),"violin");
+ assert.equal(run("decks.fishes.leadInstrument"),"nylon");
+ assert.equal(run("decks.pyramid.instrument"),"keys");
+ assert.equal(run("decks.fishes.instrument"),"keys");
+ assert.equal(run("decks.pyramid.leadBus.gain.value"),.72);
+ assert.equal(run("decks.fishes.leadBus.gain.value"),.72);
+ emit("keydown","z");
+ assert.equal(run('heldKeys.get("key:z").instrument'),"keys");
+ emit("keyup","z");
+ emit("keydown","a");
+ assert.equal(run('heldNotes.get("key-note:a").instrument'),"violin");
+ assert.equal(run('heldNotes.get("key-note:a").midi'),60);
+ emit("keyup","a");
+ run('choose("fishes")');
+ emit("keydown","a");
+ assert.equal(run('heldNotes.get("key-note:a").instrument'),"nylon");
+ emit("keyup","a");
+ assert.equal(get("lead-pyramid").value,"violin");
+ await run('auditionLead("pyramid")');
+ assert.equal(run("scene"),"pyramid");
+});
+test("per-song lead register and volume do not transpose chord pads or change prior overdubs",async()=>{
+ const {run,emit,get}=rig();await run("startStop()");
+ run('setLeadOctave("pyramid",12)');
+ run('setLeadLevel("pyramid",40)');
+ assert.equal(run("decks.pyramid.leadBus.gain.value"),.4);
+ assert.equal(run("decks.fishes.leadBus.gain.value"),.72);
+ emit("keydown","a");
+ assert.equal(run('heldNotes.get("key-note:a").midi'),72);
+ emit("keyup","a");
+ emit("keydown","z");
+ assert.equal(run('heldKeys.get("key:z").instrument'),"keys");
+ emit("keyup","z");
+ run('setLead("pyramid","nylon")');
+ assert.equal(run("decks.pyramid.leadInstrument"),"nylon");
+ assert.equal(run("decks.fishes.leadInstrument"),"nylon");
+ assert.equal(get("leadLevelValue-pyramid").textContent,"40%");
+});
+test("four drum styles really differ and 3/4, 6/8, 5/4 have distinct accent groupings",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setDrumGroove("3/4","brush")');
+ assert.equal(run("drumPattern(0).kick"),true);
+ assert.equal(run("drumPattern(3).snare"),true);
+ assert.equal(run("drumPattern(6).kick"),true);
+ assert.match(get("drumStatus").textContent,/4\/4 grid/);
+ run('setDrumGroove("6/8","trip")');
+ assert.equal(run("drumPattern(0).len"),6);
+ assert.equal(run("drumPattern(3).secondary"),true);
+ assert.equal(run("drumPattern(4).kick"),true);
+ run('setDrumGroove("5/4","broken")');
+ assert.equal(run("drumPattern(7).kick"),true);
+ assert.equal(run("drumPattern(10).kick"),true);
+ run('setDrumGroove("4/4","pulse")');
+ assert.equal(run("drumPattern(0).kick"),true);
+ assert.equal(run("drumPattern(4).kick"),true);
+ assert.equal(run("drumPattern(8).kick"),true);
+ assert.equal(run("bpm"),105);
+ assert.equal(run("loopSteps"),16);
+ // Changing percussion meter does NOT lie about the 4/4 recorded clip grid.
+ assert.equal(run("songCycleSteps('pyramid')"),16);
 });
 test("overdubs preserve instruments and live/loop levels are independent",async()=>{
  const {get,run}=rig();await run("startStop()");
