@@ -30,6 +30,7 @@ final class MRT2Host {
     private var bookmarkScopeVerified = false
     private var modelFileBytes: Int64 = 0
     private var outputRate: Double = 0
+    private var hostTransportSupplied = false
     private var prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
         "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
@@ -60,6 +61,8 @@ final class MRT2Host {
             "held_notes": (held + Array(melodyHeld)).map(Int.init),
             "tempo_bpm": tempoBpm,
             "tempo_context_supplied": generator != nil,
+            "transport_context_supplied": hostTransportSupplied,
+            "transport_moving": hostTransportSupplied && (engine?.isRunning ?? false),
             "text_prompts": prompts,
             "au_component": auComponentName,
             "musiccoca_assets_path": assetPath,
@@ -235,6 +238,23 @@ final class MRT2Host {
                 do {
                     let audio = AVAudioEngine()
                     audio.attach(unit)
+                    // IMPORTANT: Google's MagentaRT_AudioUnit internalRenderBlock
+                    // writes ONLY SILENCE while both UI playback and host
+                    // transport are stopped. Since TOASTER has no plugin UI,
+                    // supplying BPM alone never moved the native transport.
+                    // Expose an always-running host transport for this dedicated
+                    // audio-generating engine. This is the real sample clock,
+                    // distinct from the browser's loop clock.
+                    let transportOrigin = ProcessInfo.processInfo.systemUptime
+                    unit.auAudioUnit.transportStateBlock = { flags, samplePosition, cycleStart, cycleEnd in
+                        flags?.pointee = .moving
+                        let seconds = max(0, ProcessInfo.processInfo.systemUptime - transportOrigin)
+                        samplePosition?.pointee = seconds * 48000.0
+                        cycleStart?.pointee = 0
+                        cycleEnd?.pointee = 0
+                        return true
+                    }
+                    self.hostTransportSupplied = true
                     // This supplies real AU host musical context (tempo/beat).
                     // Google MRT2 reads beat position but does not provide a
                     // public hard tempo-lock guarantee. MIDI note timing remains
@@ -329,6 +349,7 @@ final class MRT2Host {
         modelRequested = false
         outputSignalDetected = false
         bookmarkScopeVerified = false
+        hostTransportSupplied = false
     }
     func command(_ request: [String: Any]) -> [String: Any] {
         let type = request["op"] as? String ?? ""

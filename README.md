@@ -31,6 +31,14 @@ For actual Magenta, our native Audio Unit host also supplies **host musical cont
 
 **On Swift build errors:** Swift 6.3.3 cannot compile against a macOS 27 SDK's Swift 6.4 interface. The updated `bash scripts/build-toaster-magenta.sh` selects an installed compiler/SDK pair that matches (including older macOS 26 SDKs and full Xcode), or exits with actionable instructions instead of showing pages of incompatible Swift-interface failures. If none are installed, install or select a matching full Xcode/Command Line Tools toolchain. Don't rerun the old command expecting an SDK mismatch to disappear on its own.
 
+### Registered and rendering but silent: native AU transport (October 27)
+
+The hardware status reported `native_au: true`, `audio_engine_running: true`, 48 kHz output and a valid scoped MRT2 Small bookmark, **but `output_signal_detected: false`**. After inspecting Google's `examples/mrt2/auv3/MagentaRT_AudioUnit.mm`, we found a fundamental host omission: the native AU render block **writes zeros when both the AU UI and the host transport are stopped**. Our headless TOASTER host never opened Google's plugin UI and only supplied a musical tempo context, **not** a moving transport state. Thus the model could be loaded and still remain silent.
+
+The Swift host now sets an `AUHostTransportStateBlock` *before* starting AVAudioEngine; it reports `.moving` with continuous 48 kHz sample position, so Google's Audio Unit is instructed to render in the absence of plugin UI. The native status now reports `transport_context_supplied` and `transport_moving`. This is independent of the browser's BPM/loop engine; Magenta generation still does not promise sample-accurate bar synchronization.
+
+**Test:** Stop TOASTER, `git pull --ff-only`, restart Python. The changed Swift automatically rebuilds. In `/api/ai/status`, look for `native_au: true`, `transport_moving: true` and then **`output_signal_detected: true` while holding chord 1**. Click **HEAR AI ONLY** to mute the browser's chord oscillator. If signal remains false, inspect model loading logs and the AU's resources next. `host_model_loaded: false` remains an honest *unverified* flag; the upstream AU does not expose a public ready indicator to this headless Swift host.
+
 ### Registered, but TOASTER still says “AU not registered”? (MGR2 discovery fix)
 
 On October 27, the user opened `MRT2 (AU).app` and macOS **pluginkit listed `com.google.mrt2.au`**. Nonetheless the native TOASTER host returned `native_au: false`. We found the immediate cause in our own code: TOASTER searched only for AU subtype **`MGRT`**, while Google's current `examples/mrt2/auv3/Info.plist.in` declares **`MGR2`**. The host now asks macOS for Google music-device components, prioritizes **MGR2**, and also supports older **MGRT** versions. Updating the repo automatically recompiles the changed Swift host on launch.
