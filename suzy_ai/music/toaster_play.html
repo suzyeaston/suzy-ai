@@ -278,7 +278,7 @@ a{color:var(--mint)}
 <button type="button" class="note-pad" data-key="k" data-note="72" aria-label="Play note C5"><kbd>K</kbd><span>C5</span></button>
 </div>
 </section>
-<details id="classicDecks"><summary>🎹 CLASSIC CHORD PADS & ORIGINAL LOOP BUTTONS</summary><div id="decks">
+<details id="classicDecks"><summary>ADVANCED TRACK FADERS / LEGACY CONTROLS</summary><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
@@ -1119,7 +1119,7 @@ async function readAndExport(){
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
-      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+event.step)*tickSeconds();
+      const notes=event.type==="note"?[event.midi]:SCENES[which].notes[event.index],time=(cycle*songCycleSteps(which)+((event.step+(layer.shiftSteps||0))%songCycleSteps(which)))*tickSeconds();
       for(const note of notes){
        const o=offline.createOscillator(),v=offline.createGain();
        o.type="triangle";o.frequency.value=440*Math.pow(2,(note-69)/12);
@@ -1131,7 +1131,9 @@ async function readAndExport(){
       }
      }
     }else if(layer.buffer){
-     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);src.start(0);
+     const src=offline.createBufferSource();src.buffer=layer.buffer;src.loop=true;src.connect(gain);
+    const offset=((-(layer.shiftSteps||0)*tickSeconds())%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
+    src.start(0,offset);
     }
    }
   }
