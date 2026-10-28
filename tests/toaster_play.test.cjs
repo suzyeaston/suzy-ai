@@ -267,6 +267,23 @@ test("native bridge playback sends real MIDI note-on and MIDI note-off only when
  assert.ok(calls.midi.some(v=>v.url==="/api/ai/release"),"Google AU MIDI note-off sent");
 });
 
+test("rapid app chord taps preserve ordered native note-on/off events",async()=>{
+ const {calls,run}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ run('beginChord("pyramid",0,"pad:pyramid:0")');
+ run('endChord("pad:pyramid:0")');
+ run('beginChord("pyramid",1,"pad:pyramid:1")');
+ run('endChord("pad:pyramid:1")');
+ // Browser HTTP commands serialize; the native Swift host now holds the
+ // released notes for its minimum neural response window.
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
+ const native=calls.midi.filter(x=>x.url.startsWith("/api/ai/")).map(x=>x.url);
+ const sequence=native.filter(x=>x==="/api/ai/chord"||x==="/api/ai/release");
+ assert.deepEqual(sequence,[
+  "/api/ai/chord","/api/ai/release","/api/ai/chord","/api/ai/release"
+ ]);
+ assert.equal(native.filter(x=>x==="/api/ai/scene").length,0,"same-scene taps must not reset held native notes");
+});
 test("AI faders use actual native endpoints, not browser-only gain",async()=>{
  const {run,get,calls}=rig();
  run("aiNativeReady=true");
