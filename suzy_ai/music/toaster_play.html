@@ -400,7 +400,7 @@ a{color:var(--mint)}
 <div><button id="export">↓ EXPORT SELECTED SONG WAV</button></div>
 </div></details>
 </section>
-<div id="message" role="status" aria-live="polite">Press PLAY RHYTHM. Then 1–4. Use LOOP MY CHORDS to build.</div>
+<div id="message" role="status" aria-live="polite">Press PLAY RHYTHM, then use Z X C V to play chords. Hold for sustain; A–K plays notes.</div>
 <div id="warning" role="alert"></div>
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
@@ -1553,7 +1553,14 @@ document.querySelectorAll(".pad").forEach(el=>{
  el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&!e.repeat){e.preventDefault();beginChord(which,index,key)}});
  el.addEventListener("keyup",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();endChord(key)}});
 });
-const isTyping=e=>e.target?.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(e.target?.tagName);
+const isTyping=e=>{
+ const target=e.target;
+ if(target?.isContentEditable)return true;
+ if(["SELECT","TEXTAREA"].includes(target?.tagName))return true;
+ // Moving a range fader must not disable our live instrument hotkeys.
+ if(target?.tagName==="INPUT")return !["range","checkbox","radio","button"].includes((target.type||"text").toLowerCase());
+ return false;
+};
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||isTyping(e))return;
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
