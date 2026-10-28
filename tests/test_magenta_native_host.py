@@ -90,7 +90,7 @@ class NativeMRT2Tests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1]
                   / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
         self.assertIn("unit.auAudioUnit.transportStateBlock =", source)
-        self.assertIn("flags?.pointee = .moving", source)
+        self.assertIn("flags?.pointee = hostTransport.load(ordering: .relaxed) ? .moving : []", source)
         self.assertIn("samplePosition?.pointee = seconds * 48000.0", source)
         self.assertIn('"transport_context_supplied": hostTransportSupplied', source)
         self.assertIn('"transport_moving":', source)
@@ -99,6 +99,21 @@ class NativeMRT2Tests(unittest.TestCase):
             source.index("try audio.start()"),
             "The AU must receive transport before render resources are started",
         )
+
+    def test_native_transport_play_pause_is_lock_free_and_real(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn("import Synchronization", source)
+        self.assertIn("Atomic<Bool>", source)
+        self.assertIn('SUZY_MRT2_TRANSPORT_AUTOPLAY', source)
+        self.assertIn('case "transport-play":', source)
+        self.assertIn('case "transport-pause":', source)
+        self.assertIn('transportPlaying.store(false, ordering: .relaxed)', source)
+        self.assertIn('"transport_playing"', source)
+        self.assertIn('"native_loop_capture_supported": false', source)
+        from suzy_ai.music.magenta_native_host import ACTIONS
+        self.assertEqual(ACTIONS["transport-play"], frozenset())
+        self.assertEqual(ACTIONS["transport-pause"], frozenset())
 
     def test_gate_off_diagnostic_defaults_to_existing_behavior(self):
         source = (Path(__file__).resolve().parents[1]
