@@ -552,7 +552,7 @@ function updateOverdubBalance(){
   const active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
   d.liveBus.gain.value=Number($("liveLevel").value)/100;
   // Multiple recorded overdubs gain compensated; they still remain independent.
-  d.loopBus.gain.value=Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
+  d.loopBus.gain.value=localKeysOnly?0:Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
  }
 }
 function setInstrument(which,instrument){
@@ -631,7 +631,33 @@ async function openGoogleModelSelector(){
   }
  }catch(e){help.textContent="MODEL SELECTOR ERROR: "+e.message;warn(e);}
 }
+async function toggleLocalKeysOnly(){
+ const enabling=!localKeysOnly;
+ if(enabling){
+  if(aiSolo)toggleAISolo();
+  preKeysSoloMuted=aiMuted;localKeysOnly=true;
+  if(aiNativeReady&&!aiMuted){
+   try{await aiFetch("mute",{value:true});aiMuted=true}
+   catch(e){localKeysOnly=false;warn(e);return}
+  }
+ }else{
+  localKeysOnly=false;
+  if(aiNativeReady&&preKeysSoloMuted!==null){
+   try{await aiFetch("mute",{value:preKeysSoloMuted});aiMuted=preKeysSoloMuted}
+   catch(e){warn(e)}
+  }
+  preKeysSoloMuted=null;
+ }
+ $("localKeysSolo").setAttribute("aria-pressed",String(localKeysOnly));
+ $("localKeysSolo").textContent=localKeysOnly?"🎹 RESTORE FULL MIX":"🎹 SOLO LOCAL KEYS";
+ $("aiMute").setAttribute("aria-pressed",String(aiMuted));
+ $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
+ updateMix();updateOverdubBalance();
+ if(beatBus)beatBus.gain.value=localKeysOnly?0:Number($("rhythmLevel").value)/100;
+ tell(localKeysOnly?"LOCAL KEYS ONLY · AI, rhythm, vocal loops and overdubs temporarily silenced.":"Restored rhythm, loops and the previous Magenta mute setting.");
+}
 function toggleAISolo(){
+ if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE LOCAL KEYS":"🎧 HEAR AI ONLY";
@@ -1304,7 +1330,7 @@ function updateMix(){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=(aiSolo?0:level*side);
-  decks[k].voiceBus.gain.value=Number($("voice-"+k).value)/100*side;
+  decks[k].voiceBus.gain.value=localKeysOnly?0:Number($("voice-"+k).value)/100*side;
  }
 }
 async function readAndExport(){
@@ -1473,6 +1499,7 @@ trackView=new window.SuzyTrackView({
 });
 $("rhythm").onclick=startStop;
 $("voiceFollow").onclick=toggleVoiceFollow;
+$("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
 $("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=Number($("monitorLevel").value)/100;};
 $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
@@ -1551,7 +1578,7 @@ $("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
-$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=val/100};
+$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly?0:val/100};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";if(master)master.gain.value=val/100};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
 function updateRoomFx(){
