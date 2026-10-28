@@ -1534,7 +1534,7 @@ function endRecord(){
   for(const e of r.events)e.step=(e.step+offset)%d.lengthSteps;
  }
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(r.first?r.beginAt:d.anchorStep)/8)});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor((r.first?r.beginAt:d.anchorStep)/8))});
  renderClips(r.scene);
  tell("↻ LOOP PLAYING NOW · "+(length/2)+" beats defined by DONE · "+
   r.events.length+" notes/chords. Press OVERDUB to layer, STOP LOOP to pause the phrase.");
