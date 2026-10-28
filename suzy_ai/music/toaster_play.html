@@ -330,6 +330,8 @@ a{color:var(--mint)}
 </div>
 <div class="vocal-recorder-status" role="status" aria-live="polite">
   <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
+ <button type="button" id="vocalRecordPyramid">● RECORD PYRAMID VOICE</button>
+ <button type="button" id="vocalRecordFishes">● RECORD FISHES VOICE</button>
   <span id="vocalLoopState">No vocal loops yet. Monitoring alone never records or loops.</span>
 </div>
 <div class="vocal-fx-settings">
@@ -1075,6 +1077,7 @@ function updateVocalState(){
 function updateTransportUI(){
  const playing=!!stageStarted,bar=playing?Math.max(1,Math.floor((stepNumber-1)/8)+1):1;
  $("timelinePlay").textContent=playing?"▶ PLAYING":"▶ PLAY FROM BAR 1";
+ $("timelinePlay").disabled=playing;
  $("timelineStop").disabled=!playing;
  $("timelineTransportStatus").textContent=(playing?"▶ PLAYING":"■ STOPPED")+
    " · BAR "+bar+" · Browser loops only · Native Magenta independent";
@@ -1122,6 +1125,22 @@ async function startStop(){
    updateVocalState();updateTransportUI();
   }
  }catch(e){warn(e);}
+}
+// Browser transport only; this does not restart Google's native AU.
+async function timelineStop(){
+ if(stageStarted)await startStop();
+ stepNumber=0;nextStepAt=0;transportEpoch=ctx?.currentTime||0;
+ for(const d of Object.values(decks))d.anchorStep=0;
+ arranger?.resetClock();
+ trackView?.draw();fullTimeline?.update();updateTransportUI();updateVocalState();
+ tell("Browser timeline STOPPED at BAR 1. Clips preserved; native Magenta independent.");
+}
+async function timelineRewind(){
+ if(recording){warn(Error("Finish the take before returning to start."));return;}
+ const wasRunning=stageStarted;
+ await timelineStop();
+ if(wasRunning)await startStop();
+ tell(wasRunning?"Browser arrangement restarted at BAR 1.":"Browser playhead returned to BAR 1.");
 }
 function record(which){
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
@@ -1186,6 +1205,7 @@ function renderClips(which){
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
  fullTimeline?.render();
+ updateVocalState();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
@@ -1602,6 +1622,13 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("timelinePlay").onclick=()=>{if(!stageStarted)startStop();};
+$("timelineStop").onclick=()=>timelineStop().catch(warn);
+$("timelineRewind").onclick=()=>timelineRewind().catch(warn);
+$("vocalRecordPyramid").onclick=()=>voiceLoop("pyramid");
+$("vocalRecordFishes").onclick=()=>voiceLoop("fishes");
+for(const name of ["vocalEchoMode","vocalEchoLevel","vocalEchoFeedback","vocalAir"])
+ $(name).oninput=updateVoiceEcho;
 $("voiceFollow").onclick=toggleVoiceFollow;
 $("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
@@ -1714,7 +1741,7 @@ $("micInput").onchange=()=>{if(micStream){micStream.getTracks().forEach(t=>t.sto
 $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHeadroom").value+"%";};
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
-updateMix();
+updateMix();updateVocalState();updateTransportUI();
 aiStatus();
 if(!aiPoll)aiPoll=setInterval(aiStatus,1200);
 </script></body></html>
