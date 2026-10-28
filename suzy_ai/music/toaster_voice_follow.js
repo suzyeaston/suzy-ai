@@ -33,6 +33,7 @@ class SuzyVoiceFollowProcessor extends AudioWorkletProcessor {
   if(rms<.014){this.report(null,0);return true;}
   const rate=sampleRate/2,minLag=Math.floor(rate/750),maxLag=Math.ceil(rate/105);
   let bestLag=0,best=-1;
+  const matches=[];
   for(let lag=minLag;lag<=maxLag;lag++){
     let cor=0,a=0,b=0;
     for(let i=0;i<data.length-lag;i+=2){
@@ -40,9 +41,14 @@ class SuzyVoiceFollowProcessor extends AudioWorkletProcessor {
       cor+=x*y;a+=x*x;b+=y*y;
     }
     const strength=cor/Math.sqrt(a*b+1e-10);
+    matches.push({lag,strength});
     if(strength>best){best=strength;bestLag=lag}
   }
   if(best<.72||!bestLag){this.report(null,best);return true;}
+  // Favor the earliest strong peak: the global maximum alone often selects
+  // twice the fundamental period and sends a note one octave too low.
+  const firstStrong=matches.find(m=>m.strength>=Math.max(.85,best-.025));
+  if(firstStrong)bestLag=firstStrong.lag;
   const hz=rate/bestLag,note=Math.round(69+12*Math.log2(hz/440));
   if(note<36||note>96){this.report(null,best);return true}
   if(this.stable===note)this.count++;
