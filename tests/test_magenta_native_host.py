@@ -71,6 +71,18 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn("missing", self.host.status()["error"])
         self.assertFalse(self.host.status()["model_audio_confirmed"])
 
+    def test_registered_mrt2_au_component_codes_match_official_manifest(self):
+        # Google's current MRT2_AU.appex Info.plist registers MGR2, not
+        # the older MGRT constant used in the implementation source.
+        # Do not regress to looking only for an unregistered subtype.
+        root = Path(__file__).resolve().parents[1]
+        swift = (root / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn("0x4D475232", swift)  # MGR2, current AUv3
+        self.assertIn("0x4D475254", swift)  # MGRT, legacy fallback
+        self.assertIn("components(matching: googleMusicDevice)", swift)
+        self.assertIn("currentMRT2", swift)
+        self.assertIn("legacyMRT2", swift)
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},

@@ -31,6 +31,12 @@ For actual Magenta, our native Audio Unit host also supplies **host musical cont
 
 **On Swift build errors:** Swift 6.3.3 cannot compile against a macOS 27 SDK's Swift 6.4 interface. The updated `bash scripts/build-toaster-magenta.sh` selects an installed compiler/SDK pair that matches (including older macOS 26 SDKs and full Xcode), or exits with actionable instructions instead of showing pages of incompatible Swift-interface failures. If none are installed, install or select a matching full Xcode/Command Line Tools toolchain. Don't rerun the old command expecting an SDK mismatch to disappear on its own.
 
+### Registered, but TOASTER still says “AU not registered”? (MGR2 discovery fix)
+
+On October 27, the user opened `MRT2 (AU).app` and macOS **pluginkit listed `com.google.mrt2.au`**. Nonetheless the native TOASTER host returned `native_au: false`. We found the immediate cause in our own code: TOASTER searched only for AU subtype **`MGRT`**, while Google's current `examples/mrt2/auv3/Info.plist.in` declares **`MGR2`**. The host now asks macOS for Google music-device components, prioritizes **MGR2**, and also supports older **MGRT** versions. Updating the repo automatically recompiles the changed Swift host on launch.
+
+Once the plugin is already installed, *do not reinstall it unnecessarily*. Stop TOASTER, pull main, restart the app and check `http://127.0.0.1:7345/api/ai/status`. A correct match progresses from the old registration error to either `native_au: true` or a distinct, actionable instantiation/model-bookmark error. This **still does not guarantee audible AI audio**. The browser piano remains independent.
+
 ### Confirmed on Suzy's Mac: missing Google MRT2 (AU) registration
 
 The localhost status on 2026-10-27 showed a valid **455,654,550-byte MRT2 Small model**, correct MusicCoCa resources, and this definitive blocking error: **`Google MRT2 Audio Unit ... not registered`**. The MLX model and prompts cannot start until macOS registers Google's separate **MRT2 (AU).app** extension. Having Jam or Collider installed does *not* install the AU plugin.
