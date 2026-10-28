@@ -222,6 +222,7 @@ a{color:var(--mint)}
 .lead-controls button{background:#98d9c5;color:#21312e;min-height:39px;padding:9px 12px}
 .drum-options{display:grid;gap:6px}.drum-options label{font:700 10px ui-monospace,monospace;color:#d6d1de}
 .drum-options select{width:100%;max-width:260px}.drum-options small{line-height:1.4}
+.record-hint{font:700 11px ui-monospace,monospace;color:#a7e8d5;max-width:240px;line-height:1.4}
 .native-lead-strip{padding:12px;margin:9px 0;border:1px solid #a6e7ca;background:#173128;border-radius:10px;display:grid;gap:8px}
 .native-lead-title{color:#b4f3d7;font:800 11px ui-monospace,monospace}
 .native-lead-actions{display:flex;gap:9px;flex-wrap:wrap}.native-lead-actions button{padding:9px 12px;font-size:11px}
@@ -342,7 +343,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid">● LOOP MY CHORDS</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · next bar</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -389,7 +390,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes">● LOOP MY CHORDS</button><span class="record-hint" role="status" id="recordHint-fishes">READY · next bar</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -1207,7 +1208,8 @@ function schedule(time,count){
   }
   if(recording?.kind==="chords"&&!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
-   tell("● RECORDING "+recording.scene.toUpperCase()+" · play the chords now");
+   tell("● RECORDING "+recording.scene.toUpperCase()+" · play chords or melody now");
+   $("recordHint-"+recording.scene).textContent="● RECORDING · press FINISH to set first take length";
    $("record-"+recording.scene).textContent=recording.first?"■ FINISH FIRST TAKE":"● OVERDUBBING…";
    trackView?.draw();
   }else if(recording?.kind==="chords"&&recording.active&&count>=(recording.endAt??recording.beginAt+256)){
@@ -1398,23 +1400,27 @@ function record(which){
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish current take first."));
   if(!recording.active){
-   recording=null;$("record-"+which).textContent="● LOOP MY CHORDS";$("record-"+which).classList.remove("armed");
-   trackView?.draw();tell("Armed take cancelled.");return;
+   $("recordHint-"+which).textContent="ARMED · waiting for BAR "+(Math.floor(recording.beginAt/8)+1);
+   tell("Recording begins next bar. Wait for RECORDING before playing; the second tap does not cancel the take.");
+   return;
   }
   if(!d.locked){
    recording.endAt=Math.min(recording.beginAt+256,Math.max(recording.beginAt+16,Math.ceil((stepNumber+1)/8)*8));
    $("record-"+which).textContent="■ FINISH QUEUED";
+   $("recordHint-"+which).textContent="FINISH QUEUED · loop closes next bar";
    tell("Finishing at bar boundary. The first phrase sets the "+which+" loop length.");
   }else tell("Overdub finishes at the master loop boundary.");
   return;
  }
  choose(which);
- const beginAt=d.locked?nextSongBoundary(which,stepNumber+1):Math.ceil((stepNumber+1)/16)*16;
+ const beginAt=Math.ceil((stepNumber+1)/8)*8; // First take and overdub start next bar.
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:d.locked?beginAt+d.lengthSteps:null};
- $("record-"+which).classList.add("armed");$("record-"+which).textContent="● ARMED";
+ $("record-"+which).classList.add("armed");
+ $("record-"+which).textContent="◉ ARMING BAR "+(Math.floor(beginAt/8)+1);
+ $("recordHint-"+which).textContent="WAIT · starts BAR "+(Math.floor(beginAt/8)+1);
  trackView?.draw();
- tell(d.locked?"Overdub armed for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE ARMED. Play, then press FINISH after 2–32 bars.");
+ tell(d.locked?"Overdub starts NEXT BAR for "+(d.lengthSteps/8)+" bars.":"FIRST TAKE starts NEXT BAR. Play, then press FINISH after 2–32 bars.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -1434,12 +1440,20 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● LOOP MY CHORDS";
- if(!r.events.length){trackView?.draw();tell("No keys captured. Song loop length unchanged.");return;}
+ $("recordHint-"+r.scene).textContent="READY · last take "+r.events.length+" events";
+ if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;}
+ else {
+  // An overdub may begin on any bar. Rephase its events to the original
+  // master anchor or the notes would play at the wrong point next cycle.
+  const offset=((r.beginAt-d.anchorStep)%d.lengthSteps+d.lengthSteps)%d.lengthSteps;
+  for(const e of r.events)e.step=(e.step+offset)%d.lengthSteps;
+ }
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
- instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(stepNumber/8))});
+ instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor(r.first?r.beginAt:d.anchorStep)/8)});
  renderClips(r.scene);
- tell("Saved "+(length/8)+"-bar "+r.scene+" master loop. Every overdub follows it.");
+ tell("↻ SAVED "+(length/8)+"-bar "+r.scene+" loop with "+r.events.length+
+  " notes/chords. The next cycle repeats it with your vocals and AI.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
