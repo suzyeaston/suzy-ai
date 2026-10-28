@@ -83,6 +83,22 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn("currentMRT2", swift)
         self.assertIn("legacyMRT2", swift)
 
+    def test_native_transport_is_moving_or_google_au_writes_silence(self):
+        # Google's MRT2 render block requires UI play OR moving DAW transport.
+        # A running AVAudioEngine alone is insufficient to hear the generator.
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn("unit.auAudioUnit.transportStateBlock =", source)
+        self.assertIn("flags?.pointee = .moving", source)
+        self.assertIn("samplePosition?.pointee = seconds * 48000.0", source)
+        self.assertIn('"transport_context_supplied": hostTransportSupplied', source)
+        self.assertIn('"transport_moving":', source)
+        self.assertLess(
+            source.index("unit.auAudioUnit.transportStateBlock ="),
+            source.index("try audio.start()"),
+            "The AU must receive transport before render resources are started",
+        )
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},
