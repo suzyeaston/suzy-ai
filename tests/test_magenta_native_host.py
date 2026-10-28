@@ -204,6 +204,40 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('auUIRequestCount += 1', swift)
         self.assertIn('self.auUIError = "Google MRT2 AU did not return', swift)
 
+    def test_four_native_au_prompt_slots_and_live_weights(self):
+        from suzy_ai.music.magenta_native_host import PROMPTS, ACTIONS
+        self.assertEqual(list(PROMPTS), [
+            "pyramid", "fishes", "pyramid_violin", "fishes_guitar",
+        ])
+        self.assertEqual(ACTIONS["lead-mix"], {"scene", "value"})
+        self.assertIn("violin", PROMPTS["pyramid_violin"])
+        self.assertIn("nylon", PROMPTS["fishes_guitar"])
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('list.count == 4', swift)
+        self.assertIn('state["MGRT_Prompts"] = weighted + (0..<2)', swift)
+        for address in range(10, 16):
+            self.assertIn(f'parameter({address},', swift)
+        self.assertIn('case "lead-mix":', swift)
+        self.assertIn('leadMix[which] = Float(x);configure()', swift)
+        self.assertIn('"prompt_slot_count": prompts.count', swift)
+        self.assertIn('"prompt_weights": (10...13).map', swift)
+        # Original primary prompt wording is intentionally unchanged.
+        self.assertIn(PROMPTS["pyramid"], swift)
+        self.assertIn(PROMPTS["fishes"], swift)
+
+    def test_lead_mix_requires_valid_scene_and_normalized_amount(self):
+        for bad in (
+            {"scene":"pyramid","value":-1},
+            {"scene":"fishes","value":1.1},
+            {"scene":"bad","value":0.3},
+            {"scene":"pyramid","value":"0.5"},
+            {"scene":"pyramid","value":True},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.host.command("lead-mix", bad)
+        self.assertIsNone(self.host.process)
+
     def test_native_prompt_validation(self):
         bad = [
             {"prompts": ["", "nice"]},
