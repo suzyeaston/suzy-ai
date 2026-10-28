@@ -58,7 +58,7 @@ function rig(){
  ];
  class AudioWorkletNode extends AudioNode{
   constructor(context,name,opts){super();this.name=name;this.opts=opts;
-   this.port={onmessage:null,postMessage(){}};calls.worklet=this;}
+   this.port={onmessage:null,postMessage(data){calls.workletMessage=data;}};calls.worklet=this;}
  }
  const env={
   document:doc,console,AudioWorkletNode,
@@ -410,4 +410,44 @@ test("voice-follow module steers existing native model but does not claim synthe
  assert.match(javascript,/fullTimeline=new window.SuzyPerformanceTimeline/);
  assert.match(javascript,/fullTimeline\?\.render\(\)/);
  assert.match(javascript,/clipActiveAt\(layer,count\/8\)/);
+});
+
+test("first sung take sets the same bar-quantized master length as keys",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.first"),true);
+ const original=run("recording.firstStep");
+ // Press Finish at the first possible four-bar boundary.
+ run("stepNumber="+(original+32-1));
+ await run('voiceLoop("pyramid")');
+ assert.equal(calls.workletMessage.type,"finish");
+ const takenSteps=run("recording.actualSteps");
+ assert.equal(takenSteps,32);
+ const totalFrames=calls.worklet.opts.processorOptions.frames;
+ const capturedFrames=calls.workletMessage.frames;
+ assert.ok(capturedFrames<totalFrames);
+ calls.worklet.port.onmessage({data:{type:"complete",
+  data:new Float32Array(totalFrames).fill(.25),frames:capturedFrames,
+  peak:.25,hot:0,missing:0}});
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),32);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),capturedFrames);
+ assert.equal(run("decks.pyramid.layers[0].bars"),4);
+});
+test("voice pitch follow recognizes A4 without an octave error",()=>{
+ const events=[];
+ class Base{constructor(){this.port={postMessage:message=>events.push(message),onmessage:null}}}
+ let kind=null;
+ const worker={AudioWorkletProcessor:Base,sampleRate:48000,Float32Array,Math,
+   registerProcessor:(name,type)=>{assert.equal(name,"suzy-voice-follow");kind=type}};
+ vm.runInNewContext(voiceFollowJS,worker,{filename:"toaster_voice_follow.js"});
+ assert.ok(kind);
+ const processor=new kind();
+ let t=0;
+ for(let block=0;block<145;block++){
+  const buffer=new Float32Array(128);
+  for(let n=0;n<128;n++)buffer[n]=.18*Math.sin(2*Math.PI*440*(t++/48000));
+  processor.process([[buffer]]);
+ }
+ assert.ok(events.some(x=>x.type==="pitch"&&x.note===69));
 });
