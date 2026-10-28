@@ -199,6 +199,19 @@ a{color:var(--mint)}
 .full-toolbar button{font-size:11px;padding:8px 10px}
 .full-clip.is-selected{outline:3px solid #ffe7ab;outline-offset:2px}
 .full-lane.is-paste-target{background-color:#355343}
+.arrangement-transport{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:10px 0;padding:10px;border:1px solid #706582;border-radius:10px;background:#171824}
+.arrangement-transport button{padding:10px 12px;font-size:12px;font-weight:800}
+#timelineTransportStatus{color:var(--mint);font:700 11px ui-monospace,monospace}
+.vocal-recorder-status{display:flex;flex-wrap:wrap;gap:12px;padding:12px;margin:12px 0 7px;border:1px solid #5e8c84;border-radius:9px;background:#172022}
+#vocalRecordState{color:#d8e7fa;font:800 12px ui-monospace,monospace}
+#vocalRecordState.is-recording{color:#ffa5b5}
+#vocalLoopState{color:var(--mint);font:700 11px ui-monospace,monospace}
+.vocal-fx-settings{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px}
+.vocal-fx-settings label{display:grid;gap:5px;min-width:115px;font:700 10px ui-monospace,monospace}
+.vocal-fx-settings input{width:120px}
+.vocal-fx-settings select{background:#201c2b;color:#fff3e9;border:1px solid #78607b;border-radius:7px;padding:5px}
+.vocal-fx-settings span{font-size:10px;color:var(--mint)}
+.vocal-fx-note{font-size:11px;color:var(--muted);margin:9px 0 0}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -313,8 +326,22 @@ a{color:var(--mint)}
 <button type="button" id="monitorVoice" aria-pressed="false">🎙 MONITOR VOICE · OFF</button>
 <label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="100" value="55"></label>
 <label>LIVE REVERB <input id="monitorReverb" type="range" min="0" max="75" value="28"></label>
-<span id="monitorStatus" role="status">OFF · headphones required to prevent feedback</span>
+<span id="monitorStatus" role="status">MONITOR OFF · not recording</span>
 </div>
+<div class="vocal-recorder-status" role="status" aria-live="polite">
+  <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
+  <span id="vocalLoopState">No vocal loops yet. Monitoring alone never records or loops.</span>
+</div>
+<div class="vocal-fx-settings">
+ <label for="vocalEchoMode">TAPE ECHO <select id="vocalEchoMode">
+  <option value="off">Off</option><option value="eighth">Eighth note</option>
+  <option value="dotted">Dotted eighth</option><option value="quarter" selected>Quarter note</option>
+ </select></label>
+ <label for="vocalEchoLevel">ECHO MIX <input id="vocalEchoLevel" type="range" min="0" max="45" value="0"><span id="vocalEchoAmount">0%</span></label>
+ <label for="vocalEchoFeedback">REPEATS <input id="vocalEchoFeedback" type="range" min="0" max="48" value="22"><span id="vocalRepeatAmount">22%</span></label>
+ <label for="vocalAir">DREAM TONE <input id="vocalAir" type="range" min="0" max="100" value="75"><span id="vocalAirAmount">75%</span></label>
+</div>
+<p class="vocal-fx-note">Echo applies to live monitoring and recorded vocal loops. Your original microphone recording stays dry. No additional download, model, or CPU-heavy plugin.</p>
 </section>
 <section class="voice-ai-follow" aria-label="Voice controlled AI accompaniment">
 <div class="start"><div><div class="tiny">VOICE → AI · EXPERIMENTAL</div>
@@ -325,6 +352,12 @@ a{color:var(--mint)}
 <section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Recorded loops repeat through the set. Drag a region to decide when it enters; drag its right edge to decide when it ends. Both changes gate real playback at the next bar. The original chord pads stay above.</p></div>
+<div class="arrangement-transport" aria-label="Browser timeline transport">
+ <button id="timelinePlay" type="button">▶ PLAY FROM START</button>
+ <button id="timelineStop" type="button">■ STOP</button>
+ <button id="timelineRewind" type="button">⏮ RETURN TO START</button>
+ <span id="timelineTransportStatus" role="status">STOPPED · BAR 1 · Browser loops only</span>
+</div>
 <div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
 <div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullSplit" type="button">SPLIT AT PLAYHEAD</button><button id="fullDelete" type="button">DELETE</button>
 <span id="fullSelection" class="stat">Click a clip to select it. Click a lane to choose the paste destination. Cmd+C / X / V / Delete.</span></div>
