@@ -68,7 +68,12 @@ class Tracks{
     rec.textContent=recState.active&&!d.locked?"■ FINISH FIRST TAKE":recState.active?"● OVERDUBBING…":"● ARMED";
     rec.classList.add("active");
    }
-   header.append(controls);column.append(header);
+   header.append(controls);
+   const status=el("div","track-loop-label",d.locked?"LOOP READY · "+bars+" BARS":"FIRST LOOP NOT YET RECORDED");
+   status.id="track-loop-label-"+which;header.append(status);
+   const progress=el("div","track-loop-progress");const fill=el("div","track-loop-fill");
+   fill.id="track-loop-fill-"+which;progress.append(fill);header.append(progress);
+   column.append(header);
    const ruler=el("div","track-ruler");
    const n=Math.max(2,bars);
    for(let i=0;i<n;i++){const mark=el("span","track-bar",i%4===0?"BAR "+(i+1):"·");ruler.append(mark)}
@@ -85,7 +90,10 @@ class Tracks{
        const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
        region.title=(kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded MIDI-like chord events")+
          " · "+(layer.bars||bars)+" bars";
-       const clipTitle=el("span","track-clip-title",(kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":"KEYS ")+(j+1));
+       const clipTitle=el("span","track-clip-title",
+         (kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":({
+           keys:"PIANO ",pad:"PAD ",pluck:"PLUCK ",bass:"BASS "
+         }[layer.instrument]||"KEYS "))+(j+1));
        const waveform=el("span","track-wave");
        if(layer.buffer){
          for(const height of peakBins(layer.buffer)){
@@ -127,6 +135,14 @@ class Tracks{
    const d=this.decks[which],length=d.lengthSteps||16,origin=d.anchorStep||0;
    const phase=((step-origin)%length+length)%length;
    head.style.left="calc(90px + (100% - 90px) * "+(phase/length)+")";
+   const label=$("track-loop-label-"+which),fill=$("track-loop-fill-"+which);
+   if(label){
+     const bar=Math.floor(phase/8)+1,pass=Math.floor(Math.max(0,step-origin)/length)+1;
+     label.textContent=(d.locked?"↻ LOOP "+pass+" · ":"○ NOT RECORDED · ")+
+       "BAR "+bar+" / "+(length/8)+(this.getRunning()?" · PLAYING":" · PAUSED")+
+       (rec?.scene===which?" · ● RECORDING":"");
+   }
+   if(fill)fill.style.width=((phase/length)*100)+"%";
    col.classList.toggle("is-playing",this.getRunning());
    col.classList.toggle("is-recording",rec?.scene===which);
    col.classList.toggle("is-selected",root.document.getElementById("deck-"+which)?.classList.contains("selected")||false);
