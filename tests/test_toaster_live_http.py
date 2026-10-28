@@ -352,6 +352,23 @@ class LiveToasterHttpTests(unittest.TestCase):
         ):
             self.assertIn(marker, timeline)
 
+    def test_four_actual_magenta_prompts_are_available_with_native_blend_controls(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for marker in ('id="promptPyramid"', 'id="promptFishes"',
+                       'id="promptViolin"', 'id="promptGuitar"',
+                       'id="aiLeadMix-pyramid"', 'id="aiLeadMix-fishes"',
+                       'id="aiChords-pyramid"', 'id="aiChords-fishes"',
+                       'id="aiLead-pyramid"', 'id="aiLead-fishes"',
+                       'function setNativeLeadMix(which,percent)',
+                       'await aiFetch("lead-mix",{scene:which,value:value/100})',
+                       'const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;',
+                       'CHORDS 100% · LEAD 0%',
+                       'One MRT2 Small model, four genuine Google AU sound prompts'):
+            self.assertIn(marker, page)
+        self.assertIn('["promptPyramid","promptFishes","promptViolin","promptGuitar"]', page)
+        self.assertIn('Enter four AI prompts', page)
+
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
         self.assertEqual(self.call("POST", "/api/perform/chord", {"index":0}, token=False)[0],403)
