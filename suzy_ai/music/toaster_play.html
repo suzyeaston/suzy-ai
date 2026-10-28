@@ -259,10 +259,10 @@ a{color:var(--mint)}
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
-<button class="pad" data-scene="pyramid" data-chord="0"><kbd>1</kbd><b>F♯</b></button>
-<button class="pad" data-scene="pyramid" data-chord="1"><kbd>2</kbd><b>Gmaj7</b></button>
-<button class="pad" data-scene="pyramid" data-chord="2"><kbd>3</kbd><b>A6</b></button>
-<button class="pad" data-scene="pyramid" data-chord="3"><kbd>4</kbd><b>F♯</b></button>
+<button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>
+<button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>
+<button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
+<button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
 <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
@@ -283,10 +283,10 @@ a{color:var(--mint)}
 <section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-fishes">
-<button class="pad" data-scene="fishes" data-chord="0"><kbd>1</kbd><b>Em7</b></button>
-<button class="pad" data-scene="fishes" data-chord="1"><kbd>2</kbd><b>F♯m7</b></button>
-<button class="pad" data-scene="fishes" data-chord="2"><kbd>3</kbd><b>A</b></button>
-<button class="pad" data-scene="fishes" data-chord="3"><kbd>4</kbd><b>Gmaj7</b></button>
+<button class="pad" data-scene="fishes" data-chord="0"><kbd>Z</kbd><b>Em7</b></button>
+<button class="pad" data-scene="fishes" data-chord="1"><kbd>X</kbd><b>F♯m7</b></button>
+<button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
+<button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
 <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
@@ -362,7 +362,7 @@ a{color:var(--mint)}
 </section>
 <section class="note-bank" aria-label="Playable computer keyboard">
 <div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
-<h2>1–4 are your chords. A–K is your piano.</h2>
+<h2>Z X C V are your chords. A–K is your piano.</h2>
 <p class="subtle">Hold a key to sustain; release for a soft fade. Play melodies over your chord loops.</p></div>
 <div class="stat">C4 → C5 · CHROMATIC</div></div>
 <div class="note-keys">
@@ -431,6 +431,8 @@ let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=nu
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 const heldKeys=new Map();
 const heldNotes=new Map();
+const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
+const CHORD_CODES=Object.freeze({KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v"});
 const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
@@ -662,7 +664,7 @@ function toggleAISolo(){
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE LOCAL KEYS":"🎧 HEAR AI ONLY";
  updateMix();
- tell(aiSolo?"LOCAL KEYS SILENCED · rhythm, vocal loops and native Magenta remain audible. Hold 1–4 and listen for AI.":"Local chord synth restored.");
+ tell(aiSolo?"LOCAL KEYS SILENCED · rhythm, vocal loops and native Magenta remain audible. Hold Z X C V and listen for AI.":"Local chord synth restored.");
 }
 function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
@@ -821,7 +823,7 @@ function choose(which){
  }
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
- tell(which==="pyramid"?"PYRAMID · hold 1–4 to sustain":"WEIRD FISHES · hold 1–4 to sustain");
+ tell(which==="pyramid"?"PYRAMID · use Z X C V for chords":"WEIRD FISHES · use Z X C V for chords");
 }
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
@@ -830,7 +832,7 @@ function beginChord(which,index,key){
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
  for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
- const h={which,index,voices,start,event:null};heldKeys.set(key,h);
+ const h={which,index,voices,start,instrument,event:null};heldKeys.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
   const step=Math.max(0,Math.min(255,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
   h.event={step,index,holdSteps:1,instrument};
@@ -846,9 +848,13 @@ function endChord(key){
  const h=heldKeys.get(key);if(!h)return;
  heldKeys.delete(key);
  const now=ctx?.currentTime??0;
- for(const voice of h.voices)releaseVoice(voice,now);
+ // A short pointer click can end BEFORE the synth's attack reaches audibility.
+ // Allow every tap to sound, especially the slow pad preset.
+ const attack=INSTRUMENTS[h.instrument]?.attack??.028;
+ const releaseAt=Math.max(now,h.start+Math.max(.105,attack+.055));
+ for(const voice of h.voices)releaseVoice(voice,releaseAt);
  if(h.event){
-  h.event.holdSteps=Math.max(.25,Math.min(256,Math.max(.05,now-h.start)/tickSeconds()));
+  h.event.holdSteps=Math.max(.25,Math.min(256,Math.max(.105,now-h.start)/tickSeconds()));
  }
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===h.which&&Number(el.dataset.chord)===h.index){
@@ -863,7 +869,7 @@ function beginNote(midi,key){
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,instrument=decks[scene].instrument;
  const voice=makeVoice(scene,midi,start,instrument,.11,true);
- const h={voice,midi,scene,start,event:null};heldNotes.set(key,h);
+ const h={voice,midi,scene,start,instrument,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
@@ -874,7 +880,9 @@ function beginNote(midi,key){
 function endNote(key){
  const h=heldNotes.get(key);if(!h)return;
  heldNotes.delete(key);
- const now=ctx?.currentTime??0;releaseVoice(h.voice,now);
+ const now=ctx?.currentTime??0;
+ const attack=INSTRUMENTS[h.instrument]?.attack??.028;
+ releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
@@ -1036,7 +1044,7 @@ async function startStop(){
    }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
-   tell("Rhythm live! Play 1–4, then tap LOOP MY CHORDS.");
+   tell("Rhythm live! Play Z X C V, then tap LOOP MY CHORDS.");
   }
  }catch(e){warn(e);}
 }
@@ -1548,14 +1556,16 @@ document.querySelectorAll(".pad").forEach(el=>{
 const isTyping=e=>e.target?.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(e.target?.tagName);
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||isTyping(e))return;
- if(/^[1-4]$/.test(e.key)){e.preventDefault();beginChord(scene,Number(e.key)-1,"key:"+e.key);}
+ const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ if(chordKey!==null){e.preventDefault();beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);}
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
  }
  else if(e.key===" "&&e.target?.tagName!=="BUTTON"){e.preventDefault();startStop();}
 });
 document.addEventListener("keyup",e=>{
- if(/^[1-4]$/.test(e.key)){e.preventDefault();endChord("key:"+e.key);}
+ const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ if(chordKey!==null){e.preventDefault();endChord("key:"+chordKey);}
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();endNote("key-note:"+e.key.toLowerCase());
  }
