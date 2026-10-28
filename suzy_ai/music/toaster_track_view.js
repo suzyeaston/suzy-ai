@@ -159,7 +159,7 @@ class TrackView {
      const surface=region.closest(".track-lane-surface");
      const width=surface.getBoundingClientRect().width;
      if(width<=0)return;
-     current={pointerId:e.pointerId,x:e.clientX,base:mod(layer.shiftSteps||0,length),width,bars:length/8,preview:0};
+     current={pointerId:e.pointerId,x:e.clientX,base:mod(layer.shiftSteps||0,length),width,bars:length/8,preview:mod(layer.shiftSteps||0,length)};
      region.setPointerCapture?.(e.pointerId);
      region.classList.add("track-dragging");
      e.preventDefault();
