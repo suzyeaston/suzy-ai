@@ -27,7 +27,7 @@
     constructor({getBpm,onCue,onChord,onMessage}) {
       this.getBpm=getBpm;this.onCue=onCue;this.onChord=onChord;this.onMessage=onMessage;
       this.cues=starter.map(valid);this.armed=false;this.index=-1;this.startBar=0;
-      this.endBar=0;this.lastBar=0;this.skip=false;this.changed=false;
+      this.endBar=0;this.lastBar=0;this.skip=false;this.jumpTo=null;this.changed=false;
       try{
         const saved=JSON.parse(root.localStorage.getItem(KEY)||"null");
         if(Array.isArray(saved)&&saved.length>0&&saved.length<=32)this.cues=saved.map(valid);
@@ -45,14 +45,14 @@
     }
     save(){try{root.localStorage.setItem(KEY,JSON.stringify(this.cues));}catch{}}
     arm(value) {
-      this.armed=Boolean(value);this.index=-1;this.skip=false;
+      this.armed=Boolean(value);this.index=-1;this.skip=false;this.jumpTo=null;
       $("arrArm").textContent=this.armed?"■ DISARM TIMELINE":"▶ ARM TIMELINE";
       $("arrArm").setAttribute("aria-pressed",String(this.armed));
       $("arrNext").disabled=!this.armed;
       this.status(this.armed?"Timeline armed. First cue starts on the next two-bar boundary.":"Manual playing remains available. Timeline automation is off.");
       this.render();
     }
-    resetClock(){this.index=-1;this.lastBar=0;this.skip=false;this.render();}
+    resetClock(){this.index=-1;this.lastBar=0;this.skip=false;this.jumpTo=null;this.render();}
     status(message){$("arrStatus").textContent=message;}
     totalBars(){return this.cues.reduce((n,c)=>n+c.bars,0);}
     render(){
@@ -75,7 +75,7 @@
         select("bars",BAR_OPTIONS.map(n=>[n,n+" bars"]),c.bars,"Cue length in bars");
         select("chord",[[-1,"Live / none"],[0,"Chord 1"],[1,"Chord 2"],[2,"Chord 3"],[3,"Chord 4"]],c.chord,"Optional repeating harmony");
         select("mix",[[0,"Pyramid 100%"],[25,"25% Fishes"],[45,"45% Fishes"],[50,"50 / 50"],[75,"75% Fishes"],[100,"Fishes 100%"]],c.mix,"Fishes crossfade percent");
-        for(const [action,text,title] of [["up","↑","Move earlier"],["down","↓","Move later"],["duplicate","+","Duplicate cue"],["remove","×","Remove cue"]]){
+        for(const [action,text,title] of [["cue","▶","Queue cue at next two-bar boundary"],["up","↑","Move earlier"],["down","↓","Move later"],["duplicate","+","Duplicate cue"],["remove","×","Remove cue"]]){
           const btn=root.document.createElement("button");btn.type="button";btn.dataset.action=action;btn.textContent=text;btn.title=title;btn.setAttribute("aria-label",title+" "+(i+1));btn.disabled=(action==="up"&&i===0)||(action==="down"&&i===this.cues.length-1)||(action==="remove"&&this.cues.length===1)||(action==="duplicate"&&this.cues.length>=32);row.append(btn);
         }
         rows.append(row);
@@ -97,19 +97,27 @@
       const action=event.target?.dataset?.action;
       const index=Number(event.target?.closest(".arr-row")?.dataset?.index);
       if(!action||!Number.isInteger(index)||!this.cues[index])return;
+      if(action==="cue"){
+        if(!this.armed)this.arm(true);
+        this.jumpTo=index;this.status("Cue "+(index+1)+" queued for the next two-bar boundary.");return;
+      }
       if(action==="remove"&&this.cues.length>1)this.cues.splice(index,1);
       else if(action==="duplicate"&&this.cues.length<32)this.cues.splice(index+1,0,{...this.cues[index]});
       else if(action==="up"&&index>0)[this.cues[index-1],this.cues[index]]=[this.cues[index],this.cues[index-1]];
       else if(action==="down"&&index<this.cues.length-1)[this.cues[index+1],this.cues[index]]=[this.cues[index],this.cues[index+1]];
       else return;
       // Avoid changing the active cue's identity mid-cycle after a reorder.
-      this.index=-1;this.skip=false;this.changed=true;this.save();this.render();
+      this.index=-1;this.skip=false;this.jumpTo=null;this.changed=true;this.save();this.render();
       this.status("Timeline edited. Next cycle restarts at cue 1 if armed.");
     }
     onCycle(bar){
       this.lastBar=bar;
       if(!this.armed)return;
-      if(this.index<0){this.index=0;this.startBar=bar;this.endBar=bar+this.cues[0].bars;this.changed=false;this.apply();}
+      if(this.jumpTo!==null){
+        this.index=this.jumpTo;this.jumpTo=null;this.skip=false;
+        this.startBar=bar;this.endBar=bar+this.cues[this.index].bars;this.changed=false;this.apply();
+      }
+      else if(this.index<0){this.index=0;this.startBar=bar;this.endBar=bar+this.cues[0].bars;this.changed=false;this.apply();}
       else if(this.skip||bar>=this.endBar){
         this.skip=false;this.index++;
         if(this.index>=this.cues.length){this.arm(false);this.status("Timeline finished. Rhythm and live performance continue.");return;}
