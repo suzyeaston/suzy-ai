@@ -15,9 +15,11 @@ const node=(tag,cls,txt)=>{
 };
 const mod=(x,n)=>((x%n)+n)%n;
 class PerformanceTimeline{
- constructor({decks,getCues,getStep,getTempo,onEdit,onSelect}){
+ constructor({decks,getCues,getStep,getTempo,onEdit,onSelect,onAction}){
   this.decks=decks;this.getCues=getCues;this.getStep=getStep;
   this.getTempo=getTempo;this.onEdit=onEdit;this.onSelect=onSelect;
+  this.onAction=onAction;this.selected=null;this.clipboard=null;
+  this.target={which:"pyramid",kind:"chords",bar:0};
   this.zoom=6;this.total=320;
   this.minutes=15;
   $("fullDuration").onchange=e=>{
@@ -26,6 +28,15 @@ class PerformanceTimeline{
    this.render();
   };
   $("fullZoom").oninput=e=>{this.zoom=Number(e.target.value)||6;this.render()};
+  for(const [id,action] of [["fullCopy","copy"],["fullCut","cut"],["fullPaste","paste"],
+     ["fullDelete","delete"],["fullSplit","split"]])$(id).onclick=()=>this.perform(action);
+  root.document.addEventListener("keydown",e=>{
+   if(e.target?.isContentEditable||["INPUT","SELECT","TEXTAREA"].includes(e.target?.tagName))return;
+   const cmd=e.metaKey||e.ctrlKey,key=String(e.key).toLowerCase();
+   const action=cmd?{c:"copy",x:"cut",v:"paste"}[key]:["delete","backspace"].includes(key)?"delete":null;
+   if(!action||(["copy","cut","delete"].includes(action)&&!this.selected))return;
+   e.preventDefault();this.perform(action);
+  });
   $("fullFit").onclick=()=>{
     const width=$("fullViewport").clientWidth||1000;
     this.zoom=clamp(Math.floor((width-100)/this.total),3,12);
@@ -68,6 +79,14 @@ class PerformanceTimeline{
   for(const [which,title] of order){
    for(const [kind,label] of kinds){
     const row=node("div","full-lane");row.dataset.scene=which;row.dataset.kind=kind;
+    row.title="Click a bar to choose where to paste a clip";
+    row.addEventListener("click",e=>{
+      if(e.target!==row)return;
+      const rect=row.getBoundingClientRect();
+      const bar=clamp(Math.round((e.clientX-rect.left)/this.barWidth()),0,this.total-1);
+      this.target={which,kind,bar};
+      this.announce("Paste target: "+title+" / "+label+" bar "+(bar+1));
+    });
     row.style.width=width+"px";
     const entries=this.decks[which].layers.filter(l=>l.kind===kind);
     for(let index=0;index<entries.length;index++){
@@ -81,6 +100,8 @@ class PerformanceTimeline{
      block.style.left=(start*px)+"px";
      block.style.width=Math.max(5,(end-start)*px)+"px";
      block.dataset.layer=String(layer.id);
+     if(this.selected?.which===which&&this.selected.id===layer.id)block.classList.add("is-selected");
+     block.addEventListener("click",e=>{e.stopPropagation();this.selectClip(which,kind,layer.id)});
      block.tabIndex=0;block.setAttribute("role","group");
      block.setAttribute("aria-label",title+" "+titleText+", drag to change start, drag right handle to set end");
      block.title="Drag to move this layer's entry across the whole performance. Drag the right edge to choose when it exits.";
@@ -103,6 +124,9 @@ class PerformanceTimeline{
   let hold=null;
   const press=(e,mode)=>{
    if(e.button!==0)return;
+   this.selected={which,kind:layer.kind,id:layer.id};
+   this.target={which,kind:layer.kind,bar:Math.max(0,Math.floor(this.getStep()/8))};
+   block.classList.add("is-selected");
    e.preventDefault();e.stopPropagation();
    hold={x:e.clientX,start,end,mode,pointerId:e.pointerId};
    block.setPointerCapture?.(e.pointerId);
@@ -143,6 +167,37 @@ class PerformanceTimeline{
    const next=clamp(end+(e.key==="ArrowRight"?1:-1),start+1,this.total);
    this.onEdit(which,layer.id,start,next);
   });
+ }
+ announce(message){$("fullSelection").textContent=message}
+ selectClip(which,kind,id){
+  this.selected={which,kind,id};
+  this.target={which,kind,bar:Math.max(0,Math.floor(this.getStep()/8))};
+  this.announce("Selected "+which.toUpperCase()+" / "+kind+
+   ". COPY, CUT or DELETE. Click another lane/bar to set PASTE target.");
+  this.render();
+ }
+ perform(action){
+  const selected=this.selected;
+  if(["copy","cut","delete","split"].includes(action)&&!selected){
+   this.announce("Select a recorded clip first.");return;
+  }
+  if(action==="copy"||action==="cut"){
+    const layer=this.decks[selected.which].layers.find(l=>l.id===selected.id);
+    if(!layer)return;
+    this.clipboard={which:selected.which,kind:selected.kind,
+      layer:{...layer,events:layer.events?.map(e=>({...e})),source:null,gain:null}};
+    this.announce((action==="cut"?"CUT":"COPIED")+" "+selected.which+" / "+selected.kind+
+      ". Click a destination lane/bar, then PASTE.");
+  }
+  if(action==="paste"&&!this.clipboard){
+    this.announce("Copy or cut a recorded clip before pasting.");return;
+  }
+  if(action==="paste"&&this.target.kind!==this.clipboard.kind){
+    this.announce("Paste to the matching KEYS, VOCALS or AI lane.");return;
+  }
+  this.onAction({action,selected,target:{...this.target},clipboard:this.clipboard});
+  if(action==="cut"||action==="delete")this.selected=null;
+  this.render();
  }
  update(){
   const bar=Math.max(0,Math.floor((Number(this.getStep())||0)/8));
