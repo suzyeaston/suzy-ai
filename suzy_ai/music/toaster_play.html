@@ -1121,6 +1121,7 @@ async function voiceLoop(which){
   take.finishQueued=true;
   take.processor.port.postMessage({type:"finish",frames:Math.round(take.actualSteps*tickSeconds()*ctx.sampleRate)});
   $("vocal-"+which).textContent="🎙 FINISH QUEUED";
+  trackView?.draw();
   tell("Vocal take will finish after "+(take.actualSteps/8)+" bars. Loop length follows your singing.");
   return;
  }
@@ -1148,12 +1149,14 @@ async function voiceLoop(which){
   take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
         first:!d.locked,firstStep,steps,actualSteps:null,finishQueued:false};
   recording=take;
+  trackView?.draw();
   $("vocal-"+which).textContent=take.first?"🎙 FINISH FIRST VOICE":"🎙 ARMED · "+bars+" BARS";
   const cleanup=()=>{
    if(take.finished)return false;
    take.finished=true;clearTimeout(take.watchdog);
    try{source.disconnect();processor.disconnect();silent.disconnect()}catch{}
    if(recording===take)recording=null;
+   trackView?.draw();
    $("vocal-"+which).textContent="🎙 LOOP VOICE";
    return true;
   };
