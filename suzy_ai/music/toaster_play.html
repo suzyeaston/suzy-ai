@@ -710,6 +710,8 @@ function aiDisplay(s){
     " · native transport: "+(s.transport_playing?"PLAYING":"PAUSED")+
     " · host transport state: "+(s.transport_moving?"MOVING":"STOPPED / NOT VERIFIED")+
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
+    (s.chord_min_hold_ms?" · native click-hold "+s.chord_min_hold_ms+" ms":"")+
+    (s.chord_release_pending?" · chord release pending":"")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
     " · "+(s.output||"macOS default output"):
