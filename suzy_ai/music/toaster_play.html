@@ -1336,9 +1336,22 @@ fullTimeline=new window.SuzyPerformanceTimeline({
   if(!layer)return;
   layer.arrStartBar=start;layer.arrEndBar=end;
   if(layer.buffer&&stageStarted){
-   try{layer.source?.stop(ctx.currentTime+.015)}catch{}
-   try{layer.source?.disconnect()}catch{}
+   const oldSource=layer.source,oldGain=layer.gain,now=ctx.currentTime;
+   // Fade between the old loop phase and the newly dragged arrangement phase.
+   if(oldGain&&oldSource){
+    try{
+     oldGain.gain.cancelScheduledValues(now);
+     oldGain.gain.setValueAtTime(oldGain.gain.value,now);
+     oldGain.gain.linearRampToValueAtTime(0,now+.05);
+     oldSource.stop(now+.08);
+    }catch{}
+   }
    startLoopAudio(which,layer);
+   if(layer.gain){
+    const target=layer.gain.gain.value;
+    layer.gain.gain.setValueAtTime(0,now);
+    layer.gain.gain.linearRampToValueAtTime(target,now+.06);
+   }
   }
   fullTimeline.render();
   tell(which.toUpperCase()+" "+layer.kind+" enters bar "+(start+1)+
