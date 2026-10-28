@@ -25,6 +25,9 @@ final class MRT2Host {
     private var reverbAmount: Float = 0.18
     private var muted = false
     private var outputSignalDetected = false
+    // Diagnostic override. Default unchanged; set SUZY_MRT2_MIDI_GATE=0
+    // BEFORE starting the stage server to test prompt-only native audio.
+    private let midiGateEnabled = ProcessInfo.processInfo.environment["SUZY_MRT2_MIDI_GATE"] != "0"
     private var auComponentName = ""
     private var assetPath = ""
     private var bookmarkScopeVerified = false
@@ -51,6 +54,8 @@ final class MRT2Host {
             // never the physical headphones or correct Magenta semantics.
             "model_audio_confirmed": outputSignalDetected,
             "output_signal_detected": outputSignalDetected,
+            "midi_gate_enabled": midiGateEnabled,
+            "midi_gate_parameter_readback": Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: 45)?.value ?? -1),
             "model_path": modelPath,
             "error": errorMessage,
             "scene": scene,
@@ -88,7 +93,7 @@ final class MRT2Host {
         parameter(39, 1.0) // Google "Filter Drums"
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
         parameter(3, 2.5)  // Prompt Adherence
-        parameter(45, 1.0) // MIDI gate: cease AI when notes released.
+        parameter(45, midiGateEnabled ? 1.0 : 0.0) // Diagnostic: gate off permits prompt-only audition.
         // AU volume is measured in dB (-60…+12). Convert the user's
         // 0–100% linear fader into a logarithmic dB level, with no boost > 0dB.
         // 28% is about -11dB instead of the barely audible old -26dB.
