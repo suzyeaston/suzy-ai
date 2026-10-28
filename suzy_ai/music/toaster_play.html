@@ -4,7 +4,7 @@
 <style>
 :root{color-scheme:dark;--bg:#191420;--panel:#302637;--border:#78607b;--pink:#ffc9d8;--peach:#ffdbb0;--mint:#b4f1d0;--muted:#c2afc7;--red:#fc9cac}
 *{box-sizing:border-box}body{background:radial-gradient(ellipse at 25% -15%,#66425c 0,transparent 58%),var(--bg);color:#fff2e9;margin:0;font:16px/1.45 system-ui,-apple-system,sans-serif}
-main{max-width:1040px;margin:0 auto;padding:18px 18px 55px}h1{margin:0;font-size:clamp(30px,4.5vw,47px);letter-spacing:-.07em;line-height:1.04}h2{margin:0;font-size:clamp(18px,2.5vw,24px)}p{margin:5px 0}small,.subtle{font-size:12px;color:var(--muted)}
+main{max-width:1460px;margin:0 auto;padding:18px 18px 55px}h1{margin:0;font-size:clamp(30px,4.5vw,47px);letter-spacing:-.07em;line-height:1.04}h2{margin:0;font-size:clamp(18px,2.5vw,24px)}p{margin:5px 0}small,.subtle{font-size:12px;color:var(--muted)}
 label{font-size:12px;font-weight:750}button,input,select{font:inherit}button{border:1px solid #926e8f;color:#fff7ed;background:#4b3b50;border-radius:12px;padding:11px;cursor:pointer;font-weight:800;touch-action:manipulation}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 button:disabled{opacity:.48;cursor:default}button[aria-pressed=true],button.active{background:var(--mint);border-color:var(--mint);color:#222d27}
 input[type=range]{accent-color:var(--mint);width:100%}select{background:#241c2c;color:#fff;border:1px solid var(--border);border-radius:9px;padding:8px;max-width:100%}
@@ -100,7 +100,37 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .arr-number{font:800 11px ui-monospace,monospace;color:var(--peach)}
 #arrStatus{font-size:11px;color:var(--peach);min-height:20px}
 @media(max-width:880px){.arr-row{grid-template-columns:25px repeat(4,minmax(0,1fr));}.arr-row input{grid-column:2/-1}.arr-row select{grid-column:span 2}.arr-row select:last-of-type{grid-column:span 3}}
-.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)}
+.track-workspace{border:1px solid #705d87;background:#201b2a;border-radius:18px;padding:16px;margin:16px 0}
+.track-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:13px}
+.track-column{min-width:0;border:1px solid #615a73;border-radius:12px;background:#16151d;overflow:hidden}
+.track-column.is-selected{border-color:#d1b4e4}
+.track-top{padding:11px;background:#2a2633;display:grid;gap:9px}
+.track-title{font-weight:850;letter-spacing:.065em;font-size:12px}
+.track-loop-badge{font:700 10px ui-monospace,monospace;color:var(--mint)}
+.track-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.track-controls button{font-size:11px;padding:7px 9px;border-radius:7px}
+.track-record.active{background:#b75366;color:#fff}
+.track-first-length{display:flex;align-items:center;gap:5px;font-size:10px;color:#dac8e0}
+.track-first-size{font-size:11px;padding:5px}
+.track-ruler{display:flex;min-height:24px;background:#29242d;border-bottom:1px solid #7d6c85;overflow:hidden}
+.track-bar{flex:1;min-width:0;text-align:left;border-left:1px solid #ffffff24;padding-left:3px;font:650 9px ui-monospace,monospace;color:#ac9aaf;white-space:nowrap;overflow:hidden}
+.track-lanes{position:relative}
+.track-lane{display:grid;grid-template-columns:90px minmax(0,1fr);min-height:73px;border-bottom:1px solid #514959}
+.track-lane-name{font:800 10px ui-monospace,monospace;padding:14px 8px;color:#dccce6;background:#211c29}
+.track-lane-surface{position:relative;display:flex;align-items:stretch;gap:3px;padding:5px;background:repeating-linear-gradient(to right,#ffffff0b 0 1px,transparent 1px calc(100%/var(--bars))),#18141f;min-width:0}
+.track-empty{align-self:center;color:#827b8c;font:11px ui-monospace,monospace}
+.track-region{flex:1;min-width:0;position:relative;border-radius:6px;padding:6px;background:#715b9d;border:1px solid #b59cdf;display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:16px 1fr;gap:2px;overflow:hidden}
+.region-vocal{background:#a75f80;border-color:#efa6ba}.region-ai{background:#3b847f;border-color:#a4e0d0}
+.track-muted{opacity:.38}.track-clip-title{font:750 10px ui-monospace,monospace;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;align-self:center}
+.track-clip-mute,.track-clip-remove{padding:1px 4px;font-size:9px;border:0;border-radius:4px;background:#241e2c}
+.track-wave{grid-column:1/-1;display:flex;align-items:center;position:relative;gap:1px;min-height:22px}
+.track-wave-bar{display:block;flex:1;min-width:1px;background:#f1e0ff;border-radius:1px;opacity:.8}.region-vocal .track-wave-bar{background:#ffd3df}.region-ai .track-wave-bar{background:#d1fff3}
+.track-midi-note{position:absolute;top:35%;height:9px;background:#fff1bb;border-radius:3px;min-width:2px}
+.track-song-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ffd86a;pointer-events:none;box-shadow:0 0 5px #ffd86a;z-index:5}
+.track-foot{font-size:10px;color:#a6a1b7;padding:9px 12px;min-height:34px}
+.track-notice{font-size:12px;color:#d5bacb}
+@media(max-width:970px){.track-columns{grid-template-columns:minmax(0,1fr)}}
+.decks-note{font:700 11px ui-monospace,monospace;color:var(--mint)
 details{margin:13px 0 0;border-top:1px solid #ffffff27;padding-top:8px}summary{cursor:pointer;font-size:12px;color:var(--muted)}
 .settings{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 #message{min-height:26px;color:var(--mint);font:700 12px ui-monospace,monospace;white-space:normal}
@@ -159,6 +189,13 @@ a{color:var(--mint)}
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
+</section>
+<section class="track-workspace" aria-label="Logic inspired live loop timeline">
+<div class="start"><div><div class="tiny">LIVE TRACKS · ARRANGE AND LOOP</div>
+<h2>Pyramid & Weird Fishes · Two live song timelines</h2>
+<p class="track-notice">Your first keyboard phrase sets the loop length for each song. Record, play, then press FINISH after 2–32 bars. Keys, vocal takes and real imported AI audio appear as colored editable regions.</p></div><span class="stat">FIRST TAKE DEFINES SONG LENGTH</span></div>
+<div class="track-columns"><div id="tracks-pyramid" class="track-column"></div><div id="tracks-fishes" class="track-column"></div></div>
+<small class="subtle">Real recorded takes only. Native Google AU audio remains outside browser recording; import printed Magenta audio when ready.</small>
 </section>
 <section class="arranger" aria-label="Editable live song arrangement">
 <div class="start"><div><div class="tiny">02 / LIVE ARRANGEMENT · TWO-BAR QUANTIZED CUES</div>
@@ -249,6 +286,7 @@ a{color:var(--mint)}
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
 <script src="/toaster/arrangement.js"></script>
+<script src="/toaster/track-view.js"></script>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
@@ -267,7 +305,8 @@ let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false}]));
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8}]));
+let trackView=null;
 let arranger=null;
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
 function warn(e){$("warning").textContent=e?.message||String(e);}
