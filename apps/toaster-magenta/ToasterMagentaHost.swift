@@ -5,11 +5,16 @@
 import Foundation
 import AVFoundation
 import AudioToolbox
+import AppKit
 
 final class MRT2Host {
     private var engine: AVAudioEngine?
     private var generator: AVAudioUnit?
     private var reverbUnit: AVAudioUnitReverb?
+    private var auUIWindow: NSWindow?
+    private var auUIRequestPending = false
+    // Set at server launch; never starts a second model instance.
+    private let selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
     private var held: [UInt8] = []
     private var melodyHeld = Set<UInt8>()
     private var tempoBpm: Double = 105.0
@@ -55,6 +60,10 @@ final class MRT2Host {
             "native_au": generator != nil,
             "audio_engine_running": engine?.isRunning ?? false,
             "model_load_requested": modelRequested,
+            "model_loading_source": selectModelInGoogleUI ? "native_google_au_ui" : "bookmarked_state_request",
+            "native_au_ui_requested": auUIRequestPending,
+            "native_au_ui_visible": auUIWindow?.isVisible ?? false,
+            "native_model_selection_required": selectModelInGoogleUI,
             // Google's AU doesn't expose a public loaded/model-audible getter.
             // This only confirms a nonzero PCM signal at the native host mixer,
             // never the physical headphones or correct Magenta semantics.
@@ -82,7 +91,9 @@ final class MRT2Host {
             "bookmark_format": bookmarkFormat,
             "bookmark_recipient_verified": false, // Native Google AU exposes no status response.
             "host_model_loaded": false,
-            "host_model_load_state": modelRequested ? "requested_asynchronously_by_google_AU_not_confirmed" : "not_requested",
+            "host_model_load_state": selectModelInGoogleUI
+                ? "select_in_google_AU_ui_model_loaded_not_confirmed"
+                : modelRequested ? "requested_asynchronously_by_google_AU_not_confirmed" : "not_requested",
             "native_output_sample_rate": outputRate,
             "model_file_exists": FileManager.default.fileExists(atPath: modelPath),
             "model_file_bytes": ((try? FileManager.default.attributesOfItem(atPath: modelPath)[.size]) as? NSNumber)?.int64Value ?? 0,
@@ -307,53 +318,58 @@ final class MRT2Host {
                             }
                         }
                     }
-                    // Bookmark + text prompts are consumed by Google's AU's
-                    // applyCustomState and set_text_prompts during model load.
+                    // Google AU rejects our cross-identity bookmark with
+                    // NSCocoaErrorDomain 259. When using Google's own UI,
+                    // deliberately OMIT it, and let the installed AU select
+                    // the model from its own sandbox and code-signing identity.
                     let modelURL = URL(fileURLWithPath: path)
-                    // Explicit app-scoped bookmarks resolve in this helper but
-                    // fail (Cocoa 259) in Google's different-code-identity AUv3.
-                    // This opt-in experiment sends Apple's cross-process
-                    // implicit-scope form. Google's unchanged AU *still* calls
-                    // NSURLBookmarkResolutionWithSecurityScope; actual extension
-                    // behavior must be verified through its own NSLog messages.
-                    let implicit = self.bookmarkFormat == "implicit_cross_process"
-                    let bookmark = try modelURL.bookmarkData(
-                        options: implicit ? [] : [.withSecurityScope],
-                        includingResourceValuesForKeys: nil, relativeTo: nil)
-                    var stale = false
-                    let checkedURL = try URL(
-                        resolvingBookmarkData: bookmark,
-                        options: implicit ? [.withoutUI] : [.withSecurityScope, .withoutUI],
-                        relativeTo: nil, bookmarkDataIsStale: &stale)
-                    self.bookmarkSelfResolutionVerified = !stale &&
-                        checkedURL.standardizedFileURL == modelURL.standardizedFileURL
-                    guard self.bookmarkSelfResolutionVerified else {
-                        throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
-                            userInfo: [NSLocalizedDescriptionKey:
-                                "Model bookmark does not resolve locally to the expected file."])
-                    }
-                    if !implicit {
-                        let scoped = checkedURL.startAccessingSecurityScopedResource()
-                        self.bookmarkScopeVerified = scoped
-                        if scoped { checkedURL.stopAccessingSecurityScopedResource() }
-                        guard scoped else {
-                            throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
-                                userInfo: [NSLocalizedDescriptionKey:
-                                    "App-scoped model bookmark access failed in Swift host."])
-                        }
-                    } else {
-                        // Host-side scope is not evidence of recipient AU access.
-                        self.bookmarkScopeVerified = false
-                    }
                     var state = unit.auAudioUnit.fullState ?? [:]
                     let weighted = self.prompts.enumerated().map { (i,text) in
                         ["text": text, "weight": i == 0 ? 1.0 : 0.0] as [String: Any]
                     }
-                    state["MGRT_Prompts"] = weighted + (0..<4).map { _ in ["text":"","weight":0.0] as [String:Any] }
-                    state["MGRT_ModelBookmark"] = bookmark
-                    state["MGRT_ModelName"] = "mrt2_small"
+                    state["MGRT_Prompts"] = weighted + (0..<4).map { _ in
+                        ["text":"","weight":0.0] as [String:Any]
+                    }
+                    if self.selectModelInGoogleUI {
+                        state.removeValue(forKey: "MGRT_ModelBookmark")
+                        state.removeValue(forKey: "MGRT_ModelName")
+                        self.modelRequested = false
+                        self.bookmarkScopeVerified = false
+                        self.bookmarkSelfResolutionVerified = false
+                    } else {
+                        let implicit = self.bookmarkFormat == "implicit_cross_process"
+                        let bookmark = try modelURL.bookmarkData(
+                            options: implicit ? [] : [.withSecurityScope],
+                            includingResourceValuesForKeys: nil, relativeTo: nil)
+                        var stale = false
+                        let checkedURL = try URL(
+                            resolvingBookmarkData: bookmark,
+                            options: implicit ? [.withoutUI] : [.withSecurityScope, .withoutUI],
+                            relativeTo: nil, bookmarkDataIsStale: &stale)
+                        self.bookmarkSelfResolutionVerified = !stale &&
+                            checkedURL.standardizedFileURL == modelURL.standardizedFileURL
+                        guard self.bookmarkSelfResolutionVerified else {
+                            throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
+                                userInfo: [NSLocalizedDescriptionKey:
+                                    "Model bookmark does not resolve locally to the expected file."])
+                        }
+                        if !implicit {
+                            let scoped = checkedURL.startAccessingSecurityScopedResource()
+                            self.bookmarkScopeVerified = scoped
+                            if scoped { checkedURL.stopAccessingSecurityScopedResource() }
+                            guard scoped else {
+                                throw NSError(domain: "SUZY.TOAST.MRT2", code: 11,
+                                    userInfo: [NSLocalizedDescriptionKey:
+                                        "App-scoped model bookmark access failed in Swift host."])
+                            }
+                        } else {
+                            self.bookmarkScopeVerified = false
+                        }
+                        state["MGRT_ModelBookmark"] = bookmark
+                        state["MGRT_ModelName"] = "mrt2_small"
+                        self.modelRequested = true
+                    }
                     unit.auAudioUnit.fullState = state
-                    self.modelRequested = true
                     try audio.start()
                     self.outputRate = audio.outputNode.outputFormat(forBus: 0).sampleRate
                     self.engine = audio
@@ -369,8 +385,49 @@ final class MRT2Host {
             }
         }
     }
+    private func showGoogleAUInterface() {
+        guard active, let unit = generator else {
+            errorMessage = "Start the native Magenta Audio Unit before opening its model selector."
+            return
+        }
+        if let window = auUIWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            return
+        }
+        if auUIRequestPending { return }
+        auUIRequestPending = true
+        // Request the official UI for the SAME running AU, never a second AU.
+        unit.auAudioUnit.requestViewController { [weak self] controller in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.auUIRequestPending = false
+                guard let controller = controller else {
+                    self.errorMessage = "Google MRT2 AU did not provide a native model-selection view."
+                    return
+                }
+                let preferred = controller.preferredContentSize
+                let width = preferred.width > 0 ? max(520, min(1060, preferred.width)) : 900
+                let height = preferred.height > 0 ? max(400, min(800, preferred.height)) : 640
+                let window = NSWindow(
+                    contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+                    styleMask: [.titled, .closable, .resizable],
+                    backing: .buffered, defer: false)
+                window.title = "Google MRT2 · Select Local Model"
+                window.isReleasedWhenClosed = false
+                window.contentViewController = controller
+                window.center()
+                self.auUIWindow = window
+                window.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
+    }
     func stop() {
         allNotesOff()
+        auUIWindow?.close()
+        auUIWindow = nil
+        auUIRequestPending = false
         parameter(6, 1)
         engine?.stop()
         engine = nil
@@ -390,6 +447,7 @@ final class MRT2Host {
         case "status": break
         case "start": start()
         case "stop": stop()
+        case "show-au-ui": showGoogleAUInterface()
         case "configure-prompts":
             // Google's AU reads the text strings while loading the model.
             // Changing fullState AFTER it is loaded doesn't update embeddings;
@@ -486,4 +544,8 @@ DispatchQueue.global(qos: .userInitiated).async {
     }
     DispatchQueue.main.async { host.stop();exit(0) }
 }
-RunLoop.main.run()
+// AppKit's event loop is needed for interactive controls in the official
+// remote AUv3 view controller. The stdin IPC reader still runs separately.
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+app.run()
