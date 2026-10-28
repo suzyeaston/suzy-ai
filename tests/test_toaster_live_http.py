@@ -85,7 +85,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('id="rhythm"', html)
         self.assertIn('id="deck-pyramid"', html)
         self.assertIn('id="deck-fishes"', html)
-        self.assertIn("LOOP MY CHORDS", html)
+        self.assertIn("RECORD FIRST LOOP", html)
         self.assertIn("LOOP VOICE", html)
         self.assertIn("auto Scarlett", html)
         self.assertIn("MRT2 prompt:", html)
