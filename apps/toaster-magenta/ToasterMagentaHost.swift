@@ -285,9 +285,9 @@ final class MRT2Host {
                     // UI pause alone cannot stop MRT2 while host transport moves.
                     // This is the native clock, distinct from browser loop clock.
                     let transportOrigin = ProcessInfo.processInfo.systemUptime
-                    let hostTransport = self.transportPlaying
-                    unit.auAudioUnit.transportStateBlock = { flags, samplePosition, cycleStart, cycleEnd in
-                        flags?.pointee = hostTransport.load(ordering: .relaxed) ? .moving : []
+                    unit.auAudioUnit.transportStateBlock = { [weak self] flags, samplePosition, cycleStart, cycleEnd in
+                        guard let self = self else { return false }
+                        flags?.pointee = self.transportPlaying.load(ordering: .relaxed) ? .moving : []
                         let seconds = max(0, ProcessInfo.processInfo.systemUptime - transportOrigin)
                         samplePosition?.pointee = seconds * 48000.0
                         cycleStart?.pointee = 0
