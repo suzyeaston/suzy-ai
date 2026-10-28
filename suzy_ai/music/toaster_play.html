@@ -924,6 +924,8 @@ function aiDisplay(s){
     " · bookmark: "+(s.bookmark_scope_verified?"scoped":"not confirmed")+
     (s.chord_min_hold_ms?" · native click-hold "+s.chord_min_hold_ms+" ms":"")+
     (s.chord_release_pending?" · chord release pending":"")+
+    (s.prompt_slot_count?" · "+s.prompt_slot_count+" MAGENTA PROMPTS":"")+
+    (Array.isArray(s.prompt_weights)?" · weights "+s.prompt_weights.map(x=>Number(x).toFixed(2)).join("/"):"")+
     " · native output "+(s.native_output_sample_rate||"?")+" Hz · "+
     (s.output_signal_detected?"SIGNAL DETECTED":"SILENT / STILL LOADING")+
     " · "+(s.output||"macOS default output"):
