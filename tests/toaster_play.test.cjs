@@ -963,7 +963,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  run('record("pyramid")');
  const start=run("recording.beginAt");
  assert.equal(start,1,"first capture begins next eighth note");
- assert.equal(run("recording.endAt-start"),256,"safety maximum only; no preset length");
+ assert.equal(run("recording.endAt")-start,256,"safety maximum only; no preset length");
  run(`ctx.currentTime=transportEpoch+(${start}+1)*tickSeconds();scheduler()`);
  assert.equal(run("recording.active"),true);
  run('beginChord("pyramid",0,"key:manual")');
