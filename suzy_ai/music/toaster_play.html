@@ -1117,7 +1117,7 @@ function endChord(key){
  const releaseAt=Math.max(now,h.start+Math.max(.105,attack+.055));
  for(const voice of h.voices)releaseVoice(voice,releaseAt);
  if(h.event){
-  h.event.holdSteps=Math.max(.25,Math.min(256,Math.max(.105,now-h.start)/tickSeconds()));
+  h.event.holdSteps=Math.max(.25,Math.min(256,Math.max(.105,now-(h.captureStart??h.start))/tickSeconds()));
  }
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===h.which&&Number(el.dataset.chord)===h.index){
@@ -1148,7 +1148,7 @@ function endNote(key){
  const now=ctx?.currentTime??0;
  const attack=INSTRUMENTS[h.instrument]?.attack??.028;
  if(h.voice)releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
- if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-h.start)/tickSeconds()));
+ if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-(h.captureStart??h.start))/tickSeconds()));
  aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
   if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
@@ -1260,6 +1260,18 @@ function schedule(time,count){
  if(recording?.kind==="chords"){
   if(!recording.active&&count>=recording.beginAt){
    recording.active=true;recording.start=time;
+   // Record pads held across the next-pulse count-in rather than dropping
+   // the performer's first downstroke.
+   for(const h of heldKeys.values())if(h.which===recording.scene&&!h.event){
+    h.captureStart=time;
+    h.event={step:0,index:h.index,holdSteps:1,instrument:h.instrument};
+    recording.events.push(h.event);
+   }
+   for(const h of heldNotes.values())if(h.scene===recording.scene&&!h.event){
+    h.captureStart=time;
+    h.event={step:0,midi:h.midi,holdSteps:1,type:"note",instrument:h.instrument};
+    recording.events.push(h.event);
+   }
    tell("● RECORDING "+recording.scene.toUpperCase()+" · press DONE when your phrase ends");
    $("recordHint-"+recording.scene).textContent="● RECORDING · your DONE press sets the length";
    $("record-"+recording.scene).textContent=recording.first?"■ DONE → LOOP":"■ DONE OVERDUB";
@@ -1500,13 +1512,13 @@ function endRecord(){
  r.events=r.events.filter(e=>e.step<length);
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
-   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-h.start)/tickSeconds()));
+   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
    h.event=null;
   }
  }
  for(const h of heldNotes.values()){
   if(h.event&&h.scene===r.scene){
-   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-h.start)/tickSeconds()));
+   h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
    h.event=null;
   }
  }
