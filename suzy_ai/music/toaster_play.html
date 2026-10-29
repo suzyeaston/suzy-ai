@@ -240,6 +240,18 @@ a{color:var(--mint)}
 .native-lead-actions{display:flex;gap:9px;flex-wrap:wrap}.native-lead-actions button{padding:9px 12px;font-size:11px}
 .native-lead-strip label{font:700 11px ui-monospace,monospace;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
 .native-lead-strip input{width:100%;accent-color:#a6e7ca}.native-lead-strip small{color:#bad3c8;font-size:11px}
+.jazz-drum-deck{margin:16px 0;padding:18px;background:#292332;border:1px solid #b594bd;border-radius:15px}
+.jazz-drum-controls{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.jazz-drum-controls>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.jazz-drum-controls label{font:700 11px ui-monospace,monospace}
+.jazz-drum-controls input{width:100%;accent-color:#d7bdf2}
+.jazz-drum-controls textarea{min-height:82px;background:#16131f;color:#fdf3ec;border:1px solid #a78eb8;border-radius:8px;padding:10px;font:12px/1.5 ui-monospace,monospace}
+.jazz-drum-controls small{color:#d0c2d7;font-size:11px}
+@media(max-width:680px){.jazz-drum-controls{grid-template-columns:1fr}}
+.instrument-source{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:7px 0;padding:8px 10px;border:1px solid #80b6a2;border-radius:8px;background:#1e2f2b}
+.instrument-source strong{font-size:11px}
+.instrument-source button{padding:7px 11px;font-size:11px}
+.instrument-source .subtle{font-size:11px}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -256,7 +268,7 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
 <small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
-<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">Drum MIDI and local audition. AI ONLY mutes local drums while preserving the shared clock.</small></div>
+<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><button id="rhythmAudio" type="button" aria-pressed="true">🥁 HEAR LOCAL RHYTHM · ON</button><small class="subtle">Rhythm monitoring is separate from AI instrument sound. Use this with native Pyramid and Fishes. Global AI SOLO still mutes all browser sound.</small></div>
 <div class="strip drum-options">
  <label for="drumMeter">DRUM METER</label>
  <select id="drumMeter" aria-label="Local drum meter grouping">
@@ -296,15 +308,12 @@ a{color:var(--mint)}
  <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, Fishes classical guitar, and brushed jazz drums. Live blending uses the same native engine.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
- <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiDrums" aria-pressed="false" type="button" title="Allow Google MRT2 to create percussion as AI audio. Does not output individual drum MIDI notes.">🥁 ALLOW AI DRUM AUDIO</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
+ <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button" title="Diagnostic PURE AI SOLO: mute the entire browser mix, including rhythm and vocal monitoring. Normal native instrument mode does not need this.">🎧 SOLO NATIVE AI · MUTE RHYTHM</button>
 <button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
- <div class="ai-faders"><div><label for="aiDrumMix">🥁 JAZZ DRUM AI BLEND · <span id="aiDrumMixValue">0%</span></label>
- <input type="range" id="aiDrumMix" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
- <small class="subtle">0% preserves all four existing prompts; turn up to crossfade live toward brushed jazz drums. AI ONLY keeps this native output audible. Not a captured beat-exact audio loop.</small></div>
- <div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
+ <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
@@ -319,13 +328,28 @@ a{color:var(--mint)}
 <textarea id="promptViolin" maxlength="500">Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals</textarea></div>
 <div><label for="promptGuitar">04 · WEIRD FISHES · MAGENTA CLASSICAL GUITAR LEAD</label>
 <textarea id="promptGuitar" maxlength="500">Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals</textarea></div>
-<div><label for="promptJazzDrums">05 · JAZZ DRUMS · BRUSHED JAZZ GROOVE</label>
-<textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea></div>
 </div>
 <div class="start"><span class="subtle">Restart only the native AI to apply edited text. You may need to select mrt2_small in Google's UI again. Existing browser loops stay intact.</span>
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
+</section>
+<section id="jazzDrumDeck" class="jazz-drum-deck" aria-label="Track 03 jazz drums native AI instrument">
+ <div class="start">
+  <div><div class="tiny">TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05</div>
+  <h2>🥁 JAZZ DRUMS</h2>
+  <p class="subtle">Your fifth AI instrument. A living brushed-jazz percussion texture blended into the same Magenta stream. It is not a separate captured loop or stem.</p></div>
+  <button id="aiDrums" aria-pressed="false" type="button" title="Allow the Google MRT2 model to generate percussion audio; independent of the browser rhythm.">🥁 ALLOW AI DRUM AUDIO</button>
+ </div>
+ <div class="jazz-drum-controls">
+  <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
+   <input id="aiDrumMix" type="range" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
+   <small>0% keeps the original four AI instruments unchanged. Increase to blend in drums, or move to 100% to audition just the jazz drum prompt.</small></div>
+  <div><label for="promptJazzDrums">DRUM SOUND PROMPT · EDITABLE</label>
+   <textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea>
+   <button type="button" id="applyJazzDrumsPrompt">↻ APPLY DRUM SOUND · RESTART AI</button>
+   <small>Editing text needs a native AU restart; the blend slider and percussion toggle work live. The separate rhythm MIDI grid above remains independently playable.</small></div>
+ </div>
 </section>
 <section id="classicDecks" class="chord-center" aria-label="Playable chord pads and instruments"><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
@@ -336,6 +360,11 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
+<div class="instrument-source" aria-label="pyramid instrument audio source">
+ <strong>INSTRUMENT AUDIO</strong>
+ <button id="instrumentSource-pyramid" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
+ <small id="instrumentSourceStatus-pyramid" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
+ </div>
 <div class="native-lead-strip" aria-label="pyramid Magenta sound prompt blend">
  <div class="native-lead-title">✦ MAGENTA AI · VIOLIN · PROMPT 03</div>
  <div class="native-lead-actions"><button id="aiChords-pyramid" type="button">🎹 CHORD PROMPT</button><button id="aiLead-pyramid" type="button">✦ VIOLIN PROMPT</button></div>
@@ -383,6 +412,11 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
+<div class="instrument-source" aria-label="fishes instrument audio source">
+ <strong>INSTRUMENT AUDIO</strong>
+ <button id="instrumentSource-fishes" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
+ <small id="instrumentSourceStatus-fishes" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
+ </div>
 <div class="native-lead-strip" aria-label="fishes Magenta sound prompt blend">
  <div class="native-lead-title">✦ MAGENTA AI · CLASSICAL GUITAR · PROMPT 04</div>
  <div class="native-lead-actions"><button id="aiChords-fishes" type="button">🎹 CHORD PROMPT</button><button id="aiLead-fishes" type="button">✦ CLASSICAL GUITAR PROMPT</button></div>
@@ -575,7 +609,7 @@ let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=
 let vocalCaptureReady=false;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
-let localKeysOnly=false,preKeysSoloMuted=null;
+let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 let activeMicDeviceId=null,micMeterSource=null,micMeterAnalyser=null,micMeterTimer=null;
@@ -593,7 +627,7 @@ let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=fals
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
