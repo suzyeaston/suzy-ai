@@ -2837,12 +2837,17 @@ test("Fishes B N M comma use audible Fishes prompt even when archived DJ mix sta
   await run("aiCommandQueue");
   assert.equal(get("mix").value,"0","live audition must not move the saved-loop crossfader");
   assert.equal(run("chordAuditionScene"),"fishes");
-  assert.ok(calls.some(c=>c.op==="mix"&&c.args.value===1),
-   "Fishes prompt must not remain at zero native weight");
+  if(index===0){
+   assert.ok(calls.some(c=>c.op==="mix"&&c.args.value===1),
+    "first Fishes press must switch from zero to full native prompt");
+   assert.ok(calls.findIndex(c=>c.op==="mix")<calls.findIndex(c=>c.op==="chord"),
+    "prompt becomes audible before the first note");
+  }else{
+   assert.equal(calls.filter(c=>c.op==="mix").length,0,
+    "subsequent chords must not block on needless native network calls");
+  }
   assert.ok(calls.some(c=>c.op==="chord"&&c.args.index===index),
    key+" sends correct chord to Google AU");
-  assert.ok(calls.findIndex(c=>c.op==="mix")<calls.findIndex(c=>c.op==="chord"),
-   "prompt becomes audible before the note is sent");
   emit("keyup",key,"BUTTON");
   await run("aiCommandQueue");
  }
