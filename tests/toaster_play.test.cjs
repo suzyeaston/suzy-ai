@@ -1838,3 +1838,39 @@ test("Scarlett voice overdub stays on master period even when DONE is pressed ea
  assert.equal(run("decks.pyramid.layers[0].bars"),3,"24 eighth steps remain the master period");
  assert.equal(get("voiceClips-pyramid").children.length,1);
 });
+
+test("selecting Fishes classical guitar actually exposes its native audio and unmutes the correct browser lane",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const seen=[];env.fetch=async(url,opts)=>{
+  if(String(url).startsWith("/api/ai/"))seen.push([String(url).split("/").pop(),JSON.parse(opts.body)]);
+  return {ok:true,json:async()=>({})};
+ };
+ await run('selectNativeLane("fishes","lead")');
+ assert.equal(get("mix").value,"100","performer can hear selected song; global crossfade follows");
+ assert.ok(run("decks.fishes.printBus.gain.value")>0);
+ assert.ok(seen.some(([op,p])=>op==="lead-mix"&&p.scene==="fishes"&&p.value===1));
+ assert.ok(seen.some(([op,p])=>op==="drums"&&p.value===false));
+ assert.ok(seen.some(([op,p])=>op==="drum-mix"&&p.value===0));
+ assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===1));
+});
+test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async(url,opts)=>{
+  if(String(url)==="/api/ai/capture/native-first")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  const op=String(url).split("/").pop();
+  let result={};
+  if(op==="status")result={native_loop_capture_supported:true};
+  if(op==="capture-start")result={capture_id:"native-first"};
+  if(op==="capture-stop")result={ready:true,frames:96000,peak:.4,audio_url:"/api/ai/capture/native-first"};
+  return {ok:true,json:async()=>result};
+ };
+ assert.equal(run("decks.pyramid.locked"),false);
+ await run('startNativeInstrumentTake("pyramid","lead")');
+ assert.equal(run("nativeTake.first"),true);
+ run("ctx.currentTime+=4");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.ok(run("decks.pyramid.lengthSteps")>=12);
+ assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
+ assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
+});
