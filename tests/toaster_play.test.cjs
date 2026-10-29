@@ -1801,7 +1801,8 @@ test("real Magenta violin audio is captured through host, repeated twice, then i
  }
  assert.ok(operations.some(x=>x.op==="lead-mix"&&x.payload.value===1),"real violin prompt selected, not browser synth");
  assert.ok(operations.filter(x=>x.op==="capture-start").length===2);
- assert.ok(operations.every(x=>x.op!=="drum-mix"),"never print the browser rhythm");
+ assert.ok(operations.filter(x=>x.op==="drum-mix").every(x=>x.payload.value===0),"disable native AI drum prompt to keep the instrument take clean");
+ assert.equal(calls.screenCaptures,0,"browser rhythm remains a separate backing clock");
  assert.equal(calls.screenCaptures,0,"native AU tap needs no Chrome sharing dialog");
  assert.equal(get("nativeClips-pyramid-lead").children.length,2);
  const remove=get("nativeClips-pyramid-lead").children[0].children.find(x=>x.textContent==="×");
