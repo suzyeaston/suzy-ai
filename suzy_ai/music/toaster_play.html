@@ -286,6 +286,12 @@ a{color:var(--mint)}
 #jazzDrumDeck .jazz-drum-controls{margin-top:10px}
 #nativeDrumClips{display:grid;gap:6px;margin-top:9px}
 #nativeDrumClips .clip{display:flex;flex-wrap:wrap;gap:7px}
+.drum-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.drum-pad{min-height:88px;background:linear-gradient(145deg,#365459,#293b48);border:2px solid #8eb7ae;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.drum-pad kbd{font:800 13px ui-monospace,monospace}.drum-pad b{font-size:clamp(15px,2vw,20px)}
+.drum-pad.on{background:linear-gradient(145deg,#b7eddc,#92b5e5);color:#24333a}
+@media(max-width:460px){.drum-pads{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 
 #classicDecks .deck > .clips{display:none}
 #classicDecks .deck-transport button.rec,#classicDecks .deck-transport .timeline,
@@ -443,19 +449,25 @@ a{color:var(--mint)}
  <div class="start">
   <div><div class="tiny">TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05</div>
   <h2>🥁 JAZZ DRUMS</h2>
-  <p class="subtle">Your fifth AI instrument. Select its actual Google AU sound and record each take as a separate looping PCM layer. Browser rhythm stays independent.</p></div>
+  <p class="subtle">PLAY 1–4 on your keyboard or tap the pads to condition live Magenta jazz drums, then press RECORD TAKE → DONE → LOOP. Your AI drums repeat alongside Pyramid; browser rhythm remains a separate backing clock.</p></div>
   <button id="aiDrums" aria-pressed="false" type="button" title="Allow the Google MRT2 model to generate percussion audio; independent of the browser rhythm.">🥁 ALLOW AI DRUM AUDIO</button>
  </div>
  <div class="instrument-lane" id="nativeDrumLane" aria-label="Real Magenta AI drum sound on sound loop controls">
   <div class="tiny">✦ NATIVE AI DRUMS · SAVED AUDIO TRACK · NOT BROWSER RHYTHM</div>
+  <div class="drum-pads" id="nativeDrumPads" role="group" aria-label="Play Magenta jazz drum triggers with keys 1 through 4">
+   <button type="button" class="drum-pad" data-drum="0" aria-label="Key 1, kick" aria-pressed="false"><kbd>1</kbd><b>🥁 KICK</b></button>
+   <button type="button" class="drum-pad" data-drum="1" aria-label="Key 2, snare" aria-pressed="false"><kbd>2</kbd><b>SNARE</b></button>
+   <button type="button" class="drum-pad" data-drum="2" aria-label="Key 3, closed hat" aria-pressed="false"><kbd>3</kbd><b>CLOSED HAT</b></button>
+   <button type="button" class="drum-pad" data-drum="3" aria-label="Key 4, ride" aria-pressed="false"><kbd>4</kbd><b>RIDE</b></button>
+  </div>
+  <small class="subtle">Pads send kick/snare/hat/ride MIDI conditioning to Magenta's preset jazz drum prompt. The model generates audio rather than guaranteed one-shot drum samples. Hold for duration, release to stop conditioning.</small>
   <div class="lane-buttons">
-   <button type="button" id="nativePlay-drums-drums">✦ SELECT AI DRUM SOUND</button>
    <button type="button" id="nativeRecord-drums-drums">● RECORD AI DRUM TAKE</button>
    <button type="button" id="nativeResume-drums-drums" disabled>▶ PLAY SAVED</button>
   </div>
-  <div class="lane-status" id="nativeStatus-drums-drums" role="status">READY · Real Magenta percussion records to its own global PCM lane.</div>
+  <div class="lane-status" id="nativeStatus-drums-drums" role="status">PRESET · Play 1–4 to activate AI drums, then RECORD → DONE → LOOP</div>
   <div class="lane-clips" id="nativeDrumClips"><span class="subtle">NO SAVED AI DRUM AUDIO YET</span></div>
-  <small class="subtle">Saved AI drums stay audible through the Pyramid → Fishes crossfade. Each take can be muted, filtered, faded or removed. The programmable browser rhythm is never recorded here.</small>
+  <small class="subtle">The native recording saves what Magenta actually plays, not the programmable browser drum beat. DONE automatically repeats your new take, and STOP SAVED stops it. Each take has mute, filter, fade and remove.</small>
  </div>
  <div class="jazz-drum-controls">
   <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
@@ -513,36 +525,36 @@ a{color:var(--mint)}
 <div class="instrument-lanes" aria-label="pyramid native instruments and loop layers">
  <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
-  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-chords">✦ SELECT PIANO SOUND</button>
+  <div class="lane-buttons">
   <button type="button" id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE</button>
   <button type="button" id="nativeResume-pyramid-chords" disabled>▶ PLAY SAVED</button></div>
-  <div class="lane-status" id="nativeStatus-pyramid-chords">READY · Play notes, then record the generated sound</div>
+  <div class="lane-status" id="nativeStatus-pyramid-chords">PRESET · Recording automatically activates the piano prompt</div>
   <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 03</div><h3>🎻 VIOLIN</h3>
-  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-lead">✦ SELECT VIOLIN SOUND</button>
+  <div class="lane-buttons">
   <button type="button" id="nativeRecord-pyramid-lead">● RECORD VIOLIN TAKE</button>
   <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
-  <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="lane-status" id="nativeStatus-pyramid-lead">PRESET · Recording automatically activates the violin prompt</div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureLow" aria-label="low cello drone audio layers">
   <div class="tiny">✦ PYRAMID EXPANSION · MAGENTA PROMPT 02</div><h3>🎻 LOW CELLO / HARMONIUM</h3>
   <small class="subtle">Low sustained notes and breathy drones, grounded in your existing F♯ / Gmaj7 / A6 harmony.</small>
-  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-textureLow">✦ SELECT CELLO DRONE</button>
+  <div class="lane-buttons">
    <button type="button" id="nativeRecord-pyramid-textureLow">● RECORD CELLO TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureLow" disabled>▶ PLAY SAVED</button></div>
-  <div class="lane-status" id="nativeStatus-pyramid-textureLow">READY · recorded audio joins Pyramid, not another song</div>
+  <div class="lane-status" id="nativeStatus-pyramid-textureLow">PRESET · Record to add a cello texture to Pyramid</div>
   <div class="lane-clips" id="nativeClips-pyramid-textureLow"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureHigh" aria-label="glassy mallet and harp audio layers">
   <div class="tiny">✦ PYRAMID EXPANSION · MAGENTA PROMPT 04</div><h3>✨ GLASS BELLS / HARP</h3>
   <small class="subtle">Delicate upper harmonics and sparse plucks. Light passing notes, not a second chord progression.</small>
-  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-textureHigh">✦ SELECT GLASS HARMONICS</button>
+  <div class="lane-buttons">
    <button type="button" id="nativeRecord-pyramid-textureHigh">● RECORD GLASS TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureHigh" disabled>▶ PLAY SAVED</button></div>
-  <div class="lane-status" id="nativeStatus-pyramid-textureHigh">READY · repeats on Pyramid's existing loop length</div>
+  <div class="lane-status" id="nativeStatus-pyramid-textureHigh">PRESET · Record to add glass harmonics to Pyramid</div>
   <div class="lane-clips" id="nativeClips-pyramid-textureHigh"></div>
  </section>
  </div>
@@ -615,7 +627,7 @@ a{color:var(--mint)}
 <div class="instrument-lanes" aria-label="fishes native instruments and loop layers">
  <section class="instrument-lane" id="instrument-fishes-chords" aria-label="fishes guitar arpeggios recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 02</div><h3>🎹 GUITAR ARPEGGIOS</h3>
-  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-chords">✦ SELECT ARPEGGIO SOUND</button>
+  <div class="lane-buttons">
   <button type="button" id="nativeRecord-fishes-chords">● RECORD ARPEGGIOS TAKE</button>
   <button type="button" id="nativeResume-fishes-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
@@ -623,7 +635,7 @@ a{color:var(--mint)}
  </section>
  <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 04</div><h3>🎻 CLASSICAL GUITAR</h3>
-  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-lead">✦ SELECT CLASSICAL GUITAR SOUND</button>
+  <div class="lane-buttons">
   <button type="button" id="nativeRecord-fishes-lead">● RECORD CLASSICAL GUITAR TAKE</button>
   <button type="button" id="nativeResume-fishes-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
