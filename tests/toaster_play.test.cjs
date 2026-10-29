@@ -2886,15 +2886,78 @@ test("muted native AU and unavailable model visibly explain silent Fishes chord 
  assert.match(get("warning").textContent,/MAGENTA IS MUTED/);
  emit("keyup","n","BUTTON");
 });
-test("Fishes keys return from the dedicated drum-only Magenta prompt",async()=>{
+test("Fishes keyboard stays in the selected jazz-drum lane rather than muting the fifth prompt",async()=>{
  const {run,emit,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
  const calls=[];
  env.fetch=async(url,opts)=>{if(opts?.body)calls.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});return {ok:true,json:async()=>({})};};
- run('activeNativeLane="drums:drums"');
- get("aiDrumMix").value="100";
+ await get("selectDrumChords").onclick();
+ assert.equal(get("aiDrumMix").value,"100");
  emit("keydown","b","BUTTON");
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
  await run("aiCommandQueue");
- assert.equal(get("aiDrumMix").value,"0","live piano/Fishes chord must not be masked by 100% drum prompt");
- assert.ok(calls.some(c=>c.op==="drum-mix"&&c.args.value===0));
- assert.ok(calls.some(c=>c.op==="chord"&&c.args.index===0));
+ assert.equal(run("activeNativeLane"),"drums:drums");
+ assert.equal(get("aiDrumMix").value,"100","playing Fishes harmony keeps drums fully selected");
+ assert.ok(calls.some(c=>c.op==="chord"&&c.args.index===0&&c.args.harmony==="fishes"));
+ emit("keyup","b","BUTTON");await run("aiCommandQueue");
+ emit("keydown","Escape","BUTTON");await run("aiCommandQueue");
+ assert.equal(run("activeNativeLane"),null);
+ assert.equal(get("aiDrumMix").value,"0","Escape restores normal chord sound selection");
+});
+
+test("jazz drums have both song chord banks and a visible live + saved fader",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ const bank=get("nativeChords-drums-drums");
+ assert.match(file,/id="selectDrumChords"/);
+ assert.match(file,/id="aiDrumLevel"/);
+ assert.match(file,/id="nativeDrumSavedLevel"/);
+ assert.equal(bank.children.length,3);
+ assert.deepEqual(bank.children[1].children.slice(1).map(x=>x.textContent),["Z · F♯","X · Gmaj7","C · A6"]);
+ assert.deepEqual(bank.children[2].children.slice(1).map(x=>x.textContent),["B · Em7","N · F♯m7","M · A",", · Gmaj7"]);
+});
+test("native jazz drum chord pads play Pyramid and Fishes harmony over the fifth prompt",async()=>{
+ const {run,get,env,emit}=rig();await run("startStop()");run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=24');
+ const calls=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)calls.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ const bank=get("nativeChords-drums-drums");
+ for(const [row,index,harmony] of [[1,0,"pyramid"],[2,3,"fishes"]]){
+  const pad=bank.children[row].children[index+1];
+  pad.onpointerdown({button:0,preventDefault(){}});
+  for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+  await run("aiCommandQueue");
+  assert.ok(calls.some(c=>c.op==="chord"&&c.args.harmony===harmony&&c.args.index===index));
+  assert.equal(run("activeNativeLane"),"drums:drums");
+  assert.equal(get("aiDrumMix").value,"100");
+  assert.equal(run("decks.pyramid.lengthSteps"),24,"AI drum chord conditioning must not alter the piano master");
+  pad.onpointerup();await run("aiCommandQueue");
+ }
+ assert.ok(calls.some(c=>c.op==="drums"&&c.args.value===true));
+ assert.ok(calls.some(c=>c.op==="drum-mix"&&c.args.value===1));
+ assert.ok(calls.some(c=>c.op==="release"),"chord pads release MIDI after finger lifts");
+});
+test("drum live prompt fader and saved PCM fader remain independent",async()=>{
+ const {run,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)calls.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ get("aiDrumLevel").value="42";get("aiDrumLevel").oninput();
+ await run("aiCommandQueue");
+ assert.equal(get("aiDrumLevelValue").textContent,"42%");
+ assert.ok(calls.some(c=>c.op==="drum-level"&&c.args.value===.42));
+ const drumLayer='drumDeck.layers.push({id:"jazz-loop",kind:"printed",instrumentRole:"drums",buffer:ctx.createBuffer(1,48000,48000),level:.75,muted:false})';
+ run(drumLayer);
+ run('startLoopAudio("drums",drumDeck.layers[0])');
+ get("nativeDrumSavedLevel").value="30";get("nativeDrumSavedLevel").oninput();
+ assert.equal(get("roleLevel-drums-drums").value,"30");
+ assert.equal(get("nativeDrumSavedValue").textContent,"30%");
+ assert.equal(get("roleValue-drums-drums").textContent,"30%");
+ assert.ok(Math.abs(run('effectiveLoopLevel("drums",drumDeck.layers[0])')-.225)<.001);
+ assert.equal(get("aiDrumLevel").value,"42","saved track fade cannot change live drum prompt volume");
+ get("roleLevel-drums-drums").value="70";get("roleLevel-drums-drums").oninput();
+ assert.equal(get("nativeDrumSavedLevel").value,"70","global drum fader updates local fader");
 });
