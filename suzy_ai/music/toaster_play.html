@@ -635,7 +635,7 @@ const INSTRUMENTS={
  nylon:{name:"Nylon classical guitar (synth)",wave:"triangle",overtone:"sine",mix:.24,attack:.009,release:.18,sustain:.17,octave:0,filter:3300}
 };
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
-let blendBoth=false;
+let blendBoth=false,aiMixQueued=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false;
@@ -660,7 +660,7 @@ let aiCommandQueue=Promise.resolve();
 // A native chord has one owner. Old note-off timers must never cut a newer chord.
 let aiChordToken=0,aiChordOwner=null;
 let aiPoll=null,aiLastError="";
-const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
+const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,enabled:true,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
@@ -1087,10 +1087,10 @@ function releaseVoice(voice,time){
  }catch{}
 }
 function localInstrumentAudible(which){
- return !aiSolo&&(localKeysOnly||decks[which].instrumentSource==="local");
+ return decks[which].enabled&&!aiSolo&&(localKeysOnly||decks[which].instrumentSource==="local");
 }
 function nativeInstrumentEnabled(which){
- return aiNativeReady&&!localKeysOnly&&(aiSolo||decks[which].instrumentSource==="ai");
+ return decks[which].enabled&&aiNativeReady&&!localKeysOnly&&(aiSolo||decks[which].instrumentSource==="ai");
 }
 function updateInstrumentSource(which){
  const d=decks[which],button=$("instrumentSource-"+which),status=$("instrumentSourceStatus-"+which);
@@ -1401,10 +1401,35 @@ function setNativeLeadMix(which,percent){
   await aiFetch("lead-mix",{scene:which,value:value/100});
  }).catch(e=>warn(e));
 }
+function effectiveSongMix(){
+ if(!decks.pyramid.enabled)return 1;
+ if(!decks.fishes.enabled)return 0;
+ return clamp($("mix").value,0,100)/100;
+}
+function queueNativeSongMix(){
+ if(!aiNativeReady||aiMixQueued)return;
+ aiMixQueued=true;
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  aiMixQueued=false;
+  if(aiNativeReady)await aiFetch("mix",{value:effectiveSongMix()});
+ }).catch(e=>warn(e));
+}
+function setSongEnabled(which){
+ const d=decks[which];
+ if(d.enabled&&Object.values(decks).filter(x=>x.enabled).length===1)
+  return warn(Error("Keep at least one song enabled. Use MUTE AI to silence the entire native AI stream."));
+ d.enabled=!d.enabled;
+ const b=$("songEnabled-"+which);
+ b.setAttribute("aria-pressed",String(d.enabled));
+ b.textContent=(d.enabled?"🔊 ":"🔇 ")+which.toUpperCase()+(d.enabled?" ON":" OFF");
+ updateMix();updateOverdubBalance();queueNativeSongMix();
+ if(!d.enabled&&aiChordOwner?.which===which)aiRelease(aiChordOwner.token);
+ tell(which.toUpperCase()+(d.enabled?" ENABLED":" MUTED")+" · separate browser layers gated; Google prompts crossfade away from the muted scene.");
+}
 async function syncAIMix(){
  if(!aiNativeReady)return;
  try{
-  await aiFetch("mix",{value:Number($("mix").value)/100});
+  await aiFetch("mix",{value:effectiveSongMix()});
   for(const which of ["pyramid","fishes"])
    await aiFetch("lead-mix",{scene:which,value:Number($("aiLeadMix-"+which).value)/100});
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
@@ -1503,7 +1528,8 @@ function aiRelease(expectedToken=null){
  }).catch(e=>{$("aiHostStatus").textContent="AI NOTE-OFF ERROR · "+e.message});
 }
 function choose(which){
- if(scene!==which&&!blendBoth){$("mix").value=which==="pyramid"?0:100;}
+ // Selecting a MIDI scene only changes what the pads PLAY. It must not move
+ // the user's manual song crossfader or reset Google's native prompt weights.
  scene=which;updateMix();
  if(aiNativeReady&&aiScene!==which){
   aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
@@ -2347,7 +2373,7 @@ function updateMix(){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
-  decks[k].voiceBus.gain.value=localKeysOnly||aiSolo?0:Number($("voice-"+k).value)/100*side;
+  decks[k].voiceBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:Number($("voice-"+k).value)/100*side;
  }
 }
 async function readAndExport(){
@@ -2542,6 +2568,7 @@ $("mixBoth").onclick=()=>{
  tell(blendBoth?"Both song loops play together. Each has its own sounds and key.":"Song crossfade follows the selected track.");
 };
 for(const which of Object.keys(decks)){
+ $("songEnabled-"+which).onclick=()=>setSongEnabled(which);
  $("instrumentSource-"+which).onclick=()=>setInstrumentSource(which,decks[which].instrumentSource==="ai"?"local":"ai");
  updateInstrumentSource(which);
  $("instrument-"+which).onchange=e=>setInstrument(which,e.target.value);
@@ -2620,8 +2647,12 @@ window.addEventListener("blur",releaseAllChords);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
 $("setRecordStart").onclick=startSetRecording;
 $("setRecordStop").onclick=stopSetRecording;
-$("mix").oninput=()=>{blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");$("mixBoth").textContent="♫ LAYER BOTH SONGS";updateMix();};
-$("mix").onchange=syncAIMix;
+$("mix").oninput=()=>{
+ blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");
+ $("mixBoth").textContent="♫ LAYER BOTH SONGS";
+ updateMix();queueNativeSongMix(); // Real-time Google AU crossfade while dragging.
+};
+$("mix").onchange=queueNativeSongMix;
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
