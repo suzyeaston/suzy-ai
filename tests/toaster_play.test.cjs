@@ -1006,7 +1006,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
+ assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1583,7 +1583,7 @@ test("removing the final recorded clip resets both record buttons without a page
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=9;decks.pyramid.anchorStep=3;decks.pyramid.layers.push({id:"only",kind:"chords",instrument:"keys",muted:false,events:[{step:0,index:0,instrument:"keys"}]})');
  run('decks.fishes.locked=true;decks.fishes.layers.push({id:"fishes",kind:"chords",events:[{step:0,index:1}]})');
  run('renderClips("pyramid")');
- assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
+ assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
  run('removeSongLayer("pyramid","only")');
  assert.equal(run("decks.pyramid.layers.length"),0);
  assert.equal(run("decks.pyramid.locked"),false);
@@ -1604,7 +1604,7 @@ test("removing one of two clips keeps the add-layer action until the last one is
  run('renderClips("pyramid")');
  run('removeSongLayer("pyramid","one")');
  assert.equal(run("decks.pyramid.locked"),true);
- assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
+ assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
  run('removeSongLayer("pyramid","two")');
  assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
 });
@@ -1625,7 +1625,7 @@ test("README teaches record reset and PCM audio overdubs",()=>{
  const text=fs.readFileSync(path.join(__dirname,"..","README.md"),"utf8");
  assert.match(text,/Remove every clip|remove each recorded clip/i);
  assert.match(text,/RECORD FIRST LOOP/);
- assert.match(text,/OVERDUB AUDIO/);
+ assert.match(text,/ADD AUDIO LAYER/);
  assert.match(text,/PRINT MIDI/);
  assert.match(text,/same Google Magenta stream/i);
 });
@@ -1707,4 +1707,44 @@ test("printed audio mute and volume remain independent of default native-only in
  assert.ok(run("decks.pyramid.printBus.gain.value")>0,"PCM audible while local oscillator is gated");
  assert.equal(run("decks.pyramid.bus.gain.value"),0,"local oscillator still off");
  assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.7);
+});
+
+test("same instrument can stack three PCM takes without Mac screen sharing",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ assert.equal(run("decks.pyramid.instrumentSource"),"ai");
+ assert.equal(get("printSource-pyramid").value,"keys","browser PCM defaults even when native AI selected");
+ for(let pass=0;pass<3;pass++){
+  await run('record("pyramid")');
+  assert.equal(run("audioPrint.mode"),"keys");
+  assert.equal(run("audioPrint.steps"),16,"master loop duration never resets");
+  assert.equal(calls.screenCaptures,0,"normal overdub must not request screen sharing");
+  assert.equal(run('audioPrint.sources.includes(decks.pyramid.printBus)'),false,"older PCM layers excluded from fresh capture");
+  run('beginChord("pyramid",0,"test:live")');
+  assert.ok(run('heldKeys.get("test:live").voices.length')>0,"local sound is audible during a take even when native mode is selected");
+  run('endChord("test:live")');
+  const frames=run("audioPrint.frames"),worklet=calls.worklet;
+  worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.2+pass*.1),frames,peak:.4,missing:0}});
+  assert.equal(run("audioPrint"),null);
+  assert.equal(run("decks.pyramid.layers.length"),pass+2);
+  assert.equal(run('decks.pyramid.layers[pass+1].kind'),"printed");
+  assert.equal(run('decks.pyramid.layers[pass+1].arrStartBar'),0,"saved layer audible even after rewind");
+  assert.ok(run('decks.pyramid.layers[pass+1].gain.gain.value')>0,"stacked audio plays immediately");
+  assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
+ }
+ const id=run("decks.pyramid.layers[2].id");
+ run('removeSongLayer("pyramid",'+JSON.stringify(id)+')');
+ assert.equal(run("decks.pyramid.layers.length"),3,"remove only chosen pass");
+ assert.equal(run('decks.pyramid.layers.filter(l=>l.kind==="printed").length'),2);
+ assert.equal(calls.screenCaptures,0);
+});
+test("the native Magenta recording permission prompt is only for deliberate source selection",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.fishes.locked=true;decks.fishes.lengthSteps=8;decks.fishes.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:1}]})');
+ get("printSource-fishes").value="mac";
+ await run('record("fishes")');
+ assert.equal(run("audioPrint.mode"),"mac");
+ assert.equal(calls.screenCaptures,1);
+ run("cleanupAudioPrint(audioPrint,true)");
 });
