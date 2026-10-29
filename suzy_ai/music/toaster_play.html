@@ -2039,7 +2039,7 @@ function updateRecordControls(which){
  if(recording?.kind==="chords"&&recording.scene===which)return;
  // Derive the visible recording action from real saved layers, never stale text.
  // Removing every clip must return to FIRST LOOP without reloading the page.
- const fresh=!d.layers.length;
+ const fresh=!d.locked||!d.layers.length;
  button.classList.remove("armed");
  button.textContent=fresh?"● RECORD FIRST LOOP":"＋ ADD INSTRUMENT LAYER";
  button.title=fresh
