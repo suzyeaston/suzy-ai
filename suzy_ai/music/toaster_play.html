@@ -2615,7 +2615,8 @@ async function finishNativeInstrumentTake(){
    d.lengthSteps=Math.max(1,Math.min(256,Math.round(buffer.duration/tickSeconds())));
    d.anchorStep=take.beginStep;d.loopEnabled=true;
    d.pedalPeriodSeconds=buffer.duration;
-   // When DONE commits the first take, the first sample is played immediately.
+   // A fast WAV handoff plays near sample zero; a slow handoff joins
+   // the same repeating phrase in progress instead of resetting its beat.
    // Future recordings use the same free-running loop origin and duration.
    // Use DONE's true musical boundary, not the delayed WAV decode callback.
    // Playback joins the ongoing phrase at its correct phase without bar waits.
