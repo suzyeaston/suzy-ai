@@ -1874,8 +1874,9 @@ function beginChord(which,index,key){
  // A pad must not double-trigger local synth, CoreMIDI/Logic and native AU.
  // Archived crossfade at 0 must never silence the *live* Fishes prompt.
  if(native){
+  const promptChanged=chordAuditionScene!==which;
   chordAuditionScene=which;
-  queueNativeSongMix(); // serialized before native chord MIDI
+  if(promptChanged)queueNativeSongMix(); // one switch; fast subsequent chords
   h.aiChordToken=aiNote(which,index);
  }
  for(const el of document.querySelectorAll(".pad")){
