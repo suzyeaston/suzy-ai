@@ -1842,7 +1842,8 @@ test("selecting Fishes classical guitar preserves manual crossfade while prepari
  assert.ok(seen.some(([op,p])=>op==="lead-mix"&&p.scene==="fishes"&&p.value===1));
  assert.ok(seen.some(([op,p])=>op==="drums"&&p.value===false));
  assert.ok(seen.some(([op,p])=>op==="drum-mix"&&p.value===0));
- assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===0),"preparing Fishes does not override Pyramid crossfade");
+ assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===1),
+  "Fishes guitar must ACTUALLY use the Fishes native prompt, independently of browser DJ slider");
 });
 test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
  const {run,env,get,calls}=rig();await run("startStop()");run("aiNativeReady=true");
