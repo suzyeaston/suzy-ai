@@ -2350,9 +2350,10 @@ function record(which){
   // the next *unscheduled* eighth-note tick to avoid dropped initial notes.
   const nowStep=Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds());
   const requested=Math.max(recording.beginAt+1,nowStep,stepNumber);
-  recording.endAt=recording.first?
-   Math.min(recording.beginAt+256,requested):
-   Math.min(recording.endAt,requested);
+   const bars=Math.max(1,Math.ceil((requested-recording.beginAt)/rhythmBarSteps()));
+   recording.endAt=recording.first?
+    Math.min(recording.beginAt+256,recording.beginAt+bars*rhythmBarSteps()):
+    Math.min(recording.endAt,requested);
   recording.finishQueued=true;
   $("record-"+which).textContent="↻ "+(recording.first?"LOOP STARTING":"OVERDUB FINISHING")+"…";
   $("recordHint-"+which).textContent=recording.first?
@@ -2367,12 +2368,13 @@ function record(which){
  choose(which);
  // Never require the performer to select a length. One click arms on the next
  // free eighth-note boundary; DONE chooses this first master-loop duration.
- const beginAt=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
+ const beginAt=!d.locked?Math.max(stepNumber,gridStepAt(ctx.currentTime,.08)):
+   Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:beginAt+(d.locked?d.lengthSteps:256),finishQueued:false};
  $("record-"+which).classList.add("armed");
- $("record-"+which).textContent="◉ ARMED · NEXT PULSE";
- $("recordHint-"+which).textContent="WAIT · begin on the next pulse, then press DONE";
+ $("record-"+which).textContent="◉ ARMED · NEXT BEAT 1";
+ $("recordHint-"+which).textContent="WAIT · PLAY ON GREEN BEAT 1, DONE NEAR BEAT 1";
  trackView?.draw();
  tell(d.locked?"OVERDUB starts on next pulse and uses the original loop length.":
   "FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
@@ -2383,19 +2385,9 @@ function endRecord(){
  let length=r.first?Math.max(1,Math.min(256,r.endAt-r.beginAt)):d.lengthSteps;
  // Discard hits at/after DONE; they belong to the following pass.
  r.events=r.events.filter(e=>e.step<length);
- if(r.first&&r.events.length){
-  // A player may arm RECORD and take a breath before their first note.
-  // That dead lead-in used to repeat as an audible pause every cycle.
-  // Trim it without moving the musical closing tick: at r.endAt the
-  // shortened pattern is already at phase zero and starts immediately.
-  const emptyTicks=Math.max(0,Math.min(length-1,Math.min(...r.events.map(e=>e.step))));
-  if(emptyTicks){
-   r.events.forEach(e=>{e.step-=emptyTicks;});
-   r.beginAt+=emptyTicks;
-   r.start+=emptyTicks*tickSeconds();
-   length-=emptyTicks;
-  }
- }
+ // Preserve the opening rest. Trimming it shifted the piano away from
+ // the rhythm's beat-one downbeat and caused drifting loops.
+
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
    h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
@@ -3279,7 +3271,8 @@ const elapsedFrames=Math.round((ctx.currentTime-take.startAt)*ctx.sampleRate);
 if(elapsedFrames<Math.round(.12*ctx.sampleRate))
  return tell("VOICE ARMED · begin singing, then press DONE to close your phrase.");
 take.actualFrames=Math.max(1,Math.min(take.frames,elapsedFrames));
-take.actualSteps=Math.max(1,Math.round(take.actualFrames/ctx.sampleRate/tickSeconds()));
+ take.actualSteps=take.first?
+  phraseGridSteps(take.startAt,ctx.currentTime):take.steps;
 take.finishQueued=true;
 take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   $("vocal-"+which).textContent="↻ VOICE LOOP STARTING…";
@@ -3306,10 +3299,10 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
-// Start on the next render quantum, not the next metronome tick or bar.
-// The first audible phrase becomes an exact-sample master period.
-const start=ctx.currentTime+.04;
-const firstStep=Math.max(0,Math.floor((start-transportEpoch)/tickSeconds()));
+// AudioWorklet records on the shared browser AudioContext clock. Always
+ // use the next visible bar-one cue, not an arbitrary 40ms wake-up delay.
+ const start=gridTimeAt(ctx.currentTime,.08);
+ const firstStep=Math.max(0,Math.round((start-transportEpoch)/tickSeconds()));
 const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
   const frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
@@ -3345,17 +3338,16 @@ const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
    if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
-   // First voice ends at the DONE sample, not an arbitrary eighth note.
-// Later voice layers keep the exact master period; early DONE adds silence.
-const clipFrames=take.first?(take.actualFrames||receivedFrames):frames;
-const clipSteps=take.first?Math.max(1,Math.round(clipFrames/ctx.sampleRate/tickSeconds())):take.steps;
-   if(take.first&&clipFrames>receivedFrames)
-    return warn(Error("First vocal capture ended short of its requested phrase"));
+   // DONE ends capture now; saved first vocal loop lasts exact rhythm bars.
+    // Early DONE deliberately pads the rest of the bar with silence.
+    const clipSteps=take.first?(take.actualSteps||rhythmBarSteps()):take.steps;
+    const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):frames;
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate);
    const headroom=Number($("vocalHeadroom").value)/100;
    if(take.first){
     const output=clip.getChannelData(0);
-    for(let i=0;i<clipFrames;i++)output[i]=data[i]*headroom;
+    for(let i=0;i<Math.min(clipFrames,receivedFrames,data.length);i++)
+      output[i]=data[i]*headroom;
     closeAudioLoopSeam(clip);
     d.locked=true;d.lengthSteps=clipSteps;d.anchorStep=take.firstStep;
 d.pedalPeriodSeconds=clip.duration;
@@ -3380,8 +3372,8 @@ writeAlignedLoopAudio(clip,[data],take.startAt,
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?
-"● VOICE RECORDING · sing and press DONE at your phrase end (no bar wait). Maximum 120 seconds.":
-   "VOICE LAYER ARMED · sing over the existing loop, then press DONE. Earlier loops stay intact.");
+   "● VOICE ARMED · sing on GREEN BEAT 1, then DONE near the next beat 1. Loop duration is bar-locked.":
+   "VOICE LAYER ARMED · sing on GREEN BEAT 1 over the existing phrase. Earlier loops continue.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
