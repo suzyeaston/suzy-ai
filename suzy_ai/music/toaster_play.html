@@ -4248,6 +4248,9 @@ $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").te
 $("performanceMaster").oninput=()=>{
  $("performanceMasterValue").textContent=$("performanceMaster").value+"%";
  updateBrowserOutputGain();
+ // Saved native memory loops live in the Mac host, not the Web Audio master.
+ for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]])
+  for(const layer of d.layers)if(layer.nativeLive)setNativeMemoryGain(which,layer);
  if(aiNativeReady)aiFetch("volume",{value:Number($("aiVolume").value)/100*(Number($("performanceMaster").value)/100)}).catch(warn);
 };
 $("tempo").oninput=()=>changeTempo($("tempo").value);
