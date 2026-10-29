@@ -51,7 +51,7 @@ function rig(){
   createBuffer(ch,len,sr){return new AudioBuffer(ch,len,sr)}
   async resume(){this.state="running";}
   async setSinkId(id){calls.output=id;}
-  async decodeAudioData(){return new AudioBuffer(1,48000,48000)}
+  async decodeAudioData(){return new AudioBuffer(1,calls.decodedFrames||48000,48000)}
  }
  class OfflineAudioContext extends AudioContext{
   constructor(ch,len,sr){super();this.ch=ch;this.len=len;this.sampleRate=sr;}
@@ -1850,7 +1850,8 @@ test("selecting Fishes classical guitar preserves manual crossfade while prepari
  assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===0),"preparing Fishes does not override Pyramid crossfade");
 });
 test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
- const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const {run,env,get,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=192000;
  env.fetch=async(url,opts)=>{
   if(String(url)==="/api/ai/capture/native-first")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   const op=String(url).split("/").pop();
