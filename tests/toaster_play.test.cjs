@@ -658,7 +658,7 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  get("monitorLevel").value="55";get("monitorReverb").value="28";
  await run("toggleVoiceMonitor()");
  assert.equal(run("monitoringVoice"),true);
- assert.equal(run("monitorDry.gain.value"),1.1);
+ assert.equal(run("monitorDry.gain.value"),.55,"explicit 55% user gain wins");
  assert.equal(run("monitorSend.gain.value"),.28);
  assert.equal(get("monitorVoice").textContent.includes("ON"),true);
  assert.match(file,/source.connect\(processor\);processor.connect\(silent\);silent.connect\(ctx.destination\)/);
