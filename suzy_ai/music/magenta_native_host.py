@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import platform
 import select
+import re
 import subprocess
 from threading import RLock, Thread
 
@@ -37,7 +38,25 @@ ACTIONS = {
     "note": frozenset({"note"}),
     "note-off": frozenset({"note"}),
     "release": frozenset(),
+    "capture-start": frozenset({"seconds"}),
+    "capture-status": frozenset({"id"}),
+    "capture-stop": frozenset({"id"}),
 }
+CAPTURE_ID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+CAPTURE_DIR = ROOT / ".build" / "toaster-native-captures"
+
+def native_capture_wav(capture_id):
+    """Return a bounded, host-generated WAV file only; never user paths."""
+    if not isinstance(capture_id, str) or not CAPTURE_ID.fullmatch(capture_id):
+        raise ValueError("invalid native capture ID")
+    path = CAPTURE_DIR / (capture_id + ".wav")
+    if not path.is_file():
+        raise FileNotFoundError("native AU capture not ready")
+    size = path.stat().st_size
+    if not 44 <= size <= 120 * 1024 * 1024:
+        raise ValueError("native capture is incomplete or too large")
+    return path.read_bytes()
+
 PROMPTS = {
     "pyramid": "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
     "fishes": "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
@@ -241,6 +260,13 @@ class NativeMagentaHost:
                 note = data["note"]
                 if type(note) is not int or not 0 <= note <= 127:
                     raise ValueError("note must be MIDI integer 0..127")
+            if action == "capture-start":
+                seconds = data["seconds"]
+                if type(seconds) not in (int, float) or not 0.25 <= seconds <= 120:
+                    raise ValueError("capture duration must be 0.25…120 seconds")
+            if action in ("capture-status", "capture-stop"):
+                if not isinstance(data["id"], str) or not CAPTURE_ID.fullmatch(data["id"]):
+                    raise ValueError("invalid native capture ID")
             if action == "start" and self.launching:
                 return self._inactive_status()
             if action == "start":
