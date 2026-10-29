@@ -2777,7 +2777,9 @@ async function startNativeInstrumentTake(which,role){
      "● ARMED · WAIT FOR THE GREEN BEAT 1 · THEN PLAY · DONE NEAR BEAT 1":
      "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
    updatePedalClock();
-  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+40));
+  if(!first)take.timer=setTimeout(()=>{
+   if(nativeTake===take)finishNativeInstrumentTake().catch(warn);
+  },Math.max(50,Math.ceil((gridStartAt+period-ctx.currentTime)*1000)));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
   if(nativeTake===take)nativeTake=null;
@@ -2791,15 +2793,22 @@ async function startNativeInstrumentTake(which,role){
 async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
+ if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+  return tell("WAIT FOR GO! · play at least one beat before DONE.");
  take.finishing=true;clearTimeout(take.timer);
- // Don't save an empty native capture before the visible beat-one cue.
-  if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
-   return tell("NATIVE LOOP ARMED · play at least one beat after GREEN 1 before DONE.");
   take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
   updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
-  const result=await aiFetch("capture-stop",{id:take.id});
+  const targetDeck=loopDeck(which);
+  const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):targetDeck.lengthSteps;
+  const periodSeconds=take.first?masterSteps*tickSeconds():
+   (targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds());
+  const result=await aiFetch("capture-stop",{
+   id:take.id,live_loop:preferNativeMemoryLoop(),
+   preroll_seconds:Math.max(0,take.gridStartAt-take.startedAt),
+   period_seconds:periodSeconds
+  });
   if(!result.ready||!result.audio_url||Number(result.frames)<1000)
    throw Error("Native capture is empty or incomplete.");
   if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
@@ -2812,7 +2821,6 @@ async function finishNativeInstrumentTake(){
   const d=loopDeck(which);
   // First audio length MUST span whole rhythm bars, not the AU WAV's
    // arbitrary sample count (including capture-start and STOP HTTP jitter).
-   const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):d.lengthSteps;
    const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
     Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
