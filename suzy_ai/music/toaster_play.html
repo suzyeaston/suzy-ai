@@ -262,6 +262,21 @@ a{color:var(--mint)}
 .audio-loop-actions select{max-width:300px}
 .audio-loop-pedal small{display:block;font-size:11px;color:#e5c8d1;margin-top:7px}
 .layer-level{width:94px!important;accent-color:#b1f0d0}
+/* Performer-first layout: each genuine sound has its own record/loop lane.
+   The browser rhythm is a master clock, not a recordable instrument layer. */
+.instrument-lanes,.voice-lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:12px;margin:14px 0}
+.instrument-lane{border:1px solid #9c718f;border-radius:14px;background:#281f32;padding:14px;display:flex;flex-direction:column;gap:9px}
+.instrument-lane h3{margin:0;font-size:16px}
+.instrument-lane .lane-status{font-size:12px;color:#b4f1d0;min-height:28px}
+.instrument-lane .lane-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.instrument-lane .lane-clips{display:grid;gap:6px}
+.instrument-lane .clip{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;padding:7px}
+.instrument-lane .clip input[type=range]{width:86px}
+#classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
+#classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
+#jazzDrumDeck{display:none}
+.instrument-lane button:disabled{opacity:.5}
+
 
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
@@ -428,7 +443,23 @@ a{color:var(--mint)}
   <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </details>
-<div class="instrument-tools">
+<div class="instrument-lanes" aria-label="pyramid native instruments and loop layers">
+ <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-chords">▶ PLAY PIANO</button>
+  <button type="button" id="nativeRecord-pyramid-chords">● LOOP PIANO</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-chords">READY · Play notes, then record the generated sound</div>
+  <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
+ </section>
+ <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 03</div><h3>🎻 VIOLIN</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-lead">▶ PLAY VIOLIN</button>
+  <button type="button" id="nativeRecord-pyramid-lead">● LOOP VIOLIN</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
+ </section>
+ </div>
+ <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
 <select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
 <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
@@ -493,7 +524,23 @@ a{color:var(--mint)}
   <button type="button" id="leadPlay-fishes">▶ HEAR LOCAL GUITAR</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </details>
-<div class="instrument-tools">
+<div class="instrument-lanes" aria-label="fishes native instruments and loop layers">
+ <section class="instrument-lane" id="instrument-fishes-chords" aria-label="fishes guitar arpeggios recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 02</div><h3>🎹 GUITAR ARPEGGIOS</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-chords">▶ PLAY GUITAR ARPEGGIOS</button>
+  <button type="button" id="nativeRecord-fishes-chords">● LOOP GUITAR ARPEGGIOS</button></div>
+  <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
+  <div class="lane-clips" id="nativeClips-fishes-chords"></div>
+ </section>
+ <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 04</div><h3>🎻 CLASSICAL GUITAR</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-lead">▶ PLAY CLASSICAL GUITAR</button>
+  <button type="button" id="nativeRecord-fishes-lead">● LOOP CLASSICAL GUITAR</button></div>
+  <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="lane-clips" id="nativeClips-fishes-lead"></div>
+ </section>
+ </div>
+ <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
 <select id="instrument-fishes" aria-label="fishes instrument for next overdub">
 <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
@@ -540,9 +587,21 @@ a{color:var(--mint)}
 </div>
 <div class="vocal-recorder-status" role="status" aria-live="polite">
   <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
- <button type="button" id="vocalRecordPyramid">● RECORD PYRAMID VOICE</button>
- <button type="button" id="vocalRecordFishes">● RECORD FISHES VOICE</button>
   <span id="vocalLoopState">VOICE PEDAL · Record → sing → Done → repeat. No bar selection.</span>
+</div>
+<div class="voice-lanes">
+ <section class="instrument-lane" id="voiceLane-pyramid" aria-label="Pyramid Scarlett voice looping">
+  <div class="tiny">🎙 SCARLETT / VE-22 · PYRAMID</div><h3>YOUR VOICE</h3>
+  <div class="lane-buttons"><button type="button" id="vocalRecordPyramid">● LOOP VOICE</button></div>
+  <div class="lane-status">Mic audio stacks with native instruments · no AI voice imitation</div>
+  <div class="lane-clips" id="voiceClips-pyramid"></div>
+ </section>
+ <section class="instrument-lane" id="voiceLane-fishes" aria-label="Fishes Scarlett voice looping">
+  <div class="tiny">🎙 SCARLETT / VE-22 · WEIRD FISHES</div><h3>YOUR VOICE</h3>
+  <div class="lane-buttons"><button type="button" id="vocalRecordFishes">● LOOP VOICE</button></div>
+  <div class="lane-status">Capture every vocal pass separately · mute, fade or remove</div>
+  <div class="lane-clips" id="voiceClips-fishes"></div>
+ </section>
 </div>
 <div class="vocal-fx-settings">
  <label for="vocalEchoMode">TAPE ECHO <select id="vocalEchoMode">
