@@ -1869,7 +1869,7 @@ test("the first native violin take can establish the master phrase without a MID
  assert.equal(run("decks.pyramid.locked"),true);
  assert.ok(run("decks.pyramid.lengthSteps")>=12);
  assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
- assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
+ assert.match(get("nativeStatus-pyramid-lead").textContent,/LOOP PLAYING.*REPEATING/);
 });
 
 test("choosing the Fishes voice box leaves the manual DJ mix unchanged",async()=>{
@@ -2119,4 +2119,30 @@ test("voice DONE automatically begins endlessly repeating its first PCM phrase",
  assert.ok(layer.gain.gain.value>0);
  assert.equal(run("decks.pyramid.pedalPeriodSeconds"),layer.buffer.duration);
  assert.match(get("loopToggle-pyramid").textContent,/STOP LOOP/);
+});
+
+test("first Magenta jazz drum recording behaves as an endless free-running BOSS pedal",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");calls.decodedFrames=2*48000;
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"first-ai-drums"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:2*48000,peak:.25,audio_url:"/api/ai/capture/first-ai-drums"})};
+  if(u==="/api/ai/capture/first-ai-drums")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ assert.equal(run("drumDeck.locked"),false);
+ await run('startNativeInstrumentTake("drums","drums")');
+ assert.equal(run("nativeTake.first"),true);
+ run("ctx.currentTime=2");await run("finishNativeInstrumentTake()");
+ assert.equal(run("drumDeck.pedalPeriodSeconds"),2);
+ assert.equal(run("drumDeck.layers[0].source.loop"),true);
+ assert.ok(Math.abs(run("drumDeck.layers[0].source.startOffset"))<1e-7);
+ assert.match(get("nativeResume-drums-drums").textContent,/STOP SAVED/);
+ await run('toggleNativeSavedLoop("drums","drums")');
+ assert.equal(run("drumDeck.layers[0].gain.gain.value"),0);
+ assert.equal(run("rhythmAudioEnabled"),true);
+ await run('toggleNativeSavedLoop("drums","drums")');
+ assert.ok(run("drumDeck.layers[0].gain.gain.value")>0);
 });
