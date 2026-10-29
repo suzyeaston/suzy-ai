@@ -1001,7 +1001,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/OVERDUB/);
+ assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
