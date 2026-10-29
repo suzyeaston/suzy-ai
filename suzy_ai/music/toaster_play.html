@@ -2378,10 +2378,15 @@ async function startNativeInstrumentTake(which,role){
   }
   const first=which!=="drums"&&!d.locked;
   const seconds=first?120:Math.min(120,d.lengthSteps*tickSeconds());
+  const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
+  const responseAt=ctx.currentTime;
   if(!begin.capture_id)throw Error(begin.error||"Native host did not start PCM capture.");
-  take={which,role,first,id:begin.capture_id,startedAt:ctx.currentTime,
-        beginStep:Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()),
+  // The Swift tap starts inside the request. Midpoint of the RTT is closer
+  // than the old "after HTTP response" position, without trusting wall-clock.
+  const capturedAt=(requestAt+responseAt)*.5;
+  take={which,role,first,id:begin.capture_id,startedAt:capturedAt,
+        beginStep:Math.floor((capturedAt-transportEpoch)/tickSeconds()),
         seconds,finishing:false,timer:null};
   nativeTake=take;
   updateNativeLaneControls();
@@ -2399,7 +2404,9 @@ async function startNativeInstrumentTake(which,role){
 async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
- take.finishing=true;clearTimeout(take.timer);updateNativeLaneControls();
+ take.finishing=true;clearTimeout(take.timer);
+ take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
+ updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const result=await aiFetch("capture-stop",{id:take.id});
@@ -2414,20 +2421,18 @@ async function finishNativeInstrumentTake(){
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
   const d=loopDeck(which);
   const steps=take.first?Math.max(1,Math.min(256,Math.round(
-   (ctx.currentTime-take.startedAt)/tickSeconds()))):d.lengthSteps;
+   (take.stopRequestedAt-(transportEpoch+take.beginStep*tickSeconds()))/tickSeconds()))):d.lengthSteps;
   const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
-  for(let channel=0;channel<buffer.numberOfChannels;channel++){
-   const output=buffer.getChannelData(channel);
-   const input=recorded.getChannelData(channel);
-   output.set(input.subarray(0,Math.min(input.length,output.length)));
-  }
   if(take.first){
    d.locked=true;d.lengthSteps=steps;d.anchorStep=take.beginStep;d.loopEnabled=true;
   }
+  const inputs=Array.from({length:Math.min(2,recorded.numberOfChannels)},
+   (_,channel)=>recorded.getChannelData(channel));
+  const shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
    name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
-   loopOriginStep:take.beginStep,arrStartBar:0,source:null,gain:null};
+   loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
   // its MIDI into whatever violin/guitar prompt is selected next.
@@ -2438,7 +2443,7 @@ async function finishNativeInstrumentTake(){
   startLoopAudio(which,layer);renderClips(which);
   el.textContent="✓ NATIVE "+role.toUpperCase()+" RECORDED · "+Math.round(buffer.duration*10)/10+
    "s · "+d.layers.filter(x=>x.instrumentRole===role).length+" AUDIO PASS(ES) · ready to stack again";
-  tell("✓ "+nativeLaneLabel(which,role)+" saved as REAL Magenta PCM · mute, fade or remove independently.");
+  tell("✓ "+nativeLaneLabel(which,role)+" · seamless audio aligned to master phrase ("+shifted+"-frame offset) · mute/fade/remove independently.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
   if(nativeTake===take)nativeTake=null;
@@ -2448,6 +2453,47 @@ async function finishNativeInstrumentTake(){
 // All DJ effects operate on EXISTING browser PCM buffers only. Google AU
 // prompt generation remains on its separate macOS output, and browser drums
 // never enter these sends. Feedback stays below unity to protect headphones.
+// A common frame-clock origin for every recorded take. Before this fix,
+// a violin recorded halfway through the phrase replayed FROM that moment
+// with its own loop origin, leaving a misleading gap against the piano.
+// Rotate actual PCM to the original master downbeat, preserving notes and
+// any intentionally silent part of the performed measure.
+function closeAudioLoopSeam(buffer,ms=6){
+ const frames=buffer.length,fade=Math.min(Math.round(buffer.sampleRate*ms/1000),Math.floor(frames/16));
+ if(fade<2)return;
+ for(let channel=0;channel<buffer.numberOfChannels;channel++){
+  const output=buffer.getChannelData(channel);
+  const midpoint=(output[0]+output[frames-1])*.5;
+  // Both sides of the boundary meet at one value. Spread the correction
+  // over only a few milliseconds to remove clicks without erasing beats.
+  for(let i=0;i<fade;i++){
+   const strength=.5*(1+Math.cos(Math.PI*i/fade));
+   output[i]=output[i]*(1-strength)+midpoint*strength;
+   const j=frames-1-i;
+   output[j]=output[j]*(1-strength)+midpoint*strength;
+  }
+ }
+}
+function writeAlignedLoopAudio(buffer,inputs,captureAt,originAt,gain=1){
+ const frames=buffer.length;
+ if(frames<1)return;
+ const sampleOffset=Math.round((captureAt-originAt)*buffer.sampleRate);
+ const shift=((sampleOffset%frames)+frames)%frames;
+ for(let ch=0;ch<buffer.numberOfChannels;ch++){
+  const input=inputs[Math.min(ch,inputs.length-1)];
+  const output=buffer.getChannelData(ch);
+  if(!input)continue;
+  const limit=Math.min(frames,input.length);
+  // Avoid time stretching or moving the actual note onsets.
+  for(let i=0;i<limit;i++)output[(i+shift)%frames]=input[i]*gain;
+ }
+ closeAudioLoopSeam(buffer);
+ return shift;
+}
+function loopMasterOrigin(which){
+ return transportEpoch+(loopDeck(which).anchorStep||0)*tickSeconds();
+}
+
 function layerOutputBus(which,layer){
  if(which==="drums")return drumDeck.bus; // outside song crossfaders
  return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
