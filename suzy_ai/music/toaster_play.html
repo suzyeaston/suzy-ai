@@ -1877,15 +1877,16 @@ function beginChord(which,index,key){
   chordAuditionScene=which;
   queueNativeSongMix(); // serialized before native chord MIDI
   h.aiChordToken=aiNote(which,index);
-  if(aiMuted||Number($("aiVolume").value)<=0||Number($("performanceMaster").value)<=0)
-   warn(Error("CHORD MIDI SENT BUT MAGENTA IS MUTED OR AT ZERO VOLUME. Unmute AI and raise AI VOLUME."));
- }else if(decks[which].instrumentSource==="ai"&&!localKeysOnly&&!localAudioOverdubActive(which)){
-  warn(Error("NO LIVE CHORD AUDIO: Magenta is not ready or the selected song is disabled. ENABLE MAGENTA and check AI output, or explicitly choose LOCAL SYNTH."));
  }
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
  tell(SCENES[which].names[index]+" · "+(native?"NATIVE GOOGLE AI":"LOCAL "+INSTRUMENTS[instrument].name)+" · LIVE");
+ // Warnings belong AFTER tell(), which intentionally clears the old warning.
+ if(native&&(aiMuted||Number($("aiVolume").value)<=0||Number($("performanceMaster").value)<=0))
+  warn(Error("CHORD MIDI SENT BUT MAGENTA IS MUTED OR AT ZERO VOLUME. Unmute AI and raise AI VOLUME."));
+ else if(!native&&decks[which].instrumentSource==="ai"&&!localKeysOnly&&!localAudioOverdubActive(which))
+  warn(Error("NO LIVE CHORD AUDIO: Magenta is not ready or this song is disabled. ENABLE MAGENTA and check AI output, or explicitly choose LOCAL SYNTH."));
 }
 function endChord(key){
  const h=heldKeys.get(key);if(!h)return;
