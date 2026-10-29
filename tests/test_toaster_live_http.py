@@ -399,7 +399,8 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'function localInstrumentAudible(which)',
                        'function nativeInstrumentEnabled(which)',
                        'function toggleRhythmAudio()',
-                       'if(native)h.aiChordToken=aiNote(which,index);',
+                       'h.aiChordToken=aiNote(which,index);',
+                       'if(promptChanged)queueNativeSongMix();',
                        'if(!rhythmCanSound())return;'):
             self.assertIn(marker, page)
         self.assertIn('instrumentSource:"ai"', page)

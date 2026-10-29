@@ -2822,3 +2822,79 @@ test("short vocal DONE repeats on one bar inside an eight-bar piano loop",async(
  assert.ok(Math.abs(run("decks.pyramid.layers[0].buffer.duration")-run("barDuration()"))<.0001);
  assert.equal(run("recording"),null);
 });
+
+test("Fishes B N M comma use audible Fishes prompt even when archived DJ mix stays on Pyramid",async()=>{
+ const {run,emit,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)calls.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ assert.equal(get("mix").value,"0","archived Fishes track is faded out by default");
+ for(const [key,index] of [["b",0],["n",1],["m",2],[",",3]]){
+  calls.length=0;
+  emit("keydown",key,"BUTTON");
+  await run("aiCommandQueue");
+  assert.equal(get("mix").value,"0","live audition must not move the saved-loop crossfader");
+  assert.equal(run("chordAuditionScene"),"fishes");
+  if(index===0){
+   assert.ok(calls.some(c=>c.op==="mix"&&c.args.value===1),
+    "first Fishes press must switch from zero to full native prompt");
+   assert.ok(calls.findIndex(c=>c.op==="mix")<calls.findIndex(c=>c.op==="chord"),
+    "prompt becomes audible before the first note");
+  }else{
+   assert.equal(calls.filter(c=>c.op==="mix").length,0,
+    "subsequent chords must not block on needless native network calls");
+  }
+  assert.ok(calls.some(c=>c.op==="chord"&&c.args.index===index),
+   key+" sends correct chord to Google AU");
+  emit("keyup",key,"BUTTON");
+  await run("aiCommandQueue");
+ }
+ get("mix").value="35";get("mix").oninput();await run("aiCommandQueue");
+ assert.equal(run("chordAuditionScene"),null,"manual crossfader restores mix ownership");
+ assert.ok(calls.some(c=>c.op==="mix"&&c.args.value===.35));
+});
+test("Fishes hotkeys use last selected native piano sound without resetting its recorded clock",async()=>{
+ const {run,emit,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ await run('selectNativeLane("pyramid","chords")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=32');
+ for(const [key,index] of [["b",0],["n",1],["m",2],[",",3]]){
+  emit("keydown",key,"BUTTON");
+  for(let i=0;i<4;i++)await new Promise(resolve=>setImmediate(resolve));
+  await run("aiCommandQueue");
+  assert.ok(commands.some(c=>c.op==="chord"&&c.args.index===index&&c.args.harmony==="fishes"));
+  assert.equal(run("scene"),"pyramid","Fishes harmony must not change selected piano");
+  assert.equal(run("decks.pyramid.lengthSteps"),32);
+  emit("keyup",key,"BUTTON");await run("aiCommandQueue");
+ }
+ emit("keydown","Escape","BUTTON");
+ assert.equal(run("activeNativeLane"),null,"Escape returns to normal song pads");
+});
+test("muted native AU and unavailable model visibly explain silent Fishes chord hits",async()=>{
+ const {run,emit,get}=rig();await run("startStop()");
+ emit("keydown","b","BUTTON");
+ assert.match(get("warning").textContent,/NO LIVE CHORD AUDIO/);
+ emit("keyup","b","BUTTON");
+ run("aiNativeReady=true;aiMuted=true");
+ emit("keydown","n","BUTTON");
+ assert.match(get("warning").textContent,/MAGENTA IS MUTED/);
+ emit("keyup","n","BUTTON");
+});
+test("Fishes keys return from the dedicated drum-only Magenta prompt",async()=>{
+ const {run,emit,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{if(opts?.body)calls.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});return {ok:true,json:async()=>({})};};
+ run('activeNativeLane="drums:drums"');
+ get("aiDrumMix").value="100";
+ emit("keydown","b","BUTTON");
+ await run("aiCommandQueue");
+ assert.equal(get("aiDrumMix").value,"0","live piano/Fishes chord must not be masked by 100% drum prompt");
+ assert.ok(calls.some(c=>c.op==="drum-mix"&&c.args.value===0));
+ assert.ok(calls.some(c=>c.op==="chord"&&c.args.index===0));
+});

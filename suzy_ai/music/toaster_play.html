@@ -902,6 +902,9 @@ const INSTRUMENTS={
 };
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false,transition=null;
+// The live AI prompt may temporarily follow played chords independently of
+// the archived DJ crossfader, which still owns saved audio playback.
+let chordAuditionScene=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,vocalArming=null,audioPrint=null,nativeTake=null,nativeTakeArming=null;
@@ -1714,6 +1717,7 @@ function setSongEnabled(which){
  if(d.enabled&&Object.values(decks).filter(x=>x.enabled).length===1)
   return warn(Error("Keep at least one song enabled. Use MUTE AI to silence the entire native AI stream."));
  d.enabled=!d.enabled;
+ chordAuditionScene=null;
  const b=$("songEnabled-"+which);
  b.setAttribute("aria-pressed",String(d.enabled));
  b.textContent=(d.enabled?"🔊 ":"🔇 ")+which.toUpperCase()+(d.enabled?" ON":" OFF");
@@ -1868,11 +1872,22 @@ function beginChord(which,index,key){
   recording.events.push(h.event);
  }
  // A pad must not double-trigger local synth, CoreMIDI/Logic and native AU.
- if(native)h.aiChordToken=aiNote(which,index);
+ // Archived crossfade at 0 must never silence the *live* Fishes prompt.
+ if(native){
+  const promptChanged=chordAuditionScene!==which;
+  chordAuditionScene=which;
+  if(promptChanged)queueNativeSongMix(); // one switch; fast subsequent chords
+  h.aiChordToken=aiNote(which,index);
+ }
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
  tell(SCENES[which].names[index]+" · "+(native?"NATIVE GOOGLE AI":"LOCAL "+INSTRUMENTS[instrument].name)+" · LIVE");
+ // Warnings belong AFTER tell(), which intentionally clears the old warning.
+ if(native&&(aiMuted||Number($("aiVolume").value)<=0||Number($("performanceMaster").value)<=0))
+  warn(Error("CHORD MIDI SENT BUT MAGENTA IS MUTED OR AT ZERO VOLUME. Unmute AI and raise AI VOLUME."));
+ else if(!native&&decks[which].instrumentSource==="ai"&&!localKeysOnly&&!localAudioOverdubActive(which))
+  warn(Error("NO LIVE CHORD AUDIO: Magenta is not ready or this song is disabled. ENABLE MAGENTA and check AI output, or explicitly choose LOCAL SYNTH."));
 }
 function endChord(key){
  const h=heldKeys.get(key);if(!h)return;
@@ -2724,7 +2739,10 @@ function endDrumPad(key){
 function releaseAllDrumPads(){for(const key of [...drumPadHeld.keys()])endDrumPad(key);}
 
 function nativeTextureScene(which){return which==="pyramid"&&activePyramidTextureRole?"fishes":which;}
-function nativeTextureMix(){return activePyramidTextureRole?1:effectiveSongMix();}
+function nativeTextureMix(){
+ if(activePyramidTextureRole)return 1;
+ return chordAuditionScene===null?effectiveSongMix():(chordAuditionScene==="fishes"?1:0);
+}
 
 function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
 // Two chord sets for EVERY instrument, without switching the recorded song
@@ -2840,6 +2858,7 @@ function updateNativeLaneControls(){
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ if(which!=="drums")chordAuditionScene=which; // selected native timbre wins over archived crossfade
  if(which==="pyramid"&&(role==="textureLow"||role==="textureHigh")){
   if(aiSolo)toggleAISolo();
   if(localKeysOnly)await toggleLocalKeysOnly();
@@ -3901,6 +3920,7 @@ function cancelSongTransition(label="MANUAL MIX · fade cancelled"){
 }
 function startSongTransition(which){
  if(!stageStarted||!ctx)return warn(Error("Start the master rhythm before an automatic crossfade."));
+ chordAuditionScene=null;
  if(!decks.pyramid.enabled||!decks.fishes.enabled)
   return warn(Error("Enable both Pyramid and Fishes to crossfade their loops."));
  const bars=Number($("transitionBars").value);
@@ -4132,6 +4152,7 @@ $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{
+ chordAuditionScene=null;
  cancelSongTransition();
  blendBoth=!blendBoth;
  $("mixBoth").setAttribute("aria-pressed",String(blendBoth));
@@ -4243,7 +4264,7 @@ document.addEventListener("keydown",e=>{
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
  if((e.code==="Escape"||e.key==="Escape")&&activeChordLane){
-  activeChordLane=null;
+  activeChordLane=null;activeNativeLane=null;
   tell("KEYBOARD RESET · PYRAMID Z X C · FISHES B N M , · normal song pads");
   return;
  }
@@ -4255,9 +4276,20 @@ document.addEventListener("keydown",e=>{
   const chord=CHORD_LAYOUT[chordKey];
   // Shortcuts select harmony; the last tapped Magenta lane selects timbre.
   // Both keyboard banks stay live without changing the count-in clock.
-  if(activeChordLane)beginLaneHarmony(activeChordLane.which,activeChordLane.role,
+  // Last selected native track defines the instrument; both song chord
+  // banks select its harmony. Press ESC to return to ordinary song pads.
+  const parts=activeNativeLane&&activeNativeLane!=="drums:drums"?
+   activeNativeLane.split(":"):null;
+  const lane=activeChordLane||(parts?{which:parts[0],role:parts[1]}:null);
+  if(lane&&aiNativeReady)beginLaneHarmony(lane.which,lane.role,
    chord.which,chord.index,"key-lane:"+chordKey);
-  else beginChord(chord.which,chord.index,"key:"+chordKey);
+  else{
+   if(activeNativeLane==="drums:drums"&&aiNativeReady){
+    activeNativeLane=null;
+    setNativeDrumBlend(0); // return from the 100% drum-only prompt
+   }
+   beginChord(chord.which,chord.index,"key:"+chordKey);
+  }
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
@@ -4293,6 +4325,7 @@ document.addEventListener("visibilitychange",()=>{
 $("setRecordStart").onclick=startSetRecording;
 $("setRecordStop").onclick=stopSetRecording;
 $("mix").oninput=()=>{
+ chordAuditionScene=null; // manual DJ mix takes priority
  cancelSongTransition();
  blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");
  $("mixBoth").textContent="♫ LAYER BOTH SONGS";
