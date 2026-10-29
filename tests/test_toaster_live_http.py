@@ -85,7 +85,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('id="rhythm"', html)
         self.assertIn('id="deck-pyramid"', html)
         self.assertIn('id="deck-fishes"', html)
-        self.assertIn("LOOP MY CHORDS", html)
+        self.assertIn("RECORD FIRST LOOP", html)
         self.assertIn("LOOP VOICE", html)
         self.assertIn("auto Scarlett", html)
         self.assertIn("MRT2 prompt:", html)
@@ -184,14 +184,19 @@ class LiveToasterHttpTests(unittest.TestCase):
     def test_first_take_determines_song_cycle_without_resetting_native_au(self):
         _, html = self.call("GET", "/toaster/live")
         self.assertIn('first:!d.locked', html)
-        self.assertIn('endAt:beginAt+(d.locked?d.lengthSteps:d.chordBars*8)', html)
+        self.assertIn('endAt:beginAt+(d.locked?d.lengthSteps:256)', html)
+        self.assertIn('recording.endAt=recording.first?', html)
+        self.assertIn('r.endAt-r.beginAt', html)
+        self.assertIn('finishQueued:false', html)
         self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}', html)
         self.assertIn('if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}', html)
         self.assertIn('if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;', html)
         self.assertIn('id="loopToggle-pyramid"', html)
         self.assertIn('id="loopToggle-fishes"', html)
-        self.assertIn('id="loopBars-pyramid"', html)
-        self.assertIn('id="loopBars-fishes"', html)
+        self.assertNotIn('id="loopBars-pyramid"', html)
+        self.assertNotIn('id="loopBars-fishes"', html)
+        self.assertIn('■ DONE → LOOP', html)
+        self.assertIn('play your phrase, press DONE', html)
         self.assertIn('songLayerAudible(which,l,Math.floor(count/8))', html)
         self.assertNotIn('for(const d of Object.values(decks))d.anchorStep=0;', html)
         self.assertNotIn("createScriptProcessor(1024", html)
@@ -225,7 +230,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         code, js = self.call("GET", "/toaster/track-view.js")
         self.assertEqual(code, 200)
         for marker in ('track-loop-label-', 'track-loop-fill-',
-                       '"↻ LOOP "+pass', '"BAR "+bar+" / "',
+                       '"↻ LOOP "+pass', '"BEAT "+(phase/2+1).toFixed(1)+" / "',
                        'fill.style.width=((phase/length)*100)+"%"'):
             self.assertIn(marker, js)
 
