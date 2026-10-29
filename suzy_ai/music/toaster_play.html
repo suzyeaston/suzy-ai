@@ -838,7 +838,7 @@ let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=
 let vocalCaptureReady=false,vocalArming=null,audioPrint=null,nativeTake=null,nativeTakeArming=null;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
-let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
+let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false,monitorPreparing=null;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
@@ -3045,12 +3045,17 @@ function stopVoiceFollow(){
  $("voiceFollowStatus").textContent="OFF · model continues independently";
 }
 async function startVoiceMonitor(){
- if(monitoringVoice)return;
- await openAudio();
- // Monitoring is an input/headphone check, independent of the rhythm transport.
- await findDevices();
- const stream=await enableMic();
- // Monitoring is a separate dry/wet path. The recorder still captures clean
+ if(monitoringVoice||monitorPreparing)return;
+ const preparing={};monitorPreparing=preparing;
+ try{
+  await openAudio();
+  if(monitorPreparing!==preparing)return;
+  // Monitoring is an input/headphone check, independent of the rhythm transport.
+  await findDevices();
+  if(monitorPreparing!==preparing)return;
+  const stream=await enableMic();
+  if(monitorPreparing!==preparing)return; // Emergency stop while awaiting hardware.
+  // Monitoring is a separate dry/wet path. The recorder still captures clean
  // pre-effects PCM, so its loop and overdubs are not contaminated by reverb.
  monitorSource=ctx.createMediaStreamSource(stream);
  monitorFilter=ctx.createBiquadFilter();monitorFilter.type="highpass";monitorFilter.frequency.value=90;
@@ -3065,6 +3070,9 @@ async function startVoiceMonitor(){
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
  $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent?.replace(/^OUTPUT · /,"")||$("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
  updateVocalState();
+ }finally{
+  if(monitorPreparing===preparing)monitorPreparing=null;
+ }
 }
 function updateVoiceEcho(){
  const mode=$("vocalEchoMode").value;
@@ -3081,6 +3089,7 @@ function updateVoiceEcho(){
  vocalEchoTone.frequency.setTargetAtTime(1700+tone*8200,ctx.currentTime,.03);
 }
 function stopVoiceMonitor(){
+ monitorPreparing=null; // Invalidate any late getUserMedia/findDevices completion.
  for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend]){
   try{n?.disconnect()}catch{}
  }
