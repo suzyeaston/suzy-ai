@@ -69,7 +69,7 @@ PROMPTS = {
     "fishes": "Low expressive bowed cello, soft harmonium drone and warm sustained strings, intimate chamber music, suspended art-rock atmosphere, sparse slow-moving notes, stable F sharp tonal centre with G major seventh and A sixth harmonic colour, gentle imperfect bow texture, no drums, no bright guitar, no vocals",
     "pyramid_violin": "Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals",
     "fishes_guitar": "Sparse glassy celesta and delicate harp harmonics, soft struck-bell overtones, high intimate plucked notes, drifting spacious tape echoes, suspended F sharp centre with Gmaj7 and A6 colour tones, gentle unresolved experimental chamber ambience, no fixed new chord progression, no rhythm section, no vocals",
-    "jazz_drums": "Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals",
+    "jazz_drums": "Fast-feeling, nimble jazz-rock acoustic drum kit, skittering hi-hat sixteenths, busy ride cymbal, syncopated kick and crisp snare ghost notes, quick tumbling tom fills, angular offbeat accents, loose human swing locked to a steady pulse, restless and dynamic but controlled, no piano, no bass, no guitar, no vocals",
 }
 
 
