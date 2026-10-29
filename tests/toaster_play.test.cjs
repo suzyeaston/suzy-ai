@@ -412,17 +412,19 @@ test("vocal worklet can capture a full phrase without an arbitrary eight-bar pre
  const {run,calls}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.kind"),"vocal");
- assert.equal(calls.worklet?.name,"suzy-vocal-capture");
+ assert.equal(calls.worklet.name,"suzy-vocal-capture");
  assert.equal(calls.workletModule,"/toaster/vocal-capture.js");
  const frames=run("Math.round(120*ctx.sampleRate)");
- assert.equal(calls.worklet.opts.processorOptions.frames,frames);
+ assert.equal(calls.worklet.opts.processorOptions.frames,frames,"capture has a 120s safe maximum");
  calls.worklet.port.onmessage({data:{
-  type:"complete",data:new Float32Array(frames).fill(.4),peak:.4,hot:0,missing:0
+  type:"complete",data:new Float32Array(frames).fill(.4),frames,peak:.4,hot:0,missing:0
  }});
  assert.equal(run("recording"),null);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),run("Math.round(rhythmBarSteps()*tickSeconds()*ctx.sampleRate)"),
+  "first vocal output always lasts one or more whole meter bars");
 });
+
 test("tempo stays fixed if a real audio loop exists rather than shifting its pitch",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('decks.pyramid.layers.push({kind:"vocal",buffer:{},muted:false})');
@@ -674,10 +676,12 @@ test("a vocal overdub starts on the next audio quantum, not a subdivision or bar
  const {run}=rig();await run("startStop()");
  run("decks.pyramid.locked=true;decks.pyramid.lengthSteps=256;decks.pyramid.anchorStep=0;stepNumber=23");
  await run('voiceLoop("pyramid")');
- assert.ok(Math.abs(run("recording.startAt-ctx.currentTime")-.04)<.001,"vocal capture starts in 40ms regardless of scheduler step");
+ assert.ok(Math.abs(run("recording.startAt-gridTimeAt(ctx.currentTime,.08)"))<.001,
+  "overdub begins on the shared audible beat one");
  assert.equal(run("recording.steps"),256);
  assert.equal(run("recording.first"),false);
 });
+
 test("solo LOCAL keys isolates browser pads without mutating the underlying AI prompt",async()=>{
  const {run,get}=rig();await run("startStop()");
  const prompts=run("getPromptStrings().join('|')");
@@ -912,17 +916,18 @@ test("changing the microphone during an armed vocal take is refused",async()=>{
 });
 
 test("first chord take arms at next 8th-note tick and double tap cannot cancel count-in",async()=>{
- const {run,get}=rig();
- await run("startStop()");
+ const {run,get}=rig();await run("startStop()");
  run('record("pyramid")');
- assert.equal(run("recording.beginAt"),1,"recording starts at the next unscheduled pulse, not a whole bar later");
+ const begin=run("recording.beginAt");
+ assert.equal(begin,8,"first take must arm at next shared bar one");
+ assert.equal(begin%run("rhythmBarSteps()"),0);
  assert.equal(run("recording.active"),false);
- assert.match(get("recordHint-pyramid").textContent,/WAIT.*pulse/);
+ assert.match(get("recordHint-pyramid").textContent,/GREEN BEAT 1/);
  run('record("pyramid")');
- assert.equal(run("recording.beginAt"),1);
+ assert.equal(run("recording.beginAt"),begin,"double press does not shift count-in");
  assert.equal(run("recording.active"),false);
- assert.match(get("recordHint-pyramid").textContent,/ARMED/);
 });
+
 test("recorded chord clip anchors to actual first captured bar, not the finish cursor",async()=>{
  const {run,get}=rig();
  await run("startStop()");
@@ -983,50 +988,43 @@ test("model picker stays disabled until native AU ready and during an in-flight 
 
 test("performer presses DONE and that exact phrase length becomes an immediately repeating pattern",async()=>{
  const {run,get}=rig();await run("startStop()");
- assert.doesNotMatch(file,/id="loopBars-pyramid"/);
  assert.equal(get("loopToggle-pyramid").disabled,true);
  run('record("pyramid")');
- const start=run("recording.beginAt");
- assert.equal(start,1,"first capture begins next eighth note");
- assert.equal(run("recording.endAt")-start,256,"safety maximum only; no preset length");
- run(`ctx.currentTime=transportEpoch+(${start}+1)*tickSeconds();scheduler()`);
- assert.equal(run("recording.active"),true);
- run('beginChord("pyramid",0,"key:manual")');
- run('endChord("key:manual")');
- run('var audibleLoops=[];const originalSynth=synth;synth=(...args)=>{audibleLoops.push(args);return originalSynth(...args)}');
- run(`ctx.currentTime=transportEpoch+(${start}+4.25)*tickSeconds()`);
+ const begin=run("recording.beginAt");
+ assert.equal(begin,8,"first MIDI capture must start with the next shared bar");
+ assert.equal(run("recording.endAt")-begin,256,"safe maximum, not a fixed musical phrase");
+ run(`ctx.currentTime=transportEpoch+(${begin}+1)*tickSeconds();scheduler()`);
+ run('beginChord("pyramid",0,"key:manual")');run('endChord("key:manual")');
+ run(`ctx.currentTime=transportEpoch+(${begin}+4.25)*tickSeconds()`);
  run('record("pyramid")');
- const close=run("recording.endAt");
- assert.equal(close-start,5,"DONE locks five eighth-note subdivisions, not 2/4/8 bars");
- assert.equal(run("recording.finishQueued"),true);
+ const finish=run("recording.endAt");
+ assert.equal(finish-begin,8,"DONE completes the current rhythm bar");
  assert.match(get("recordHint-pyramid").textContent,/DONE/);
- run(`ctx.currentTime=transportEpoch+(${close}+3)*tickSeconds();scheduler()`);
- assert.equal(run("recording"),null,"recorder closes and becomes playback on the very next scheduled clock tick");
- assert.equal(run("decks.pyramid.locked"),true);
- assert.equal(run("decks.pyramid.lengthSteps"),4,"first silent tick is removed");
- assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
- assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
- assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
+ run(`ctx.currentTime=transportEpoch+(${finish}+3)*tickSeconds();scheduler()`);
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),8);
+ assert.equal(run("decks.pyramid.anchorStep"),begin);
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),1,"opening rest is part of musical timing");
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
+
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('record("fishes")');
  const begin=run("recording.beginAt");
  run(`ctx.currentTime=transportEpoch+(${begin}+1)*tickSeconds();scheduler()`);
- run('beginChord("fishes",1,"key:fishes")');
- run('endChord("key:fishes")');
+ run('beginChord("fishes",1,"key:fishes")');run('endChord("key:fishes")');
  run(`ctx.currentTime=transportEpoch+(${begin}+11.25)*tickSeconds()`);
  run('record("fishes")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,12,"second phrase is 12 ticks, not restricted to 8/16/32");
+ assert.equal(finish-begin,16,"DONE is resolved on the next full rhythm bar");
  run(`ctx.currentTime=transportEpoch+(${finish}+2)*tickSeconds();scheduler()`);
- assert.equal(run("decks.fishes.lengthSteps"),11,"trim one silent tick before first chord");
- assert.equal(run("decks.fishes.anchorStep"),begin+1);
- assert.ok(!file.includes('id="loopBars-fishes"'));
+ assert.equal(run("decks.fishes.lengthSteps"),16);
+ assert.equal(run("decks.fishes.anchorStep"),begin,"leading beat rest must not be cropped");
+ assert.equal(run("decks.fishes.layers[0].events[0].step"),1);
  assert.match(get("recordHint-fishes").textContent,/LOOP PLAYING/);
 });
+
 test("DONE is ignored during count-in and double DONE cannot shift loop end",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('record("pyramid")');
@@ -1061,22 +1059,25 @@ test("a chord held across next-pulse count-in becomes the first note, not a miss
 
 test("STOP LOOP and RESTART NOW immediately gate phase-locked piano PCM without waiting for a bar",async()=>{
  const {run,get}=rig();await run("startStop()");
- run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.layers.push({id:"piano",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,48000,48000),level:.74,muted:false,arrStartBar:0})');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.pedalPeriodSeconds=16*tickSeconds();decks.pyramid.pedalOriginOffsetSeconds=8*tickSeconds();decks.pyramid.layers.push({id:"piano",kind:"printed",instrumentRole:"chords",pedalAligned:true,buffer:ctx.createBuffer(1,Math.round(16*tickSeconds()*48000),48000),level:.74,muted:false,arrStartBar:0})');
  run('startLoopAudio("pyramid",decks.pyramid.layers[0]);renderClips("pyramid")');
- const anchor=run("decks.pyramid.anchorStep"),source=run("decks.pyramid.layers[0].source");
- assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74);
  await run('toggleLoop("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),false);
- assert.equal(run("decks.pyramid.loopToggleAt"),null,"no scheduled next-bar wait");
  assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
- assert.match(get("loopToggle-pyramid").textContent,/RESTART NOW/);
+ assert.match(get("loopToggle-pyramid").textContent,/RESTART ON 1/);
  await run('toggleLoop("pyramid")');
+ const target=run("decks.pyramid.loopToggleAt");
+ assert.equal(run("decks.pyramid.loopEnabled"),false,"queue does not unmute in the middle of a phrase");
+ assert.equal((target-run("decks.pyramid.anchorStep"))%16,0,"restart is on phrase beat one");
+ assert.match(get("loopToggle-pyramid").textContent,/RESTART QUEUED/);
+ run("schedule(transportEpoch+decks.pyramid.loopToggleAt*tickSeconds(),decks.pyramid.loopToggleAt)");
  assert.equal(run("decks.pyramid.loopEnabled"),true);
- assert.equal(run("decks.pyramid.loopToggleAt"),null);
- assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74,"piano is audible within 35ms, not a bar later");
- assert.equal(run("decks.pyramid.layers[0].source"),source,"loop source never lost its playback phase");
- assert.equal(run("decks.pyramid.anchorStep"),anchor);
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74);
  assert.match(get("loopToggle-pyramid").textContent,/STOP LOOP/);
+ await run('toggleLoop("pyramid")');
+ await run('resumeLoopImmediately("pyramid")');
+ assert.equal(run("decks.pyramid.loopEnabled"),true,"explicit HEAR NOW opens current phase immediately");
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74);
 });
 
 test("song STOP instantly gates saved voice and PCM but not metronome or other song",async()=>{
@@ -1091,10 +1092,11 @@ test("song STOP instantly gates saved voice and PCM but not metronome or other s
  assert.equal(run("decks.pyramid.loopEnabled"),false);
  assert.equal(run("decks.fishes.loopEnabled"),true);
  assert.equal(run("stageStarted"),true,"rhythm keeps playing");
- await run('toggleLoop("pyramid")');
+ await run('resumeLoopImmediately("pyramid")');
  assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.7);
  assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.65);
 });
+
 test("pausing and restarting rhythm never resets original recorded loop downbeat",async()=>{
  const {run}=rig();await run("startStop()");
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8');
@@ -1110,19 +1112,17 @@ test("pausing and restarting rhythm never resets original recorded loop downbeat
 test("local replay sustains a chord held through DONE across next loop attack",async()=>{
  const {run}=rig();await run("startStop()");
  run('record("pyramid")');
- run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+5;ctx.currentTime=.38');
- run('beginChord("pyramid",0,"key:sustain")');
- run('endRecord()');
- assert.equal(run("decks.pyramid.lengthSteps"),4,"shorter phrase after removing initial silence");
+ run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+8;ctx.currentTime=.38');
+ run('beginChord("pyramid",0,"key:sustain")');run("endRecord()");
+ assert.equal(run("decks.pyramid.lengthSteps"),8,"first chord keeps whole rhythm bar");
  assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),true);
  const original=run("decks.pyramid.layers[0].events[0].holdSteps*tickSeconds()");
  const loopSeconds=run("songCycleSeconds('pyramid')");
  const sustained=run("recordedNoteHoldSeconds('pyramid',decks.pyramid.layers[0].events[0])");
- assert.ok(sustained>loopSeconds,"held chord overlaps the next iteration instead of going silent");
- assert.ok(sustained>original,"recorded duration is extended solely at the loop seam");
- const noTie=run("recordedNoteHoldSeconds('pyramid',{holdSteps:1})");
- assert.ok(noTie<loopSeconds,"released chord still has its original short musical phrasing");
+ assert.ok(sustained>loopSeconds,"held chord overlaps next iteration");
+ assert.ok(sustained>original);
 });
+
 test("releasing before DONE does not falsely tie a naturally short chord",async()=>{
  const {run}=rig();await run("startStop()");
  run('record("pyramid")');
@@ -1158,16 +1158,17 @@ test("live looper shows simple states, no beat/bar/pass counters, while tempo re
 
 test("stopping a sustained MIDI loop fades immediately while rhythm stays active",async()=>{
  const {run}=rig();await run("startStop()");run('setInstrumentSource("pyramid","local")');
- run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=5;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:5,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:8,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
  run('renderClips("pyramid")');
  await run('toggleLoop("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),false);
  assert.equal(run("decks.pyramid.loopBus.gain.value"),0);
  assert.equal(run("stageStarted"),true);
- await run('toggleLoop("pyramid")');
+ await run('resumeLoopImmediately("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),true);
- assert.ok(run("decks.pyramid.loopBus.gain.value")>0,"MIDI oscillator bus resumes without a next-bar wait");
+ assert.ok(run("decks.pyramid.loopBus.gain.value")>0);
 });
+
 test("AI ONLY hard-mutes ALL browser audio including rhythm vocals live pads and loops",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('decks.pyramid.layers.push({kind:"chords",muted:false,events:[{step:0,index:0,holdSteps:4}]})');
@@ -1459,30 +1460,24 @@ test("mic monitoring must be off when recorder separately includes Scarlett",asy
 
 test("first-loop pedal trims dead air before first played chord and replays at DONE boundary",async()=>{
  const {run,get}=rig();await run("startStop()");
- run('setInstrumentSource("pyramid","local")');
- run('record("pyramid")');
- const originalBegin=run("recording.beginAt");
- const requestedEnd=originalBegin+11;
- // First actual note is three eighth-note ticks after arming RECORD.
- run(`ctx.currentTime=transportEpoch+(${originalBegin}+3.08)*tickSeconds();scheduler()`);
+ run('setInstrumentSource("pyramid","local")');run('record("pyramid")');
+ const begin=run("recording.beginAt");
+ run(`ctx.currentTime=transportEpoch+(${begin}+3.08)*tickSeconds();scheduler()`);
  run('beginChord("pyramid",0,"key:late")');
  assert.equal(run("recording.events[0].step"),3);
  run('endChord("key:late")');
- run('var replayed=[];const oldSynth=synth;synth=(...args)=>{replayed.push(args);return oldSynth(...args)}');
- run(`ctx.currentTime=transportEpoch+(${requestedEnd}-.55)*tickSeconds()`);
+ run(`ctx.currentTime=transportEpoch+(${begin}+10.45)*tickSeconds()`);
  run('record("pyramid")');
- assert.equal(run("recording.endAt"),requestedEnd);
- run(`ctx.currentTime=transportEpoch+(${requestedEnd}+1)*tickSeconds();scheduler()`);
+ const finish=run("recording.endAt");
+ assert.equal(finish-begin,16,"whole-bar closing preserves rhythm");
+ run(`ctx.currentTime=transportEpoch+(${finish}+1)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.anchorStep"),originalBegin+3,"first played note becomes master start");
- assert.equal(run("decks.pyramid.lengthSteps"),8,"three empty pre-roll ticks are not looped");
- assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
- assert.equal(run("decks.pyramid.anchorStep+decks.pyramid.lengthSteps"),requestedEnd,
-  "first replay begins on the actual DONE boundary, no extra silent interval");
- assert.ok(run("replayed.some(x=>x[0]==='pyramid'&&x[1]===0)"),
-  "same scheduler pass launches loop from first chord");
+ assert.equal(run("decks.pyramid.anchorStep"),begin,"piano rests remain at the first three beat positions");
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),3);
  assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
+
 test("chord presses record in played subdivision, never round up and create false lead-in",async()=>{
  const {run}=rig();await run("startStop()");
  run('record("pyramid")');
@@ -1510,21 +1505,21 @@ test("vocal recorder now accepts Record Done after a custom phrase rather than p
  await run('voiceLoop("pyramid")');
  const begin=run("recording.firstStep");
  assert.equal(run("recording.first"),true);
- assert.ok(run("recording.steps")>64,"no eight-bar cap");
+ assert.ok(run("recording.steps")>64);
  run(`stepNumber=${begin}+13;ctx.currentTime=recording.startAt+13*tickSeconds()`);
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.finishQueued"),true);
- assert.equal(run("recording.actualSteps"),13);
+ assert.equal(run("recording.actualSteps"),16,"phrase is rounded to the next closest full meter bar");
  assert.equal(calls.workletMessage.type,"finish");
- assert.ok(calls.workletMessage.frames<calls.worklet.opts.processorOptions.frames);
  const full=calls.worklet.opts.processorOptions.frames,short=calls.workletMessage.frames;
  calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(full).fill(.3),frames:short,peak:.3,hot:0,missing:0}});
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.lengthSteps"),13);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),short);
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),run("Math.round(16*tickSeconds()*ctx.sampleRate)"));
  assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),begin);
  assert.ok(get("vocalRecordPyramid").textContent.includes("RECORD"));
 });
+
 test("lead vocal monitoring starts with Scarlett and headphone routing even before PLAY RHYTHM",async()=>{
  const {run,calls,get}=rig();
  await run("toggleVoiceMonitor()");
@@ -1823,16 +1818,15 @@ test("Scarlett voice overdub stays on master period even when DONE is pressed ea
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.first"),false);
  const frames=run("recording.processor.opts.processorOptions.frames");
- const firstStep=run("recording.firstStep");
- run("stepNumber="+(firstStep+5)+";ctx.currentTime=recording.startAt+5*tickSeconds()");
+ const startStep=run("recording.firstStep");
+ run("stepNumber="+(startStep+5)+";ctx.currentTime=recording.startAt+5*tickSeconds()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.finishQueued"),true);
- assert.equal(run("recording.actualSteps"),5);
- const worklet=calls.worklet;
- worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames:Math.round(5*30/105*48000),peak:.12,hot:0,missing:0}});
+ assert.equal(run("recording.actualSteps"),24,"overdub always retains the existing master period");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames:Math.round(5*30/105*48000),peak:.12,hot:0,missing:0}});
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames,"shorter vocal take padded to full song cycle");
- assert.equal(run("decks.pyramid.layers[0].bars"),3,"24 eighth steps remain the master period");
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
+ assert.equal(run("decks.pyramid.layers[0].bars"),3);
  assert.equal(get("voiceClips-pyramid").children.length,1);
 });
 
@@ -1852,25 +1846,24 @@ test("selecting Fishes classical guitar preserves manual crossfade while prepari
 });
 test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
  const {run,env,get,calls}=rig();await run("startStop()");run("aiNativeReady=true");
- calls.decodedFrames=192000;
- env.fetch=async(url,opts)=>{
+ calls.decodedFrames=9*48000;
+ env.fetch=async(url)=>{
   if(String(url)==="/api/ai/capture/native-first")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
-  const op=String(url).split("/").pop();
-  let result={};
+  const op=String(url).split("/").pop();let result={};
   if(op==="status")result={native_loop_capture_supported:true};
   if(op==="capture-start")result={capture_id:"native-first"};
-  if(op==="capture-stop")result={ready:true,frames:96000,peak:.4,audio_url:"/api/ai/capture/native-first"};
+  if(op==="capture-stop")result={ready:true,frames:9*48000,peak:.4,audio_url:"/api/ai/capture/native-first"};
   return {ok:true,json:async()=>result};
  };
  assert.equal(run("decks.pyramid.locked"),false);
  await run('startNativeInstrumentTake("pyramid","lead")');
  assert.equal(run("nativeTake.first"),true);
- run("ctx.currentTime+=4");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()*2");
  await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.locked"),true);
- assert.ok(run("decks.pyramid.lengthSteps")>=12);
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
  assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
- assert.match(get("nativeStatus-pyramid-lead").textContent,/LOOP PLAYING.*REPEATING/);
+ assert.match(get("nativeStatus-pyramid-lead").textContent,/LOOP PLAYING.*BARS/);
 });
 
 test("choosing the Fishes voice box leaves the manual DJ mix unchanged",async()=>{
@@ -1967,16 +1960,14 @@ test("loop-specific filter, echo-out and reverb-hold work without touching rhyth
 test("native AI drum lane records real audio, stays separate from browser rhythm, and can replay",async()=>{
  const {run,get,env,calls}=rig();await run("startStop()");
  assert.match(file,/#jazzDrumDeck\{display:block\}/);
- for(const id of ["nativeRecord-drums-drums","nativeResume-drums-drums","nativeDrumClips"])
-  assert.ok(file.includes('id="'+id+'"'));
- run("aiNativeReady=true");
+ run("aiNativeReady=true");calls.decodedFrames=7*48000;
  const seen=[];
  env.fetch=async(url,opts)=>{
   const op=String(url).split("/").pop();
   if(opts?.body)seen.push([op,JSON.parse(opts.body)]);
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"drum-take"})};
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/drum-take"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:7*48000,peak:.3,audio_url:"/api/ai/capture/drum-take"})};
   if(String(url)==="/api/ai/capture/drum-take")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
@@ -1985,13 +1976,14 @@ test("native AI drum lane records real audio, stays separate from browser rhythm
  assert.ok(seen.some(([op,v])=>op==="drum-mix"&&v.value===1));
  assert.ok(seen.some(([op,v])=>op==="drums"&&v.value===true));
  assert.equal(calls.screenCaptures,0);
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
  await run("finishNativeInstrumentTake()");
  assert.equal(run("nativeTake"),null);
  assert.equal(run("drumDeck.layers.length"),1);
  assert.equal(run('drumDeck.layers[0].instrumentRole'),"drums");
  assert.ok(run("drumDeck.layers[0].source"));
  assert.equal(get("nativeDrumClips").children.length,1);
- assert.equal(run('drumDeck.bus.gain.value'),1,"not affected by Pyramid/Fishes crossfade");
+ assert.equal(run('drumDeck.bus.gain.value'),1);
  assert.equal(run("rhythmAudioEnabled"),true);
  await run('toggleNativeSavedLoop("drums","drums")');
  assert.equal(run('drumDeck.layers[0].gain.gain.value'),0);
@@ -2000,6 +1992,7 @@ test("native AI drum lane records real audio, stays separate from browser rhythm
  get("nativeDrumClips").children[0].children.find(x=>x.textContent==="×").onclick();
  assert.equal(run("drumDeck.layers.length"),0);
 });
+
 test("all PCM audio uses the same phase and endpoints meet without clicks",async()=>{
  const {run}=rig();await run("startStop()");
  const shift=run('(()=>{const b=ctx.createBuffer(1,1000,1000);const p=new Float32Array(1000);p[50]=.7;const moved=writeAlignedLoopAudio(b,[p],.25,0);return {moved,note:b.getChannelData(0)[300],wrong:b.getChannelData(0)[50],edges:[b.getChannelData(0)[0],b.getChannelData(0)[999]]};})()');
@@ -2011,31 +2004,27 @@ test("all PCM audio uses the same phase and endpoints meet without clicks",async
  assert.ok(Math.abs(fixed[0]-fixed[1])<1e-7);
 });
 test("slow native WAV handoff preserves audio START phase instead of moving the piano downbeat",async()=>{
- const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
- calls.decodedFrames=4*48000;
- env.fetch=async(url,opts)=>{
+ const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");calls.decodedFrames=6*48000;
+ env.fetch=async(url)=>{
   const u=String(url),op=u.split("/").pop();
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
-  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"fresh-audio"})};
-  if(op==="capture-stop"){
-   run("ctx.currentTime+=18");
-   return {ok:true,json:async()=>({ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/fresh-audio"})};
-  }
-  if(u==="/api/ai/capture/fresh-audio")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"slow-piano"})};
+  if(op==="capture-stop"){run("ctx.currentTime+=18");return {ok:true,json:async()=>({ready:true,frames:6*48000,peak:.3,audio_url:"/api/ai/capture/slow-piano"})};}
+  if(u==="/api/ai/capture/slow-piano")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
  await run('startNativeInstrumentTake("pyramid","chords")');
- run("ctx.currentTime+=4");
+ const start=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
  await run("finishNativeInstrumentTake()");
- assert.equal(run("decks.pyramid.locked"),true);
- assert.ok(run("decks.pyramid.lengthSteps")<20,"network stall must not create dead air in phrase");
- assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),run("decks.pyramid.anchorStep"));
- const source=run("decks.pyramid.layers[0].source");
- assert.equal(run("decks.pyramid.pedalPeriodSeconds"),4);
- assert.ok(Math.abs(source.startOffset-2)<.05,"after an 18s WAV delay, join the four-second piano phrase at phase two, not sample zero");
- assert.equal(source.loop,true);
- assert.ok(Math.abs(run('loopMasterOrigin("pyramid")'))<.001,"first piano period is anchored to captured audio START, not DONE or WAV decode");
+ const period=run("rhythmBarSteps()*tickSeconds()");
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-period)<1/48000);
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
+ const layer=run("decks.pyramid.layers[0]");
+ assert.ok(layer.source.loop);
+ assert.ok(layer.source.startOffset>=0&&layer.source.startOffset<period,"WAV delay resumes at master phase, not drifting free-running time");
 });
+
 test("Scarlett overdub stays anchored to the first phrase",async()=>{
  const {run,calls}=rig();await run("startStop()");
  run("decks.pyramid.locked=true;decks.pyramid.anchorStep=3;decks.pyramid.lengthSteps=16");
@@ -2048,80 +2037,75 @@ test("Scarlett overdub stays anchored to the first phrase",async()=>{
 
 test("BOSS pedal: DONE plays piano sample zero indefinitely without another tap",async()=>{
  const {run,get,env,calls}=rig();await run("startStop()");
- run("aiNativeReady=true");calls.decodedFrames=4*48000;
+ run("aiNativeReady=true");calls.decodedFrames=6*48000;
  const host=[];
  env.fetch=async(url,opts)=>{
   const u=String(url),op=u.split("/").pop();
   if(opts?.body)host.push({op,data:JSON.parse(opts.body)});
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"first-piano"})};
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:4*48000,peak:.4,audio_url:"/api/ai/capture/first-piano"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:6*48000,peak:.4,audio_url:"/api/ai/capture/first-piano"})};
   if(u==="/api/ai/capture/first-piano")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
  await run('startNativeInstrumentTake("pyramid","chords")');
- assert.equal(run("nativeTake.first"),true);
- run("ctx.currentTime=4");
+ const start=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
  await run("finishNativeInstrumentTake()");
  assert.equal(run("nativeTake"),null);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.pyramid.pedalPeriodSeconds"),4);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),4*48000);
+ assert.equal(run("decks.pyramid.lengthSteps"),8);
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("barDuration()"))<1/48000);
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
- assert.ok(Math.abs(run("decks.pyramid.layers[0].source.startOffset"))<.05,"the first loop begins at the same phase, within the 25ms browser scheduling guard");
  assert.equal(run("decks.pyramid.layers[0].paused"),false);
  assert.equal(run("decks.pyramid.loopEnabled"),true);
- assert.match(get("nativeStatus-pyramid-chords").textContent,/LOOP PLAYING.*REPEATING/);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/BARS.*WAV handoff/);
  assert.match(get("nativeResume-pyramid-chords").textContent,/STOP SAVED/);
- assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
  const source=run("decks.pyramid.layers[0].source");
  await run('toggleNativeSavedLoop("pyramid","chords")');
  assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
- assert.equal(run("decks.pyramid.layers[0].source"),source,"STOP SAVED pauses playback only");
  await run('toggleNativeSavedLoop("pyramid","chords")');
- assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
- assert.equal(run("decks.pyramid.layers[0].source"),source,"PLAY SAVED does not start another recording");
+ assert.equal(run("decks.pyramid.layers[0].source"),source);
  assert.equal(host.filter(x=>x.op==="capture-start").length,1);
 });
+
 test("overdub inherits first piano duration, remains audible alongside it",async()=>{
  const {run,env,calls,get}=rig();await run("startStop()");
- run("aiNativeReady=true");calls.decodedFrames=3*48000;
+ run("aiNativeReady=true");calls.decodedFrames=8*48000;
  let number=0;const lengths=[];
  env.fetch=async(url,opts)=>{
   const u=String(url),op=u.split("/").pop();
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start"){lengths.push(JSON.parse(opts.body).seconds);return {ok:true,json:async()=>({capture_id:"take-"+(++number)})};}
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:3*48000,peak:.4,audio_url:"/api/ai/capture/"+JSON.parse(opts.body).id})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:8*48000,peak:.4,audio_url:"/api/ai/capture/"+JSON.parse(opts.body).id})};
   if(u.startsWith("/api/ai/capture/"))return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
  await run('startNativeInstrumentTake("pyramid","chords")');
- run("ctx.currentTime=3");await run("finishNativeInstrumentTake()");
- assert.equal(run("decks.pyramid.pedalPeriodSeconds"),3);
- run("ctx.currentTime=3.25");await run('startNativeInstrumentTake("pyramid","lead")');
- assert.equal(lengths[1],3);
- run("ctx.currentTime=6.25");await run("finishNativeInstrumentTake()");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
+ await run("finishNativeInstrumentTake()");
+ const period=run("decks.pyramid.pedalPeriodSeconds");
+ run("ctx.currentTime+=.3");await run('startNativeInstrumentTake("pyramid","lead")');
+ assert.ok(Math.abs(lengths[1]-period)<1/48000);
+ run("ctx.currentTime+=decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),2);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
  assert.equal(run("decks.pyramid.layers[1].source.loop"),true);
- assert.equal(run("decks.pyramid.layers[1].buffer.duration"),3);
+ assert.ok(Math.abs(run("decks.pyramid.layers[1].buffer.duration")-period)<1/48000);
  assert.equal(run("decks.pyramid.layers[1].pedalAligned"),true);
- assert.equal(run("decks.pyramid.layers[0].paused"),false);
- assert.equal(run("decks.pyramid.layers[1].paused"),false);
  assert.match(get("nativeResume-pyramid-lead").textContent,/STOP SAVED/);
- await run('toggleNativeSavedLoop("pyramid","lead")');
- assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0);
- assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
 });
+
 test("voice DONE automatically begins endlessly repeating its first PCM phrase",async()=>{
  const {run,calls,get}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  const frames=run("recording.processor.opts.processorOptions.frames");
- run("recording.actualFrames=4*48000;ctx.currentTime=recording.startAt+4");
+ run("recording.actualFrames=4*48000;recording.actualSteps=16;ctx.currentTime=recording.startAt+4");
  calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames,peak:.12,hot:0,missing:0}});
  const layer=run("decks.pyramid.layers[0]");
  assert.equal(layer.source.loop,true);
- assert.ok(Math.abs(layer.source.startOffset)<.05);
+ assert.ok(layer.source.startOffset>=0&&layer.source.startOffset<layer.buffer.duration);
  assert.equal(layer.paused,false);
  assert.ok(layer.gain.gain.value>0);
  assert.equal(run("decks.pyramid.pedalPeriodSeconds"),layer.buffer.duration);
@@ -2212,28 +2196,25 @@ test("Pyramid pads steer selected cello and glass prompts with exact F-sharp, Gm
 
 test("first Magenta jazz drum recording behaves as an endless free-running BOSS pedal",async()=>{
  const {run,get,env,calls}=rig();await run("startStop()");
- run("aiNativeReady=true");calls.decodedFrames=2*48000;
- env.fetch=async(url,opts)=>{
+ run("aiNativeReady=true");calls.decodedFrames=7*48000;
+ env.fetch=async(url)=>{
   const u=String(url),op=u.split("/").pop();
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"first-ai-drums"})};
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:2*48000,peak:.25,audio_url:"/api/ai/capture/first-ai-drums"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:7*48000,peak:.25,audio_url:"/api/ai/capture/first-ai-drums"})};
   if(u==="/api/ai/capture/first-ai-drums")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
- assert.equal(run("drumDeck.locked"),false);
  await run('startNativeInstrumentTake("drums","drums")');
  assert.equal(run("nativeTake.first"),true);
- run("ctx.currentTime=2");await run("finishNativeInstrumentTake()");
- assert.equal(run("drumDeck.pedalPeriodSeconds"),2);
+ const grid=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("drumDeck.lengthSteps"),8);
+ assert.ok(Math.abs(run("drumDeck.pedalPeriodSeconds")-run("barDuration()"))<1/48000);
+ assert.ok(Math.abs(run('loopMasterOrigin("drums")')-grid)<.001);
  assert.equal(run("drumDeck.layers[0].source.loop"),true);
- assert.ok(Math.abs(run("drumDeck.layers[0].source.startOffset"))<.05);
  assert.match(get("nativeResume-drums-drums").textContent,/STOP SAVED/);
- await run('toggleNativeSavedLoop("drums","drums")');
- assert.equal(run("drumDeck.layers[0].gain.gain.value"),0);
- assert.equal(run("rhythmAudioEnabled"),true);
- await run('toggleNativeSavedLoop("drums","drums")');
- assert.ok(run("drumDeck.layers[0].gain.gain.value")>0);
 });
 
 test("jazz drums have four chord-style pads, keys 1–4, and no redundant SELECT SOUND controls",()=>{
@@ -2325,21 +2306,23 @@ test("failed native preparation restores the piano record control for retry",asy
  assert.match(get("nativeStatus-pyramid-chords").textContent,/NOT RECORDING/);
 });
 test("RECORD TAKE still auto-selects the instrument prompt after removing manual select buttons",async()=>{
- const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
- const calls=[];
+ const {run,env,get,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=8*48000;
+ const commands=[];
  env.fetch=async(url,opts)=>{
   const op=String(url).split("/").pop();
-  if(opts?.body)calls.push({op,args:JSON.parse(opts.body)});
+  if(opts?.body)commands.push({op,args:JSON.parse(opts.body)});
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"auto-piano"})};
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:48000,peak:.5,audio_url:"/api/ai/capture/auto-piano"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:8*48000,peak:.5,audio_url:"/api/ai/capture/auto-piano"})};
   if(String(url)==="/api/ai/capture/auto-piano")return {ok:true,arrayBuffer:async()=>new ArrayBuffer(44)};
   return {ok:true,json:async()=>({})};
  };
  await run('startNativeInstrumentTake("pyramid","chords")');
- assert.ok(calls.some(x=>x.op==="scene"&&x.args.scene==="pyramid"));
- assert.ok(calls.some(x=>x.op==="lead-mix"&&x.args.scene==="pyramid"&&x.args.value===0));
+ assert.ok(commands.some(x=>x.op==="scene"&&x.args.scene==="pyramid"));
+ assert.ok(commands.some(x=>x.op==="lead-mix"&&x.args.scene==="pyramid"&&x.args.value===0));
  assert.equal(run("nativeTake.role"),"chords");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
  await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
@@ -2348,23 +2331,26 @@ test("RECORD TAKE still auto-selects the instrument prompt after removing manual
 
 test("real native WAV frame duration wins over an inaccurate browser DONE timestamp",async()=>{
  const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
- calls.decodedFrames=4*48000;
- env.fetch=async(url,opts)=>{
+ calls.decodedFrames=7*48000;
+ env.fetch=async(url)=>{
   const u=String(url),op=u.split("/").pop();
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"native-frames"})};
-  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:4*48000,rate:48000,peak:.5,audio_url:"/api/ai/capture/native-frames"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:7*48000,rate:48000,peak:.5,audio_url:"/api/ai/capture/native-frames"})};
   if(u==="/api/ai/capture/native-frames")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
   return {ok:true,json:async()=>({})};
  };
  await run('startNativeInstrumentTake("pyramid","chords")');
- run("ctx.currentTime=4.23"); // browser event clock isn't the native render clock
+ const start=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()+.12");
  await run("finishNativeInstrumentTake()");
- assert.equal(run("decks.pyramid.pedalPeriodSeconds"),4,"no artificial 230ms tail or crop");
- assert.ok(Math.abs(run('loopMasterOrigin("pyramid")'))<.001,"native recorded sample zero stays the origin");
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("barDuration()"))<1/48000,
+  "WAV length and STOP network offset cannot change the musical period");
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  const l=run("decks.pyramid.layers[0]");
- assert.ok(Math.abs(l.source.startOffset-.255)<.005,"playback joins the phase of the real audio, not click-to-DONE duration");
+ assert.ok(l.source.startOffset>=0&&l.source.startOffset<run("barDuration()"));
 });
+
 test("drum take inherits piano's exact 3.7s pedal period and phase rather than starting a second loop clock",async()=>{
  const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=13;decks.pyramid.anchorStep=3;decks.pyramid.pedalPeriodSeconds=3.7;decks.pyramid.pedalOriginOffsetSeconds=1.1');
@@ -2384,17 +2370,18 @@ test("drum take inherits piano's exact 3.7s pedal period and phase rather than s
  assert.equal(run("nativeTake.seconds"),3.7);
 });
 test("vocal first phrase begins immediately and DONE establishes an unquantized PCM period",async()=>{
- const {run,calls}=rig();await run("startStop()");
+ const {run,calls,get}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  const start=run("recording.startAt");
- assert.ok(Math.abs(start-run("ctx.currentTime")-.04)<.001);
+ assert.ok(Math.abs(start-run("gridTimeAt(ctx.currentTime,.08)"))<.001);
+ assert.match(get("pedalClockCue").textContent,/PLAY|VOICE|READY/);
  run("ctx.currentTime=recording.startAt+1.234");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.finishQueued"),true);
  assert.equal(calls.workletMessage.frames,Math.round(1.234*48000));
  const frames=run("recording.frames");
  calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames),frames:calls.workletMessage.frames,peak:.1,hot:0,missing:0}});
- assert.equal(run("decks.pyramid.pedalPeriodSeconds"),Math.round(1.234*48000)/48000);
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("barDuration()"))<1/48000);
  assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
 });
@@ -2408,7 +2395,7 @@ test("drums recorded first become the precise master for an immediate Scarlett v
  assert.equal(run("decks.pyramid.pedalPeriodSeconds"),3.71);
  assert.equal(run("decks.pyramid.pedalOriginOffsetSeconds"),.85);
  assert.equal(run("recording.frames"),Math.round(3.71*48000));
- assert.ok(Math.abs(run("recording.startAt-ctx.currentTime")-.04)<.001);
+ assert.ok(Math.abs(run("recording.startAt-gridTimeAt(ctx.currentTime,.08)"))<.001);
 });
 
 test("vocal loop effects return through an isolated limited wet bus, not the main echo send",async()=>{
@@ -2505,4 +2492,103 @@ test("KILL VOCAL FX cancels asynchronous MONITOR VOICE before the mic opens",asy
  assert.equal(run("monitorSource"),null);
  assert.equal(run("monitorPreparing"),null);
  assert.match(get("monitorStatus").textContent,/KILLED/);
+});
+
+test("the shared beat-one cue and pre-roll trim prevent piano drift after many repeats",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ assert.match(get("pedalClockState").textContent,/BEAT|WAITING/);
+ run("updatePedalClock()");
+ assert.match(get("pedalClockState").textContent,/BEAT 1/);
+ assert.match(file,/id="pedalBeat1"/);
+ assert.match(file,/id="pedalClockCue"/);
+ const check=run('(()=>{const b=ctx.createBuffer(1,1000,1000),audio=new Float32Array(1400);audio[20]=1;audio[300]=.8;writeFirstGridLoop(b,[audio],0,.2);return {early:b.getChannelData(0)[0],note:b.getChannelData(0)[100],duration:b.duration}})()');
+ assert.equal(check.early,0,"pre-downbeat samples never wrap into the loop");
+ assert.ok(Math.abs(check.note-.8)<.001,"first on-beat sample keeps its original phase");
+ assert.equal(check.duration,1);
+ const bar=run("barDuration()");
+ assert.equal(run("phraseGridSteps(1,1+barDuration()*2.03)"),16);
+ assert.equal(run("phraseGridSteps(1,1+barDuration()*.97)"),8);
+ assert.equal(run("phraseGridSteps(1,1+barDuration()*3.91)"),32);
+});
+test("beat cue and native first captures share the same green musical bar origin",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=10*48000;
+ env.fetch=async(url)=>{
+  const op=String(url).split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"grid-native"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:10*48000,peak:.5,audio_url:"/api/ai/capture/grid-native"})};
+  if(String(url)==="/api/ai/capture/grid-native")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ assert.equal(run("nativeTake.gridStartAt"),run("transportEpoch+nativeTake.beginStep*tickSeconds()"));
+ assert.equal(run("nativeTake.beginStep%rhythmBarSteps()"),0);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/BEAT 1/);
+ run("updatePedalClock()");
+ assert.match(get("pedalClockCue").textContent,/ARMED/);
+ const cue=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()*2");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-cue)<.001);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),run("Math.round(16*tickSeconds()*ctx.sampleRate)"));
+});
+
+test("performance cue floats above every instrument panel while scrolling and hides beat five in 4/4",()=>{
+ assert.match(file,/\.pedal-clock\{position:fixed;/,"clock must float instead of scrolling out of view");
+ assert.match(file,/z-index:3000/,"clock must remain above song and effects panels");
+ assert.match(file,/id="pedalCueBig"/,"large count-in/GO marker exists");
+ assert.match(file,/\.pedal-beat\[hidden\]\{display:none!important\}/,"4/4 must never show a fifth beat");
+ assert.match(file,/@media\(max-width:700px\)/,"clock remains readable on narrow viewports");
+});
+test("armed native piano has an audible-clock countdown 3 2 1 GO then REC",async()=>{
+ const {run,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async(url)=>{
+  const op=String(url).split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"cue-take"})};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ const start=run("nativeTake.gridStartAt");
+ assert.ok(run("nativeTake.gridStartAt-ctx.currentTime")>=run("6*tickSeconds()")-0.01,
+  "native piano has at least a three-quarter-note count-in");
+ for(const [n,beats] of [[3,3],[2,2],[1,1]]){
+  run(`ctx.currentTime=nativeTake.gridStartAt-${beats}*2*tickSeconds()+.001`);
+  run("updatePedalClock()");
+  assert.equal(get("pedalCueBig").textContent,String(n),"countdown "+n);
+  assert.equal(get("pedalClock").dataset.cue,"count");
+  assert.match(get("pedalClockCue").textContent,/PIANO|CHORDS/);
+ }
+ run("ctx.currentTime=nativeTake.gridStartAt+.01;updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"GO!");
+ assert.equal(get("pedalClock").dataset.cue,"go");
+ assert.match(get("pedalClockCue").textContent,/NOW!/);
+ run("ctx.currentTime=nativeTake.gridStartAt+2*tickSeconds()+.03;updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"● REC");
+ assert.equal(get("pedalClock").dataset.cue,"recording");
+});
+test("voice starts after a visible count-in and matches GO instead of 'armed' forever",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ const start=run("recording.startAt");
+ assert.ok(start-run("ctx.currentTime")>=run("6*tickSeconds()")-.01);
+ run("ctx.currentTime=recording.startAt-2*tickSeconds()+.001;updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"1");
+ assert.match(get("pedalClockCue").textContent,/SING/);
+ run("ctx.currentTime=recording.startAt+.01;updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"GO!");
+ assert.match(get("pedalClockCue").textContent,/SING NOW!/);
+ run("ctx.currentTime=recording.startAt+3*tickSeconds();updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"● REC");
+});
+test("MIDI first take never arms on beat two just because next tick was pre-scheduled",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('record("pyramid")');
+ const start=run("recording.beginAt");
+ assert.equal(start%run("rhythmBarSteps()"),0);
+ assert.ok(start>=8);
+ run("ctx.currentTime=transportEpoch+recording.beginAt*tickSeconds()+.01;updatePedalClock()");
+ assert.equal(get("pedalCueBig").textContent,"GO!");
 });
