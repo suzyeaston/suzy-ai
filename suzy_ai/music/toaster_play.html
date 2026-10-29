@@ -589,7 +589,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><button class="loop-pedal" id="loopInstant-pyramid" type="button" disabled title="Hear the current phase immediately. Not a phrase downbeat.">▶ HEAR NOW</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="audio-loop-pedal" aria-label="pyramid sound-on-sound audio layers">
  <div class="audio-loop-actions">
   <button type="button" id="printMidi-pyramid" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
@@ -673,7 +673,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><button class="loop-pedal" id="loopInstant-fishes" type="button" disabled title="Hear the current phase immediately. Not a phrase downbeat.">▶ HEAR NOW</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="audio-loop-pedal" aria-label="fishes sound-on-sound audio layers">
  <div class="audio-loop-actions">
   <button type="button" id="printMidi-fishes" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
@@ -2018,28 +2018,50 @@ async function toggleNativeSavedLoop(which,role){
  updateNativePlaybackButtons();
  tell(nativeLaneLabel(which,role)+(resume?" · SAVED AUDIO PLAYING NOW (PHASE LOCKED)":" · SAVED AUDIO PAUSED")+" · record another take anytime.");
 }
+function masterRestartStep(which,at=ctx.currentTime){
+ const d=loopDeck(which),period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
+ const origin=loopMasterOrigin(which);
+ // Allow 140ms scheduler lookahead, then choose the ORIGINAL phrase start.
+ const boundary=origin+Math.max(0,Math.ceil((at+.17-origin)/period))*period;
+ return Math.round((boundary-transportEpoch)/tickSeconds());
+}
 function updateLoopControls(which){
- const d=decks[which],button=$("loopToggle-"+which);
+ const d=decks[which],button=$("loopToggle-"+which),now=$("loopInstant-"+which);
  button.disabled=!d.locked||!d.layers.length;
- button.classList.remove("queued");
- button.textContent=!d.locked?"↻ NO LOOP YET":d.loopEnabled?"■ STOP LOOP":"▶ RESTART NOW";
+ button.classList.toggle("queued",d.loopToggleAt!==null);
+ button.textContent=!d.locked?"↻ NO LOOP YET":d.loopToggleAt!==null?
+  "⌛ RESTART QUEUED · CANCEL":d.loopEnabled?"■ STOP LOOP":"▶ RESTART ON 1";
+ now.disabled=!d.locked||!d.layers.length||d.loopEnabled;
+ now.textContent="▶ HEAR NOW · MID-PHRASE";
+}
+async function resumeLoopImmediately(which){
+ const d=decks[which];
+ if(!d.locked||!d.layers.length||recording||nativeTake||audioPrint)return;
+ if(!stageStarted)await startStop();
+ d.loopToggleAt=null;d.loopToggleTarget=null;d.loopEnabled=true;
+ applyLoopGateNow(which);updateLoopControls(which);updateNativePlaybackButtons();
+ tell("▶ "+which.toUpperCase()+" HEAR NOW · current phrase phase, NOT beat-one restart. Use RESTART ON 1 for the downbeat.");
 }
 async function toggleLoop(which){
  const d=decks[which];
  if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before playing."));
  if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
- const target=!d.loopEnabled;
- d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
- if(!target){
-   // STOP applies to FX tails as well as the repeating source.
-   for(const layer of d.layers){stopLayerWash(layer);stopLayerEcho(layer);}
-   if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)
-    aiRelease(aiChordOwner.token);
-  }
- if(target&&!stageStarted)await startStop();
- applyLoopGateNow(which);
- updateLoopControls(which);updateNativePlaybackButtons();
- tell(which.toUpperCase()+" · "+(target?"LOOP AUDIBLE NOW · phase stays aligned":"LOOP STOPPED NOW")+" · no next-bar wait.");
+ if(d.loopToggleAt!==null){
+  d.loopToggleAt=null;d.loopToggleTarget=null;
+  updateLoopControls(which);updatePedalClock();
+  return tell("RESTART CANCELLED · loop remains stopped. HEAR NOW resumes current phase immediately.");
+ }
+ if(d.loopEnabled){
+  d.loopEnabled=false;
+  for(const layer of d.layers){stopLayerWash(layer);stopLayerEcho(layer);}
+  if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+  applyLoopGateNow(which);updateLoopControls(which);updateNativePlaybackButtons();
+  return tell(which.toUpperCase()+" STOPPED · rhythm continues. RESTART ON 1 is downbeat-locked; HEAR NOW unmutes at the current phase.");
+ }
+ if(!stageStarted)await startStop();
+ d.loopToggleAt=masterRestartStep(which);d.loopToggleTarget=true;
+ updateLoopControls(which);updateNativePlaybackButtons();updatePedalClock();
+ tell(which.toUpperCase()+" RESTART ARMED · watch the downbeat countdown. Audio begins at its ORIGINAL beat one.");
 }
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
@@ -2086,24 +2108,23 @@ function schedule(time,count){
  if(step===0)applyTempoAtBar(time,count);
  if(step===0&&arranger)arranger.onCycle(count/8);
  pulse(time,count);
- if(count%8===0){
-  // Shared bar clock gates real PCM and recorded MIDI on the same beat.
-  for(const [which,d] of Object.entries(decks)){
-   if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
-    d.loopEnabled=d.loopToggleTarget;
-    d.loopToggleAt=null;d.loopToggleTarget=null;
-    // STOP also releases native sustained notes instead of leaving a drone.
-    if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
-      aiRelease(aiChordOwner.token);
-    if(d.loopBus)d.loopBus.gain.setTargetAtTime(targetLoopGain(which),time,.018);
-    updateLoopControls(which);
-    trackView?.draw();
-   }
-   for(const layer of d.layers){
-    if(!layer.buffer||!layer.gain)continue;
+ // Sample-clock playback gates on the true phrase-zero tick, not only
+ // on arbitrary 4/4 eight-tick boundaries.
+ for(const [which,d] of Object.entries(decks)){
+  if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
+   d.loopEnabled=d.loopToggleTarget;
+   d.loopToggleAt=null;d.loopToggleTarget=null;
+   if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+    aiRelease(aiChordOwner.token);
+   if(d.loopBus)d.loopBus.gain.setValueAtTime(targetLoopGain(which),time);
+   for(const layer of d.layers)if(layer.buffer&&layer.gain)
     layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
-   }
+   updateLoopControls(which);trackView?.draw();
   }
+ }
+ if(count%8===0)for(const [which,d] of Object.entries(decks)){
+  for(const layer of d.layers)if(layer.buffer&&layer.gain)
+   layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
  }
  // The first phrase is performer-defined. The eighth-note scheduler closes
  // recording at the first *unscheduled* tick after DONE, with no bar preset.
@@ -3855,6 +3876,7 @@ for(const k of Object.keys(decks)){
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
  $("loopToggle-"+k).onclick=()=>toggleLoop(k).catch(warn);
+ $("loopInstant-"+k).onclick=()=>resumeLoopImmediately(k).catch(warn);
  updateLoopControls(k);
  $("vocal-"+k).onclick=()=>voiceLoop(k);
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
