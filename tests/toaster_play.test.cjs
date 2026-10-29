@@ -2374,7 +2374,8 @@ test("vocal first phrase begins immediately and DONE establishes an unquantized 
  await run('voiceLoop("pyramid")');
  const start=run("recording.startAt");
  assert.ok(Math.abs(start-run("gridTimeAt(ctx.currentTime,.08)"))<.001);
- assert.match(get("pedalClockCue").textContent,/PLAY|VOICE|READY/);
+ run("updatePedalClock()");
+ assert.match(get("pedalClockCue").textContent,/VOICE.*GO!/);
  run("ctx.currentTime=recording.startAt+1.234");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.finishQueued"),true);
@@ -2526,7 +2527,7 @@ test("beat cue and native first captures share the same green musical bar origin
  assert.equal(run("nativeTake.beginStep%rhythmBarSteps()"),0);
  assert.match(get("nativeStatus-pyramid-chords").textContent,/BEAT 1/);
  run("updatePedalClock()");
- assert.match(get("pedalClockCue").textContent,/ARMED/);
+ assert.match(get("pedalClockCue").textContent,/GO!.*BEATS/);
  const cue=run("nativeTake.gridStartAt");
  run("ctx.currentTime=nativeTake.gridStartAt+barDuration()*2");
  await run("finishNativeInstrumentTake()");
