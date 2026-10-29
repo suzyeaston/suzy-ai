@@ -2524,6 +2524,20 @@ async function selectNativeLane(which,role){
  activeNativeLane=which+":"+role;
  tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
 }
+// One sample-clock period for native instruments, Magenta drums and vocals.
+function inheritPedalPeriod(which){
+ const d=loopDeck(which);
+ if(d.locked)return d;
+ const foundation=which==="drums"?decks[scene]:drumDeck;
+ if(!foundation.locked)return d;
+ d.locked=true;
+ d.lengthSteps=foundation.lengthSteps;
+ d.anchorStep=foundation.anchorStep;
+ d.pedalPeriodSeconds=foundation.pedalPeriodSeconds||foundation.lengthSteps*tickSeconds();
+ d.pedalOriginOffsetSeconds=Number.isFinite(foundation.pedalOriginOffsetSeconds)?
+  foundation.pedalOriginOffsetSeconds:foundation.anchorStep*tickSeconds();
+ return d;
+}
 async function startNativeInstrumentTake(which,role){
  // Native prompt setup/HTTP requests must finish before recording begins.
  // The arming latch prevents rapid taps launching overlapping capture sessions.
@@ -2543,14 +2557,7 @@ async function startNativeInstrumentTake(which,role){
    throw Error("Native AU PCM recording unavailable. Rebuild the TOASTER Magenta host; do not use screen-share substitutes.");
   await selectNativeLane(which,role);
   if(!stageStarted)throw Error("Rhythm paused while preparing native recording. Press Play and try again.");
-  const d=loopDeck(which);
-  // Drum audio follows the first established song length, or a 2-bar grid.
-  // It never becomes a recorded browser beat.
-  if(which==="drums"&&!d.layers.length){
-   const foundation=decks[scene];
-   d.lengthSteps=foundation.locked?foundation.lengthSteps:16;
-   d.anchorStep=foundation.locked?foundation.anchorStep:0;
-  }
+  const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
   const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
   const requestAt=ctx.currentTime;
@@ -2568,7 +2575,7 @@ async function startNativeInstrumentTake(which,role){
   const statusEl=$("nativeStatus-"+which+"-"+role);
   statusEl.textContent=first?"● REAL NATIVE AUDIO · perform, then press DONE to define the loop":
    "● REAL NATIVE AUDIO · stacking one full phrase, no screen sharing";
-  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+200));
+  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+40));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
   if(nativeTake===take)nativeTake=null;
@@ -2598,11 +2605,10 @@ async function finishNativeInstrumentTake(){
   await openAudio();
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
   const d=loopDeck(which);
-  const elapsed=Math.max(.1,take.stopRequestedAt-take.startedAt);
-  const requestedFrames=Math.max(1,Math.round(
-   (take.first?elapsed:(d.pedalPeriodSeconds||d.lengthSteps*tickSeconds()))*ctx.sampleRate));
-  // Preserve the exact first phrase and never pad it with a bar of dead air.
-  const frames=take.first?Math.min(recorded.length,requestedFrames):requestedFrames;
+  // The actual captured native PCM sample count owns the first period.
+// Browser button timestamps cannot crop audio recorded on the separate AU clock.
+const frames=take.first?recorded.length:Math.max(1,Math.round(
+ (d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
   const inputs=Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel));
@@ -2615,12 +2621,9 @@ async function finishNativeInstrumentTake(){
    d.lengthSteps=Math.max(1,Math.min(256,Math.round(buffer.duration/tickSeconds())));
    d.anchorStep=take.beginStep;d.loopEnabled=true;
    d.pedalPeriodSeconds=buffer.duration;
-   // A fast WAV handoff plays near sample zero; a slow handoff joins
-   // the same repeating phrase in progress instead of resetting its beat.
-   // Future recordings use the same free-running loop origin and duration.
-   // Use DONE's true musical boundary, not the delayed WAV decode callback.
-   // Playback joins the ongoing phrase at its correct phase without bar waits.
-   d.pedalOriginOffsetSeconds=(take.stopRequestedAt+.025)-transportEpoch;
+   // The master origin is the beginning of captured audio, never the DONE
+// click or a delayed WAV decode. All future layers inherit this phase.
+d.pedalOriginOffsetSeconds=take.startedAt-transportEpoch;
   }else{
    shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
@@ -3079,16 +3082,16 @@ async function voiceLoop(which){
  if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
-  if(take.finishQueued)return tell("DONE queued · vocal loop closing on the next pulse.");
-  if(stepNumber<take.firstStep)return tell("VOICE ARMED · sing at the next pulse, then press DONE.");
-  // Like chord looping, DONE defines the actual sung length; the scheduler
-  // has pre-scheduled 140 ms, so close on the next available eighth-note.
-  const requested=Math.max(take.firstStep+1,
-   Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()),stepNumber);
-  const endStep=Math.min(take.firstStep+take.steps,requested);
-  take.actualSteps=endStep-take.firstStep;
-  take.finishQueued=true;
-  take.processor.port.postMessage({type:"finish",frames:Math.min(take.frames,Math.round(take.actualSteps*tickSeconds()*ctx.sampleRate))});
+  if(take.finishQueued)return tell("DONE already pressed · finalizing vocal PCM.");
+// The vocal worklet and PCM playback share the same AudioContext sample clock.
+// DONE cuts on the performer's frame, never the eighth-note scheduler.
+const elapsedFrames=Math.round((ctx.currentTime-take.startAt)*ctx.sampleRate);
+if(elapsedFrames<Math.round(.12*ctx.sampleRate))
+ return tell("VOICE ARMED · begin singing, then press DONE to close your phrase.");
+take.actualFrames=Math.max(1,Math.min(take.frames,elapsedFrames));
+take.actualSteps=Math.max(1,Math.round(take.actualFrames/ctx.sampleRate/tickSeconds()));
+take.finishQueued=true;
+take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   $("vocal-"+which).textContent="↻ VOICE LOOP STARTING…";
   $("vocalRecord"+(which==="pyramid"?"Pyramid":"Fishes")).textContent="↻ VOICE LOOP STARTING…";
   trackView?.draw();updateVocalState();
@@ -3102,14 +3105,14 @@ async function voiceLoop(which){
   const stream=await enableMic();
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
   if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
-  const d=decks[which];
+  const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
-  // First voice uses the same next-eighth-note arming as keys, with a
-  // safety maximum of 120 s. Existing phrase length stays unchanged.
-  const firstStep=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
-  const start=transportEpoch+firstStep*tickSeconds();
-  const duration=first?steps*tickSeconds():(d.pedalPeriodSeconds||steps*tickSeconds());
+// Start on the next render quantum, not the next metronome tick or bar.
+// The first audible phrase becomes an exact-sample master period.
+const start=ctx.currentTime+.04;
+const firstStep=Math.max(0,Math.floor((start-transportEpoch)/tickSeconds()));
+const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
   const frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
   source=ctx.createMediaStreamSource(stream);
@@ -3120,7 +3123,7 @@ async function voiceLoop(which){
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
   take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
-        first,firstStep,steps,frames,actualSteps:null,finishQueued:false};
+        first,firstStep,startAt:start,steps,frames,actualSteps:null,actualFrames:null,finishQueued:false};
   recording=take;
   updateVocalState();
   trackView?.draw();
@@ -3144,13 +3147,10 @@ async function voiceLoop(which){
    if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
-   const actualSteps=take.actualSteps||take.steps;
-   // First vocal take defines a phrase. Later takes ALWAYS loop for the
-   // established master length, even when DONE is pressed early: the worklet
-   // already leaves the rest of its full-size buffer silent. Otherwise every
-   // vocal overdub creates a different independent playback period and drifts.
-   const clipSteps=take.first?actualSteps:take.steps;
-   const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):frames;
+   // First voice ends at the DONE sample, not an arbitrary eighth note.
+// Later voice layers keep the exact master period; early DONE adds silence.
+const clipFrames=take.first?(take.actualFrames||receivedFrames):frames;
+const clipSteps=take.first?Math.max(1,Math.round(clipFrames/ctx.sampleRate/tickSeconds())):take.steps;
    if(take.first&&clipFrames>receivedFrames)
     return warn(Error("First vocal capture ended short of its requested phrase"));
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate);
@@ -3159,11 +3159,11 @@ async function voiceLoop(which){
     const output=clip.getChannelData(0);
     for(let i=0;i<clipFrames;i++)output[i]=data[i]*headroom;
     closeAudioLoopSeam(clip);
-    d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;
-    d.pedalPeriodSeconds=clip.duration;
-    d.pedalOriginOffsetSeconds=(ctx.currentTime+.025)-transportEpoch;
-   }else{
-    writeAlignedLoopAudio(clip,[data],transportEpoch+take.firstStep*tickSeconds(),
+    d.locked=true;d.lengthSteps=clipSteps;d.anchorStep=take.firstStep;
+d.pedalPeriodSeconds=clip.duration;
+d.pedalOriginOffsetSeconds=take.startAt-transportEpoch;
+}else{
+writeAlignedLoopAudio(clip,[data],take.startAt,
      loopMasterOrigin(which),headroom);
    }
    const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:clipSteps/8,
@@ -3182,7 +3182,7 @@ async function voiceLoop(which){
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?
-   "FIRST VOICE ARMED · sing your phrase, press DONE when it ends. The maximum safety capture is 120 seconds.":
+"● VOICE RECORDING · sing and press DONE at your phrase end (no bar wait). Maximum 120 seconds.":
    "VOICE LAYER ARMED · sing over the existing loop, then press DONE. Earlier loops stay intact.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
