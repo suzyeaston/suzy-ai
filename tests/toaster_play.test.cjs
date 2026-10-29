@@ -2488,3 +2488,21 @@ test("panic during async microphone preparation prevents a hidden recording",asy
  assert.equal(run("vocalArming"),null);
  assert.equal(calls.workletCount||0,0,"panic must prevent late worklet creation");
 });
+
+test("KILL VOCAL FX cancels asynchronous MONITOR VOICE before the mic opens",async()=>{
+ const {run,env,get}=rig();await run("startStop()");
+ const original=env.navigator.mediaDevices.enumerateDevices;
+ let release,entered=false;
+ const gate=new Promise(resolve=>{release=resolve});
+ env.navigator.mediaDevices.enumerateDevices=async()=>{entered=true;await gate;return original();};
+ const pending=run("toggleVoiceMonitor()");
+ for(let i=0;i<12&&!entered;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(entered,true,"monitor request should be waiting for device enumeration");
+ get("vocalFxPanic").onclick();
+ release();
+ await pending;
+ assert.equal(run("monitoringVoice"),false);
+ assert.equal(run("monitorSource"),null);
+ assert.equal(run("monitorPreparing"),null);
+ assert.match(get("monitorStatus").textContent,/KILLED/);
+});
