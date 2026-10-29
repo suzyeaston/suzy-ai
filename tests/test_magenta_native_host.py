@@ -382,6 +382,8 @@ class NativeCaptureSecurityTests(unittest.TestCase):
                 expected = b"RIFF" + bytes(44)
                 (Path(folder) / (capture_id + ".wav")).write_bytes(expected)
                 self.assertEqual(native_capture_wav(capture_id), expected)
+                self.assertEqual(native_capture_wav(capture_id, consume=True), expected)
+                self.assertFalse((Path(folder) / (capture_id + ".wav")).exists(), "temporary AU WAV released after transfer")
                 for bad in ("../../etc/passwd", "a.wav", capture_id + "/../../secret", "not-a-uuid"):
                     with self.subTest(bad=bad), self.assertRaises(ValueError):
                         native_capture_wav(bad)
