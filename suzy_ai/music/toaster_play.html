@@ -2288,7 +2288,8 @@ function updateRecordControls(which){
 
 const NATIVE_LANE_LABELS={
  "pyramid:chords":"PYRAMID PIANO","pyramid:lead":"PYRAMID VIOLIN",
- "fishes:chords":"FISHES ARPEGGIOS","fishes:lead":"FISHES CLASSICAL GUITAR"
+ "fishes:chords":"FISHES ARPEGGIOS","fishes:lead":"FISHES CLASSICAL GUITAR",
+ "drums:drums":"AI JAZZ DRUMS"
 };
 function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
 function updateNativeLaneControls(){
@@ -2307,9 +2308,30 @@ function updateNativeLaneControls(){
     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
+ const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
+ const active=nativeTake?.which==="drums";
+ button.disabled=!!nativeTake&&!active;
+ button.textContent=active?(nativeTake.finishing?"↻ SAVING DRUM AUDIO…":"■ DONE → STACK"):"● RECORD AI DRUM TAKE";
+ if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
+ updateNativePlaybackButtons();
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ if(which==="drums"&&role==="drums"){
+  // Isolate prompt five on the ONE native AU stereo stream. The existing
+  // browser rhythm is on a different Web Audio bus and is not captured.
+  if(aiSolo)toggleAISolo();
+  if(localKeysOnly)await toggleLocalKeysOnly();
+  aiDrumsAllowed=true;
+  $("aiDrums").setAttribute("aria-pressed","true");
+  $("aiDrums").textContent="🥁 AI DRUM AUDIO ALLOWED";
+  $("aiDrumMix").value="100";$("aiDrumMixValue").textContent="100%";
+  await aiFetch("drums",{value:true});
+  await aiFetch("drum-mix",{value:1});
+  $("nativeStatus-drums-drums").textContent="AI DRUMS SELECTED · only real native output will be captured";
+  tell("✦ NATIVE AI JAZZ DRUMS · play or record the real AU sound, not the browser beat.");
+  return;
+ }
  // Select the Google sound WITHOUT touching the performer's song crossfader.
  // Stored audio remains in the existing mix while the new prompt is prepared.
  if(aiSolo)toggleAISolo();
@@ -2323,6 +2345,10 @@ async function selectNativeLane(which,role){
  await aiFetch("mix",{value:effectiveSongMix()});
  await aiFetch("drum-mix",{value:0});
  await aiFetch("drums",{value:false});
+ aiDrumsAllowed=false;
+ $("aiDrumMix").value="0";$("aiDrumMixValue").textContent="0%";
+ $("aiDrums").setAttribute("aria-pressed","false");
+ $("aiDrums").textContent="🥁 ALLOW AI DRUM AUDIO";
  const blend=role==="lead"?1:0;
  await aiFetch("lead-mix",{scene:which,value:blend});
  $("aiLeadMix-"+which).value=String(blend*100);
@@ -2342,8 +2368,16 @@ async function startNativeInstrumentTake(which,role){
   if(!status.native_loop_capture_supported)
    throw Error("Native AU PCM recording unavailable. Rebuild the TOASTER Magenta host; do not use screen-share substitutes.");
   await selectNativeLane(which,role);
-  const d=decks[which],first=!d.locked;
-  const seconds=first?120:Math.min(120,songCycleSeconds(which));
+  const d=loopDeck(which);
+  // Drum audio follows the first established song length, or a 2-bar grid.
+  // It never becomes a recorded browser beat.
+  if(which==="drums"&&!d.layers.length){
+   const foundation=decks[scene];
+   d.lengthSteps=foundation.locked?foundation.lengthSteps:16;
+   d.anchorStep=foundation.locked?foundation.anchorStep:0;
+  }
+  const first=which!=="drums"&&!d.locked;
+  const seconds=first?120:Math.min(120,d.lengthSteps*tickSeconds());
   const begin=await aiFetch("capture-start",{seconds});
   if(!begin.capture_id)throw Error(begin.error||"Native host did not start PCM capture.");
   take={which,role,first,id:begin.capture_id,startedAt:ctx.currentTime,
@@ -2378,7 +2412,7 @@ async function finishNativeInstrumentTake(){
   if(!response.ok)throw Error("Could not read the native host's recorded WAV ("+response.status+").");
   await openAudio();
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
-  const d=decks[which];
+  const d=loopDeck(which);
   const steps=take.first?Math.max(1,Math.min(256,Math.round(
    (ctx.currentTime-take.startedAt)/tickSeconds()))):d.lengthSteps;
   const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
