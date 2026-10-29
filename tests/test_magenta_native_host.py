@@ -270,7 +270,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('leadMix[which] = Float(x);configure()', swift)
         self.assertIn('"prompt_slot_count": prompts.count', swift)
         self.assertIn('"prompt_weights": (10...14).map', swift)
-        self.assertIn('parameter(14, drumBlend)', swift)
+        self.assertIn('parameter(14, max(0, min(1.25, drumBlend * drumLevel)))', swift)
         self.assertIn('let music = 1.0 - drumBlend', swift)
         self.assertIn('case "drum-mix":', swift)
         self.assertIn('drumBlend = Float(x);configure()', swift)
