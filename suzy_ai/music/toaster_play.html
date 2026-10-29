@@ -730,7 +730,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false,audioPrint=null;
+let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
@@ -2046,6 +2046,7 @@ async function timelineRewind(){
  tell(stageStarted?"Playing browser arrangement from BAR 1.":"Playhead returned to BAR 1; press Play.");
 }
 function record(which){
+ if(nativeTake)return warn(Error("Finish the native instrument take first."));
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
  if(audioPrint){
   if(audioPrint.which===which&&!audioPrint.freeze)return finishAudioPrint();
@@ -2180,8 +2181,165 @@ function updateRecordControls(which){
  hint.textContent=fresh?"READY · fresh first loop · RECORD → DONE":
   "↻ LOOP PLAYING · ADD AUDIO LAYER to stack another take · mute, fade or remove any pass";
 }
+
+const NATIVE_LANE_LABELS={
+ "pyramid:chords":"PYRAMID PIANO","pyramid:lead":"PYRAMID VIOLIN",
+ "fishes:chords":"FISHES ARPEGGIOS","fishes:lead":"FISHES CLASSICAL GUITAR"
+};
+function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
+function updateNativeLaneControls(){
+ for(const which of Object.keys(decks)){
+  for(const role of ["chords","lead"]){
+   const button=$("nativeRecord-"+which+"-"+role),status=$("nativeStatus-"+which+"-"+role);
+   if(!button||!status)continue;
+   const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
+   button.disabled=!!nativeTake&&!isRecording;
+   button.textContent=isRecording?
+    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → STACK"):
+    "● LOOP "+(role==="lead"?(which==="pyramid"?"VIOLIN":"GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"));
+   if(isRecording)status.textContent=nativeTake.first?
+    "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
+    "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
+  }
+ }
+}
+async function selectNativeLane(which,role){
+ if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ choose(which);
+ // Google's one native generator selects a prompt; saved PCM loops can
+ // continue independently when the active native prompt changes.
+ await aiFetch("scene",{scene:which});
+ aiScene=which;
+ const blend=role==="lead"?1:0;
+ await aiFetch("lead-mix",{scene:which,value:blend});
+ $("aiLeadMix-"+which).value=String(blend*100);
+ $("aiLeadMixValue-"+which).textContent=blend?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
+ tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · use keyboard or pads; other recorded audio remains stacked.");
+}
+async function startNativeInstrumentTake(which,role){
+ if(nativeTake){
+  if(nativeTake.which===which&&nativeTake.role===role)return finishNativeInstrumentTake();
+  return warn(Error("Finish the active native instrument take first."));
+ }
+ if(audioPrint||recording||setRecorder)return warn(Error("Finish the other recording first."));
+ if(!stageStarted)return warn(Error("Start PLAY RHYTHM to establish the shared loop clock."));
+ let take=null;
+ try{
+  const status=await aiFetch("status");
+  if(!status.native_loop_capture_supported)
+   throw Error("Native AU PCM recording unavailable. Rebuild the TOASTER Magenta host; do not use screen-share substitutes.");
+  await selectNativeLane(which,role);
+  const d=decks[which],first=!d.locked;
+  const seconds=first?120:Math.min(120,songCycleSeconds(which));
+  const begin=await aiFetch("capture-start",{seconds});
+  if(!begin.capture_id)throw Error(begin.error||"Native host did not start PCM capture.");
+  take={which,role,first,id:begin.capture_id,startedAt:ctx.currentTime,
+        beginStep:Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()),
+        seconds,finishing:false,timer:null};
+  nativeTake=take;
+  updateNativeLaneControls();
+  const statusEl=$("nativeStatus-"+which+"-"+role);
+  statusEl.textContent=first?"● REAL NATIVE AUDIO · perform, then press DONE to define the loop":
+   "● REAL NATIVE AUDIO · stacking one full phrase, no screen sharing";
+  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+200));
+ }catch(e){
+  if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
+  if(nativeTake===take)nativeTake=null;
+  updateNativeLaneControls();warn(e);
+  $("nativeStatus-"+which+"-"+role).textContent="NOT RECORDING · "+(e?.message||e);
+ }
+}
+async function finishNativeInstrumentTake(){
+ const take=nativeTake;
+ if(!take||take.finishing)return;
+ take.finishing=true;clearTimeout(take.timer);updateNativeLaneControls();
+ const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
+ try{
+  const result=await aiFetch("capture-stop",{id:take.id});
+  if(!result.ready||!result.audio_url||Number(result.frames)<1000)
+   throw Error("Native capture is empty or incomplete.");
+  if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
+  const response=await fetch(result.audio_url,{
+   headers:{"X-Suzy-Token":token},cache:"no-store"
+  });
+  if(!response.ok)throw Error("Could not read the native host's recorded WAV ("+response.status+").");
+  await openAudio();
+  const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  const d=decks[which];
+  const steps=take.first?Math.max(1,Math.min(256,Math.round(
+   (ctx.currentTime-take.startedAt)/tickSeconds()))):d.lengthSteps;
+  const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
+  const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
+  for(let channel=0;channel<buffer.numberOfChannels;channel++){
+   const output=buffer.getChannelData(channel);
+   const input=recorded.getChannelData(channel);
+   output.set(input.subarray(0,Math.min(input.length,output.length)));
+  }
+  if(take.first){
+   d.locked=true;d.lengthSteps=steps;d.anchorStep=take.beginStep;d.loopEnabled=true;
+  }
+  const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
+   name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
+   loopOriginStep:take.beginStep,arrStartBar:0,source:null,gain:null};
+  d.layers.push(layer);
+  // Printing the original native chord foundation should not keep replaying
+  // its MIDI into whatever violin/guitar prompt is selected next.
+  if(role==="chords") {
+   for(const saved of d.layers)if(saved.kind==="chords")saved.muted=true;
+   if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+  }
+  startLoopAudio(which,layer);renderClips(which);
+  el.textContent="✓ NATIVE "+role.toUpperCase()+" RECORDED · "+Math.round(buffer.duration*10)/10+
+   "s · "+d.layers.filter(x=>x.instrumentRole===role).length+" AUDIO PASS(ES) · ready to stack again";
+  tell("✓ "+nativeLaneLabel(which,role)+" saved as REAL Magenta PCM · mute, fade or remove independently.");
+ }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
+ finally {
+  if(nativeTake===take)nativeTake=null;
+  updateNativeLaneControls();
+ }
+}
+function renderInstrumentClips(which){
+ const d=decks[which];
+ for(const role of ["chords","lead","voice"]){
+  const box=role==="voice"?$("voiceClips-"+which):$("nativeClips-"+which+"-"+role);
+  if(!box)continue;
+  box.replaceChildren();
+  const layers=d.layers.filter(layer=>role==="voice"?layer.kind==="vocal":layer.instrumentRole===role);
+  if(!layers.length){
+   const hint=document.createElement("span");hint.className="subtle";
+   hint.textContent="NO SAVED "+(role==="voice"?"VOICE":"NATIVE")+" AUDIO YET";
+   box.append(hint);continue;
+  }
+  for(const [index,layer] of layers.entries()){
+   const row=document.createElement("span");row.className="clip";
+   const name=document.createElement("span");name.textContent=(index+1)+" · "+
+    (role==="voice"?"🎙 VOICE":layer.name||"NATIVE AUDIO");
+   const mute=document.createElement("button");
+   mute.textContent=layer.muted?"UNMUTE":"MUTE";
+   mute.onclick=()=>{
+    layer.muted=!layer.muted;
+    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+    renderClips(which);
+   };
+   const fade=document.createElement("input");
+   fade.type="range";fade.min="0";fade.max="100";
+   fade.value=String(Math.round((layer.level??.75)*100));
+   fade.setAttribute("aria-label",(layer.name||"Voice")+" volume");
+   fade.oninput=()=>{
+    layer.level=Number(fade.value)/100;
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.02);
+   };
+   const remove=document.createElement("button");remove.textContent="×";
+   remove.title="Remove only this recorded audio pass";
+   remove.onclick=()=>removeSongLayer(which,layer.id);
+   row.append(name,mute,fade,remove);box.append(row);
+  }
+ }
+}
+
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ renderInstrumentClips(which);
  updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
@@ -2392,6 +2550,7 @@ async function toggleVoiceMonitor(){
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(nativeTake)return warn(Error("Finish the native instrument take before recording your voice."));
  if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
@@ -2563,6 +2722,7 @@ function savedAudioPrint(take,result){
  tell("✓ LAYER "+d.layers.filter(l=>l.kind==="printed").length+" ADDED · all previous takes still playing. Press ADD AUDIO LAYER to build again.");
 }
 async function startAudioPrint(which,freeze=false){
+ if(nativeTake)return warn(Error("Finish the native instrument take first."));
  if(audioPrint){
   if(audioPrint.which===which&&!freeze)return finishAudioPrint();
   return warn(Error("Finish the active audio take first."));
@@ -2903,6 +3063,10 @@ for(const which of Object.keys(decks)){
  updateKeyUI(which);
 }
 for(const k of Object.keys(decks)){
+ for(const role of ["chords","lead"]){
+  $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
+  $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
+ }
  $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
  $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
  $("printSource-"+k).value="keys"; // Instant local PCM; Mac audio capture is explicit.
@@ -3015,6 +3179,8 @@ $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHea
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();updateVocalState();updateTransportUI();
+for(const k of Object.keys(decks)){renderInstrumentClips(k);}
+updateNativeLaneControls();
 window.addEventListener("beforeunload",e=>{
  if(setRecorder){e.preventDefault();e.returnValue="A full set recording is in progress. Press STOP & SAVE AUDIO first.";return;}
  stopMicMeter();micStream?.getTracks().forEach(t=>t.stop());
