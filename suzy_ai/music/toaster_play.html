@@ -116,7 +116,7 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .track-record.active{background:#b75366;color:#fff}
 .track-first-length{display:flex;align-items:center;gap:5px;font-size:10px;color:#dac8e0}
 .track-first-size{font-size:11px;padding:5px}
-.track-ruler{display:flex;padding-left:90px;min-height:24px;background:#29242d;border-bottom:1px solid #7d6c85;overflow:hidden}
+.track-ruler{display:none}
 .track-bar{flex:1;min-width:0;text-align:left;border-left:1px solid #ffffff24;padding-left:3px;font:650 9px ui-monospace,monospace;color:#ac9aaf;white-space:nowrap;overflow:hidden}
 .track-lanes{position:relative}
 .track-lane{display:grid;grid-template-columns:90px minmax(0,1fr);min-height:73px;border-bottom:1px solid #514959}
@@ -443,10 +443,10 @@ a{color:var(--mint)}
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Click a bar number or song section on the ruler to position playback, then press Play. Clicking while playing jumps immediately. Click an empty lane to locate and choose a paste bar; drag recorded clips to arrange them. Native Magenta has its own transport.</p></div>
 <div class="arrangement-transport" aria-label="Browser timeline transport">
- <button id="timelinePlay" type="button">▶ PLAY FROM BAR 1</button>
+ <button id="timelinePlay" type="button">▶ PLAY</button>
  <button id="timelineStop" type="button">■ STOP</button>
  <button id="timelineRewind" type="button">⏮ RETURN TO START</button>
- <span id="timelineTransportStatus" role="status">STOPPED · BAR 1 · Browser loops only</span>
+ <span id="timelineTransportStatus" role="status">STOPPED · Browser loops only</span>
 </div>
 <div class="full-controls"><label for="fullDuration">MINUTES</label><input id="fullDuration" type="number" min="5" max="30" value="15" style="width:54px" aria-label="Target performance duration in minutes"><label for="fullZoom">ZOOM</label><input id="fullZoom" type="range" min="3" max="16" value="6"><button id="fullFit" type="button">FIT SONG</button><span id="fullLength" class="stat"></span><span id="fullPosition" class="stat">BAR 1</span></div></div>
 <div class="full-toolbar"><button id="fullCopy" type="button">COPY</button><button id="fullCut" type="button">CUT</button><button id="fullPaste" type="button">PASTE AT BAR</button><button id="fullSplit" type="button">SPLIT AT PLAYHEAD</button><button id="fullDelete" type="button">DELETE</button>
@@ -817,7 +817,9 @@ function setKey(which,next,remember=true){
 }
 function synth(which,index,time=ctx.currentTime+.01,quiet=false,holdSeconds=.85,instrument=decks[which].instrument){
  if(!ctx)return;
- const notes=SCENES[which].notes[index],sec=Math.max(.08,Math.min(songCycleSeconds(which),holdSeconds));
+ // Do not truncate a held recorded chord at the loop seam. Releasing a
+ // sustained chord before its next repetition made it sound staccato.
+ const notes=SCENES[which].notes[index],sec=Math.max(.08,holdSeconds);
  for(const note of notes){
   const v=makeVoice(which,note,time,instrument,(quiet?.13:.15)/notes.length,false);
   releaseVoice(v,time+sec);
@@ -1162,6 +1164,15 @@ function tickSeconds(){return 30/bpm;}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function songCycleSteps(which){return decks[which].lengthSteps||16;}
 function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
+function recordedNoteHoldSeconds(which,event){
+ const hold=Math.max(.12,(event.holdSteps??1)*tickSeconds());
+ if(!event.sustainAcrossBoundary)return hold;
+ // The performer was still holding the key when DONE closed the phrase.
+ // Bridge to the NEXT occurrence of that same event, allowing the previous
+ // oscillator to overlap its next attack instead of inserting a note-off gap.
+ // Only browser-local synth voices use this; do not lengthen native AU MIDI.
+ return Math.max(hold,songCycleSeconds(which)+Math.min(.12,tickSeconds()*.40));
+}
 function clipActiveAt(layer,bar){
  const start=Math.max(0,Number(layer.arrStartBar??0));
  const end=Number(layer.arrEndBar??Number.POSITIVE_INFINITY);
@@ -1289,7 +1300,7 @@ function schedule(time,count){
     if(e.step===songStep){
       if(e.type==="note"){
        const pitch=e.midi;
-       const start=time,heldSec=Math.max(.12,(e.holdSteps||1)*tickSeconds());
+       const start=time,heldSec=recordedNoteHoldSeconds(which,e);
        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
@@ -1302,7 +1313,7 @@ function schedule(time,count){
        }
        continue;
       }
-      synth(which,e.index,time,true,Math.max(.12,(e.holdSteps||1)*tickSeconds()),e.instrument||"keys");
+      synth(which,e.index,time,true,recordedNoteHoldSeconds(which,e),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
       if(aiNativeReady){
        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
@@ -1343,7 +1354,7 @@ function updateVocalState(){
  const loops=Object.values(decks).flatMap(d=>d.layers.filter(l=>l.kind==="vocal"));
  const active=Object.entries(decks).flatMap(([which,d])=>d.layers.filter(l=>l.kind==="vocal"&&stageStarted&&songLayerAudible(which,l,bar))).length;
  const loopStatus=loops.length?"↻ "+loops.length+" VOCAL LOOP"+(loops.length===1?"":"S")+
-  " SAVED · "+active+" PLAYING · "+(stageStarted?"BAR "+(bar+1):"TRANSPORT STOPPED"):
+  " SAVED · "+(stageStarted?(active?active+" PLAYING":"PAUSED"):"TRANSPORT STOPPED"):
   "NO VOCAL LOOPS YET · Monitoring alone never records";
  if($("vocalLoopState").textContent!==loopStatus)$("vocalLoopState").textContent=loopStatus;
 }
@@ -1391,11 +1402,11 @@ function locateTimelineBar(rawBar){
 }
 function updateTransportUI(){
  const playing=!!stageStarted,bar=currentTransportBar()+1;
- $("timelinePlay").textContent=playing?"▶ PLAYING":"▶ PLAY FROM BAR "+bar;
+ $("timelinePlay").textContent=playing?"▶ PLAYING":"▶ PLAY";
  $("timelinePlay").disabled=playing;
  $("timelineStop").disabled=!playing;
  $("timelineTransportStatus").textContent=(playing?"▶ PLAYING":"■ STOPPED")+
-   " · BAR "+bar+" · Browser loops only · Native Magenta independent";
+   " · Browser loops only · Native Magenta independent";
 }
 function updateTimeline(){
  if(!ctx||!stageStarted)return;
@@ -1513,12 +1524,16 @@ function endRecord(){
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
    h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
+   // A key still down at DONE is a sustained note, NOT a staccato hit.
+   // Preserve its attack and smoothly connect the release across the seam.
+   h.event.sustainAcrossBoundary=true;
    h.event=null;
   }
  }
  for(const h of heldNotes.values()){
   if(h.event&&h.scene===r.scene){
    h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
+   h.event.sustainAcrossBoundary=true;
    h.event=null;
   }
  }
