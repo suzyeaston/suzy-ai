@@ -1881,7 +1881,10 @@ function rhythmBarSteps(){return DRUM_STEPS[drumMeter]||8;}
 function barDuration(){return rhythmBarSteps()*tickSeconds();}
 function gridStepAt(at,lead=.08){
  const step=rhythmBarSteps();
- return Math.max(0,Math.ceil((at+lead-transportEpoch)/(step*tickSeconds()))*step);
+ // The scheduler already owns one or more future ticks. If the first
+ // bar-one is already scheduled, use the NEXT bar one, not beat two.
+ const earliest=Math.max(at+lead,transportEpoch+stepNumber*tickSeconds());
+ return Math.max(0,Math.ceil((earliest-transportEpoch)/(step*tickSeconds()))*step);
 }
 function gridTimeAt(at,lead=.08){return transportEpoch+gridStepAt(at,lead)*tickSeconds();}
 function phraseGridSteps(startAt,doneAt){
