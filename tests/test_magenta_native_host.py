@@ -409,7 +409,7 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         swift = (root / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
         for marker in ('func collectNativeCapture(', 'private func startNativeCapture(',
-                       'audio.mainMixerNode.installTap(', 'self?.collectNativeCapture(buffer)',
+                       'reverb.installTap(', 'self?.collectNativeCapture(buffer, at: when)',
                        'case "capture-start":', 'case "capture-stop":',
                        '"native_loop_capture_supported": generator != nil'):
             self.assertIn(marker, swift)
