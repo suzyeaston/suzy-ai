@@ -277,7 +277,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'monitorSource.connect(monitorFilter)',
                        'monitorDry.connect(mainBus)',
                        'monitorSend.connect(verb)',
-                       'const start=ctx.currentTime+.04',
+                       'const start=gridTimeAt(ctx.currentTime,.08)',
                        'loopOriginStep:d.anchorStep,arrStartBar:0',
                        'function toggleLocalKeysOnly()',
                        'onAction:({action,selected,target,clipboard})',

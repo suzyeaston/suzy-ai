@@ -326,6 +326,14 @@ a{color:var(--mint)}
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
 #fullArrangement[hidden]{display:none!important}
+/* The big pedal clock stays visible while recording any instrument. */
+.pedal-clock{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px;margin:12px 0;border:2px solid #6e9c90;border-radius:14px;background:#182b2b}
+#pedalClockState{font:900 16px ui-monospace,monospace;color:#c0f9e5}
+#pedalClockCue{font:800 12px ui-monospace,monospace;color:#f9d09d;flex:1 1 230px}
+.pedal-beats{display:flex;gap:7px}
+.pedal-beat{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid #72877f;color:#b7c7c4;font:900 16px ui-monospace,monospace}
+.pedal-beat.on{background:#b4f3cf;border-color:#e7ffe9;color:#18352e;box-shadow:0 0 12px #b4f3cf55}
+.pedal-beat.downbeat.on{background:#f7c5a4;border-color:#ffe8ca;color:#4e2c2d}
 .set-recorder{border:1px solid #f2b4bd;background:#322234;border-radius:14px;padding:14px}
 .set-recorder .start{gap:14px}
 .set-recorder .set-rec-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -363,6 +371,17 @@ a{color:var(--mint)}
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
+<div class="pedal-clock" role="group" aria-label="Live beat clock and loop recording cue">
+ <strong id="pedalClockState">○ WAITING FOR RHYTHM</strong>
+ <div class="pedal-beats" aria-label="Beat position">
+ <span id="pedalBeat1" class="pedal-beat downbeat">1</span>
+ <span id="pedalBeat2" class="pedal-beat">2</span>
+ <span id="pedalBeat3" class="pedal-beat">3</span>
+ <span id="pedalBeat4" class="pedal-beat">4</span>
+ <span id="pedalBeat5" class="pedal-beat" hidden>5</span>
+ </div>
+ <span id="pedalClockCue" role="status" aria-live="polite">Press PLAY RHYTHM. Then record on the highlighted 1.</span>
+</div>
 <div class="mixer">
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
@@ -570,7 +589,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><button class="loop-pedal" id="loopInstant-pyramid" type="button" disabled title="Hear the current phase immediately. Not a phrase downbeat.">▶ HEAR NOW</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="audio-loop-pedal" aria-label="pyramid sound-on-sound audio layers">
  <div class="audio-loop-actions">
   <button type="button" id="printMidi-pyramid" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
@@ -654,7 +673,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><button class="loop-pedal" id="loopInstant-fishes" type="button" disabled title="Hear the current phase immediately. Not a phrase downbeat.">▶ HEAR NOW</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="audio-loop-pedal" aria-label="fishes sound-on-sound audio layers">
  <div class="audio-loop-actions">
   <button type="button" id="printMidi-fishes" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
@@ -1847,6 +1866,80 @@ function releaseAllChords(){
  for(const key of [...heldNotes.keys()])endNote(key);
 }
 function tickSeconds(){return 30/bpm;}
+// Exactly one quarter/eighth-note rhythm grid for ALL browser PCM layers.
+// Native AU WAV duration and browser button/network round trips must never
+// establish a second, free-running musical clock.
+function rhythmBarSteps(){return DRUM_STEPS[drumMeter]||8;}
+function barDuration(){return rhythmBarSteps()*tickSeconds();}
+function gridStepAt(at,lead=.08){
+ const step=rhythmBarSteps();
+ return Math.max(0,Math.ceil((at+lead-transportEpoch)/(step*tickSeconds()))*step);
+}
+function gridTimeAt(at,lead=.08){return transportEpoch+gridStepAt(at,lead)*tickSeconds();}
+function phraseGridSteps(startAt,doneAt){
+ return Math.max(rhythmBarSteps(),Math.min(256,
+  Math.max(1,Math.round((doneAt-startAt)/barDuration()))*rhythmBarSteps()));
+}
+// Input may begin before the musical downbeat (native HTTP capture arms early).
+// Trim pre-roll and place only samples captured AFTER the downbeat into the
+// bar-exact PCM loop. No wrapping pre-roll into the end of a phrase.
+function writeFirstGridLoop(buffer,inputs,capturedAt,downbeatAt,gain=1){
+ const delta=Math.round((downbeatAt-capturedAt)*buffer.sampleRate);
+ const sourceStart=Math.max(0,delta),destinationStart=Math.max(0,-delta);
+ for(let ch=0;ch<buffer.numberOfChannels;ch++){
+  const src=inputs[Math.min(ch,inputs.length-1)];
+  if(!src)continue;
+  const len=Math.max(0,Math.min(src.length-sourceStart,buffer.length-destinationStart));
+  if(!len)continue;
+  const output=buffer.getChannelData(ch);
+  for(let i=0;i<len;i++)output[destinationStart+i]=src[sourceStart+i]*gain;
+ }
+ closeAudioLoopSeam(buffer);
+}
+function updatePedalClock(){
+ const state=$("pedalClockState"),cue=$("pedalClockCue");
+ if(!ctx||!stageStarted){
+  state.textContent="○ RHYTHM PAUSED";
+  cue.textContent="Press PLAY RHYTHM to activate the loop clock.";
+  for(let i=1;i<=5;i++)$("pedalBeat"+i).classList.remove("on");
+  return;
+ }
+ const heardAt=ctx.currentTime-Math.max(0,Number(ctx.outputLatency)||0);
+ const tick=Math.max(0,Math.floor((heardAt-transportEpoch)/tickSeconds()+.0001));
+ const perBar=rhythmBarSteps(),beat=Math.floor((tick%perBar)/2)+1;
+ const beats=Math.ceil(perBar/2);
+ for(let i=1;i<=5;i++){
+  const dot=$("pedalBeat"+i);
+  dot.hidden=i>beats;
+  dot.classList.toggle("on",i===beat);
+ }
+ state.textContent="BEAT "+beat+" / "+beats+"  ·  BAR "+(Math.floor(tick/perBar)+1);
+ const now=ctx.currentTime;
+ const queued=Object.entries(decks).find(([,d])=>d.loopToggleAt!==null&&d.loopToggleTarget===true);
+ if(queued){
+  const [which,d]=queued;
+  const remaining=Math.max(0,Math.ceil((transportEpoch+d.loopToggleAt*tickSeconds()-now)/tickSeconds()/2));
+  cue.textContent="↻ "+which.toUpperCase()+" RESTARTS ON LOOP 1 · "+remaining+" BEATS UNTIL DOWNBEAT";
+ }else if(nativeTake){
+  const t=nativeTake;
+  if(t.finishing)cue.textContent="✓ DONE · converting captured audio · existing rhythm continues";
+  else if(t.first&&now<t.gridStartAt)cue.textContent="● "+t.role.toUpperCase()+" ARMED · PLAY ON GREEN 1 IN "+Math.max(1,Math.ceil((t.gridStartAt-now)/(2*tickSeconds())))+" BEATS";
+  else cue.textContent="● RECORDING "+t.role.toUpperCase()+" · PLAY IN TIME, THEN DONE NEAR BEAT 1";
+ }else if(recording?.kind==="vocal"){
+  const t=recording;
+  cue.textContent=t.finishQueued?"✓ VOICE DONE · BUILDING BAR-LOCKED LOOP":
+    now<t.startAt?"● VOICE ARMED · SING ON GREEN 1 IN "+Math.max(1,Math.ceil((t.startAt-now)/(2*tickSeconds())))+" BEATS":
+    "● RECORDING VOICE · PRESS DONE NEAR BEAT 1";
+ }else if(recording?.kind==="chords"){
+  cue.textContent=recording.finishQueued?"✓ CHORD DONE · LOOP ON NEXT GREEN 1":
+    !recording.active?"● CHORDS ARMED · PLAY ON NEXT GREEN 1":
+    "● RECORDING CHORDS · PRESS DONE NEAR BEAT 1";
+ }else{
+  const first=[...Object.entries(decks),["drums",drumDeck]].find(([,d])=>d.layers.some(l=>l.buffer||l.kind==="chords"));
+  cue.textContent=first?"↻ BAR-LOCKED LOOP · PLAY / OVERDUB WITH THE GREEN BEAT 1":
+   "READY · RECORD PIANO OR VOCALS · PLAY WHEN GREEN 1 LIGHTS";
+ }
+}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function songCycleSteps(which){return decks[which].lengthSteps||16;}
 function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
@@ -1925,28 +2018,50 @@ async function toggleNativeSavedLoop(which,role){
  updateNativePlaybackButtons();
  tell(nativeLaneLabel(which,role)+(resume?" · SAVED AUDIO PLAYING NOW (PHASE LOCKED)":" · SAVED AUDIO PAUSED")+" · record another take anytime.");
 }
+function masterRestartStep(which,at=ctx.currentTime){
+ const d=loopDeck(which),period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
+ const origin=loopMasterOrigin(which);
+ // Allow 140ms scheduler lookahead, then choose the ORIGINAL phrase start.
+ const boundary=origin+Math.max(0,Math.ceil((at+.17-origin)/period))*period;
+ return Math.round((boundary-transportEpoch)/tickSeconds());
+}
 function updateLoopControls(which){
- const d=decks[which],button=$("loopToggle-"+which);
+ const d=decks[which],button=$("loopToggle-"+which),now=$("loopInstant-"+which);
  button.disabled=!d.locked||!d.layers.length;
- button.classList.remove("queued");
- button.textContent=!d.locked?"↻ NO LOOP YET":d.loopEnabled?"■ STOP LOOP":"▶ RESTART NOW";
+ button.classList.toggle("queued",d.loopToggleAt!==null);
+ button.textContent=!d.locked?"↻ NO LOOP YET":d.loopToggleAt!==null?
+  "⌛ RESTART QUEUED · CANCEL":d.loopEnabled?"■ STOP LOOP":"▶ RESTART ON 1";
+ now.disabled=!d.locked||!d.layers.length||d.loopEnabled;
+ now.textContent="▶ HEAR NOW · MID-PHRASE";
+}
+async function resumeLoopImmediately(which){
+ const d=decks[which];
+ if(!d.locked||!d.layers.length||recording||nativeTake||audioPrint)return;
+ if(!stageStarted)await startStop();
+ d.loopToggleAt=null;d.loopToggleTarget=null;d.loopEnabled=true;
+ applyLoopGateNow(which);updateLoopControls(which);updateNativePlaybackButtons();
+ tell("▶ "+which.toUpperCase()+" HEAR NOW · current phrase phase, NOT beat-one restart. Use RESTART ON 1 for the downbeat.");
 }
 async function toggleLoop(which){
  const d=decks[which];
  if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before playing."));
  if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
- const target=!d.loopEnabled;
- d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
- if(!target){
-   // STOP applies to FX tails as well as the repeating source.
-   for(const layer of d.layers){stopLayerWash(layer);stopLayerEcho(layer);}
-   if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)
-    aiRelease(aiChordOwner.token);
-  }
- if(target&&!stageStarted)await startStop();
- applyLoopGateNow(which);
- updateLoopControls(which);updateNativePlaybackButtons();
- tell(which.toUpperCase()+" · "+(target?"LOOP AUDIBLE NOW · phase stays aligned":"LOOP STOPPED NOW")+" · no next-bar wait.");
+ if(d.loopToggleAt!==null){
+  d.loopToggleAt=null;d.loopToggleTarget=null;
+  updateLoopControls(which);updatePedalClock();
+  return tell("RESTART CANCELLED · loop remains stopped. HEAR NOW resumes current phase immediately.");
+ }
+ if(d.loopEnabled){
+  d.loopEnabled=false;
+  for(const layer of d.layers){stopLayerWash(layer);stopLayerEcho(layer);}
+  if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+  applyLoopGateNow(which);updateLoopControls(which);updateNativePlaybackButtons();
+  return tell(which.toUpperCase()+" STOPPED · rhythm continues. RESTART ON 1 is downbeat-locked; HEAR NOW unmutes at the current phase.");
+ }
+ if(!stageStarted)await startStop();
+ d.loopToggleAt=masterRestartStep(which);d.loopToggleTarget=true;
+ updateLoopControls(which);updateNativePlaybackButtons();updatePedalClock();
+ tell(which.toUpperCase()+" RESTART ARMED · watch the downbeat countdown. Audio begins at its ORIGINAL beat one.");
 }
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
@@ -1993,24 +2108,23 @@ function schedule(time,count){
  if(step===0)applyTempoAtBar(time,count);
  if(step===0&&arranger)arranger.onCycle(count/8);
  pulse(time,count);
- if(count%8===0){
-  // Shared bar clock gates real PCM and recorded MIDI on the same beat.
-  for(const [which,d] of Object.entries(decks)){
-   if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
-    d.loopEnabled=d.loopToggleTarget;
-    d.loopToggleAt=null;d.loopToggleTarget=null;
-    // STOP also releases native sustained notes instead of leaving a drone.
-    if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
-      aiRelease(aiChordOwner.token);
-    if(d.loopBus)d.loopBus.gain.setTargetAtTime(targetLoopGain(which),time,.018);
-    updateLoopControls(which);
-    trackView?.draw();
-   }
-   for(const layer of d.layers){
-    if(!layer.buffer||!layer.gain)continue;
+ // Sample-clock playback gates on the true phrase-zero tick, not only
+ // on arbitrary 4/4 eight-tick boundaries.
+ for(const [which,d] of Object.entries(decks)){
+  if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
+   d.loopEnabled=d.loopToggleTarget;
+   d.loopToggleAt=null;d.loopToggleTarget=null;
+   if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+    aiRelease(aiChordOwner.token);
+   if(d.loopBus)d.loopBus.gain.setValueAtTime(targetLoopGain(which),time);
+   for(const layer of d.layers)if(layer.buffer&&layer.gain)
     layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
-   }
+   updateLoopControls(which);trackView?.draw();
   }
+ }
+ if(count%8===0)for(const [which,d] of Object.entries(decks)){
+  for(const layer of d.layers)if(layer.buffer&&layer.gain)
+   layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
  }
  // The first phrase is performer-defined. The eighth-note scheduler closes
  // recording at the first *unscheduled* tick after DONE, with no bar preset.
@@ -2163,6 +2277,7 @@ function updateTransportUI(){
    " · Browser loops only · Native Magenta independent";
 }
 function updateTimeline(){
+ updatePedalClock();
  if(!ctx||!stageStarted)return;
  const phase=phaseSeconds()/cycleSeconds();
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
@@ -2256,9 +2371,10 @@ function record(which){
   // the next *unscheduled* eighth-note tick to avoid dropped initial notes.
   const nowStep=Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds());
   const requested=Math.max(recording.beginAt+1,nowStep,stepNumber);
-  recording.endAt=recording.first?
-   Math.min(recording.beginAt+256,requested):
-   Math.min(recording.endAt,requested);
+   const bars=Math.max(1,Math.ceil((requested-recording.beginAt)/rhythmBarSteps()));
+   recording.endAt=recording.first?
+    Math.min(recording.beginAt+256,recording.beginAt+bars*rhythmBarSteps()):
+    Math.min(recording.endAt,requested);
   recording.finishQueued=true;
   $("record-"+which).textContent="↻ "+(recording.first?"LOOP STARTING":"OVERDUB FINISHING")+"…";
   $("recordHint-"+which).textContent=recording.first?
@@ -2273,12 +2389,13 @@ function record(which){
  choose(which);
  // Never require the performer to select a length. One click arms on the next
  // free eighth-note boundary; DONE chooses this first master-loop duration.
- const beginAt=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
+ const beginAt=!d.locked?Math.max(stepNumber,gridStepAt(ctx.currentTime,.08)):
+   Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:beginAt+(d.locked?d.lengthSteps:256),finishQueued:false};
  $("record-"+which).classList.add("armed");
- $("record-"+which).textContent="◉ ARMED · NEXT PULSE";
- $("recordHint-"+which).textContent="WAIT · begin on the next pulse, then press DONE";
+ $("record-"+which).textContent="◉ ARMED · NEXT BEAT 1";
+ $("recordHint-"+which).textContent="WAIT · PLAY ON GREEN BEAT 1, DONE NEAR BEAT 1";
  trackView?.draw();
  tell(d.locked?"OVERDUB starts on next pulse and uses the original loop length.":
   "FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
@@ -2289,19 +2406,9 @@ function endRecord(){
  let length=r.first?Math.max(1,Math.min(256,r.endAt-r.beginAt)):d.lengthSteps;
  // Discard hits at/after DONE; they belong to the following pass.
  r.events=r.events.filter(e=>e.step<length);
- if(r.first&&r.events.length){
-  // A player may arm RECORD and take a breath before their first note.
-  // That dead lead-in used to repeat as an audible pause every cycle.
-  // Trim it without moving the musical closing tick: at r.endAt the
-  // shortened pattern is already at phase zero and starts immediately.
-  const emptyTicks=Math.max(0,Math.min(length-1,Math.min(...r.events.map(e=>e.step))));
-  if(emptyTicks){
-   r.events.forEach(e=>{e.step-=emptyTicks;});
-   r.beginAt+=emptyTicks;
-   r.start+=emptyTicks*tickSeconds();
-   length-=emptyTicks;
-  }
- }
+ // Preserve the opening rest. Trimming it shifted the piano away from
+ // the rhythm's beat-one downbeat and caused drifting loops.
+
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
    h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
@@ -2459,8 +2566,10 @@ function updateNativeLaneControls(){
    updateNativePlaybackButtons();
    if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing; audio is not recording yet";
    else if(isRecording)status.textContent=nativeTake.first?
-    "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
-    "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
+     (ctx.currentTime<nativeTake.gridStartAt?
+      "● ARMED · WAIT FOR GREEN BEAT 1 · then play your phrase":
+      "● NATIVE AU RECORDING · DONE NEAR GREEN BEAT 1 · whole-bar loop"):
+     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
  const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
@@ -2469,7 +2578,9 @@ function updateNativeLaneControls(){
  button.disabled=!!nativeTakeArming|| (!!nativeTake&&!active);
  button.textContent=isArming?"↻ PREPARING NATIVE AUDIO · WAIT":active?(nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):"● RECORD AI DRUM TAKE";
  if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing";
- else if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
+ else if(active)status.textContent=nativeTake.first&&ctx.currentTime<nativeTake.gridStartAt?
+   "● DRUMS ARMED · PLAY ON GREEN BEAT 1":
+   "● RECORDING NATIVE JAZZ DRUMS · DONE NEAR GREEN BEAT 1 · browser beat excluded";
  updateNativePlaybackButtons();
 }
 async function selectNativeLane(which,role){
@@ -2582,14 +2693,19 @@ async function startNativeInstrumentTake(which,role){
   // The Swift tap starts inside the request. Midpoint of the RTT is closer
   // than the old "after HTTP response" position, without trusting wall-clock.
   const capturedAt=(requestAt+responseAt)*.5;
-  take={which,role,first,id:begin.capture_id,startedAt:capturedAt,
-        beginStep:Math.floor((capturedAt-transportEpoch)/tickSeconds()),
-        seconds,finishing:false,timer:null};
+   // Arm the native capture BEFORE the next true bar one. Only samples
+   // recorded after the visible beat-one cue become part of the loop.
+   const gridStartAt=first?gridTimeAt(responseAt,.12):loopMasterOrigin(which);
+   const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
+   take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
+         beginStep,seconds,finishing:false,timer:null};
   nativeTake=take;
   updateNativeLaneControls();
   const statusEl=$("nativeStatus-"+which+"-"+role);
-  statusEl.textContent=first?"● REAL NATIVE AUDIO · perform, then press DONE to define the loop":
-   "● REAL NATIVE AUDIO · stacking one full phrase, no screen sharing";
+  statusEl.textContent=first?
+     "● ARMED · WAIT FOR THE GREEN BEAT 1 · THEN PLAY · DONE NEAR BEAT 1":
+     "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
+   updatePedalClock();
   if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+40));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
@@ -2605,8 +2721,11 @@ async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
  take.finishing=true;clearTimeout(take.timer);
- take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
- updateNativeLaneControls();
+ // Don't save an empty native capture before the visible beat-one cue.
+  if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+   return tell("NATIVE LOOP ARMED · play at least one beat after GREEN 1 before DONE.");
+  take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
+  updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const result=await aiFetch("capture-stop",{id:take.id});
@@ -2620,26 +2739,23 @@ async function finishNativeInstrumentTake(){
   await openAudio();
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
   const d=loopDeck(which);
-  // The actual captured native PCM sample count owns the first period.
-// Browser button timestamps cannot crop audio recorded on the separate AU clock.
-const frames=take.first?recorded.length:Math.max(1,Math.round(
- (d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
+  // First audio length MUST span whole rhythm bars, not the AU WAV's
+   // arbitrary sample count (including capture-start and STOP HTTP jitter).
+   const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):d.lengthSteps;
+   const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
+    Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
   const inputs=Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel));
   let shifted=0;
   if(take.first){
-   for(let channel=0;channel<buffer.numberOfChannels;channel++)
-    buffer.getChannelData(channel).set(inputs[channel].subarray(0,frames));
-   closeAudioLoopSeam(buffer);
-   d.locked=true;
-   d.lengthSteps=Math.max(1,Math.min(256,Math.round(buffer.duration/tickSeconds())));
-   d.anchorStep=take.beginStep;d.loopEnabled=true;
-   d.pedalPeriodSeconds=buffer.duration;
-   // The master origin is the beginning of captured audio, never the DONE
-// click or a delayed WAV decode. All future layers inherit this phase.
-d.pedalOriginOffsetSeconds=take.startedAt-transportEpoch;
-  }else{
+    // Capture began before the musician's green beat-one cue; drop pre-roll.
+    writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
+    d.locked=true;d.lengthSteps=masterSteps;
+    d.anchorStep=take.beginStep;d.loopEnabled=true;
+    d.pedalPeriodSeconds=buffer.duration;
+    d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
+   }else{
    shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
@@ -2656,8 +2772,8 @@ d.pedalOriginOffsetSeconds=take.startedAt-transportEpoch;
   layer.paused=false;d.loopEnabled=true;
   startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
-  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+buffer.duration.toFixed(2)+
-   "s REPEATING · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+d.lengthSteps/rhythmBarSteps()+
+    " BARS @ "+bpm+" BPM · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
   tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
@@ -3176,7 +3292,8 @@ const elapsedFrames=Math.round((ctx.currentTime-take.startAt)*ctx.sampleRate);
 if(elapsedFrames<Math.round(.12*ctx.sampleRate))
  return tell("VOICE ARMED · begin singing, then press DONE to close your phrase.");
 take.actualFrames=Math.max(1,Math.min(take.frames,elapsedFrames));
-take.actualSteps=Math.max(1,Math.round(take.actualFrames/ctx.sampleRate/tickSeconds()));
+ take.actualSteps=take.first?
+  phraseGridSteps(take.startAt,ctx.currentTime):take.steps;
 take.finishQueued=true;
 take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   $("vocal-"+which).textContent="↻ VOICE LOOP STARTING…";
@@ -3203,10 +3320,10 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
-// Start on the next render quantum, not the next metronome tick or bar.
-// The first audible phrase becomes an exact-sample master period.
-const start=ctx.currentTime+.04;
-const firstStep=Math.max(0,Math.floor((start-transportEpoch)/tickSeconds()));
+// AudioWorklet records on the shared browser AudioContext clock. Always
+ // use the next visible bar-one cue, not an arbitrary 40ms wake-up delay.
+ const start=gridTimeAt(ctx.currentTime,.08);
+ const firstStep=Math.max(0,Math.round((start-transportEpoch)/tickSeconds()));
 const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
   const frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
@@ -3242,17 +3359,16 @@ const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
    if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
-   // First voice ends at the DONE sample, not an arbitrary eighth note.
-// Later voice layers keep the exact master period; early DONE adds silence.
-const clipFrames=take.first?(take.actualFrames||receivedFrames):frames;
-const clipSteps=take.first?Math.max(1,Math.round(clipFrames/ctx.sampleRate/tickSeconds())):take.steps;
-   if(take.first&&clipFrames>receivedFrames)
-    return warn(Error("First vocal capture ended short of its requested phrase"));
+   // DONE ends capture now; saved first vocal loop lasts exact rhythm bars.
+    // Early DONE deliberately pads the rest of the bar with silence.
+    const clipSteps=take.first?(take.actualSteps||rhythmBarSteps()):take.steps;
+    const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):frames;
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate);
    const headroom=Number($("vocalHeadroom").value)/100;
    if(take.first){
     const output=clip.getChannelData(0);
-    for(let i=0;i<clipFrames;i++)output[i]=data[i]*headroom;
+    for(let i=0;i<Math.min(clipFrames,receivedFrames,data.length);i++)
+      output[i]=data[i]*headroom;
     closeAudioLoopSeam(clip);
     d.locked=true;d.lengthSteps=clipSteps;d.anchorStep=take.firstStep;
 d.pedalPeriodSeconds=clip.duration;
@@ -3277,8 +3393,8 @@ writeAlignedLoopAudio(clip,[data],take.startAt,
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?
-"● VOICE RECORDING · sing and press DONE at your phrase end (no bar wait). Maximum 120 seconds.":
-   "VOICE LAYER ARMED · sing over the existing loop, then press DONE. Earlier loops stay intact.");
+   "● VOICE ARMED · sing on GREEN BEAT 1, then DONE near the next beat 1. Loop duration is bar-locked.":
+   "VOICE LAYER ARMED · sing on GREEN BEAT 1 over the existing phrase. Earlier loops continue.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
@@ -3760,6 +3876,7 @@ for(const k of Object.keys(decks)){
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
  $("loopToggle-"+k).onclick=()=>toggleLoop(k).catch(warn);
+ $("loopInstant-"+k).onclick=()=>resumeLoopImmediately(k).catch(warn);
  updateLoopControls(k);
  $("vocal-"+k).onclick=()=>voiceLoop(k);
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
