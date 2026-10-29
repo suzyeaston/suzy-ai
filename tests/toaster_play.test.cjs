@@ -2038,3 +2038,85 @@ test("Scarlett overdub stays anchored to the first phrase",async()=>{
  assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),3);
  assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
 });
+
+test("BOSS pedal: DONE plays piano sample zero indefinitely without another tap",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");calls.decodedFrames=4*48000;
+ const host=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(opts?.body)host.push({op,data:JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"first-piano"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:4*48000,peak:.4,audio_url:"/api/ai/capture/first-piano"})};
+  if(u==="/api/ai/capture/first-piano")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ assert.equal(run("nativeTake.first"),true);
+ run("ctx.currentTime=4");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("nativeTake"),null);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.equal(run("decks.pyramid.pedalPeriodSeconds"),4);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),4*48000);
+ assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
+ assert.ok(Math.abs(run("decks.pyramid.layers[0].source.startOffset"))<1e-7,"the first loop plays sample zero immediately after save");
+ assert.equal(run("decks.pyramid.layers[0].paused"),false);
+ assert.equal(run("decks.pyramid.loopEnabled"),true);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/LOOP PLAYING.*REPEATING/);
+ assert.match(get("nativeResume-pyramid-chords").textContent,/STOP SAVED/);
+ assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
+ const source=run("decks.pyramid.layers[0].source");
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
+ assert.equal(run("decks.pyramid.layers[0].source"),source,"STOP SAVED pauses playback only");
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
+ assert.equal(run("decks.pyramid.layers[0].source"),source,"PLAY SAVED does not start another recording");
+ assert.equal(host.filter(x=>x.op==="capture-start").length,1);
+});
+test("overdub inherits first piano duration, remains audible alongside it",async()=>{
+ const {run,env,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");calls.decodedFrames=3*48000;
+ let number=0;const lengths=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start"){lengths.push(JSON.parse(opts.body).seconds);return {ok:true,json:async()=>({capture_id:"take-"+(++number)})};}
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:3*48000,peak:.4,audio_url:"/api/ai/capture/"+JSON.parse(opts.body).id})};
+  if(u.startsWith("/api/ai/capture/"))return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ run("ctx.currentTime=3");await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.pedalPeriodSeconds"),3);
+ run("ctx.currentTime=3.25");await run('startNativeInstrumentTake("pyramid","lead")');
+ assert.equal(lengths[1],3);
+ run("ctx.currentTime=6.25");await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
+ assert.equal(run("decks.pyramid.layers[1].source.loop"),true);
+ assert.equal(run("decks.pyramid.layers[1].buffer.duration"),3);
+ assert.equal(run("decks.pyramid.layers[1].pedalAligned"),true);
+ assert.equal(run("decks.pyramid.layers[0].paused"),false);
+ assert.equal(run("decks.pyramid.layers[1].paused"),false);
+ assert.match(get("nativeResume-pyramid-lead").textContent,/STOP SAVED/);
+ await run('toggleNativeSavedLoop("pyramid","lead")');
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0);
+ assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
+});
+test("voice DONE automatically begins endlessly repeating its first PCM phrase",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ const frames=run("recording.processor.opts.processorOptions.frames");
+ run("recording.actualSteps=8;ctx.currentTime=4");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames,peak:.12,hot:0,missing:0}});
+ const layer=run("decks.pyramid.layers[0]");
+ assert.equal(layer.source.loop,true);
+ assert.ok(Math.abs(layer.source.startOffset)<1e-7);
+ assert.equal(layer.paused,false);
+ assert.ok(layer.gain.gain.value>0);
+ assert.equal(run("decks.pyramid.pedalPeriodSeconds"),layer.buffer.duration);
+ assert.match(get("loopToggle-pyramid").textContent,/STOP LOOP/);
+});
