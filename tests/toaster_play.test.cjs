@@ -933,7 +933,7 @@ test("recorded chord clip anchors to actual first captured bar, not the finish c
  assert.equal(run("decks.pyramid.anchorStep"),start);
  assert.equal(run("decks.pyramid.layers[0].arrStartBar"),Math.floor(start/8));
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
- assert.match(get("recordHint-pyramid").textContent,/READY/);
+ assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
 test("next-bar overdub events rephase to existing master anchor instead of drifting",async()=>{
  const {run,get}=rig();
@@ -945,7 +945,7 @@ test("next-bar overdub events rephase to existing master anchor instead of drift
  run("endRecord()");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),6,"align MIDI from overdub onset back to original master phase");
  assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
- assert.match(get("recordHint-pyramid").textContent,/READY/);
+ assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
 test("repair keeps native four-prompt design and VE-22 microphone controls unchanged",()=>{
  const {get,run}=rig();
@@ -1454,4 +1454,52 @@ test("mic monitoring must be off when recorder separately includes Scarlett",asy
  assert.equal(calls.screenCaptures,0);
  assert.equal(run("setRecorder"),null);
  assert.match(get("setRecordStatus").textContent,/Turn OFF browser microphone monitoring/);
+});
+
+test("first-loop pedal trims dead air before first played chord and replays at DONE boundary",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('record("pyramid")');
+ const originalBegin=run("recording.beginAt");
+ const requestedEnd=originalBegin+11;
+ // First actual note is three eighth-note ticks after arming RECORD.
+ run(`ctx.currentTime=transportEpoch+(${originalBegin}+3.08)*tickSeconds();scheduler()`);
+ run('beginChord("pyramid",0,"key:late")');
+ assert.equal(run("recording.events[0].step"),3);
+ run('endChord("key:late")');
+ run('var replayed=[];const oldSynth=synth;synth=(...args)=>{replayed.push(args);return oldSynth(...args)}');
+ run(`ctx.currentTime=transportEpoch+(${requestedEnd}-.55)*tickSeconds()`);
+ run('record("pyramid")');
+ assert.equal(run("recording.endAt"),requestedEnd);
+ run(`ctx.currentTime=transportEpoch+(${requestedEnd}+1)*tickSeconds();scheduler()`);
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.anchorStep"),originalBegin+3,"first played note becomes master start");
+ assert.equal(run("decks.pyramid.lengthSteps"),8,"three empty pre-roll ticks are not looped");
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
+ assert.equal(run("decks.pyramid.anchorStep+decks.pyramid.lengthSteps"),requestedEnd,
+  "first replay begins on the actual DONE boundary, no extra silent interval");
+ assert.ok(run("replayed.some(x=>x[0]==='pyramid'&&x[1]===0)"),
+  "same scheduler pass launches loop from first chord");
+ assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
+});
+test("chord presses record in played subdivision, never round up and create false lead-in",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ const start=run("recording.beginAt");
+ run(`ctx.currentTime=transportEpoch+(${start}+.05)*tickSeconds();scheduler()`);
+ run(`ctx.currentTime=transportEpoch+(${start}+.68)*tickSeconds()`);
+ run('beginChord("pyramid",1,"key:slightly-late")');
+ assert.equal(run("recording.events[0].step"),0,
+  "played within first subdivision means first chord belongs to the first subdivision");
+});
+test("live deck no longer exposes misleading moving playhead while loop clock stays functional",async()=>{
+ const {run,get}=rig();
+ assert.match(file,/\\.deck-transport \\.timeline\\{display:none!important\\}/);
+ assert.match(file,/id="head-pyramid"/);
+ assert.match(file,/id="head-fishes"/);
+ await run("startStop()");
+ assert.equal(run("stageStarted"),true);
+ assert.equal(run("tickSeconds()"),30/105);
+ run("updateTimeline()");
+ assert.match(get("rhythm").textContent,/PAUSE RHYTHM/);
 });
