@@ -2205,16 +2205,29 @@ function updateNativeLaneControls(){
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ // A performer who selects a different instrument must actually hear it:
+ // expose that song in the top mixer and lift diagnostic SOLO modes.
+ if(aiSolo)toggleAISolo();
+ if(localKeysOnly)await toggleLocalKeysOnly();
  choose(which);
- // Google's one native generator selects a prompt; saved PCM loops can
- // continue independently when the active native prompt changes.
+ $("mix").value=which==="pyramid"?"0":"100";
+ blendBoth=false;
+ $("mixBoth").setAttribute("aria-pressed","false");
+ $("mixBoth").textContent="♫ LAYER BOTH SONGS";
+ updateMix();
+ // Google's one native generator selects a prompt; recorded PCM continues
+ // independently. Suppress native jazz drums so the violin/guitar take
+ // doesn't unintentionally record a percussion texture.
  await aiFetch("scene",{scene:which});
  aiScene=which;
+ await aiFetch("mix",{value:which==="pyramid"?0:1});
+ await aiFetch("drum-mix",{value:0});
+ await aiFetch("drums",{value:false});
  const blend=role==="lead"?1:0;
  await aiFetch("lead-mix",{scene:which,value:blend});
  $("aiLeadMix-"+which).value=String(blend*100);
  $("aiLeadMixValue-"+which).textContent=blend?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
- tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · use keyboard or pads; other recorded audio remains stacked.");
+ tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
 }
 async function startNativeInstrumentTake(which,role){
  if(nativeTake){
