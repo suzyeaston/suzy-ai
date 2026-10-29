@@ -2078,6 +2078,7 @@ function updateRecordControls(which){
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
