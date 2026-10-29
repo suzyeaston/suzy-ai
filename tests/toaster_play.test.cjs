@@ -66,7 +66,7 @@ function rig(){
   {kind:"audiooutput",deviceId:"out2",label:"External Headphones (Built-in)"}
  ];
  class AudioWorkletNode extends AudioNode{
-  constructor(context,name,opts){super();this.name=name;this.opts=opts;
+  constructor(context,name,opts){super();this.name=name;this.opts=opts;calls.workletCount=(calls.workletCount||0)+1;
    this.port={onmessage:null,postMessage(data){calls.workletMessage=data;}};calls.worklet=this;}
  }
  const env={
@@ -2409,4 +2409,82 @@ test("drums recorded first become the precise master for an immediate Scarlett v
  assert.equal(run("decks.pyramid.pedalOriginOffsetSeconds"),.85);
  assert.equal(run("recording.frames"),Math.round(3.71*48000));
  assert.ok(Math.abs(run("recording.startAt-ctx.currentTime")-.04)<.001);
+});
+
+test("vocal loop effects return through an isolated limited wet bus, not the main echo send",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({id:"safety-voice",kind:"vocal",buffer:ctx.createBuffer(1,96000,48000),muted:false,level:.65})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ assert.equal(run('layerFxReturnBus("pyramid",decks.pyramid.layers[0])'),run("decks.pyramid.voiceFxBus"));
+ assert.notEqual(run('layerFxReturnBus("pyramid",decks.pyramid.layers[0])'),run("decks.pyramid.voiceBus"));
+ assert.ok(run("decks.pyramid.voiceFxSafety"),"the wet-only return has an independent compressor");
+ run('toggleLayerWash("pyramid",decks.pyramid.layers[0])');
+ assert.equal(run("decks.pyramid.layers[0].washFx.output.gain.value"),.24);
+ assert.equal(run("decks.pyramid.layers[0].washFx.feedbacks[0].gain.value"),.65);
+ assert.match(javascript,/output\.connect\(layerFxReturnBus\(which,layer\)\)/);
+ assert.match(javascript,/tone\.connect\(output\);output\.connect\(layerFxReturnBus\(which,layer\)\)/);
+});
+test("emergency KILL VOCAL FX stops reverb, echo, browser monitor and recording but preserves piano",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ await run("toggleVoiceMonitor()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"piano-foundation",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,96000,48000),level:.8,muted:false})');
+ run('decks.pyramid.layers.push({id:"vocal-layer",kind:"vocal",buffer:ctx.createBuffer(1,96000,48000),level:.65,muted:false})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);startLoopAudio("pyramid",decks.pyramid.layers[1])');
+ run('toggleLayerWash("pyramid",decks.pyramid.layers[1])');
+ get("vocalEchoMode").value="quarter";get("vocalEchoLevel").value="30";get("vocalEchoFeedback").value="48";
+ run("updateVoiceEcho()");
+ assert.ok(run("decks.pyramid.layers[1].washFx"));
+ const piano=run("decks.pyramid.layers[0].source");
+ get("vocalFxPanic").onclick();
+ assert.equal(run("monitoringVoice"),false);
+ assert.equal(run("decks.pyramid.layers.length"),2,"no saved audio is lost");
+ assert.equal(run("decks.pyramid.layers[0].muted"),false,"piano remains audible");
+ assert.equal(run("decks.pyramid.layers[0].source"),piano);
+ assert.equal(run("decks.pyramid.layers[1].muted"),true);
+ assert.equal(run("decks.pyramid.layers[1].washFx"),null);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0);
+ assert.equal(run("vocalEchoWet.gain.value"),0);
+ assert.equal(run("vocalEchoFeedbackNode.gain.value"),0);
+ assert.equal(get("vocalEchoMode").value,"off");
+ assert.equal(run("stageStarted"),true);
+ assert.match(get("monitorStatus").textContent,/KILLED/);
+});
+test("stopping or muting a saved loop kills its independent feedback tail",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"voice-for-stop",kind:"vocal",buffer:ctx.createBuffer(1,96000,48000),level:.65,muted:false})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ run('toggleLayerWash("pyramid",decks.pyramid.layers[0])');
+ assert.ok(run("decks.pyramid.layers[0].washFx"));
+ await run('toggleLoop("pyramid")');
+ assert.equal(run("decks.pyramid.layers[0].washFx"),null,"STOP LOOP actually stops held effect");
+ await run('toggleLoop("pyramid")');
+ run('toggleLayerWash("pyramid",decks.pyramid.layers[0])');
+ const voiceClip=get("voiceClips-pyramid").children[0];
+ voiceClip.children.find(x=>x.textContent==="MUTE").onclick();
+ assert.equal(run("decks.pyramid.layers[0].washFx"),null,"MUTE shuts off the FX feedback");
+});
+test("rapid vocal record clicks cannot create two worklets or two hidden captures",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ const one=run('voiceLoop("pyramid")');
+ const two=run('voiceLoop("pyramid")');
+ await Promise.all([one,two]);
+ assert.equal(run("recording.kind"),"vocal");
+ assert.equal(calls.workletCount,1);
+ assert.equal(run("vocalArming"),null);
+});
+test("panic during async microphone preparation prevents a hidden recording",async()=>{
+ const {run,env,get,calls}=rig();await run("startStop()");
+ let release;
+ env.hostGate=new Promise(resolve=>{release=resolve});
+ run('ctx.audioWorklet.addModule=()=>{hostGateStarted=true;return hostGate;}');
+ env.hostGateStarted=false;
+ const pending=run('voiceLoop("pyramid")');
+ for(let i=0;i<12&&!env.hostGateStarted;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(env.hostGateStarted,true,"input setup should be in progress");
+ get("vocalFxPanic").onclick();
+ release();
+ await pending;
+ assert.equal(run("recording"),null);
+ assert.equal(run("vocalArming"),null);
+ assert.equal(calls.workletCount||0,0,"panic must prevent late worklet creation");
 });
