@@ -1748,3 +1748,73 @@ test("the native Magenta recording permission prompt is only for deliberate sour
  assert.equal(calls.screenCaptures,1);
  run("cleanupAudioPrint(audioPrint,true)");
 });
+
+test("performer cards have piano, native violin, native guitar and separate Scarlett voice loops, never a rhythm overdub",()=>{
+ const {get}=rig();
+ for(const which of ["pyramid","fishes"]){
+  for(const role of ["chords","lead"]){
+   assert.match(file,new RegExp('id="nativePlay-'+which+'-'+role+'"'));
+   assert.match(file,new RegExp('id="nativeRecord-'+which+'-'+role+'"'));
+   assert.match(file,new RegExp('id="nativeClips-'+which+'-'+role+'"'));
+  }
+  assert.match(file,new RegExp('id="voiceClips-'+which+'"'));
+ }
+ assert.match(file,/id="vocalRecordPyramid"/);
+ assert.match(file,/id="vocalRecordFishes"/);
+ assert.match(file,/id="mix"/);
+ assert.match(file,/id="performanceMaster"/);
+ assert.match(file,/#jazzDrumDeck\{display:none\}/);
+ assert.match(javascript,/function startNativeInstrumentTake\(which,role\)/);
+ assert.doesNotMatch(file,/<option value="rhythm" selected>/);
+});
+test("real Magenta violin audio is captured through host, repeated twice, then independently removed",async()=>{
+ const {run,env,get,calls}=rig(); await run("startStop()");
+ run("aiNativeReady=true");
+ const operations=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url);let reply={};
+  if(u==="/api/ai/status")reply={phase:"host-running",audio_engine_running:true,native_loop_capture_supported:true};
+  else if(u==="/api/ai/capture/capture-real-native"){
+   assert.equal(opts.headers["X-Suzy-Token"].length>0,true);
+   return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  }else if(u.startsWith("/api/ai/")){
+   const op=u.split("/").pop(),payload=JSON.parse(opts.body);
+   operations.push({op,payload});
+   if(op==="status")reply={phase:"host-running",native_loop_capture_supported:true};
+   else if(op==="capture-start")reply={capture_id:"capture-real-native",rate:48000,channels:2};
+   else if(op==="capture-stop")reply={ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/capture-real-native"};
+  }
+  return {ok:true,json:async()=>reply};
+ };
+ // One original master phrase, then two independently audible native violin takes.
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0');
+ for(let i=0;i<2;i++){
+  await run('startNativeInstrumentTake("pyramid","lead")');
+  assert.equal(run("nativeTake.role"),"lead");
+  assert.equal(run("nativeTake.first"),false);
+  await run("finishNativeInstrumentTake()");
+  assert.equal(run("nativeTake"),null);
+  assert.equal(run('decks.pyramid.layers.length'),i+1);
+  assert.equal(run('decks.pyramid.layers['+i+'].instrumentRole'),"lead");
+  assert.equal(run('decks.pyramid.layers['+i+'].kind'),"printed");
+  assert.equal(run('decks.pyramid.layers['+i+'].source.buffer===decks.pyramid.layers['+i+'].buffer'),true);
+ }
+ assert.ok(operations.some(x=>x.op==="lead-mix"&&x.payload.value===1),"real violin prompt selected, not browser synth");
+ assert.ok(operations.filter(x=>x.op==="capture-start").length===2);
+ assert.ok(operations.every(x=>x.op!=="drum-mix"),"never print the browser rhythm");
+ assert.equal(calls.screenCaptures,0,"native AU tap needs no Chrome sharing dialog");
+ assert.equal(get("nativeClips-pyramid-lead").children.length,2);
+ const remove=get("nativeClips-pyramid-lead").children[0].children.find(x=>x.textContent==="×");
+ remove.onclick();
+ assert.equal(run('decks.pyramid.layers.length'),1);
+ assert.equal(get("nativeClips-pyramid-lead").children.length,1);
+});
+test("native loop capture must not claim success when host has no AU audio tap",async()=>{
+ const {run,env,get,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ env.fetch=async url=>({ok:true,json:async()=>({phase:"host-running",native_loop_capture_supported:false})});
+ await run('startNativeInstrumentTake("fishes","lead")');
+ assert.equal(run("nativeTake"),null);
+ assert.match(get("nativeStatus-fishes-lead").textContent,/Rebuild the TOASTER Magenta host/);
+ assert.equal(calls.screenCaptures,0);
+});
