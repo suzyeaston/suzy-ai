@@ -469,7 +469,9 @@ a{color:var(--mint)}
 </section>
 <section id="classicDecks" class="chord-center" aria-label="Playable chord pads and instruments"><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
-<div><div class="deck-head"><span class="deck-badge">ONE LIVE SONG</span><div><h2>PYRAMID · THE LIVING LOOP</h2><div class="deck-info">Your original piano, violin and voice stay exactly where they are</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
+<div><div class="deck-head"><span class="deck-badge">ONE LIVE SONG</span><div><h2>PYRAMID · THE LIVING LOOP</h2><div class="deck-info">Your original piano, violin and voice stay exactly where they are</div></div></div>
+ <div class="lane-buttons"><button id="savePyramidLoop" type="button" title="Export the existing Pyramid browser audio loops as a WAV without stopping playback">↓ SAVE PYRAMID WAV</button>
+ <button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div></div>
 <div class="pads" id="pads-pyramid">
 <button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>
 <button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>
@@ -3551,6 +3553,12 @@ for(const which of Object.keys(decks)){
  };
  updateKeyUI(which);
 }
+$("savePyramidLoop").onclick=()=>{
+ // readAndExport already renders browser PCM offline and does not stop live
+ // sources. Temporarily choose the exported song value without MIDI changes.
+ const before=scene;scene="pyramid";
+ Promise.resolve(readAndExport()).finally(()=>{scene=before;});
+};
 $("nativePlay-drums-drums").onclick=()=>selectNativeLane("drums","drums").catch(warn);
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
