@@ -272,6 +272,13 @@ a{color:var(--mint)}
 .instrument-lane .lane-clips{display:grid;gap:6px}
 .instrument-lane .clip{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;padding:7px}
 .instrument-lane .clip input[type=range]{width:86px}
+.instrument-lane .clip .clip-filter{accent-color:#dc94dd;width:92px}
+.instrument-lane .clip .clip-fx{font-size:11px;padding:6px 8px}
+.instrument-lane .clip .clip-fx[aria-pressed="true"]{border-color:#b9f0d7;color:#b9f0d7;background:#304c49}
+.dj-transition{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.dj-transition select,.dj-transition button{font-size:12px;padding:7px 9px}
+.dj-transition .dj-status{font-size:11px;color:#b9f0d7;min-width:180px}
+
 #classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
 #classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
 #jazzDrumDeck{display:none}
@@ -352,7 +359,18 @@ a{color:var(--mint)}
   <small id="drumMidiStatus" class="subtle" role="status">Editable two-cycle General MIDI groove. Variation is algorithmic, not MRT2-generated MIDI. Export to Logic as .mid.</small>
  </div>
 </div>
-<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · playing a chord will not reset this blend</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
+<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · selecting violin or guitar will NOT move the crossfader.</small>
+<button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button>
+<div class="dj-transition" aria-label="Automatic DJ-style song transitions">
+ <label for="transitionBars">FADE LENGTH</label>
+ <select id="transitionBars" aria-label="Transition length in song bars">
+  <option value="4" selected>4 bars</option><option value="8">8 bars</option>
+ </select>
+ <button id="transitionPyramid" type="button">⇠ TO PYRAMID</button>
+ <button id="transitionFishes" type="button">TO FISHES ⇢</button>
+ <button id="transitionCancel" type="button" disabled>■ STOP FADE</button>
+ <span class="dj-status" role="status" id="transitionStatus">READY · manual crossfader</span>
+</div></div>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
 <small class="subtle">Applies to browser mix and native AI reverb</small></div>
@@ -455,14 +473,16 @@ a{color:var(--mint)}
  <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-chords">✦ SELECT PIANO SOUND</button>
-  <button type="button" id="nativeRecord-pyramid-chords">● LOOP PIANO</button></div>
+  <button type="button" id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE</button>
+  <button type="button" id="nativeResume-pyramid-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-chords">READY · Play notes, then record the generated sound</div>
   <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 03</div><h3>🎻 VIOLIN</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-lead">✦ SELECT VIOLIN SOUND</button>
-  <button type="button" id="nativeRecord-pyramid-lead">● LOOP VIOLIN</button></div>
+  <button type="button" id="nativeRecord-pyramid-lead">● RECORD VIOLIN TAKE</button>
+  <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
  </section>
@@ -536,14 +556,16 @@ a{color:var(--mint)}
  <section class="instrument-lane" id="instrument-fishes-chords" aria-label="fishes guitar arpeggios recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 02</div><h3>🎹 GUITAR ARPEGGIOS</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-fishes-chords">✦ SELECT ARPEGGIO SOUND</button>
-  <button type="button" id="nativeRecord-fishes-chords">● LOOP GUITAR ARPEGGIOS</button></div>
+  <button type="button" id="nativeRecord-fishes-chords">● RECORD ARPEGGIOS TAKE</button>
+  <button type="button" id="nativeResume-fishes-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
   <div class="lane-clips" id="nativeClips-fishes-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 04</div><h3>🎻 CLASSICAL GUITAR</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-fishes-lead">✦ SELECT CLASSICAL GUITAR SOUND</button>
-  <button type="button" id="nativeRecord-fishes-lead">● LOOP CLASSICAL GUITAR</button></div>
+  <button type="button" id="nativeRecord-fishes-lead">● RECORD CLASSICAL GUITAR TAKE</button>
+  <button type="button" id="nativeResume-fishes-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
   <div class="lane-clips" id="nativeClips-fishes-lead"></div>
  </section>
@@ -735,7 +757,7 @@ const INSTRUMENTS={
  nylon:{name:"Nylon classical guitar (synth)",wave:"triangle",overtone:"sine",mix:.24,attack:.009,release:.18,sustain:.17,octave:0,filter:3300}
 };
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
-let blendBoth=false,aiMixQueued=false;
+let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
@@ -1746,30 +1768,75 @@ function clipActiveAt(layer,bar){
 // A BOSS-style pause/restart gates ALL saved song loops, never the shared
 // rhythm clock. The source's phase keeps running silently while stopped.
 function songLayerAudible(which,layer,bar){
- return decks[which].loopEnabled!==false && clipActiveAt(layer,bar);
+ return decks[which].loopEnabled!==false && layer.paused!==true && clipActiveAt(layer,bar);
+}
+// Re-enable an already-running audio loop on the next rendering block instead
+// of waiting up to one bar. The source keeps its phase, so other layers remain
+// synchronized. We never restart the generator or request a new recording.
+function applyLoopGateNow(which){
+ if(!ctx)return;
+ const now=ctx.currentTime,at=now+.012,d=decks[which];
+ for(const layer of d.layers){
+  if(!layer.buffer)continue;
+  if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
+  if(!layer.gain)continue;
+  const target=songLayerAudible(which,layer,Math.floor(stepNumber/8))?(layer.level??.65):0;
+  const param=layer.gain.gain;
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(param.value,at);
+  param.linearRampToValueAtTime(target,at+.035);
+ }
+ if(d.loopBus){
+  const param=d.loopBus.gain;
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(param.value,at);
+  param.linearRampToValueAtTime(targetLoopGain(which),at+.035);
+ }
+}
+function nativeSavedLayers(which,role){
+ return decks[which].layers.filter(l=>l.buffer&&l.instrumentRole===role);
+}
+function updateNativePlaybackButtons(){
+ for(const which of Object.keys(decks))for(const role of ["chords","lead"]){
+  const button=$("nativeResume-"+which+"-"+role),layers=nativeSavedLayers(which,role);
+  if(!button)continue;
+  button.disabled=!layers.length;
+  const playing=stageStarted&&layers.length&&layers.some(l=>!l.paused)&&decks[which].loopEnabled;
+  button.textContent=!layers.length?"▶ PLAY SAVED":playing?"■ STOP SAVED":"▶ PLAY SAVED";
+  button.title="Play/pause this instrument's saved PCM layers immediately, in phase with the master loop.";
+ }
+}
+async function toggleNativeSavedLoop(which,role){
+ const layers=nativeSavedLayers(which,role);
+ if(!layers.length)return warn(Error("Record a "+nativeLaneLabel(which,role)+" take first."));
+ if(nativeTake)return warn(Error("Finish the current native recording before switching playback."));
+ const d=decks[which],playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
+ const resume=!playing;
+ layers.forEach(l=>{l.paused=!resume;});
+ if(resume&&!d.loopEnabled){d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
+ if(resume&&!stageStarted)await startStop();
+ applyLoopGateNow(which);
+ updateLoopControls(which);updateNativePlaybackButtons();
+ tell(nativeLaneLabel(which,role)+(resume?" · SAVED AUDIO PLAYING NOW (PHASE LOCKED)":" · SAVED AUDIO PAUSED")+" · record another take anytime.");
 }
 function updateLoopControls(which){
  const d=decks[which],button=$("loopToggle-"+which);
  button.disabled=!d.locked||!d.layers.length;
- button.classList.toggle("queued",d.loopToggleAt!==null);
- button.textContent=!d.locked?"↻ NO LOOP YET":d.loopToggleAt!==null?
-  (d.loopToggleTarget?"▶ START NEXT BAR":"■ STOP NEXT BAR"):
-  d.loopEnabled?"■ STOP LOOP":"▶ RESTART LOOP";
+ button.classList.remove("queued");
+ button.textContent=!d.locked?"↻ NO LOOP YET":d.loopEnabled?"■ STOP LOOP":"▶ RESTART NOW";
 }
-function toggleLoop(which){
+async function toggleLoop(which){
  const d=decks[which];
- if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before using LOOP ON/OFF."));
- if(recording)return warn(Error("Finish recording before stopping or restarting a loop."));
- const target=d.loopToggleAt!==null?!d.loopToggleTarget:!d.loopEnabled;
- if(!stageStarted){
-  d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
-  updateOverdubBalance();updateLoopControls(which);renderClips(which);
-  return tell(which.toUpperCase()+" loops "+(target?"ready to play":"stopped")+". The original bar phase is preserved.");
- }
- d.loopToggleAt=Math.ceil((stepNumber+1)/8)*8;
- d.loopToggleTarget=target;
- updateLoopControls(which);
- tell(which.toUpperCase()+" · "+(target?"RESTART":"STOP")+" LOOP queued for next bar, in the original pattern.");
+ if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before playing."));
+ if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
+ const target=!d.loopEnabled;
+ d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
+ if(!target&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+  aiRelease(aiChordOwner.token); // release held native note immediately, too
+ if(target&&!stageStarted)await startStop();
+ applyLoopGateNow(which);
+ updateLoopControls(which);updateNativePlaybackButtons();
+ tell(which.toUpperCase()+" · "+(target?"LOOP AUDIBLE NOW · phase stays aligned":"LOOP STOPPED NOW")+" · no next-bar wait.");
 }
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
@@ -1908,6 +1975,7 @@ function schedule(time,count){
 }
 function scheduler(){
  if(!ctx||!stageStarted)return;
+ updateSongTransition();
  const now=ctx.currentTime;
  while(nextStepAt<now+.14){
   schedule(nextStepAt,stepNumber);
@@ -1997,6 +2065,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
+   cancelSongTransition("PAUSED · fade cancelled");
    parkedBar=currentTransportBar();
    releaseAllChords();
    if(aiChordOwner?.loopEvent)aiRelease(aiChordOwner.token);
@@ -2015,6 +2084,7 @@ async function startStop(){
     d.loopToggleAt=null;d.loopToggleTarget=null;updateLoopControls(which);
    }
    for(const d of Object.values(decks))for(const layer of d.layers){
+    stopLayerWash(layer);stopLayerEcho(layer);
     if(layer.source){try{layer.source.stop()}catch{}layer.source=null;}
    }
    $("rhythm").textContent="▶ PLAY RHYTHM";$("rhythm").setAttribute("aria-pressed","false");
@@ -2161,7 +2231,9 @@ function endRecord(){
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
+ stopLayerWash(layer);stopLayerEcho(layer);
  if(layer.source)try{layer.source.stop()}catch{}
+ try{layer.filterNode?.disconnect()}catch{}
  // Release a tied native chord before removing the original MIDI take.
  if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
@@ -2203,35 +2275,28 @@ function updateNativeLaneControls(){
    const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
    button.disabled=!!nativeTake&&!isRecording;
    button.textContent=isRecording?
-    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → STACK"):
-    "● LOOP "+(role==="lead"?(which==="pyramid"?"VIOLIN":"GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"));
+    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → SAVE"):
+    "● RECORD "+(role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
+   updateNativePlaybackButtons();
    if(isRecording)status.textContent=nativeTake.first?
     "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
 }
-function focusSongMixer(which){
- $("mix").value=which==="pyramid"?"0":"100";
- blendBoth=false;
- $("mixBoth").setAttribute("aria-pressed","false");
- $("mixBoth").textContent="♫ LAYER BOTH SONGS";
- updateMix();
-}
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
- // A performer who selects a different instrument must actually hear it:
- // expose that song in the top mixer and lift diagnostic SOLO modes.
+ // Select the Google sound WITHOUT touching the performer's song crossfader.
+ // Stored audio remains in the existing mix while the new prompt is prepared.
  if(aiSolo)toggleAISolo();
  if(localKeysOnly)await toggleLocalKeysOnly();
  choose(which);
- focusSongMixer(which);
  // Google's one native generator selects a prompt; recorded PCM continues
  // independently. Suppress native jazz drums so the violin/guitar take
  // doesn't unintentionally record a percussion texture.
  await aiFetch("scene",{scene:which});
  aiScene=which;
- await aiFetch("mix",{value:which==="pyramid"?0:1});
+ await aiFetch("mix",{value:effectiveSongMix()});
  await aiFetch("drum-mix",{value:0});
  await aiFetch("drums",{value:false});
  const blend=role==="lead"?1:0;
@@ -2322,6 +2387,108 @@ async function finishNativeInstrumentTake(){
   updateNativeLaneControls();
  }
 }
+// All DJ effects operate on EXISTING browser PCM buffers only. Google AU
+// prompt generation remains on its separate macOS output, and browser drums
+// never enter these sends. Feedback stays below unity to protect headphones.
+function layerOutputBus(which,layer){
+ return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
+}
+function layerPlaybackPhase(which,layer,at){
+ const origin=transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
+ const offset=(Number(layer.sourceOffsetBars)||0)*8*tickSeconds();
+ return ((at-origin+offset)%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
+}
+function layerFilterFrequency(amount){
+ // 0 = rich/dark, 100 = fully open. Log scale feels natural on a fader.
+ return 320*Math.pow(20000/320,Math.max(0,Math.min(100,Number(amount)))/100);
+}
+function setLayerFilter(which,layer,amount){
+ if(!layer?.buffer)return;
+ layer.filterAmount=Math.max(0,Math.min(100,Number(amount)));
+ if(layer.filterNode&&ctx)
+  layer.filterNode.frequency.setTargetAtTime(layerFilterFrequency(layer.filterAmount),ctx.currentTime,.035);
+}
+function stopLayerWash(layer){
+ if(!layer?.washFx)return;
+ const fx=layer.washFx;
+ layer.washFx=null;
+ if(ctx){
+  for(const feedback of fx.feedbacks)feedback.gain.setTargetAtTime(0,ctx.currentTime,.07);
+  fx.output.gain.setTargetAtTime(0,ctx.currentTime,.11);
+ }
+ setTimeout(()=>{for(const node of fx.nodes)try{node.disconnect()}catch{}},1400);
+}
+function stopLayerEcho(layer){
+ if(!layer?.echoFx)return;
+ const fx=layer.echoFx;
+ layer.echoFx=null;
+ if(ctx){
+  fx.feedback.gain.setTargetAtTime(0,ctx.currentTime,.03);
+  fx.output.gain.setTargetAtTime(0,ctx.currentTime,.07);
+ }
+ setTimeout(()=>{for(const node of fx.nodes)try{node.disconnect()}catch{}},700);
+}
+function makeLayerTransitionSource(which,layer,seconds){
+ if(!ctx||!stageStarted||!layer.buffer)return null;
+ const source=ctx.createBufferSource(),input=ctx.createGain(),now=ctx.currentTime+.012;
+ source.buffer=layer.buffer;source.loop=true;
+ input.gain.value=.28*(layer.level??.75);
+ source.connect(input);
+ source.start(now,layerPlaybackPhase(which,layer,now));
+ source.stop(now+seconds);
+ return {source,input,now};
+}
+function echoOutLayer(which,layer){
+ if(!ctx||!stageStarted||!layer.buffer)return warn(Error("Play a recorded audio loop first."));
+ // Feed one short segment into echoes; NEVER feed the continuously cycling
+ // source to the delay or the echo would never end.
+ stopLayerEcho(layer);
+ const sample=makeLayerTransitionSource(which,layer,.28);
+ if(!sample)return;
+ const delay=ctx.createDelay(2),tone=ctx.createBiquadFilter(),
+       feedback=ctx.createGain(),output=ctx.createGain();
+ delay.delayTime.value=Math.max(.2,Math.min(.8,60/bpm*.75));
+ tone.type="lowpass";tone.frequency.value=4200;tone.Q.value=.55;
+ feedback.gain.value=.44;output.gain.value=.6;
+ sample.input.connect(delay);delay.connect(tone);
+ tone.connect(feedback);feedback.connect(delay);
+ tone.connect(output);output.connect(layerOutputBus(which,layer));
+ const fx={feedback,output,nodes:[sample.source,sample.input,delay,tone,feedback,output]};
+ layer.echoFx=fx;
+ layer.muted=true;
+ if(layer.gain)layer.gain.gain.setTargetAtTime(0,ctx.currentTime,.09);
+ setTimeout(()=>{
+  if(layer.echoFx===fx)stopLayerEcho(layer);
+ },5600);
+ renderClips(which);
+ tell("↝ ECHO OUT · "+(layer.name||"VOICE")+" fades to repeating echoes. UNMUTE to bring the original loop back.");
+}
+function toggleLayerWash(which,layer){
+ if(layer.washFx){stopLayerWash(layer);renderClips(which);return;}
+ if(!ctx||!stageStarted||!layer.buffer)return warn(Error("Play an audio loop before holding a reverb tail."));
+ const sample=makeLayerTransitionSource(which,layer,.34);
+ if(!sample)return;
+ // Two lightly diffused feedback combs create a long, soft reverb hold.
+ // This is a reverb-style ambience, not a spectral freeze of the Google AU.
+ const output=ctx.createGain();output.gain.value=.33;
+ const nodes=[sample.source,sample.input,output],feedbacks=[];
+ for(const seconds of [.167,.239]){
+  const delay=ctx.createDelay(1),filter=ctx.createBiquadFilter(),
+        feedback=ctx.createGain(),send=ctx.createGain();
+  delay.delayTime.value=seconds;
+  filter.type="lowpass";filter.frequency.value=3400;filter.Q.value=.45;
+  feedback.gain.value=.88;send.gain.value=.5;
+  sample.input.connect(delay);
+  delay.connect(filter);filter.connect(send);send.connect(output);
+  filter.connect(feedback);feedback.connect(delay);
+  nodes.push(delay,filter,feedback,send);feedbacks.push(feedback);
+ }
+ output.connect(layerOutputBus(which,layer));
+ layer.washFx={nodes,feedbacks,output};
+ renderClips(which);
+ tell("∞ REVERB HOLD · "+(layer.name||"VOICE")+" ambience sustained. Tap HOLD again to release.");
+}
+
 function renderInstrumentClips(which){
  const d=decks[which];
  for(const role of ["chords","lead","voice"]){
@@ -2356,7 +2523,24 @@ function renderInstrumentClips(which){
    const remove=document.createElement("button");remove.textContent="×";
    remove.title="Remove only this recorded audio pass";
    remove.onclick=()=>removeSongLayer(which,layer.id);
-   row.append(name,mute,fade,remove);box.append(row);
+   const filterLabel=document.createElement("label");filterLabel.textContent="FILTER";
+   const filter=document.createElement("input");
+   filter.type="range";filter.min="0";filter.max="100";
+   filter.value=String(layer.filterAmount??100);filter.className="clip-filter";
+   filter.setAttribute("aria-label",(layer.name||"Voice")+" filter sweep");
+   filter.oninput=()=>setLayerFilter(which,layer,filter.value);
+   filterLabel.append(filter);
+   const echo=document.createElement("button");
+   echo.textContent="↝ ECHO OUT";echo.className="clip-fx";
+   echo.title="Fade this loop and let a short sample echo away; original remains available to unmute";
+   echo.onclick=()=>echoOutLayer(which,layer);
+   const wash=document.createElement("button");
+   wash.textContent=layer.washFx?"∞ RELEASE":"∞ REVERB HOLD";
+   wash.className="clip-fx";
+   wash.setAttribute("aria-pressed",String(!!layer.washFx));
+   wash.title="Hold a diffused feedback reverb tail from this recorded audio, not the live native AU";
+   wash.onclick=()=>toggleLayerWash(which,layer);
+   row.append(name,mute,fade,filterLabel,echo,wash,remove);box.append(row);
   }
  }
 }
@@ -2364,6 +2548,7 @@ function renderInstrumentClips(which){
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
  renderInstrumentClips(which);
+ updateNativePlaybackButtons();
  updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
@@ -2573,9 +2758,8 @@ async function toggleVoiceMonitor(){
 }
 async function voiceLoop(which){
  choose(which);
- // Selecting a voice lane must not leave its newly recorded layer inaudible
- // behind the other song's crossfader position.
- focusSongMixer(which);
+ // Voice capture never changes the mix: fade in the recorded layer on the
+ // master crossfader when musically appropriate.
  if(aiSolo)toggleAISolo();
  if(localKeysOnly)await toggleLocalKeysOnly();
  if(!stageStarted)return warn(Error("Start the rhythm first"));
@@ -2833,18 +3017,18 @@ async function startAudioPrint(which,freeze=false){
 
 function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
- const src=ctx.createBufferSource(),gain=ctx.createGain();
+ const src=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
- src.connect(gain);gain.connect(l.kind==="printed"?decks[which].printBus:decks[which].voiceBus);
+ filter.type="lowpass";filter.Q.value=.65;
+ filter.frequency.value=layerFilterFrequency(l.filterAmount??100);
+ src.connect(gain);gain.connect(filter);filter.connect(layerOutputBus(which,l));
  const when=startAt??(ctx.currentTime+.025);
- const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds();
- const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
- const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
+ const phase=layerPlaybackPhase(which,l,when);
  if(stageStarted)src.start(when,phase);
- else{l.source=null;l.gain=null;return;}
-
- l.source=src;l.gain=gain;
+ else{src.disconnect();gain.disconnect();filter.disconnect();l.source=null;l.gain=null;return;}
+ try{l.filterNode?.disconnect()}catch{}
+ l.source=src;l.gain=gain;l.filterNode=filter;
 }
 async function importAudio(file){
  if(!file)return;
@@ -2867,6 +3051,44 @@ async function importAudio(file){
   decks[which].layers.push(l);startLoopAudio(which,l);renderClips(which);
   tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
+}
+// Shared browser mix and native AU prompt weights follow the same gradual fade.
+function cancelSongTransition(label="MANUAL MIX · fade cancelled"){
+ if(!transition)return;
+ transition=null;
+ $("transitionCancel").disabled=true;
+ $("transitionStatus").textContent=label;
+}
+function startSongTransition(which){
+ if(!stageStarted||!ctx)return warn(Error("Start the master rhythm before an automatic crossfade."));
+ if(!decks.pyramid.enabled||!decks.fishes.enabled)
+  return warn(Error("Enable both Pyramid and Fishes to crossfade their loops."));
+ const bars=Number($("transitionBars").value);
+ if(![4,8].includes(bars))return warn(Error("Choose a 4- or 8-bar transition."));
+ const from=Number($("mix").value),to=which==="fishes"?100:0;
+ if(from===to){cancelSongTransition();$("transitionStatus").textContent="ALREADY AT "+which.toUpperCase();return;}
+ transition={from,to,which,bars,started:ctx.currentTime,
+  seconds:bars*4*60/bpm,lastNative:-1};
+ $("transitionCancel").disabled=false;
+ $("transitionStatus").textContent="↝ "+which.toUpperCase()+" · "+bars+" BARS";
+ updateSongTransition();
+}
+function updateSongTransition(){
+ if(!transition||!ctx)return;
+ const t=transition,progress=Math.max(0,Math.min(1,(ctx.currentTime-t.started)/t.seconds));
+ // Cosine easing: a gentler beginning and ending for long ambient fades.
+ const blend=(1-Math.cos(Math.PI*progress))*.5;
+ const value=Math.round(t.from+(t.to-t.from)*blend);
+ $("mix").value=String(value);
+ updateMix();
+ if(progress===1||ctx.currentTime-t.lastNative>=.20){
+  t.lastNative=ctx.currentTime;
+  queueNativeSongMix(); // coalesced: never queue hundreds of network requests.
+ }
+ $("transitionStatus").textContent=progress<1?
+  "↝ "+t.which.toUpperCase()+" · "+Math.round(progress*100)+"% · "+t.bars+" BARS":
+  "✓ "+t.which.toUpperCase()+" · FADE COMPLETE";
+ if(progress>=1){transition=null;$("transitionCancel").disabled=true;queueNativeSongMix();}
 }
 function updateMix(){
  const x=Number($("mix").value)/100;
@@ -3063,6 +3285,7 @@ $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{
+ cancelSongTransition();
  blendBoth=!blendBoth;
  $("mixBoth").setAttribute("aria-pressed",String(blendBoth));
  $("mixBoth").textContent=blendBoth?"♫ BOTH SONGS LIVE":"♫ LAYER BOTH SONGS";
@@ -3101,6 +3324,7 @@ for(const k of Object.keys(decks)){
  for(const role of ["chords","lead"]){
   $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
   $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
+  $("nativeResume-"+k+"-"+role).onclick=()=>toggleNativeSavedLoop(k,role).catch(warn);
  }
  $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
  $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
@@ -3108,7 +3332,7 @@ for(const k of Object.keys(decks)){
  updateAudioPrintUI();
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
- $("loopToggle-"+k).onclick=()=>toggleLoop(k);
+ $("loopToggle-"+k).onclick=()=>toggleLoop(k).catch(warn);
  updateLoopControls(k);
  $("vocal-"+k).onclick=()=>voiceLoop(k);
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
@@ -3160,11 +3384,15 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllC
 $("setRecordStart").onclick=startSetRecording;
 $("setRecordStop").onclick=stopSetRecording;
 $("mix").oninput=()=>{
+ cancelSongTransition();
  blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");
  $("mixBoth").textContent="♫ LAYER BOTH SONGS";
  updateMix();queueNativeSongMix(); // Real-time Google AU crossfade while dragging.
 };
 $("mix").onchange=queueNativeSongMix;
+$("transitionPyramid").onclick=()=>startSongTransition("pyramid");
+$("transitionFishes").onclick=()=>startSongTransition("fishes");
+$("transitionCancel").onclick=()=>cancelSongTransition("■ FADE STOPPED · manual control");
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;

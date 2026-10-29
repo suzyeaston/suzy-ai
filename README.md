@@ -8,6 +8,15 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## 🎚 Live DJ transitions and instant piano replay (experimental)
+
+- Each native instrument box now distinguishes **RECORD [INSTRUMENT] TAKE** (records genuine AU audio) from **PLAY SAVED / STOP SAVED** (toggles only its previously recorded PCM layers). Playback is immediate with a short smoothing fade and **preserves the original master-loop phase** rather than waiting for the next bar. The song-wide **STOP LOOP / RESTART NOW** also gates saved audio immediately. PLAY SAVED resumes the browser rhythm/transport automatically after a full pause.
+- Selecting a violin, piano, or guitar **changes Google's active prompt, not the master crossfader**. Selecting the Scarlett voice lane likewise does not change the crossfader. In the top mixer, **TO PYRAMID / TO FISHES** makes a cosine-eased **4- or 8-bar** transition, including the native AU's scene balance, and **STOP FADE** or dragging the main crossfader takes manual control immediately.
+- Each **saved PCM loop** has a per-clip **FILTER**, **ECHO OUT**, and **REVERB HOLD / RELEASE**. Filter sweeps adjust that loop's browser lowpass; echo-out ducks its original clip and repeats a short audio sample; reverb hold sustains a filtered feedback ambience until released. This is a bounded delay-network hold, **not** a true spectral reverb freeze. These controls deliberately **do not modify the browser drum rhythm** or live native Magenta stream. Effects are audible on saved PCM layers in the browser mix.
+- **Practical caveat:** If the saved waveform itself begins with silence, an immediate phase-locked restart can still fall on that silent portion of the recorded loop. The playback control responds promptly; it does not fabricate notes or retime the recording. Native Magenta and the browser remain separate outputs, so check both in your headphones.
+
+**Before relying on this onstage:** rebuild/restart your local TOASTER installation from the merged code, check native capture readiness, record two piano and violin takes, stop and restart in a few different phases, then audition layer faders/FX and manually interrupt the 4-bar crossfade. PR CI cannot replace real audio QA.
+
 ## 🎻 TOASTER performer-first instrument lanes (native AU capture, experimental)
 
 The performance page now groups the real sound sources into independent loop boxes: **Pyramid piano, Pyramid violin, Weird Fishes arpeggios, Weird Fishes classical guitar**, plus **Scarlett / VE-22 microphone voice** for each song. The tempo, browser rhythm, song crossfade and master levels remain at the top. Each recorded waveform has its own MUTE, fader and × remove; the existing browser rhythm is **not** an instrument overdub lane.

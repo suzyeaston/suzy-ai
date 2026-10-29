@@ -1057,42 +1057,42 @@ test("a chord held across next-pulse count-in becomes the first note, not a miss
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.equal(run("decks.pyramid.lengthSteps"),finish-begin);
 });
-test("loop pedal stop and restart quantize to next bar and preserve absolute song phase",async()=>{
+
+test("STOP LOOP and RESTART NOW immediately gate phase-locked piano PCM without waiting for a bar",async()=>{
  const {run,get}=rig();await run("startStop()");
- run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0,holdSteps:2,instrument:"keys"}],arrStartBar:1})');
- run("renderClips('pyramid')");
- const anchor=run("decks.pyramid.anchorStep");
- run('toggleLoop("pyramid")');
- assert.match(get("loopToggle-pyramid").textContent,/STOP NEXT BAR/);
- const stopStep=run("decks.pyramid.loopToggleAt");
- assert.equal(stopStep%8,0);
- run('ctx.currentTime=transportEpoch+(decks.pyramid.loopToggleAt+1)*tickSeconds();scheduler()');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;decks.pyramid.layers.push({id:"piano",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,48000,48000),level:.74,muted:false,arrStartBar:0})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);renderClips("pyramid")');
+ const anchor=run("decks.pyramid.anchorStep"),source=run("decks.pyramid.layers[0].source");
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74);
+ await run('toggleLoop("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),false);
- assert.equal(run("decks.pyramid.anchorStep"),anchor);
- assert.equal(run("songLayerAudible('pyramid',decks.pyramid.layers[0],Math.floor(stepNumber/8))"),false);
- assert.match(get("loopToggle-pyramid").textContent,/RESTART LOOP/);
- run('toggleLoop("pyramid")');
- const restartStep=run("decks.pyramid.loopToggleAt");
- assert.ok(restartStep>stopStep);
- run('ctx.currentTime=transportEpoch+(decks.pyramid.loopToggleAt+1)*tickSeconds();scheduler()');
+ assert.equal(run("decks.pyramid.loopToggleAt"),null,"no scheduled next-bar wait");
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
+ assert.match(get("loopToggle-pyramid").textContent,/RESTART NOW/);
+ await run('toggleLoop("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),true);
+ assert.equal(run("decks.pyramid.loopToggleAt"),null);
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.74,"piano is audible within 35ms, not a bar later");
+ assert.equal(run("decks.pyramid.layers[0].source"),source,"loop source never lost its playback phase");
  assert.equal(run("decks.pyramid.anchorStep"),anchor);
  assert.match(get("loopToggle-pyramid").textContent,/STOP LOOP/);
 });
-test("one loop pedal gates chord and vocal loop sources, not metronome or the other song",async()=>{
- const {run,get}=rig();await run("startStop()");
- run('decks.pyramid.locked=true;decks.pyramid.anchorStep=8;decks.pyramid.lengthSteps=16;decks.pyramid.layers.push({id:"chords",kind:"chords",events:[{step:0,index:1,holdSteps:1,instrument:"keys"}],muted:false,arrStartBar:1})');
- run('decks.pyramid.layers.push({id:"vocal",kind:"vocal",muted:false,arrStartBar:1,buffer:ctx.createBuffer(1,48000,48000)})');
- run('startLoopAudio("pyramid",decks.pyramid.layers[1])');
- run('toggleLoop("pyramid")');
- run('ctx.currentTime=transportEpoch+(decks.pyramid.loopToggleAt+1)*tickSeconds();scheduler()');
- assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0,"vocal output gated at exact song bar");
+
+test("song STOP instantly gates saved voice and PCM but not metronome or other song",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.anchorStep=8;decks.pyramid.lengthSteps=16');
+ run('decks.pyramid.layers.push({id:"piano",kind:"printed",level:.7,buffer:ctx.createBuffer(1,48000,48000),muted:false,arrStartBar:0})');
+ run('decks.pyramid.layers.push({id:"vocal",kind:"vocal",level:.65,buffer:ctx.createBuffer(1,48000,48000),muted:false,arrStartBar:0})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);startLoopAudio("pyramid",decks.pyramid.layers[1]);renderClips("pyramid")');
+ await run('toggleLoop("pyramid")');
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0);
  assert.equal(run("decks.pyramid.loopEnabled"),false);
- assert.equal(run("decks.fishes.loopEnabled"),true,"other deck remains available");
- assert.equal(run("stageStarted"),true,"underlying rhythm keeps running");
- run('toggleLoop("pyramid")');
- run('ctx.currentTime=transportEpoch+(decks.pyramid.loopToggleAt+1)*tickSeconds();scheduler()');
- assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.65,"vocal gain reopens on original grid");
+ assert.equal(run("decks.fishes.loopEnabled"),true);
+ assert.equal(run("stageStarted"),true,"rhythm keeps playing");
+ await run('toggleLoop("pyramid")');
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.7);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.65);
 });
 test("pausing and restarting rhythm never resets original recorded loop downbeat",async()=>{
  const {run}=rig();await run("startStop()");
@@ -1154,22 +1154,19 @@ test("live looper shows simple states, no beat/bar/pass counters, while tempo re
  assert.equal(get("tempo").value,"105","tempo input remains available");
  assert.match(file,/id="tempoValue"/,"tempo display remains present");
 });
-test("stopping a sustained loop fades its active oscillator bus without stopping rhythm",async()=>{
- const {run,get}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
+
+test("stopping a sustained MIDI loop fades immediately while rhythm stays active",async()=>{
+ const {run}=rig();await run("startStop()");run('setInstrumentSource("pyramid","local")');
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=5;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:5,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
  run('renderClips("pyramid")');
- run('toggleLoop("pyramid")');
- const end=run("decks.pyramid.loopToggleAt");
- run(`ctx.currentTime=transportEpoch+(${end}+1)*tickSeconds();scheduler()`);
+ await run('toggleLoop("pyramid")');
  assert.equal(run("decks.pyramid.loopEnabled"),false);
- assert.equal(run("decks.pyramid.loopBus.gain.value"),0,"already playing notes fade out on STOP");
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),0);
  assert.equal(run("stageStarted"),true);
- run('toggleLoop("pyramid")');
- const resume=run("decks.pyramid.loopToggleAt");
- run(`ctx.currentTime=transportEpoch+(${resume}+1)*tickSeconds();scheduler()`);
- assert.ok(run("decks.pyramid.loopBus.gain.value")>0,"audible bus is restored at bar-quantized restart");
+ await run('toggleLoop("pyramid")');
+ assert.equal(run("decks.pyramid.loopEnabled"),true);
+ assert.ok(run("decks.pyramid.loopBus.gain.value")>0,"MIDI oscillator bus resumes without a next-bar wait");
 });
-
 test("AI ONLY hard-mutes ALL browser audio including rhythm vocals live pads and loops",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('decks.pyramid.layers.push({kind:"chords",muted:false,events:[{step:0,index:0,holdSteps:4}]})');
@@ -1388,23 +1385,21 @@ test("native MIDI loop tied at DONE stays held across the next repetition",async
  assert.equal(calls.midi.filter(x=>x.url==="/api/ai/release").length,0);
  run(`aiRelease(${newChord})`);
 });
-test("native loop pedal STOP explicitly releases a tied chord; other song and rhythm unaffected",async()=>{
+
+test("native song STOP immediately releases held Magenta chord and preserves the other song",async()=>{
  const {run,calls}=rig();await run("startStop()");
  run("aiNativeReady=true;aiScene='pyramid'");
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"tie",kind:"chords",events:[{step:0,index:0,holdSteps:8,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
  run("renderClips('pyramid')");
- const token=run('aiNote("pyramid",0,{loopEvent:decks.pyramid.layers[0].events[0],legato:true})');
- run('toggleLoop("pyramid")');
- const stop=run("decks.pyramid.loopToggleAt");
- run(`ctx.currentTime=transportEpoch+(${stop}+1)*tickSeconds();scheduler()`);
+ run('aiNote("pyramid",0,{loopEvent:decks.pyramid.layers[0].events[0],legato:true})');
+ await run('toggleLoop("pyramid")');
  for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
  assert.equal(run("decks.pyramid.loopEnabled"),false);
  assert.equal(run("aiChordOwner"),null);
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/release"));
- assert.equal(run("stageStarted"),true,"shared drum clock remains running");
+ assert.equal(run("stageStarted"),true);
  assert.equal(run("decks.fishes.loopEnabled"),true);
 });
-
 test("live view replaces huge full arrangement with visible record full set controls",()=>{
  const {get}=rig();
  assert.match(file,/<section class="full-arrangement" id="fullArrangement" hidden aria-hidden="true"/);
@@ -1839,19 +1834,19 @@ test("Scarlett voice overdub stays on master period even when DONE is pressed ea
  assert.equal(get("voiceClips-pyramid").children.length,1);
 });
 
-test("selecting Fishes classical guitar actually exposes its native audio and unmutes the correct browser lane",async()=>{
+test("selecting Fishes classical guitar preserves manual crossfade while preparing the native prompt",async()=>{
  const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
  const seen=[];env.fetch=async(url,opts)=>{
   if(String(url).startsWith("/api/ai/"))seen.push([String(url).split("/").pop(),JSON.parse(opts.body)]);
   return {ok:true,json:async()=>({})};
  };
  await run('selectNativeLane("fishes","lead")');
- assert.equal(get("mix").value,"100","performer can hear selected song; global crossfade follows");
- assert.ok(run("decks.fishes.printBus.gain.value")>0);
+ assert.equal(get("mix").value,"0","selecting classical guitar must NEVER snap the DJ crossfader");
+ assert.equal(run("decks.fishes.printBus.gain.value"),0,"Fishes saved layers stay down until performer fades across");
  assert.ok(seen.some(([op,p])=>op==="lead-mix"&&p.scene==="fishes"&&p.value===1));
  assert.ok(seen.some(([op,p])=>op==="drums"&&p.value===false));
  assert.ok(seen.some(([op,p])=>op==="drum-mix"&&p.value===0));
- assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===1));
+ assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===0),"preparing Fishes does not override Pyramid crossfade");
 });
 test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
  const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
@@ -1875,11 +1870,93 @@ test("the first native violin take can establish the master phrase without a MID
  assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
 });
 
-test("choosing the Fishes voice box makes its recorded audio audible through the top mixer",async()=>{
+test("choosing the Fishes voice box leaves the manual DJ mix unchanged",async()=>{
  const {run,get}=rig();await run("startStop()");
  assert.equal(get("mix").value,"0");
  await run('voiceLoop("fishes")');
- assert.equal(get("mix").value,"100");
- assert.ok(run("decks.fishes.voiceBus.gain.value")>0);
+ assert.equal(get("mix").value,"0","arming Fishes voice also keeps the manually chosen crossfade");
+ assert.equal(run("decks.fishes.voiceBus.gain.value"),0,"voice awaits intentional crossfade instead of snapping mix");
  assert.equal(run("recording.kind"),"vocal");
+});
+
+test("piano lane has separate RECORD TAKE and instant PLAY SAVED, and only the selected lane pauses",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ for(const [role,id] of [["chords","piano"],["lead","violin"]]){
+  run('decks.pyramid.layers.push({id:'+JSON.stringify(id)+',kind:"printed",instrumentRole:'+JSON.stringify(role)+',level:.8,muted:false,buffer:ctx.createBuffer(1,48000,48000)})');
+ }
+ run('decks.pyramid.locked=true;renderClips("pyramid")');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);startLoopAudio("pyramid",decks.pyramid.layers[1])');
+ assert.match(file,/id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE/);
+ assert.equal(get("nativeResume-pyramid-chords").disabled,false);
+ assert.match(get("nativeResume-pyramid-chords").textContent,/STOP SAVED/);
+ const source=run("decks.pyramid.layers[0].source");
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.equal(run("decks.pyramid.layers[0].paused"),true);
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.8,"violin layer keeps playing");
+ assert.match(get("nativeResume-pyramid-chords").textContent,/PLAY SAVED/);
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.equal(run("decks.pyramid.layers[0].paused"),false);
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.8);
+ assert.equal(run("decks.pyramid.layers[0].source"),source,"no phase reset or unnecessary capture");
+});
+test("PLAY SAVED resumes transport and piano after global rhythm pause",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"p",kind:"printed",instrumentRole:"chords",level:.8,muted:false,buffer:ctx.createBuffer(1,48000,48000)});renderClips("pyramid")');
+ await run("startStop()");
+ assert.equal(run("stageStarted"),false);
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.equal(run("stageStarted"),true);
+ assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
+ assert.ok(run("decks.pyramid.layers[0].source"),"audio source restarted on the same clock");
+});
+
+test("DJ transition lasts four bars and can be interrupted instantly by the manual crossfader",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ get("transitionBars").value="4";
+ run('startSongTransition("fishes")');
+ assert.equal(run("transition.to"),100);
+ assert.equal(run("transition.bars"),4);
+ const duration=run("transition.seconds");
+ run("ctx.currentTime+=("+duration+"/2);updateSongTransition()");
+ const halfway=Number(get("mix").value);
+ assert.ok(halfway>=45&&halfway<=55,"musical crossfade is halfway at half the duration");
+ run('ctx.currentTime+=.1;$("mix").value="25";$("mix").oninput()');
+ assert.equal(run("transition"),null,"manual performance input owns the mixer immediately");
+ assert.equal(get("mix").value,"25");
+ assert.equal(get("transitionCancel").disabled,true);
+ run('startSongTransition("fishes")');
+ const remaining=run("transition.seconds");
+ run("ctx.currentTime+="+remaining+"+.1;updateSongTransition()");
+ assert.equal(get("mix").value,"100");
+ assert.equal(run("transition"),null);
+ assert.match(get("transitionStatus").textContent,/FADE COMPLETE/);
+});
+test("loop-specific filter, echo-out and reverb-hold work without touching rhythm",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"piano",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,96000,48000),level:.8,muted:false})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);renderClips("pyramid")');
+ const clips=get("nativeClips-pyramid-chords");
+ const row=clips.children[0];
+ const inputs=row.children.find(x=>x.textContent==="FILTER");
+ assert.ok(inputs,"per-loop lowpass fader available");
+ const filter=inputs.children[0];
+ const before=run("decks.pyramid.layers[0].filterNode.frequency.value");
+ filter.value="10";filter.oninput();
+ const after=run("decks.pyramid.layers[0].filterNode.frequency.value");
+ assert.ok(after<before,"dark filter actually changes saved PCM, not merely a readout");
+ assert.equal(run("rhythmAudioEnabled"),true);
+ const wash=row.children.find(x=>x.textContent==="∞ REVERB HOLD");
+ assert.ok(wash);
+ wash.onclick();
+ assert.ok(run("decks.pyramid.layers[0].washFx"),"bounded reverb hold exists on saved piano");
+ run('toggleLayerWash("pyramid",decks.pyramid.layers[0])');
+ assert.equal(run("decks.pyramid.layers[0].washFx"),null);
+ const echo=clips.children[0].children.find(x=>x.textContent==="↝ ECHO OUT");
+ echo.onclick();
+ assert.ok(run("decks.pyramid.layers[0].echoFx"));
+ assert.equal(run("decks.pyramid.layers[0].muted"),true,"echo-out retires the original layer while tail rings");
+ assert.equal(run("rhythmAudioEnabled"),true,"browser rhythm never recorded or processed");
+ run('removeSongLayer("pyramid","piano")');
+ assert.equal(run("decks.pyramid.layers.length"),0);
 });
