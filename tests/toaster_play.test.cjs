@@ -22,7 +22,7 @@ function rig(){
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
- "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
  promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",promptJazzDrums:"brushed swing jazz drums",aiDrumMix:"0",
  "aiLeadMix-pyramid":"0","aiLeadMix-fishes":"0",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
@@ -407,13 +407,13 @@ test("polyphonic melody keyboard A W S E D F T G Y H U J K sends native MIDI per
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note"));
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/note-off"));
 });
-test("vocal AudioWorklet records a song-length cycle without ScriptProcessor",async()=>{
+test("vocal worklet can capture a full phrase without an arbitrary eight-bar preset",async()=>{
  const {run,calls}=rig();await run("startStop()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.kind"),"vocal");
  assert.equal(calls.worklet?.name,"suzy-vocal-capture");
  assert.equal(calls.workletModule,"/toaster/vocal-capture.js");
- const frames=run("Math.round((decks.pyramid.initialBars*8)*tickSeconds()*ctx.sampleRate)");
+ const frames=run("Math.round(Math.min(256,Math.floor(120/tickSeconds()))*tickSeconds()*ctx.sampleRate)");
  assert.equal(calls.worklet.opts.processorOptions.frames,frames);
  calls.worklet.port.onmessage({data:{
   type:"complete",data:new Float32Array(frames).fill(.4),peak:.4,hot:0,missing:0
@@ -616,7 +616,7 @@ test("first sung take sets the same bar-quantized master length as keys",async()
  assert.equal(run("recording.first"),true);
  const original=run("recording.firstStep");
  // Press Finish at the first possible four-bar boundary.
- run("stepNumber="+(original+32-1));
+ run("stepNumber="+(original+32));
  await run('voiceLoop("pyramid")');
  assert.equal(calls.workletMessage.type,"finish");
  const takenSteps=run("recording.actualSteps");
@@ -770,7 +770,7 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  assert.match(get("vocalLoopState").textContent,/NO VOCAL LOOPS/);
  await run("toggleVoiceMonitor()");
  assert.equal(run("monitoringVoice"),true);
- assert.match(get("monitorStatus").textContent,/recorder state below/);
+ assert.match(get("monitorStatus").textContent,/MONITOR ON/);
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
  await run('voiceLoop("pyramid")');
  assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
@@ -1502,4 +1502,73 @@ test("live deck no longer exposes misleading moving playhead while loop clock st
  assert.equal(run("tickSeconds()"),30/105);
  run("updateTimeline()");
  assert.match(get("rhythm").textContent,/PAUSE RHYTHM/);
+});
+
+test("vocal recorder now accepts Record Done after a custom phrase rather than preset bars",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ await run('voiceLoop("pyramid")');
+ const begin=run("recording.firstStep");
+ assert.equal(run("recording.first"),true);
+ assert.ok(run("recording.steps")>64,"no eight-bar cap");
+ run(`stepNumber=${begin}+13;ctx.currentTime=transportEpoch+(stepNumber-.2)*tickSeconds()`);
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.finishQueued"),true);
+ assert.equal(run("recording.actualSteps"),13);
+ assert.equal(calls.workletMessage.type,"finish");
+ assert.ok(calls.workletMessage.frames<calls.worklet.opts.processorOptions.frames);
+ const full=calls.worklet.opts.processorOptions.frames,short=calls.workletMessage.frames;
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(full).fill(.3),frames:short,peak:.3,hot:0,missing:0}});
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),13);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),short);
+ assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),begin);
+ assert.ok(get("vocalRecordPyramid").textContent.includes("RECORD"));
+});
+test("lead vocal monitoring starts with Scarlett and headphone routing even before PLAY RHYTHM",async()=>{
+ const {run,calls,get}=rig();
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ assert.equal(run("stageStarted"),false);
+ assert.equal(run("monitorDry.gain.value"),1.1);
+ assert.equal(calls.output,"out1");
+ assert.match(get("monitorStatus").textContent,/Scarlett Solo USB/);
+});
+test("manual crossfader persists when switching MIDI scenes and updates native AU while dragging",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ get("mix").value="35";
+ get("mix").oninput();
+ run('choose("fishes")');
+ assert.equal(get("mix").value,"35","song selection must not reset chosen crossfade");
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
+ const mixes=calls.midi.filter(x=>x.url==="/api/ai/mix");
+ assert.ok(mixes.some(x=>JSON.parse(x.opts.body).value===.35));
+ assert.equal(get("mixValue").textContent,"65 / 35");
+});
+test("independent song on/off gates its browser voice and native scene mix",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ get("mix").value="50";run("updateMix()");
+ run('setSongEnabled("pyramid")');
+ assert.equal(run("decks.pyramid.enabled"),false);
+ assert.equal(run("decks.pyramid.voiceBus.gain.value"),0);
+ assert.equal(run("effectiveSongMix()"),1);
+ assert.equal(get("songEnabled-pyramid").getAttribute?.("aria-pressed")||"false","false");
+ run('setSongEnabled("fishes")');
+ assert.equal(run("decks.fishes.enabled"),true,"last available song cannot be disabled");
+ run('setSongEnabled("pyramid")');
+ assert.equal(run("decks.pyramid.enabled"),true);
+ assert.equal(run("effectiveSongMix()"),.5);
+ for(let i=0;i<7;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/mix"));
+});
+test("stage UI hides optional local fallback and experimental voice follower without deleting their code",()=>{
+ assert.match(file,/class="song-lead-panel"[^>]+hidden aria-hidden="true"/);
+ assert.match(file,/class="voice-ai-follow"[^>]+hidden aria-hidden="true"/);
+ assert.match(file,/id="performanceMaster"/);
+ assert.match(file,/id="songEnabled-pyramid"/);
+ assert.match(file,/id="songEnabled-fishes"/);
+ const code=file.slice(file.indexOf("<script>"));
+ assert.match(code,/function setSongEnabled\(which\)/);
+ assert.match(code,/function updateVoiceEcho\(\)/);
 });
