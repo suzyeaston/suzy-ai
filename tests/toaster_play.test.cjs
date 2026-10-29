@@ -1627,7 +1627,7 @@ test("README teaches record reset and PCM audio overdubs",()=>{
  assert.match(text,/RECORD FIRST LOOP/);
  assert.match(text,/ADD AUDIO LAYER/);
  assert.match(text,/PRINT MIDI/);
- assert.match(text,/same Google Magenta stream/i);
+ assert.match(text,/one native stereo output/i);
 });
 
 
@@ -1727,9 +1727,9 @@ test("same instrument can stack three PCM takes without Mac screen sharing",asyn
   worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.2+pass*.1),frames,peak:.4,missing:0}});
   assert.equal(run("audioPrint"),null);
   assert.equal(run("decks.pyramid.layers.length"),pass+2);
-  assert.equal(run('decks.pyramid.layers[pass+1].kind'),"printed");
-  assert.equal(run('decks.pyramid.layers[pass+1].arrStartBar'),0,"saved layer audible even after rewind");
-  assert.ok(run('decks.pyramid.layers[pass+1].gain.gain.value')>0,"stacked audio plays immediately");
+  assert.equal(run("decks.pyramid.layers["+(pass+1)+"].kind"),"printed");
+  assert.equal(run("decks.pyramid.layers["+(pass+1)+"].arrStartBar"),0,"saved layer audible even after rewind");
+  assert.ok(run("decks.pyramid.layers["+(pass+1)+"].gain.gain.value")>0,"stacked audio plays immediately");
   assert.match(get("record-pyramid").textContent,/ADD AUDIO LAYER/);
  }
  const id=run("decks.pyramid.layers[2].id");
