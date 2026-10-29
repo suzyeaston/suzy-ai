@@ -2267,7 +2267,7 @@ async function startVoiceMonitor(){
  monitorDry.connect(mainBus);monitorSend.connect(verb);
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
- $("monitorStatus").textContent="MONITOR ON → "+($("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
+ $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent||"Chrome audio output")+" · use headphones, raise Scarlett gain if quiet";
  updateVocalState();
 }
 function updateVoiceEcho(){
