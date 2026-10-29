@@ -202,6 +202,7 @@ a{color:var(--mint)}
 .live-voice-monitor button{background:#aee8d8;color:#20332d;min-height:46px}
 .live-voice-monitor button[aria-pressed=true]{background:#f2ccab;color:#3d2d35}
 #monitorStatus{font-size:11px;color:var(--mint)}
+#vocalFxPanic{background:#8d2637;color:#fff;border-color:#e8a7a7;font-weight:900}
 .full-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:7px 0}
 .full-toolbar button{font-size:11px;padding:8px 10px}
 .full-clip.is-selected{outline:3px solid #ffe7ab;outline-offset:2px}
@@ -3089,6 +3090,61 @@ function stopVoiceMonitor(){
  $("monitorStatus").textContent="MONITOR OFF · mic not routed to headphones";
  updateVocalState();
 }
+// Emergency audio cut. Does not discard previous saved takes, change the
+// native Magenta engine or kill the rest of the browser performance.
+function panicVocalFx(){
+ // Invalidate asynchronous mic preparation before it creates a worklet.
+ vocalArming=null;
+ stopVoiceMonitor();
+ if(recording?.kind==="vocal"){
+  const take=recording;
+  take.finished=true;
+  clearTimeout(take.watchdog);
+  try{take.processor?.port.postMessage({type:"stop"});}catch{}
+  for(const node of [take.source,take.processor,take.silent])
+   try{node?.disconnect()}catch{}
+  recording=null;
+  $("vocal-"+take.scene).textContent="🎙 LOOP VOICE";
+  $("vocalRecord"+(take.scene==="pyramid"?"Pyramid":"Fishes")).textContent="● RECORD "+take.scene.toUpperCase()+" VOICE";
+ }
+ $("vocalEchoMode").value="off";
+ $("vocalEchoLevel").value="0";
+ $("vocalEchoFeedback").value="0";
+ updateVoiceEcho();
+ if(ctx){
+  // Immediate zero beats gradual feedback decay during an emergency.
+  for(const node of [vocalEchoWet,vocalEchoFeedbackNode]){
+   node?.gain.cancelScheduledValues(ctx.currentTime);
+   node?.gain.setValueAtTime(0,ctx.currentTime);
+  }
+ }
+ for(const [which,d] of Object.entries(decks)){
+  for(const layer of d.layers){
+   if(layer.kind!=="vocal")continue;
+   if(ctx){
+    if(layer.echoFx){
+     layer.echoFx.output.gain.setValueAtTime(0,ctx.currentTime);
+     layer.echoFx.feedback.gain.setValueAtTime(0,ctx.currentTime);
+    }
+    if(layer.washFx){
+     layer.washFx.output.gain.setValueAtTime(0,ctx.currentTime);
+     for(const feedback of layer.washFx.feedbacks)
+      feedback.gain.setValueAtTime(0,ctx.currentTime);
+    }
+   }
+   stopLayerEcho(layer);stopLayerWash(layer);
+   layer.muted=true;
+   if(layer.gain&&ctx){
+    layer.gain.gain.cancelScheduledValues(ctx.currentTime);
+    layer.gain.gain.setValueAtTime(0,ctx.currentTime);
+   }
+  }
+  renderClips(which);
+ }
+ updateVocalState();
+ $("monitorStatus").textContent="VOCAL FX KILLED · dry loops preserved and muted · turn monitoring on manually if safe";
+ tell("⛔ VOCAL FX KILLED · mic monitor, echo and reverb holds OFF; saved voice loops MUTED, not deleted. Piano and AI continue.");
+}
 async function toggleVoiceMonitor(){
  if(monitoringVoice)stopVoiceMonitor();
  else try{await startVoiceMonitor()}catch(e){stopVoiceMonitor();warn(e)}
@@ -3121,12 +3177,20 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   return;
  }
  if(recording)return warn(Error("Finish the current recording first"));
+ if(vocalArming)return tell("VOICE INPUT PREPARING · press RECORD once and wait.");
+ const arming={which};vocalArming=arming;
  let source=null,processor=null,silent=null,take=null;
  try{
   await openAudio();
+  if(vocalArming!==arming)return; // Panic while opening audio.
   const stream=await enableMic();
+  if(vocalArming!==arming)return; // Panic while requesting Scarlett.
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
-  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
+  if(!vocalCaptureReady){
+   await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");
+   vocalCaptureReady=true;
+  }
+  if(vocalArming!==arming)return; // Panic during module preparation.
   const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
@@ -3212,6 +3276,8 @@ writeAlignedLoopAudio(clip,[data],take.startAt,
   if(recording===take)recording=null;
   $("vocal-"+which).textContent="🎙 LOOP VOICE";
   warn(e);
+ }finally{
+  if(vocalArming===arming)vocalArming=null;
  }
 }
 
@@ -3624,6 +3690,7 @@ for(const name of ["vocalEchoMode","vocalEchoLevel","vocalEchoFeedback","vocalAi
 $("voiceFollow").onclick=toggleVoiceFollow;
 $("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
+$("vocalFxPanic").onclick=panicVocalFx;
 $("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);};
 $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
