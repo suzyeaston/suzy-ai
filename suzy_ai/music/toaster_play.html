@@ -957,11 +957,14 @@ function midi(which,index){
  // CoreMIDI conditioning is optional; no model is being run by this webpage.
  const headers={"Content-Type":"application/json","X-Suzy-Token":token};
  midiQueue=midiQueue.catch(()=>{}).then(async()=>{
+  // A queued request must not reach CoreMIDI after the native AU takes over.
+  if(!externalMidiPads||aiNativeReady||aiSolo)return;
   const send=async(type,data)=>{
    const r=await fetch("/api/perform/"+type,{method:"POST",headers,body:JSON.stringify(data)});
    if(!r.ok)throw Error("MIDI bridge unavailable");
   };
   if(chordMidiScene!==which){await send("scene",{scene:which});chordMidiScene=which;}
+  if(!externalMidiPads||aiNativeReady||aiSolo)return;
   await send("chord",{index});
  }).catch(()=>{});
 }
