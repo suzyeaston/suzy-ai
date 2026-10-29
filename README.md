@@ -8,6 +8,14 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## 🥁 Playable native jazz drum pads and automatic preset sounds
+
+The fifth Magenta instrument now has four large performance pads, playable with **keys 1, 2, 3, 4** (and numeric keypad) or pointer/touch: kick, snare, closed hat, and ride. These issue MIDI note-on/off **36, 38, 42, 51** to the original **Google MRT2 AU** with the jazz drum prompt selected automatically on first hit. The prompt is a generative musical conditioning signal, **not a deterministic General MIDI drum sample bank**, so audition the actual response before performing. Release a pad/key to release the MIDI note; switching focus, losing the browser window, and tab visibility changes also release held pads.
+
+To loop the result, press **RECORD AI DRUM TAKE**, play the pads, then press **DONE → LOOP**: the existing native PCM looper records the AU output and repeats it indefinitely until **STOP SAVED**. The independent browser rhythm is not part of that capture. This change does not alter the first-track loop engine, song length, Pyramid recording or voice routing.
+
+The redundant **SELECT SOUND** buttons are removed. **RECORD [INSTRUMENT] TAKE** already selects the preset Magenta sound for piano, violin, cello, glass, and archived instruments, while playing a drum pad auto-selects the jazz drum source. Existing optional prompt editing remains available if the user explicitly opens those sound settings.
+
 ## ✦ PYRAMID ORBIT · one evolving live composition (performer-first UX)
 
 The original Pyramid piano, violin, microphone loops and first-track PCM are the composition's anchor, with **no changes to the existing capture or playback algorithms**. The old second-song deck, mixer and voice controls remain accessible in collapsed archive sections. Before updating/reloading the app, **export your precious Pyramid loop**. Audio recorded in the running browser is not persisted to GitHub and can be lost on refresh.
