@@ -36,6 +36,10 @@ class NativeMRT2Tests(unittest.TestCase):
             ("drum-mix", {"value": -0.1}),
             ("drum-mix", {"value": 1.1}),
             ("drum-mix", {"value": "0.3"}),
+            ("drum-level", {"value": -0.1}),
+            ("drum-level", {"value": 1.26}),
+            ("drum-level", {"value": "0.4"}),
+            ("drum-level", {"value": True}),
         ]
         for cmd,data in invalid:
             with self.subTest(action=cmd, data=data), self.assertRaises(ValueError):
@@ -412,12 +416,16 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         host = NativeMagentaHost(binary=Path("/nonexistent/MRT2"))
         self.assertEqual(ACTIONS["loop-volume"], {"id", "value"})
         self.assertEqual(ACTIONS["loop-remove"], {"id"})
+        self.assertEqual(ACTIONS["drum-level"], {"value"})
         uuid = "00000000-0000-4000-8000-000000000001"
         valid = [
             ("capture-stop", {"id": uuid, "live_loop": True,
                               "preroll_seconds": 0.35, "period_seconds": 2.8}),
             ("chord", {"index": 1, "harmony": "fishes", "legato": True}),
             ("chord", {"index": 2, "harmony": "pyramid"}),
+            ("drum-level", {"value": 0}),
+            ("drum-level", {"value": 0.65}),
+            ("drum-level", {"value": 1.25}),
             ("loop-volume", {"id": uuid, "value": 0.8}),
             ("loop-remove", {"id": uuid}),
         ]
@@ -438,6 +446,14 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         for op, args in invalid:
             with self.subTest(invalid=(op, args)), self.assertRaises(ValueError):
                 host.command(op, args)
+
+    def test_drum_prompt_fader_changes_fifth_native_weight_not_saved_pcm(self):
+        root = Path(__file__).resolve().parents[1]
+        swift = (root / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('case "drum-level":', swift)
+        self.assertIn('drumBlend * drumLevel', swift)
+        self.assertIn('"drum_prompt_level": Double(drumLevel)', swift)
+        self.assertIn('parameter(14, max(0, min(1.25, drumBlend * drumLevel)))', swift)
 
     def test_native_audio_tap_not_just_boolean_diagnostics(self):
         root = Path(__file__).resolve().parents[1]
