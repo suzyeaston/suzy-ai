@@ -2594,3 +2594,91 @@ test("MIDI first take never arms on beat two just because next tick was pre-sche
  run("ctx.currentTime=transportEpoch+recording.beginAt*tickSeconds()+.01;updatePedalClock()");
  assert.equal(get("pedalCueBig").textContent,"GO!");
 });
+
+test("real Swift memory looping starts native take without duplicate browser AudioBuffer playback",async()=>{
+ const {run,env,calls,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=8*48000;
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  const op=String(url).split("/").pop();
+  if(opts?.body)commands.push({op,...JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true,native_memory_loop_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"00000000-0000-4000-8000-000000000001"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:8*48000,peak:.4,
+   audio_url:"/api/ai/capture/00000000-0000-4000-8000-000000000001",
+   native_loop_playing:true,native_loop_scheduled_ms:50,native_loop_id:"00000000-0000-4000-8000-000000000001"})};
+  if(String(url).includes("/api/ai/capture/"))return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
+ await run("finishNativeInstrumentTake()");
+ const layer=run("decks.pyramid.layers[0]");
+ assert.equal(layer.nativeLive,true);
+ assert.equal(layer.source,null,"browser must not start a second copy of the live native audio");
+ assert.ok(layer.nativeLoopID);
+ const sent=commands.find(c=>c.op==="capture-stop");
+ assert.equal(sent.live_loop,true);
+ assert.ok(sent.preroll_seconds>=0);
+ assert.ok(Math.abs(sent.period_seconds-run("barDuration()"))<.001);
+ await run("aiCommandQueue");
+ assert.ok(commands.some(c=>c.op==="loop-volume"&&c.id===layer.nativeLoopID));
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/NATIVE MEMORY REPLAY/);
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ await run("aiCommandQueue");
+ assert.equal(commands.filter(c=>c.op==="loop-volume").at(-1).value,0);
+ run("removeSongLayer('pyramid',decks.pyramid.layers[0].id)");
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(commands.some(c=>c.op==="loop-remove"&&c.id===layer.nativeLoopID));
+});
+test("native memory loop survives an unavailable optional WAV download without losing STOP controls",async()=>{
+ const {run,env,calls,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async url=>{
+  const op=String(url).split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"00000000-0000-4000-8000-000000000002"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:48000,peak:.2,
+    audio_url:"/api/ai/capture/00000000-0000-4000-8000-000000000002",
+    native_loop_playing:true,native_loop_id:"00000000-0000-4000-8000-000000000002"})};
+  if(String(url).includes("/api/ai/capture/"))return {ok:false,status:503};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ run("ctx.currentTime=nativeTake.gridStartAt+barDuration()");
+ await run("finishNativeInstrumentTake()");
+ const layer=run("decks.pyramid.layers[0]");
+ assert.equal(layer.nativeLive,true);
+ assert.equal(layer.buffer,null,"PCM export cache is optional, not playback");
+ assert.equal(get("nativeResume-pyramid-chords").disabled,false);
+ await run('toggleNativeSavedLoop("pyramid","chords")');
+ assert.equal(layer.paused,true);
+});
+test("every Magenta instrument offers both sets of four chords without resetting the selected sound",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ for(const [which,role] of [["pyramid","chords"],["pyramid","lead"],
+  ["pyramid","textureLow"],["pyramid","textureHigh"],["fishes","chords"],["fishes","lead"]]){
+  const bank=get("nativeChords-"+which+"-"+role);
+  assert.equal(bank.children.length,3,which+" "+role+" has both song rows");
+  assert.equal(bank.children[1].children.length,5);
+  assert.equal(bank.children[2].children.length,5);
+  for(const [index,name] of ["Em7","F♯m7","A","Gmaj7"].entries())
+   assert.equal(bank.children[2].children[index+1].textContent,name);
+ }
+ const bank=get("nativeChords-pyramid-lead");
+ const fis=bank.children[2].children[2]; // Fishes F sharp minor seventh
+ fis.onpointerdown({button:0,preventDefault(){}});
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ const chord=commands.find(c=>c.op==="chord");
+ assert.equal(chord?.args.harmony,"fishes");
+ assert.equal(chord?.args.index,1);
+ assert.equal(run("activeNativeLane"),"pyramid:lead","violin prompt remains selected");
+ assert.equal(run("scene"),"pyramid","Weird Fishes harmony must NOT switch the song clock");
+ fis.onpointerup();
+ for(let i=0;i<4;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(commands.some(c=>c.op==="release"));
+});
