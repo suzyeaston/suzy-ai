@@ -1801,7 +1801,7 @@ function updateNativePlaybackButtons(){
   const button=$("nativeResume-"+which+"-"+role),layers=nativeSavedLayers(which,role);
   if(!button)continue;
   button.disabled=!layers.length;
-  const playing=layers.length&&layers.some(l=>!l.paused)&&decks[which].loopEnabled;
+  const playing=stageStarted&&layers.length&&layers.some(l=>!l.paused)&&decks[which].loopEnabled;
   button.textContent=!layers.length?"▶ PLAY SAVED":playing?"■ STOP SAVED":"▶ PLAY SAVED";
   button.title="Play/pause this instrument's saved PCM layers immediately, in phase with the master loop.";
  }
@@ -1810,7 +1810,7 @@ async function toggleNativeSavedLoop(which,role){
  const layers=nativeSavedLayers(which,role);
  if(!layers.length)return warn(Error("Record a "+nativeLaneLabel(which,role)+" take first."));
  if(nativeTake)return warn(Error("Finish the current native recording before switching playback."));
- const d=decks[which],playing=d.loopEnabled&&layers.some(l=>!l.paused);
+ const d=decks[which],playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
  const resume=!playing;
  layers.forEach(l=>{l.paused=!resume;});
  if(resume&&!d.loopEnabled){d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
@@ -1831,6 +1831,8 @@ async function toggleLoop(which){
  if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
  const target=!d.loopEnabled;
  d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
+ if(!target&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+  aiRelease(aiChordOwner.token); // release held native note immediately, too
  if(target&&!stageStarted)await startStop();
  applyLoopGateNow(which);
  updateLoopControls(which);updateNativePlaybackButtons();
