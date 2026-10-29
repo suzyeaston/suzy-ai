@@ -1758,7 +1758,8 @@ test("performer cards have piano, native violin, native guitar and separate Scar
  assert.match(file,/id="vocalRecordFishes"/);
  assert.match(file,/id="mix"/);
  assert.match(file,/id="performanceMaster"/);
- assert.match(file,/#jazzDrumDeck\{display:none\}/);
+ assert.match(file,/#jazzDrumDeck\{display:block\}/,"real native jazz drum instrument is visible");
+ assert.match(file,/id="nativeRecord-drums-drums"/,"native drums have an independent audio pedal");
  assert.match(javascript,/function startNativeInstrumentTake\(which,role\)/);
  assert.doesNotMatch(file,/<option value="rhythm" selected>/);
 });
@@ -1959,4 +1960,80 @@ test("loop-specific filter, echo-out and reverb-hold work without touching rhyth
  assert.equal(run("rhythmAudioEnabled"),true,"browser rhythm never recorded or processed");
  run('removeSongLayer("pyramid","piano")');
  assert.equal(run("decks.pyramid.layers.length"),0);
+});
+
+test("native AI drum lane records real audio, stays separate from browser rhythm, and can replay",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");
+ assert.match(file,/#jazzDrumDeck\{display:block\}/);
+ for(const id of ["nativeRecord-drums-drums","nativeResume-drums-drums","nativeDrumClips"])
+  assert.ok(file.includes('id="'+id+'"'));
+ run("aiNativeReady=true");
+ const seen=[];
+ env.fetch=async(url,opts)=>{
+  const op=String(url).split("/").pop();
+  if(opts?.body)seen.push([op,JSON.parse(opts.body)]);
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"drum-take"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/drum-take"})};
+  if(String(url)==="/api/ai/capture/drum-take")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("drums","drums")');
+ assert.equal(run("nativeTake.role"),"drums");
+ assert.ok(seen.some(([op,v])=>op==="drum-mix"&&v.value===1));
+ assert.ok(seen.some(([op,v])=>op==="drums"&&v.value===true));
+ assert.equal(calls.screenCaptures,0);
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("nativeTake"),null);
+ assert.equal(run("drumDeck.layers.length"),1);
+ assert.equal(run('drumDeck.layers[0].instrumentRole'),"drums");
+ assert.ok(run("drumDeck.layers[0].source"));
+ assert.equal(get("nativeDrumClips").children.length,1);
+ assert.equal(run('drumDeck.bus.gain.value'),1,"not affected by Pyramid/Fishes crossfade");
+ assert.equal(run("rhythmAudioEnabled"),true);
+ await run('toggleNativeSavedLoop("drums","drums")');
+ assert.equal(run('drumDeck.layers[0].gain.gain.value'),0);
+ await run('toggleNativeSavedLoop("drums","drums")');
+ assert.ok(run('drumDeck.layers[0].gain.gain.value')>0);
+ get("nativeDrumClips").children[0].children.find(x=>x.textContent==="×").onclick();
+ assert.equal(run("drumDeck.layers.length"),0);
+});
+test("all PCM audio uses the same phase and endpoints meet without clicks",async()=>{
+ const {run}=rig();await run("startStop()");
+ const shift=run('(()=>{const b=ctx.createBuffer(1,1000,1000);const p=new Float32Array(1000);p[50]=.7;const moved=writeAlignedLoopAudio(b,[p],.25,0);return {moved,note:b.getChannelData(0)[300],wrong:b.getChannelData(0)[50],edges:[b.getChannelData(0)[0],b.getChannelData(0)[999]]};})()');
+ assert.equal(shift.moved,250);
+ assert.ok(Math.abs(shift.note-.7)<1e-6);
+ assert.equal(shift.wrong,0);
+ assert.ok(Math.abs(shift.edges[0]-shift.edges[1])<1e-7);
+ const fixed=run('(()=>{const b=ctx.createBuffer(1,1200,1000);const p=new Float32Array(1200);p[0]=1;p[1199]=-1;writeAlignedLoopAudio(b,[p],0,0);return [b.getChannelData(0)[0],b.getChannelData(0)[1199]];})()');
+ assert.ok(Math.abs(fixed[0]-fixed[1])<1e-7);
+});
+test("native loop duration is measured when DONE is pressed, not after slow fetch",async()=>{
+ const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"fresh-audio"})};
+  if(op==="capture-stop"){
+   run("ctx.currentTime+=18");
+   return {ok:true,json:async()=>({ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/fresh-audio"})};
+  }
+  if(u==="/api/ai/capture/fresh-audio")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ run("ctx.currentTime+=4");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.ok(run("decks.pyramid.lengthSteps")<20,"network stall must not create dead air in phrase");
+ assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),run("decks.pyramid.anchorStep"));
+});
+test("Scarlett overdub stays anchored to the first phrase",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("decks.pyramid.locked=true;decks.pyramid.anchorStep=3;decks.pyramid.lengthSteps=16");
+ await run('voiceLoop("pyramid")');
+ const frames=run("recording.processor.opts.processorOptions.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.1),frames,peak:.1,hot:0,missing:0}});
+ assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),3);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
 });
