@@ -295,6 +295,19 @@ a{color:var(--mint)}
 .advanced-session .set-recorder{margin-top:10px}
 
 .instrument-lane button:disabled{opacity:.5}
+/* Pyramid is the one live composition. Existing second-deck DOM stays
+   accessible under a disclosure, but never competes with the live workspace. */
+#deck-pyramid{border-color:#e6b2d1;background:linear-gradient(140deg,#332334,#211e30)}
+#deck-pyramid .deck-head h2{font-size:clamp(24px,3vw,34px)}
+.pyramid-orbit-intro{border:1px solid #a8d4bb;border-radius:12px;padding:12px;background:#19302d;margin:12px 0}
+.pyramid-orbit-intro strong{color:#d6ffee}
+.pyramid-orbit-intro small{display:block;margin-top:5px;color:#c0dfd2}
+.instrument-lane.texture-orbit{border-color:#85baa8;background:#1c2d32}
+.legacy-song-drawer{border:1px solid #65556b;border-radius:12px;padding:10px;margin-top:15px}
+.legacy-song-drawer>summary{cursor:pointer;color:#d1bbc9;font-size:12px;font-weight:800}
+.legacy-song-drawer #deck-fishes{margin:12px 0 0}
+#voiceLane-fishes{display:none}
+
 
 
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
@@ -390,7 +403,7 @@ a{color:var(--mint)}
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
- <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, Fishes classical guitar, and brushed jazz drums. Live blending uses the same native engine.</p>
+ <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · native instrument selected. Start Magenta or explicitly choose LOCAL SYNTH.</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button" title="Diagnostic PURE AI SOLO: mute the entire browser mix, including rhythm and vocal monitoring. Normal native instrument mode does not need this.">🎧 SOLO NATIVE AI · MUTE RHYTHM</button>
@@ -407,12 +420,12 @@ a{color:var(--mint)}
 <div class="prompt-grid">
 <div><label for="promptPyramid">01 · PYRAMID · intimate piano</label>
 <textarea id="promptPyramid" maxlength="500">Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals</textarea></div>
-<div><label for="promptFishes">02 · WEIRD FISHES · shimmering arpeggios</label>
-<textarea id="promptFishes" maxlength="500">Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals</textarea></div>
+<div><label for="promptFishes">02 · PYRAMID ORBIT · low cello / harmonium drone</label>
+<textarea id="promptFishes" maxlength="500">Low expressive bowed cello, soft harmonium drone and warm sustained strings, intimate chamber music, suspended art-rock atmosphere, sparse slow-moving notes, stable F sharp tonal centre with G major seventh and A sixth harmonic colour, gentle imperfect bow texture, no drums, no bright guitar, no vocals</textarea></div>
 <div><label for="promptViolin">03 · PYRAMID · MAGENTA VIOLIN LEAD</label>
 <textarea id="promptViolin" maxlength="500">Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals</textarea></div>
-<div><label for="promptGuitar">04 · WEIRD FISHES · MAGENTA CLASSICAL GUITAR LEAD</label>
-<textarea id="promptGuitar" maxlength="500">Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals</textarea></div>
+<div><label for="promptGuitar">04 · PYRAMID ORBIT · glass harmonics / harp</label>
+<textarea id="promptGuitar" maxlength="500">Sparse glassy celesta and delicate harp harmonics, soft struck-bell overtones, high intimate plucked notes, drifting spacious tape echoes, suspended F sharp centre with Gmaj7 and A6 colour tones, gentle unresolved experimental chamber ambience, no fixed new chord progression, no rhythm section, no vocals</textarea></div>
 </div>
 <div class="start"><span class="subtle">Restart only the native AI to apply edited text. You may need to select mrt2_small in Google's UI again. Existing browser loops stay intact.</span>
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
@@ -449,7 +462,7 @@ a{color:var(--mint)}
 </section>
 <section id="classicDecks" class="chord-center" aria-label="Playable chord pads and instruments"><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
-<div><div class="deck-head"><span class="deck-badge">TRACK 01</span><div><h2>PYRAMID</h2><div class="deck-info">Suspended piano · floating pulse</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
+<div><div class="deck-head"><span class="deck-badge">ONE LIVE SONG</span><div><h2>PYRAMID · THE LIVING LOOP</h2><div class="deck-info">Your original piano, violin and voice stay exactly where they are</div></div></div><button id="select-pyramid" aria-pressed="true">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-pyramid">
 <button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>
 <button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>
@@ -485,6 +498,9 @@ a{color:var(--mint)}
   <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </details>
+<div class="pyramid-orbit-intro" role="note"><strong>✦ PYRAMID IS HOME · KEEP BUILDING</strong>
+ <small>Harmonic orbit: F♯ → Gmaj7 → A6 → F♯. Add cello, glass harmonics, violin, voice and AI jazz drums around your existing first-track audio. Every new texture take records into Track 01. No new song clock, no Fishes chord progression.</small>
+ <small>⚠️ Recorded audio in this browser lives in memory. Export the wonderful loop before refreshing or changing branches.</small></div>
 <div class="instrument-lanes" aria-label="pyramid native instruments and loop layers">
  <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
@@ -501,6 +517,24 @@ a{color:var(--mint)}
   <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
+ </section>
+ <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureLow" aria-label="low cello drone audio layers">
+  <div class="tiny">✦ PYRAMID EXPANSION · MAGENTA PROMPT 02</div><h3>🎻 LOW CELLO / HARMONIUM</h3>
+  <small class="subtle">Low sustained notes and breathy drones, grounded in your existing F♯ / Gmaj7 / A6 harmony.</small>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-textureLow">✦ SELECT CELLO DRONE</button>
+   <button type="button" id="nativeRecord-pyramid-textureLow">● RECORD CELLO TAKE</button>
+   <button type="button" id="nativeResume-pyramid-textureLow" disabled>▶ PLAY SAVED</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-textureLow">READY · recorded audio joins Pyramid, not another song</div>
+  <div class="lane-clips" id="nativeClips-pyramid-textureLow"></div>
+ </section>
+ <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureHigh" aria-label="glassy mallet and harp audio layers">
+  <div class="tiny">✦ PYRAMID EXPANSION · MAGENTA PROMPT 04</div><h3>✨ GLASS BELLS / HARP</h3>
+  <small class="subtle">Delicate upper harmonics and sparse plucks. Light passing notes, not a second chord progression.</small>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-textureHigh">✦ SELECT GLASS HARMONICS</button>
+   <button type="button" id="nativeRecord-pyramid-textureHigh">● RECORD GLASS TAKE</button>
+   <button type="button" id="nativeResume-pyramid-textureHigh" disabled>▶ PLAY SAVED</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-textureHigh">READY · repeats on Pyramid's existing loop length</div>
+  <div class="lane-clips" id="nativeClips-pyramid-textureHigh"></div>
  </section>
  </div>
  <div class="instrument-tools">
@@ -531,7 +565,8 @@ a{color:var(--mint)}
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
 </section>
-<section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Weird Fishes deck">
+<details class="legacy-song-drawer" id="legacyTrackTwo"><summary>▸ ARCHIVED TRACK 02 · show older Weird Fishes controls and recordings (nothing deleted)</summary>
+<section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Archived Weird Fishes deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-fishes">
 <button class="pad" data-scene="fishes" data-chord="0"><kbd>Z</kbd><b>Em7</b></button>
@@ -612,8 +647,8 @@ a{color:var(--mint)}
  </div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
-<div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
-</section>
+<div class="ai-state" id="ai-fishes">✦ MRT2 prompt: archived second song; retained for earlier saved loops</div>
+</section></details>
 </div></section>
 <section class="live-voice-monitor" aria-label="Live lead vocal headphone monitoring">
 <div class="start"><div><div class="tiny">LEAD VOICE · HEADPHONES</div>
