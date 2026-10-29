@@ -18,6 +18,14 @@ The harmonic guide remains the current Pyramid chord pads **F♯ → Gmaj7 → A
 
 The Pyramid piano prompt, violin prompt, drums and audio-loop engine are deliberately retained. Text prompt changes need the existing five-prompt update/native restart workflow to affect an already loaded Magenta AU. **Do not interrupt your current rehearsal to reload unsaved loops.**
 
+## ♾ TOASTER loop-station pedal: RECORD → DONE → automatic endless PLAY
+
+The native piano, violin, classical guitar, arpeggio, AI jazz drum and Scarlett vocal lanes use the **loop-station** performance model: press **RECORD TAKE**, play, press **DONE → LOOP**, then hear the saved waveform **repeat automatically until you select STOP SAVED** (or the song-wide STOP LOOP for vocals). There is no separate Play Saved click after recording. Add more layers whenever you like; each take has its own fader, mute and remove controls. The browser rhythm remains an independent backing clock, not a captured drum layer.
+
+**First free-running native take:** its actual sampled duration becomes the loop period, without rounding to the next rhythm bar or rotating the initial sample to a later beat. Every later native or vocal pass in that song reuses the same pedal origin and period. If the song already has a MIDI/chord foundation, audio continues to align to that existing phrase instead. Each `AudioBufferSourceNode` has `loop=true`: it repeats until the dedicated playback stop, not until another record command. Removing all takes clears the previous free-running loop period.
+
+**Native Magenta latency limitation:** the host currently stops its PCM capture, writes WAV, transfers it via localhost and decodes it before browser playback begins. DONE triggers playback automatically as soon as the samples arrive, but this is **not zero-latency direct hardware monitoring**. For a truly uninterrupted handoff on the press itself, the future architecture needs an always-available streaming ring buffer shared with the browser or native playback in the AU host.
+
 ## 🎚 Live DJ transitions and instant piano replay (experimental)
 
 - Each native instrument box now distinguishes **RECORD [INSTRUMENT] TAKE** (records genuine AU audio) from **PLAY SAVED / STOP SAVED** (toggles only its previously recorded PCM layers). Playback is immediate with a short smoothing fade and **preserves the original master-loop phase** rather than waiting for the next bar. The song-wide **STOP LOOP / RESTART NOW** also gates saved audio immediately. PLAY SAVED resumes the browser rhythm/transport automatically after a full pause.
