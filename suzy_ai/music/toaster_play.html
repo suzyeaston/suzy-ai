@@ -1758,7 +1758,7 @@ function schedule(time,count){
    }
    for(const layer of d.layers){
     if(!layer.buffer||!layer.gain)continue;
-    layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?.65:0,time);
+    layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
    }
   }
  }
@@ -1980,6 +1980,7 @@ async function timelineRewind(){
 }
 function record(which){
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
+ if(audioPrint)return warn(Error("Finish AUDIO RECORD before opening the MIDI recorder."));
  const d=decks[which];
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish the current take first."));
@@ -2374,12 +2375,146 @@ async function voiceLoop(which){
   warn(e);
  }
 }
+
+function updateAudioPrintUI(){
+ for(const which of Object.keys(decks)){
+  const active=audioPrint?.which===which, busy=!!audioPrint;
+  $("printMidi-"+which).disabled=busy||!decks[which].locked||
+    !decks[which].layers.some(l=>l.kind==="chords"&&!l.muted);
+  $("overdubAudio-"+which).disabled=busy&&!active||!decks[which].locked;
+  $("overdubAudio-"+which).textContent=active&&!audioPrint.freeze?
+   (audioPrint.finishQueued?"↻ SAVING AUDIO…":"■ DONE AUDIO → LOOP"):"＋ RECORD AUDIO LAYER";
+  $("printMidi-"+which).textContent=active&&audioPrint.freeze?"● PRINTING ONE CYCLE…":"◎ PRINT MIDI → AUDIO";
+ }
+}
+function cleanupAudioPrint(take,discard=false){
+ if(take.finished)return false;
+ take.finished=true;clearTimeout(take.watchdog);
+ if(discard)try{take.processor.port.postMessage({type:"stop"})}catch{}
+ for(const n of take.sources)try{n.disconnect(take.processor)}catch{}
+ try{take.processor.disconnect();take.silent.disconnect()}catch{}
+ try{take.display?.getTracks().forEach(t=>t.stop())}catch{}
+ if(audioPrint===take)audioPrint=null;
+ updateAudioPrintUI();
+ return true;
+}
+function finishAudioPrint(){
+ const take=audioPrint;
+ if(!take||take.freeze||take.finishQueued)return;
+ if(stepNumber<=take.startStep)return tell("AUDIO ARMED · play at the next pulse.");
+ const end=Math.min(take.steps,Math.max(1,
+  Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds())-take.startStep,stepNumber-take.startStep));
+ take.finishQueued=true;
+ // Worklet fills the uncaptured remainder with silence, not copied loops.
+ take.processor.port.postMessage({type:"finish",frames:Math.round(end*tickSeconds()*ctx.sampleRate)});
+ $("audioPrintStatus-"+take.which).textContent="DONE ✓ · saving audio and preserving the original phrase length.";
+ updateAudioPrintUI();
+}
+function savedAudioPrint(take,result){
+ if(!cleanupAudioPrint(take))return;
+ const {data,peak,missing}=result;
+ if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==take.frames)
+  return warn(Error("PCM capture incomplete. No audio layer saved."));
+ if(Number(peak||0)<.001)
+  return warn(Error("Captured silence. Original MIDI has NOT been muted. Check source and audio level."));
+ const clip=ctx.createBuffer(1,take.frames,ctx.sampleRate),samples=clip.getChannelData(0);
+ samples.set(data);
+ const fade=Math.min(Math.round(ctx.sampleRate*.003),Math.floor(take.frames/4));
+ for(let i=0;i<fade;i++){const g=i/Math.max(1,fade);samples[i]*=g;samples[samples.length-1-i]*=g;}
+ const d=decks[take.which];
+ const name=take.freeze?"PRINTED MIDI":take.mode==="rhythm"?"RHYTHM TAKE":
+  take.mode==="mac"?"MAC / MAGENTA TAKE":"LOCAL KEYS TAKE";
+ const layer={kind:"printed",name,id:crypto.randomUUID(),buffer:clip,level:1,muted:false,
+  loopOriginStep:take.startStep,arrStartBar:Math.floor(take.startStep/8),source:null,gain:null};
+ d.layers.push(layer);
+ if(take.freeze){
+  for(const l of d.layers)if(l.kind==="chords")l.muted=true;
+  if(aiChordOwner?.which===take.which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+ }
+ if(take.mode==="rhythm"&&!take.freeze){rhythmAudioEnabled=false;updateRhythmAudio();}
+ startLoopAudio(take.which,layer);
+ renderClips(take.which);
+ $("audioPrintStatus-"+take.which).textContent="✓ "+name+
+  " IS PRINTED AUDIO · independently mute/fade each take"+
+  (take.mode==="mac"?" · Mac capture may also contain other apps or previous loops.":".");
+ if(missing>0)warn(Error("Audio capture missed "+missing+" samples."));
+ tell("✓ SAVED "+name+" AS ACTUAL AUDIO · turn it down or mute it without changing MIDI notes.");
+}
+async function startAudioPrint(which,freeze=false){
+ if(audioPrint){
+  if(audioPrint.which===which&&!freeze)return finishAudioPrint();
+  return warn(Error("Finish the active audio take first."));
+ }
+ if(recording||setRecorder)return warn(Error("Finish the other recording first."));
+ const d=decks[which];
+ if(!stageStarted||!d.locked||!d.loopEnabled)
+  return warn(Error("Start the rhythm and record your first phrase before printing audio."));
+ if(freeze&&!d.layers.some(l=>l.kind==="chords"&&!l.muted))
+  return warn(Error("There is no unmuted MIDI layer to print."));
+ const mode=freeze?(d.instrumentSource==="local"?"midi":"mac"):$("printSource-"+which).value;
+ if((mode==="midi"||mode==="keys")&&d.instrumentSource!=="local")
+  return warn(Error("LOCAL KEYS capture needs the LOCAL SYNTH source. Use MAC OUTPUT for native Magenta."));
+ if(mode==="rhythm"&&!rhythmCanSound())
+  return warn(Error("Enable HEAR LOCAL RHYTHM before capturing the beat."));
+ if(mode==="mac"&&!aiNativeReady)
+  return warn(Error("Start native Magenta and select the model before capturing MAC OUTPUT."));
+ let display=null,processor=null,silent=null,sources=[],take=null;
+ try{
+  await openAudio();
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Chrome AudioWorklet needed to print audio.");
+  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
+  let macSource=null;
+  if(mode==="mac"){
+   if(!navigator.mediaDevices?.getDisplayMedia)throw Error("Chrome system-audio capture is unavailable.");
+   $("audioPrintStatus-"+which).textContent="SHARE ENTIRE SCREEN + SYSTEM AUDIO · other Mac sounds may enter this take";
+   display=await navigator.mediaDevices.getDisplayMedia({
+    video:{frameRate:1},audio:true,systemAudio:"include",selfBrowserSurface:"include"
+   });
+   if(!display.getAudioTracks?.().some(t=>t.readyState==="live"))
+    throw Error("No Mac system audio was shared. Nothing recorded.");
+   macSource=ctx.createMediaStreamSource(display);
+  }
+  const now=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds())+1);
+  const startStep=freeze?nextSongBoundary(which,now):now;
+  const start=transportEpoch+startStep*tickSeconds(),steps=d.lengthSteps;
+  const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
+  if(frames>ctx.sampleRate*120)throw Error("Audio phrase longer than 120-second capture limit.");
+  processor=new AudioWorkletNode(ctx,"suzy-vocal-capture",{
+   numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],
+   processorOptions:{startFrame:Math.round(start*ctx.sampleRate),frames}});
+  silent=ctx.createGain();silent.gain.value=0;
+  processor.connect(silent);silent.connect(ctx.destination);
+  if(mode==="mac"){macSource.connect(processor);sources=[macSource];}
+  else if(mode==="midi"){d.loopBus.connect(processor);sources=[d.loopBus];}
+  else if(mode==="rhythm"){beatBus.connect(processor);sources=[beatBus];}
+  else{d.liveBus.connect(processor);d.leadBus.connect(processor);sources=[d.liveBus,d.leadBus];}
+  take={which,freeze,mode,processor,silent,sources,display,startStep,steps,frames,
+   finished:false,finishQueued:false,watchdog:null};
+  audioPrint=take;
+  processor.port.onmessage=e=>{if(e.data?.type==="complete")savedAudioPrint(take,e.data);};
+  take.watchdog=setTimeout(()=>{
+   if(cleanupAudioPrint(take,true))warn(Error("Audio take timed out; discarded incomplete capture."));
+  },Math.max(0,(start-ctx.currentTime+steps*tickSeconds()+3)*1000));
+  $("audioPrintStatus-"+which).textContent=freeze?
+   "● PRINTING ORIGINAL MIDI · will mute the MIDI only after successfully capturing sound":
+   "● AUDIO RECORD ARMED · play the instrument or rhythm; press DONE. Independent PCM layer.";
+  updateAudioPrintUI();
+ }catch(e){
+  try{processor?.port.postMessage({type:"stop"});processor?.disconnect();silent?.disconnect()}catch{}
+  for(const n of sources)try{n.disconnect(processor)}catch{}
+  try{display?.getTracks().forEach(t=>t.stop())}catch{}
+  if(audioPrint===take)audioPrint=null;
+  updateAudioPrintUI();
+  warn(e);$("audioPrintStatus-"+which).textContent="NOT RECORDING · "+(e?.message||e);
+ }
+}
+
 function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?.65:0;
- src.connect(gain);gain.connect(decks[which].voiceBus);
+ gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
+ src.connect(gain);gain.connect(l.kind==="printed"?decks[which].printBus:decks[which].voiceBus);
  const when=startAt??(ctx.currentTime+.025);
  const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds();
  const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
@@ -2420,6 +2555,7 @@ function updateMix(){
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
   decks[k].voiceBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:Number($("voice-"+k).value)/100*side;
+  if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
  }
 }
 async function readAndExport(){
