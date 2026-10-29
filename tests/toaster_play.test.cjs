@@ -22,7 +22,7 @@ function rig(){
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
  "leadLevel-pyramid":"72","leadLevel-fishes":"72","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
- promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",
+ promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",promptJazzDrums:"brushed swing jazz drums",aiDrumMix:"0",
  "aiLeadMix-pyramid":"0","aiLeadMix-fishes":"0",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
@@ -273,13 +273,16 @@ test("page refresh checks native Magenta status but does not spawn another model
  assert.equal(run("aiNativeStarting"),false);
  assert.match(file,/AI OFF · local chords work without it/);
 });
-test("four original and native Magenta lead prompts occupy real AU slots",()=>{
+test("five native Magenta prompts include jazz drums in AU slot five",()=>{
  const {run,get}=rig();
- assert.equal(run("getPromptStrings().length"),4);
+ assert.equal(run("getPromptStrings().length"),5);
  assert.equal(run("getPromptStrings()[0]"),"piano and strings");
  assert.equal(run("getPromptStrings()[1]"),"guitar arpeggios");
  assert.equal(run("getPromptStrings()[2]"),"warm expressive violin");
  assert.equal(run("getPromptStrings()[3]"),"fingerpicked nylon guitar");
+ assert.equal(run("getPromptStrings()[4]"),"brushed swing jazz drums");
+ assert.match(file,/id="promptJazzDrums"/);
+ assert.match(file,/id="aiDrumMix"/);
  assert.match(file,/id="promptViolin"/);
  assert.match(file,/id="promptGuitar"/);
  for(const which of ["pyramid","fishes"]){
@@ -1216,4 +1219,37 @@ test("AI ONLY does not assert neural model produced drums or audio merely becaus
  assert.equal(run("master.gain.value"),0);
  assert.equal(run("aiSolo"),true);
  assert.equal(run("drumMidiBytes()[0]"),77);
+});
+
+test("jazzy fifth native prompt blends live with no change at zero",async()=>{
+ const {run,get,calls}=rig();
+ run("aiNativeReady=true");
+ run("setNativeDrumBlend(0)");
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ let xs=calls.midi.filter(x=>x.url==="/api/ai/drum-mix");
+ assert.equal(xs.length,1);
+ assert.equal(JSON.parse(xs[0].opts.body).value,0);
+ assert.equal(get("aiDrumMixValue").textContent,"0%");
+ run("setNativeDrumBlend(35)");
+ for(let i=0;i<9;i++)await new Promise(resolve=>setImmediate(resolve));
+ xs=calls.midi.filter(x=>x.url==="/api/ai/drum-mix");
+ assert.equal(JSON.parse(xs.at(-1).opts.body).value,.35);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/drums"&&JSON.parse(x.opts.body).value===true));
+ assert.equal(get("aiDrumMix").value,"35");
+ assert.equal(run("aiDrumsAllowed"),true);
+ assert.equal(run("getPromptStrings().length"),5);
+ run("setNativeDrumBlend(0)");
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(JSON.parse(calls.midi.filter(x=>x.url==="/api/ai/drum-mix").at(-1).opts.body).value,0);
+});
+test("AI only is still silent from local browser with the fifth native prompt active",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run("toggleAISolo()");
+ run("setNativeDrumBlend(60)");
+ for(let i=0;i<7;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(run("aiSolo"),true);
+ assert.equal(run("master.gain.value"),0);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/drum-mix"));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/start").length,0);
 });
