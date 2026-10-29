@@ -29,6 +29,7 @@ ACTIONS = {
     "mix": frozenset({"value"}),
     "lead-mix": frozenset({"scene", "value"}),
     "drum-mix": frozenset({"value"}),
+    "drum-level": frozenset({"value"}),
     "volume": frozenset({"value"}),
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
@@ -254,10 +255,11 @@ class NativeMagentaHost:
             if action == "lead-mix":
                 if type(data["scene"]) is not str or data["scene"] not in ("pyramid", "fishes"):
                     raise ValueError("lead-mix scene must be pyramid or fishes")
-            if action in ("mix", "volume", "reverb", "lead-mix", "drum-mix"):
+            if action in ("mix", "volume", "reverb", "lead-mix", "drum-mix", "drum-level"):
                 v = data["value"]
-                if type(v) not in (int, float) or not 0 <= v <= 1:
-                    raise ValueError("value must be 0..1")
+                maximum = 1.25 if action == "drum-level" else 1
+                if type(v) not in (int, float) or not 0 <= v <= maximum:
+                    raise ValueError(f"value must be 0..{maximum}")
             if action in ("mute", "drums") and type(data["value"]) is not bool:
                 raise ValueError("mute must be true or false")
             if action == "chord":
