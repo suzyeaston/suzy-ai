@@ -86,7 +86,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             if not hmac.compare_digest(self.headers.get("X-Suzy-Token", ""), self.token):
                 return self.reply(403, {"error":"missing local control token"})
             try:
-                return self.reply(200, native_capture_wav(self.path.removeprefix("/api/ai/capture/")),
+                return self.reply(200, native_capture_wav(self.path.removeprefix("/api/ai/capture/"), consume=True),
                                   "audio/wav")
             except (ValueError, FileNotFoundError) as exc:
                 return self.reply(404, {"error": str(exc)})
