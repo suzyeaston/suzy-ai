@@ -50,6 +50,9 @@ final class MRT2Host {
     private var level: Float = 0.28
     private var reverbAmount: Float = 0.18
     private var muted = false
+    // Google's AU Filter Drums toggles whether its generated AUDIO may have percussion.
+    // This is not a hit-level drum MIDI output or a sequencer.
+    private var aiDrumsAllowed = false
     private var outputSignalDetected = false
     // Diagnostic override. Default unchanged; set SUZY_MRT2_MIDI_GATE=0
     // BEFORE starting the stage server to test prompt-only native audio.
@@ -103,6 +106,8 @@ final class MRT2Host {
             "volume": Double(level),
             "reverb": Double(reverbAmount),
             "muted": muted,
+            "ai_drums_allowed": aiDrumsAllowed,
+            "drum_filter_parameter_readback": Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: 39)?.value ?? -1),
             "held_notes": (held + Array(melodyHeld)).map(Int.init),
             "chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000),
             "chord_release_pending": pendingChordRelease != nil,
@@ -151,7 +156,7 @@ final class MRT2Host {
         parameter(13, blend * f)
         parameter(14, 0)
         parameter(15, 0)
-        parameter(39, 1.0) // Google "Filter Drums"
+        parameter(39, aiDrumsAllowed ? 0.0 : 1.0) // Google "Filter Drums": 0 allows AI percussion audio, 1 suppresses
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
         parameter(3, 2.5)  // Prompt Adherence
         parameter(45, midiGateEnabled ? 1.0 : 0.0) // Diagnostic: gate off permits prompt-only audition.
@@ -608,6 +613,11 @@ final class MRT2Host {
                 return ["error":"mute requires boolean"]
             }
             muted = x;configure()
+        case "drums":
+            guard let allowed = request["value"] as? Bool else {
+                return ["error":"drums requires boolean"]
+            }
+            aiDrumsAllowed = allowed;configure()
         case "tempo":
             guard let x = request["bpm"] as? Double, x.isFinite, x >= 60, x <= 190 else {
                 return ["error":"tempo must be 60..190 BPM"]

@@ -28,7 +28,7 @@ class NativeMRT2Tests(unittest.TestCase):
             ("chord", {"index": True}), ("chord", {"index": 4}),
             ("scene", {"scene":"bad"}), ("mix", {"value":2}),
             ("mix", {"value":"0.3"}), ("volume", {"value":-1}),
-            ("mute", {"value":1}), ("start", {"model":"remote"}),
+            ("mute", {"value":1}), ("drums", {"value":1}), ("drums", {"value":"yes"}), ("start", {"model":"remote"}),
             ("release", {"index":1}), ("other",{}),
             ("tempo", {"bpm": 240}), ("tempo", {"bpm": True}),
             ("note", {"note": -1}), ("note", {"note": 128}),
@@ -52,6 +52,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertEqual(ACTIONS["scene"], {"scene"})
         self.assertEqual(ACTIONS["show-au-ui"], set())
         self.assertEqual(ACTIONS["mute"], {"value"})
+        self.assertEqual(ACTIONS["drums"], {"value"})
         self.assertEqual(ACTIONS["tempo"], {"bpm"})
         self.assertEqual(ACTIONS["note"], {"note"})
 
@@ -322,6 +323,18 @@ class NativeMRT2Tests(unittest.TestCase):
             with patch("suzy_ai.music.magenta_native_host.subprocess.run", return_value=result):
                 with self.assertRaisesRegex(RuntimeError, "Open MRT2"):
                     self.host._register_installed_au(app_paths=[app])
+
+
+    def test_native_percussion_filter_is_audio_generation_control_not_drum_midi(self):
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('case "drums":', swift)
+        self.assertIn('private var aiDrumsAllowed = false', swift)
+        self.assertIn('parameter(39, aiDrumsAllowed ? 0.0 : 1.0)', swift)
+        self.assertIn('"ai_drums_allowed": aiDrumsAllowed', swift)
+        self.assertIn('"drum_filter_parameter_readback"', swift)
+        self.assertIn('aiDrumsAllowed = allowed;configure()', swift)
+        self.assertNotIn('rawMIDI([0x99', swift)
 
 
 if __name__ == "__main__":
