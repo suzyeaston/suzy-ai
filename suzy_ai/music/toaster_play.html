@@ -262,6 +262,28 @@ a{color:var(--mint)}
 .audio-loop-actions select{max-width:300px}
 .audio-loop-pedal small{display:block;font-size:11px;color:#e5c8d1;margin-top:7px}
 .layer-level{width:94px!important;accent-color:#b1f0d0}
+/* Performer-first layout: each genuine sound has its own record/loop lane.
+   The browser rhythm is a master clock, not a recordable instrument layer. */
+.instrument-lanes,.voice-lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:12px;margin:14px 0}
+.instrument-lane{border:1px solid #9c718f;border-radius:14px;background:#281f32;padding:14px;display:flex;flex-direction:column;gap:9px}
+.instrument-lane h3{margin:0;font-size:16px}
+.instrument-lane .lane-status{font-size:12px;color:#b4f1d0;min-height:28px}
+.instrument-lane .lane-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.instrument-lane .lane-clips{display:grid;gap:6px}
+.instrument-lane .clip{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;padding:7px}
+.instrument-lane .clip input[type=range]{width:86px}
+#classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
+#classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
+#jazzDrumDeck{display:none}
+#classicDecks .deck > .clips{display:none}
+#classicDecks .deck-transport button.rec,#classicDecks .deck-transport .timeline,
+#classicDecks .deck-transport .record-hint{display:none}
+.advanced-session{margin:0 0 10px;font-size:12px}
+.advanced-session>summary{cursor:pointer;color:#ccb7d1;font-weight:700}
+.advanced-session .set-recorder{margin-top:10px}
+
+.instrument-lane button:disabled{opacity:.5}
+
 
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
@@ -285,6 +307,7 @@ a{color:var(--mint)}
 </div>
 <div class="start"><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
+<details class="advanced-session"><summary>▸ ADVANCED · Record the entire performance</summary>
 <section class="set-recorder" aria-label="Record entire live set as audio">
  <div class="start"><div><div class="tiny">LIVE RECORDING · COMPLETE SET</div>
  <h2>🔴 Record the performance</h2>
@@ -298,7 +321,7 @@ a{color:var(--mint)}
   <span id="setRecordStatus" role="status" aria-live="polite">READY · Not recording</span>
  </div>
  <small>On your Mac, choose <strong>Entire Screen</strong> and enable <strong>Share system audio</strong> in Chrome's sharing picker. TOASTER refuses to record unless system audio is actually shared. Keep browser microphone monitoring OFF when including Scarlett to avoid doubled vocals. Save happens when you press STOP.</small>
-</section>
+</section></details>
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
@@ -428,7 +451,23 @@ a{color:var(--mint)}
   <button type="button" id="leadPlay-pyramid">▶ HEAR LOCAL VIOLIN</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </details>
-<div class="instrument-tools">
+<div class="instrument-lanes" aria-label="pyramid native instruments and loop layers">
+ <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-chords">✦ SELECT PIANO SOUND</button>
+  <button type="button" id="nativeRecord-pyramid-chords">● LOOP PIANO</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-chords">READY · Play notes, then record the generated sound</div>
+  <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
+ </section>
+ <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 03</div><h3>🎻 VIOLIN</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-lead">✦ SELECT VIOLIN SOUND</button>
+  <button type="button" id="nativeRecord-pyramid-lead">● LOOP VIOLIN</button></div>
+  <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
+ </section>
+ </div>
+ <div class="instrument-tools">
 <label for="instrument-pyramid">NEW LAYER SOUND</label>
 <select id="instrument-pyramid" aria-label="pyramid instrument for next overdub">
 <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
@@ -493,7 +532,23 @@ a{color:var(--mint)}
   <button type="button" id="leadPlay-fishes">▶ HEAR LOCAL GUITAR</button>
  </div><small class="subtle">Violin and guitar are lightweight synthesized patches, not recorded orchestral or sampled acoustic instruments. Vocal loops and Magenta remain independent.</small>
 </details>
-<div class="instrument-tools">
+<div class="instrument-lanes" aria-label="fishes native instruments and loop layers">
+ <section class="instrument-lane" id="instrument-fishes-chords" aria-label="fishes guitar arpeggios recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 02</div><h3>🎹 GUITAR ARPEGGIOS</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-chords">✦ SELECT ARPEGGIO SOUND</button>
+  <button type="button" id="nativeRecord-fishes-chords">● LOOP GUITAR ARPEGGIOS</button></div>
+  <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
+  <div class="lane-clips" id="nativeClips-fishes-chords"></div>
+ </section>
+ <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
+  <div class="tiny">✦ NATIVE MAGENTA · PROMPT 04</div><h3>🎻 CLASSICAL GUITAR</h3>
+  <div class="lane-buttons"><button type="button" id="nativePlay-fishes-lead">✦ SELECT CLASSICAL GUITAR SOUND</button>
+  <button type="button" id="nativeRecord-fishes-lead">● LOOP CLASSICAL GUITAR</button></div>
+  <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="lane-clips" id="nativeClips-fishes-lead"></div>
+ </section>
+ </div>
+ <div class="instrument-tools">
 <label for="instrument-fishes">NEW LAYER SOUND</label>
 <select id="instrument-fishes" aria-label="fishes instrument for next overdub">
 <option value="keys">Electric piano</option><option value="pad">Ambient pad</option><option value="pluck">Pluck / arpeggio</option><option value="bass">Sub bass</option>
@@ -540,9 +595,21 @@ a{color:var(--mint)}
 </div>
 <div class="vocal-recorder-status" role="status" aria-live="polite">
   <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
- <button type="button" id="vocalRecordPyramid">● RECORD PYRAMID VOICE</button>
- <button type="button" id="vocalRecordFishes">● RECORD FISHES VOICE</button>
   <span id="vocalLoopState">VOICE PEDAL · Record → sing → Done → repeat. No bar selection.</span>
+</div>
+<div class="voice-lanes">
+ <section class="instrument-lane" id="voiceLane-pyramid" aria-label="Pyramid Scarlett voice looping">
+  <div class="tiny">🎙 SCARLETT / VE-22 · PYRAMID</div><h3>YOUR VOICE</h3>
+  <div class="lane-buttons"><button type="button" id="vocalRecordPyramid">● LOOP VOICE</button></div>
+  <div class="lane-status">Mic audio stacks with native instruments · no AI voice imitation</div>
+  <div class="lane-clips" id="voiceClips-pyramid"></div>
+ </section>
+ <section class="instrument-lane" id="voiceLane-fishes" aria-label="Fishes Scarlett voice looping">
+  <div class="tiny">🎙 SCARLETT / VE-22 · WEIRD FISHES</div><h3>YOUR VOICE</h3>
+  <div class="lane-buttons"><button type="button" id="vocalRecordFishes">● LOOP VOICE</button></div>
+  <div class="lane-status">Capture every vocal pass separately · mute, fade or remove</div>
+  <div class="lane-clips" id="voiceClips-fishes"></div>
+ </section>
 </div>
 <div class="vocal-fx-settings">
  <label for="vocalEchoMode">TAPE ECHO <select id="vocalEchoMode">
@@ -671,7 +738,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false,audioPrint=null;
+let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
@@ -1987,6 +2054,7 @@ async function timelineRewind(){
  tell(stageStarted?"Playing browser arrangement from BAR 1.":"Playhead returned to BAR 1; press Play.");
 }
 function record(which){
+ if(nativeTake)return warn(Error("Finish the native instrument take first."));
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
  if(audioPrint){
   if(audioPrint.which===which&&!audioPrint.freeze)return finishAudioPrint();
@@ -2121,8 +2189,181 @@ function updateRecordControls(which){
  hint.textContent=fresh?"READY · fresh first loop · RECORD → DONE":
   "↻ LOOP PLAYING · ADD AUDIO LAYER to stack another take · mute, fade or remove any pass";
 }
+
+const NATIVE_LANE_LABELS={
+ "pyramid:chords":"PYRAMID PIANO","pyramid:lead":"PYRAMID VIOLIN",
+ "fishes:chords":"FISHES ARPEGGIOS","fishes:lead":"FISHES CLASSICAL GUITAR"
+};
+function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
+function updateNativeLaneControls(){
+ for(const which of Object.keys(decks)){
+  for(const role of ["chords","lead"]){
+   const button=$("nativeRecord-"+which+"-"+role),status=$("nativeStatus-"+which+"-"+role);
+   if(!button||!status)continue;
+   const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
+   button.disabled=!!nativeTake&&!isRecording;
+   button.textContent=isRecording?
+    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → STACK"):
+    "● LOOP "+(role==="lead"?(which==="pyramid"?"VIOLIN":"GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"));
+   if(isRecording)status.textContent=nativeTake.first?
+    "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
+    "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
+  }
+ }
+}
+function focusSongMixer(which){
+ $("mix").value=which==="pyramid"?"0":"100";
+ blendBoth=false;
+ $("mixBoth").setAttribute("aria-pressed","false");
+ $("mixBoth").textContent="♫ LAYER BOTH SONGS";
+ updateMix();
+}
+async function selectNativeLane(which,role){
+ if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ // A performer who selects a different instrument must actually hear it:
+ // expose that song in the top mixer and lift diagnostic SOLO modes.
+ if(aiSolo)toggleAISolo();
+ if(localKeysOnly)await toggleLocalKeysOnly();
+ choose(which);
+ focusSongMixer(which);
+ // Google's one native generator selects a prompt; recorded PCM continues
+ // independently. Suppress native jazz drums so the violin/guitar take
+ // doesn't unintentionally record a percussion texture.
+ await aiFetch("scene",{scene:which});
+ aiScene=which;
+ await aiFetch("mix",{value:which==="pyramid"?0:1});
+ await aiFetch("drum-mix",{value:0});
+ await aiFetch("drums",{value:false});
+ const blend=role==="lead"?1:0;
+ await aiFetch("lead-mix",{scene:which,value:blend});
+ $("aiLeadMix-"+which).value=String(blend*100);
+ $("aiLeadMixValue-"+which).textContent=blend?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
+ tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
+}
+async function startNativeInstrumentTake(which,role){
+ if(nativeTake){
+  if(nativeTake.which===which&&nativeTake.role===role)return finishNativeInstrumentTake();
+  return warn(Error("Finish the active native instrument take first."));
+ }
+ if(audioPrint||recording||setRecorder)return warn(Error("Finish the other recording first."));
+ if(!stageStarted)return warn(Error("Start PLAY RHYTHM to establish the shared loop clock."));
+ let take=null;
+ try{
+  const status=await aiFetch("status");
+  if(!status.native_loop_capture_supported)
+   throw Error("Native AU PCM recording unavailable. Rebuild the TOASTER Magenta host; do not use screen-share substitutes.");
+  await selectNativeLane(which,role);
+  const d=decks[which],first=!d.locked;
+  const seconds=first?120:Math.min(120,songCycleSeconds(which));
+  const begin=await aiFetch("capture-start",{seconds});
+  if(!begin.capture_id)throw Error(begin.error||"Native host did not start PCM capture.");
+  take={which,role,first,id:begin.capture_id,startedAt:ctx.currentTime,
+        beginStep:Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()),
+        seconds,finishing:false,timer:null};
+  nativeTake=take;
+  updateNativeLaneControls();
+  const statusEl=$("nativeStatus-"+which+"-"+role);
+  statusEl.textContent=first?"● REAL NATIVE AUDIO · perform, then press DONE to define the loop":
+   "● REAL NATIVE AUDIO · stacking one full phrase, no screen sharing";
+  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+200));
+ }catch(e){
+  if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
+  if(nativeTake===take)nativeTake=null;
+  updateNativeLaneControls();warn(e);
+  $("nativeStatus-"+which+"-"+role).textContent="NOT RECORDING · "+(e?.message||e);
+ }
+}
+async function finishNativeInstrumentTake(){
+ const take=nativeTake;
+ if(!take||take.finishing)return;
+ take.finishing=true;clearTimeout(take.timer);updateNativeLaneControls();
+ const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
+ try{
+  const result=await aiFetch("capture-stop",{id:take.id});
+  if(!result.ready||!result.audio_url||Number(result.frames)<1000)
+   throw Error("Native capture is empty or incomplete.");
+  if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
+  const response=await fetch(result.audio_url,{
+   headers:{"X-Suzy-Token":token},cache:"no-store"
+  });
+  if(!response.ok)throw Error("Could not read the native host's recorded WAV ("+response.status+").");
+  await openAudio();
+  const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  const d=decks[which];
+  const steps=take.first?Math.max(1,Math.min(256,Math.round(
+   (ctx.currentTime-take.startedAt)/tickSeconds()))):d.lengthSteps;
+  const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
+  const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
+  for(let channel=0;channel<buffer.numberOfChannels;channel++){
+   const output=buffer.getChannelData(channel);
+   const input=recorded.getChannelData(channel);
+   output.set(input.subarray(0,Math.min(input.length,output.length)));
+  }
+  if(take.first){
+   d.locked=true;d.lengthSteps=steps;d.anchorStep=take.beginStep;d.loopEnabled=true;
+  }
+  const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
+   name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
+   loopOriginStep:take.beginStep,arrStartBar:0,source:null,gain:null};
+  d.layers.push(layer);
+  // Printing the original native chord foundation should not keep replaying
+  // its MIDI into whatever violin/guitar prompt is selected next.
+  if(role==="chords") {
+   for(const saved of d.layers)if(saved.kind==="chords")saved.muted=true;
+   if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+  }
+  startLoopAudio(which,layer);renderClips(which);
+  el.textContent="✓ NATIVE "+role.toUpperCase()+" RECORDED · "+Math.round(buffer.duration*10)/10+
+   "s · "+d.layers.filter(x=>x.instrumentRole===role).length+" AUDIO PASS(ES) · ready to stack again";
+  tell("✓ "+nativeLaneLabel(which,role)+" saved as REAL Magenta PCM · mute, fade or remove independently.");
+ }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
+ finally {
+  if(nativeTake===take)nativeTake=null;
+  updateNativeLaneControls();
+ }
+}
+function renderInstrumentClips(which){
+ const d=decks[which];
+ for(const role of ["chords","lead","voice"]){
+  const box=role==="voice"?$("voiceClips-"+which):$("nativeClips-"+which+"-"+role);
+  if(!box)continue;
+  box.replaceChildren();
+  const layers=d.layers.filter(layer=>role==="voice"?layer.kind==="vocal":layer.instrumentRole===role);
+  if(!layers.length){
+   const hint=document.createElement("span");hint.className="subtle";
+   hint.textContent="NO SAVED "+(role==="voice"?"VOICE":"NATIVE")+" AUDIO YET";
+   box.append(hint);continue;
+  }
+  for(const [index,layer] of layers.entries()){
+   const row=document.createElement("span");row.className="clip";
+   const name=document.createElement("span");name.textContent=(index+1)+" · "+
+    (role==="voice"?"🎙 VOICE":layer.name||"NATIVE AUDIO");
+   const mute=document.createElement("button");
+   mute.textContent=layer.muted?"UNMUTE":"MUTE";
+   mute.onclick=()=>{
+    layer.muted=!layer.muted;
+    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+    renderClips(which);
+   };
+   const fade=document.createElement("input");
+   fade.type="range";fade.min="0";fade.max="100";
+   fade.value=String(Math.round((layer.level??.75)*100));
+   fade.setAttribute("aria-label",(layer.name||"Voice")+" volume");
+   fade.oninput=()=>{
+    layer.level=Number(fade.value)/100;
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.02);
+   };
+   const remove=document.createElement("button");remove.textContent="×";
+   remove.title="Remove only this recorded audio pass";
+   remove.onclick=()=>removeSongLayer(which,layer.id);
+   row.append(name,mute,fade,remove);box.append(row);
+  }
+ }
+}
+
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ renderInstrumentClips(which);
  updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
@@ -2332,7 +2573,13 @@ async function toggleVoiceMonitor(){
 }
 async function voiceLoop(which){
  choose(which);
+ // Selecting a voice lane must not leave its newly recorded layer inaudible
+ // behind the other song's crossfader position.
+ focusSongMixer(which);
+ if(aiSolo)toggleAISolo();
+ if(localKeysOnly)await toggleLocalKeysOnly();
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(nativeTake)return warn(Error("Finish the native instrument take before recording your voice."));
  if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
@@ -2401,15 +2648,21 @@ async function voiceLoop(which){
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
    const actualSteps=take.actualSteps||take.steps;
-   const clipFrames=Math.round(actualSteps*tickSeconds()*ctx.sampleRate);
-   if(clipFrames>receivedFrames)return warn(Error("Vocal capture ended short of the requested bar boundary"));
+   // First vocal take defines a phrase. Later takes ALWAYS loop for the
+   // established master length, even when DONE is pressed early: the worklet
+   // already leaves the rest of its full-size buffer silent. Otherwise every
+   // vocal overdub creates a different independent playback period and drifts.
+   const clipSteps=take.first?actualSteps:take.steps;
+   const clipFrames=Math.round(clipSteps*tickSeconds()*ctx.sampleRate);
+   if(take.first&&clipFrames>receivedFrames)
+    return warn(Error("First vocal capture ended short of its requested phrase"));
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate),dst=clip.getChannelData(0);
    const headroom=Number($("vocalHeadroom").value)/100;
    for(let n=0;n<clipFrames;n++)dst[n]=data[n]*headroom;
    const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(clipFrames/3));
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:clipSteps/8,
      loopOriginStep:take.firstStep,
      arrStartBar:Math.max(0,Math.floor(take.firstStep/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
@@ -2504,6 +2757,7 @@ function savedAudioPrint(take,result){
  tell("✓ LAYER "+d.layers.filter(l=>l.kind==="printed").length+" ADDED · all previous takes still playing. Press ADD AUDIO LAYER to build again.");
 }
 async function startAudioPrint(which,freeze=false){
+ if(nativeTake)return warn(Error("Finish the native instrument take first."));
  if(audioPrint){
   if(audioPrint.which===which&&!freeze)return finishAudioPrint();
   return warn(Error("Finish the active audio take first."));
@@ -2844,6 +3098,10 @@ for(const which of Object.keys(decks)){
  updateKeyUI(which);
 }
 for(const k of Object.keys(decks)){
+ for(const role of ["chords","lead"]){
+  $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
+  $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
+ }
  $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
  $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
  $("printSource-"+k).value="keys"; // Instant local PCM; Mac audio capture is explicit.
@@ -2956,6 +3214,8 @@ $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHea
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();updateVocalState();updateTransportUI();
+for(const k of Object.keys(decks)){renderInstrumentClips(k);}
+updateNativeLaneControls();
 window.addEventListener("beforeunload",e=>{
  if(setRecorder){e.preventDefault();e.returnValue="A full set recording is in progress. Press STOP & SAVE AUDIO first.";return;}
  stopMicMeter();micStream?.getTracks().forEach(t=>t.stop());

@@ -1748,3 +1748,138 @@ test("the native Magenta recording permission prompt is only for deliberate sour
  assert.equal(calls.screenCaptures,1);
  run("cleanupAudioPrint(audioPrint,true)");
 });
+
+test("performer cards have piano, native violin, native guitar and separate Scarlett voice loops, never a rhythm overdub",()=>{
+ const {get}=rig();
+ for(const which of ["pyramid","fishes"]){
+  for(const role of ["chords","lead"]){
+   assert.match(file,new RegExp('id="nativePlay-'+which+'-'+role+'"'));
+   assert.match(file,new RegExp('id="nativeRecord-'+which+'-'+role+'"'));
+   assert.match(file,new RegExp('id="nativeClips-'+which+'-'+role+'"'));
+  }
+  assert.match(file,new RegExp('id="voiceClips-'+which+'"'));
+ }
+ assert.match(file,/id="vocalRecordPyramid"/);
+ assert.match(file,/id="vocalRecordFishes"/);
+ assert.match(file,/id="mix"/);
+ assert.match(file,/id="performanceMaster"/);
+ assert.match(file,/#jazzDrumDeck\{display:none\}/);
+ assert.match(javascript,/function startNativeInstrumentTake\(which,role\)/);
+ assert.doesNotMatch(file,/<option value="rhythm" selected>/);
+});
+test("real Magenta violin audio is captured through host, repeated twice, then independently removed",async()=>{
+ const {run,env,get,calls}=rig(); await run("startStop()");
+ run("aiNativeReady=true");
+ const operations=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url);let reply={};
+  if(u==="/api/ai/status")reply={phase:"host-running",audio_engine_running:true,native_loop_capture_supported:true};
+  else if(u==="/api/ai/capture/capture-real-native"){
+   assert.equal(opts.headers["X-Suzy-Token"].length>0,true);
+   return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  }else if(u.startsWith("/api/ai/")){
+   const op=u.split("/").pop(),payload=JSON.parse(opts.body);
+   operations.push({op,payload});
+   if(op==="status")reply={phase:"host-running",native_loop_capture_supported:true};
+   else if(op==="capture-start")reply={capture_id:"capture-real-native",rate:48000,channels:2};
+   else if(op==="capture-stop")reply={ready:true,frames:96000,peak:.3,audio_url:"/api/ai/capture/capture-real-native"};
+  }
+  return {ok:true,json:async()=>reply};
+ };
+ // One original master phrase, then two independently audible native violin takes.
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0');
+ for(let i=0;i<2;i++){
+  await run('startNativeInstrumentTake("pyramid","lead")');
+  assert.equal(run("nativeTake.role"),"lead");
+  assert.equal(run("nativeTake.first"),false);
+  await run("finishNativeInstrumentTake()");
+  assert.equal(run("nativeTake"),null);
+  assert.equal(run('decks.pyramid.layers.length'),i+1);
+  assert.equal(run('decks.pyramid.layers['+i+'].instrumentRole'),"lead");
+  assert.equal(run('decks.pyramid.layers['+i+'].kind'),"printed");
+  assert.equal(run('decks.pyramid.layers['+i+'].source.buffer===decks.pyramid.layers['+i+'].buffer'),true);
+ }
+ assert.ok(operations.some(x=>x.op==="lead-mix"&&x.payload.value===1),"real violin prompt selected, not browser synth");
+ assert.ok(operations.filter(x=>x.op==="capture-start").length===2);
+ assert.ok(operations.filter(x=>x.op==="drum-mix").every(x=>x.payload.value===0),"disable native AI drum prompt to keep the instrument take clean");
+ assert.equal(calls.screenCaptures,0,"browser rhythm remains a separate backing clock");
+ assert.equal(calls.screenCaptures,0,"native AU tap needs no Chrome sharing dialog");
+ assert.equal(get("nativeClips-pyramid-lead").children.length,2);
+ const remove=get("nativeClips-pyramid-lead").children[0].children.find(x=>x.textContent==="×");
+ remove.onclick();
+ assert.equal(run('decks.pyramid.layers.length'),1);
+ assert.equal(get("nativeClips-pyramid-lead").children.length,1);
+});
+test("native loop capture must not claim success when host has no AU audio tap",async()=>{
+ const {run,env,get,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ env.fetch=async url=>({ok:true,json:async()=>({phase:"host-running",native_loop_capture_supported:false})});
+ await run('startNativeInstrumentTake("fishes","lead")');
+ assert.equal(run("nativeTake"),null);
+ assert.match(get("nativeStatus-fishes-lead").textContent,/Rebuild the TOASTER Magenta host/);
+ assert.equal(calls.screenCaptures,0);
+});
+
+test("Scarlett voice overdub stays on master period even when DONE is pressed early",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=24;decks.pyramid.anchorStep=0');
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.first"),false);
+ const frames=run("recording.processor.opts.processorOptions.frames");
+ const firstStep=run("recording.firstStep");
+ run("stepNumber="+(firstStep+5)+";ctx.currentTime=transportEpoch+stepNumber*tickSeconds()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.finishQueued"),true);
+ assert.equal(run("recording.actualSteps"),5);
+ const worklet=calls.worklet;
+ worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames:Math.round(5*30/105*48000),peak:.12,hot:0,missing:0}});
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames,"shorter vocal take padded to full song cycle");
+ assert.equal(run("decks.pyramid.layers[0].bars"),3,"24 eighth steps remain the master period");
+ assert.equal(get("voiceClips-pyramid").children.length,1);
+});
+
+test("selecting Fishes classical guitar actually exposes its native audio and unmutes the correct browser lane",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const seen=[];env.fetch=async(url,opts)=>{
+  if(String(url).startsWith("/api/ai/"))seen.push([String(url).split("/").pop(),JSON.parse(opts.body)]);
+  return {ok:true,json:async()=>({})};
+ };
+ await run('selectNativeLane("fishes","lead")');
+ assert.equal(get("mix").value,"100","performer can hear selected song; global crossfade follows");
+ assert.ok(run("decks.fishes.printBus.gain.value")>0);
+ assert.ok(seen.some(([op,p])=>op==="lead-mix"&&p.scene==="fishes"&&p.value===1));
+ assert.ok(seen.some(([op,p])=>op==="drums"&&p.value===false));
+ assert.ok(seen.some(([op,p])=>op==="drum-mix"&&p.value===0));
+ assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===1));
+});
+test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async(url,opts)=>{
+  if(String(url)==="/api/ai/capture/native-first")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  const op=String(url).split("/").pop();
+  let result={};
+  if(op==="status")result={native_loop_capture_supported:true};
+  if(op==="capture-start")result={capture_id:"native-first"};
+  if(op==="capture-stop")result={ready:true,frames:96000,peak:.4,audio_url:"/api/ai/capture/native-first"};
+  return {ok:true,json:async()=>result};
+ };
+ assert.equal(run("decks.pyramid.locked"),false);
+ await run('startNativeInstrumentTake("pyramid","lead")');
+ assert.equal(run("nativeTake.first"),true);
+ run("ctx.currentTime+=4");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.ok(run("decks.pyramid.lengthSteps")>=12);
+ assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
+ assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
+});
+
+test("choosing the Fishes voice box makes its recorded audio audible through the top mixer",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ assert.equal(get("mix").value,"0");
+ await run('voiceLoop("fishes")');
+ assert.equal(get("mix").value,"100");
+ assert.ok(run("decks.fishes.voiceBus.gain.value")>0);
+ assert.equal(run("recording.kind"),"vocal");
+});

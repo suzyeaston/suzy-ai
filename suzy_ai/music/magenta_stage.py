@@ -16,7 +16,7 @@ import secrets
 from .magenta_midi import MagentaMidiBridge
 from .toaster_performance import ToasterPerformance
 from .audio_routing import inspect_audio_routing
-from .magenta_native_host import NativeMagentaHost
+from .magenta_native_host import NativeMagentaHost, native_capture_wav
 
 PAGE = Path(__file__).with_name("magenta_stage.html")
 TOASTER_PAGE = Path(__file__).with_name("toaster_stage.html")
@@ -81,6 +81,15 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             return self.reply(200, ARRANGEMENT_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
         if self.path == "/toaster/vocal-capture.js":
             return self.reply(200, VOCAL_CAPTURE_SCRIPT.read_bytes(), "text/javascript; charset=utf-8")
+        if self.path.startswith("/api/ai/capture/"):
+            # Same-origin ephemeral WAV download requires the local control token.
+            if not hmac.compare_digest(self.headers.get("X-Suzy-Token", ""), self.token):
+                return self.reply(403, {"error":"missing local control token"})
+            try:
+                return self.reply(200, native_capture_wav(self.path.removeprefix("/api/ai/capture/"), consume=True),
+                                  "audio/wav")
+            except (ValueError, FileNotFoundError) as exc:
+                return self.reply(404, {"error": str(exc)})
         if self.path == "/api/ai/status":
             return self.reply(200, self.native_host.status() if self.native_host else {"phase":"not-configured"})
         if self.path == "/api/perform/status":
