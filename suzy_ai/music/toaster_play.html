@@ -2242,9 +2242,9 @@ arranger=new window.SuzyArrangement({
  onChord:c=>{
   if(!ctx||recording||heldKeys.size)return;
   synth(c.scene,c.chord,ctx.currentTime+.04,true,Math.min(2,cycleSeconds()/2));
-  if(aiNativeReady){
-   aiNote(c.scene,c.chord);
-   setTimeout(()=>{if(!heldKeys.size)aiRelease();},1400);
+  if(nativeInstrumentEnabled(c.scene)){
+   const token=aiNote(c.scene,c.chord,{legato:true});
+   setTimeout(()=>{if(!heldKeys.size)aiRelease(token);},1400);
   }
  }
 });
