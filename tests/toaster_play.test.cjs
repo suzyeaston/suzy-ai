@@ -2728,3 +2728,46 @@ test("direct native memory playback follows scene crossfade and the performance 
  assert.ok(calls.some(x=>x.value===0),"crossfade closes the Mac audio node");
  assert.ok(calls.some(x=>Math.abs(x.value-.4)<.001),"performance fader reaches Mac PCM output");
 });
+
+test("same native piano lane plays both Pyramid and Fishes keyboard harmonies without changing its prompt or clock",async()=>{
+ const {run,emit,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ const piano=get("nativeChords-pyramid-chords").children[1].children[1];
+ piano.onpointerdown({button:0,preventDefault(){}});
+ for(let k=0;k<10;k++)await new Promise(resolve=>setImmediate(resolve));
+ piano.onpointerup();
+ commands.length=0;
+ for(const [key,harmony,index] of [["z","pyramid",0],["x","pyramid",1],["c","pyramid",2],
+  ["b","fishes",0],["n","fishes",1],["m","fishes",2],[",","fishes",3]]){
+  emit("keydown",key,"BUTTON");
+  for(let k=0;k<5;k++)await new Promise(resolve=>setImmediate(resolve));
+  const chord=commands.filter(x=>x.op==="chord").at(-1);
+  assert.equal(chord?.args.harmony,harmony,key+" source chord bank");
+  assert.equal(chord?.args.index,index,key+" chord index");
+  assert.equal(run("activeNativeLane"),"pyramid:chords");
+  assert.equal(run("scene"),"pyramid","hotkeys must not change the loop clock/song");
+  emit("keyup",key,"BUTTON");
+  for(let k=0;k<4;k++)await new Promise(resolve=>setImmediate(resolve));
+ }
+ assert.equal(run("laneChordHeld.size"),0,"all notes are released");
+ emit("keydown","v","BUTTON");
+ assert.equal(run("laneChordHeld.size"),0,"V no longer triggers any native chord");
+ emit("keyup","v","BUTTON");
+ emit("keydown","Escape","BUTTON");
+ assert.equal(run("activeChordLane"),null,"ESC restores ordinary song keyboard targets");
+});
+test("visible chord pads match dedicated shortcuts and never show Pyramid V",()=>{
+ assert.match(file,/id="pads-pyramid"/);
+ assert.doesNotMatch(file,/data-scene="pyramid" data-chord="3"/);
+ assert.match(file,/#pads-pyramid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/);
+ assert.match(file,/data-scene="fishes" data-chord="0"><kbd>B<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="1"><kbd>N<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="2"><kbd>M<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="3"><kbd>,<\/kbd>/);
+ assert.doesNotMatch(file,/<kbd>V<\/kbd>/);
+ assert.match(file,/PYRAMID: Z X C · WEIRD FISHES: B N M ,/);
+});
