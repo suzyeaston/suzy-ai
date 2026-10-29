@@ -1092,7 +1092,7 @@ async function toggleLocalKeysOnly(){
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
  updateMix();updateOverdubBalance();
- if(beatBus)beatBus.gain.value=localKeysOnly||aiSolo?0:Number($("rhythmLevel").value)/100;
+ updateRhythmAudio();
  tell(localKeysOnly?"LOCAL KEYS ONLY · AI, rhythm, vocal loops and overdubs temporarily silenced.":"Restored rhythm, loops and the previous Magenta mute setting.");
 }
 function updateBrowserOutputGain(){
@@ -1103,7 +1103,7 @@ function toggleAISolo(){
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
- updateBrowserOutputGain();updateMix();
+ updateBrowserOutputGain();updateMix();updateRhythmAudio();updateOverdubBalance();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
   "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
   "TRUE AI ONLY · browser audio MUTED. Native AI is not confirmed audible: check model, transport and mute."):
@@ -1111,6 +1111,7 @@ function toggleAISolo(){
 }
 function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
+ for(const which of Object.keys(decks))updateInstrumentSource(which);
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
  // Native AU exists in either mode. A click in bookmark mode switches the SAME
@@ -2144,7 +2145,7 @@ function updateMix(){
  for(const k of Object.keys(decks)){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
-  decks[k].bus.gain.value=(aiSolo?0:level*side);
+  decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
   decks[k].voiceBus.gain.value=localKeysOnly||aiSolo?0:Number($("voice-"+k).value)/100*side;
  }
 }
@@ -2314,6 +2315,8 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("rhythmAudio").onclick=toggleRhythmAudio;
+updateRhythmAudio();
 $("timelinePlay").onclick=()=>{if(!stageStarted)startStop();};
 $("timelineStop").onclick=()=>timelineStop().catch(warn);
 $("timelineRewind").onclick=()=>timelineRewind().catch(warn);
@@ -2338,6 +2341,8 @@ $("mixBoth").onclick=()=>{
  tell(blendBoth?"Both song loops play together. Each has its own sounds and key.":"Song crossfade follows the selected track.");
 };
 for(const which of Object.keys(decks)){
+ $("instrumentSource-"+which).onclick=()=>setInstrumentSource(which,decks[which].instrumentSource==="ai"?"local":"ai");
+ updateInstrumentSource(which);
  $("instrument-"+which).onchange=e=>setInstrument(which,e.target.value);
  $("lead-"+which).onchange=e=>setLead(which,e.target.value);
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
@@ -2423,6 +2428,7 @@ $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
 $("aiDrumMix").oninput=()=>{$("aiDrumMixValue").textContent=$("aiDrumMix").value+"%";};
 $("aiDrumMix").onchange=()=>setNativeDrumBlend($("aiDrumMix").value);
+$("applyJazzDrumsPrompt").onclick=applyPrompts;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
@@ -2432,7 +2438,7 @@ $("drumVariation").onclick=varyDrumPattern;
 $("drumMidiExport").onclick=exportDrumMidi;
 $("drumMidiReset").onclick=()=>{customDrumHits=null;renderDrumMidiGrid();$("drumMidiStatus").textContent="DRUM MIDI RESET · editable preset pattern";};
 renderDrumMidiGrid();
-$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly||aiSolo?0:val/100};
+$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";updateRhythmAudio();};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";updateBrowserOutputGain();};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
 function updateRoomFx(){
