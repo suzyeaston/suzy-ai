@@ -1875,7 +1875,7 @@ function phaseSeconds(at=ctx.currentTime){
  return ((at-transportEpoch)%cycleSeconds()+cycleSeconds())%cycleSeconds();
 }
 function hasAudioLoops(){
- return Object.values(decks).some(d=>d.layers.some(l=>l.buffer));
+ return [...Object.values(decks),drumDeck].some(d=>d.layers.some(l=>l.buffer));
 }
 function changeTempo(value){
  const next=Number(value);
@@ -2052,7 +2052,7 @@ function locateTimelineBar(rawBar){
   if(aiNativeReady&&(aiNoteHeld||aiChordOwner))aiRelease();
   // Re-anchor the beat clock; never restart native MRT2 or the microphone.
   const when=ctx.currentTime+.10;
-  for(const d of Object.values(decks))for(const layer of d.layers){
+  for(const d of [...Object.values(decks),drumDeck])for(const layer of d.layers){
    if(layer.source){
     try{layer.source.stop(when)}catch{}
     layer.source=null;layer.gain=null;
@@ -2061,8 +2061,8 @@ function locateTimelineBar(rawBar){
   stepNumber=bar*8;
   transportEpoch=when-stepNumber*tickSeconds();
   nextStepAt=when;
-  for(const [which,d] of Object.entries(decks))
-   for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,when);
+  for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]])
+    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,when);
   scheduler();
  }else stepNumber=bar*8;
  fullTimeline?.update();updateTransportUI();updateVocalState();
@@ -2107,7 +2107,7 @@ async function startStop(){
    for(const [which,d] of Object.entries(decks)){
     d.loopToggleAt=null;d.loopToggleTarget=null;updateLoopControls(which);
    }
-   for(const d of Object.values(decks))for(const layer of d.layers){
+   for(const d of [...Object.values(decks),drumDeck])for(const layer of d.layers){
     stopLayerWash(layer);stopLayerEcho(layer);
     if(layer.source){try{layer.source.stop()}catch{}layer.source=null;}
    }
@@ -2125,8 +2125,8 @@ async function startStop(){
    }
    trackView?.draw();
    stageStarted=true;
-   for(const [which,d] of Object.entries(decks)){
-    for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,nextStepAt);
+   for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]]){
+     for(const layer of d.layers)if(layer.buffer)startLoopAudio(which,layer,nextStepAt);
    }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
@@ -3385,6 +3385,9 @@ for(const which of Object.keys(decks)){
  };
  updateKeyUI(which);
 }
+$("nativePlay-drums-drums").onclick=()=>selectNativeLane("drums","drums").catch(warn);
+$("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
+$("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
  for(const role of ["chords","lead"]){
   $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
@@ -3507,7 +3510,7 @@ $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHea
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();updateVocalState();updateTransportUI();
-for(const k of Object.keys(decks)){renderInstrumentClips(k);}
+for(const k of [...Object.keys(decks),"drums"]){renderInstrumentClips(k);}
 updateNativeLaneControls();
 window.addEventListener("beforeunload",e=>{
  if(setRecorder){e.preventDefault();e.returnValue="A full set recording is in progress. Press STOP & SAVE AUDIO first.";return;}
