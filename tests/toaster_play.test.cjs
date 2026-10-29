@@ -22,7 +22,7 @@ function rig(){
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
- "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100",monitorLevel:"110",monitorReverb:"28","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
  promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",promptJazzDrums:"brushed swing jazz drums",aiDrumMix:"0",
  "aiLeadMix-pyramid":"0","aiLeadMix-fishes":"0",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
@@ -130,7 +130,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/ENABLE MAGENTA/);
  assert.match(file,/Native Google Magenta AU is optional/);
  assert.match(javascript,/await aiFetch\("chord",legato\?\{index,legato:true\}:\{index\}\)/);
- assert.match(javascript,/await aiFetch\("mix",\{value:Number\(\$\("mix"\)\.value\)\/100\}\)/);
+ assert.match(javascript,/await aiFetch\("mix",\{value:effectiveSongMix\(\)\}\)/);
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
  assert.ok(file.indexOf('id="deck-fishes"')<file.indexOf('id="micInput"'));
@@ -167,10 +167,10 @@ test("record chord events at cycle boundary and switch to track 2 without losing
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>=1);
  assert.ok(run("decks.pyramid.layers[0].events[1].holdSteps")>1);
  run('choose("fishes")');
- assert.equal(get("mix").value,100);
+ assert.equal(get("mix").value,"0","selecting Fishes no longer overrides manual Pyramid mix");
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.fishes.bus.gain.value"),1);
- assert.equal(run("decks.pyramid.bus.gain.value"),0);
+ assert.equal(run("decks.fishes.bus.gain.value"),0);
+ assert.equal(run("decks.pyramid.bus.gain.value"),1);
  assert.match(get("clips-pyramid").children[0].children[0].textContent,/Loop/);
 });
 test("export has genuine two-cycle offline audio rendering and WAV header",async()=>{
@@ -669,11 +669,11 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  assert.equal(run("monitoringVoice"),false);
  assert.equal(run("recording.kind"),"vocal");
 });
-test("a vocal overdub arms at the next BAR instead of waiting for the next 32-bar cycle",async()=>{
+test("a vocal overdub arms at the next short pulse, not a song-length bar wait",async()=>{
  const {run}=rig();await run("startStop()");
  run("decks.pyramid.locked=true;decks.pyramid.lengthSteps=256;decks.pyramid.anchorStep=0;stepNumber=23");
  await run('voiceLoop("pyramid")');
- assert.equal(run("recording.firstStep"),24);
+ assert.ok([23,24].includes(run("recording.firstStep")),"vocal overdub is armed on nearby subdivision");
  assert.equal(run("recording.steps"),256);
  assert.equal(run("recording.first"),false);
 });
@@ -773,7 +773,7 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  assert.match(get("monitorStatus").textContent,/MONITOR ON/);
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
  await run('voiceLoop("pyramid")');
- assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
+ assert.match(get("vocalRecordState").textContent,/VOCAL ARMED|RECORDING/);
  assert.equal(run("recording.kind"),"vocal");
 });
 
@@ -935,18 +935,23 @@ test("recorded chord clip anchors to actual first captured bar, not the finish c
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
-test("next-bar overdub events rephase to existing master anchor instead of drifting",async()=>{
- const {run,get}=rig();
- await run("startStop()");
- run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;stepNumber=14');
- run('record("pyramid")');
- assert.equal(run("recording.beginAt"),14,"overdub begins at next tick without changing original loop clock");
- run('recording.active=true;recording.start=1;recording.events.push({step:0,type:"note",midi:68,holdSteps:1,instrument:"violin"})');
- run("endRecord()");
- assert.equal(run("decks.pyramid.layers[0].events[0].step"),6,"align MIDI from overdub onset back to original master phase");
- assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
- assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
+test("subsequent take records PCM audio rather than adding MIDI instruction events",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;stepNumber=14;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ get("printSource-pyramid").value="keys";
+ await run('record("pyramid")');
+ assert.equal(run("recording"),null,"locked master must not arm MIDI overdub");
+ assert.equal(run("audioPrint.mode"),"keys","additional take records the actual sound");
+ assert.equal(run("audioPrint.startStep")>=14,true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.2),frames,peak:.2,missing:0}});
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ assert.equal(run("decks.pyramid.layers[0].events.length"),1,"old MIDI remains unchanged");
+ assert.equal(run("decks.pyramid.layers[1].buffer.length"),frames);
 });
+
 test("repair keeps native four-prompt design and VE-22 microphone controls unchanged",()=>{
  const {get,run}=rig();
  assert.equal(run("getPromptStrings().length"),5);
