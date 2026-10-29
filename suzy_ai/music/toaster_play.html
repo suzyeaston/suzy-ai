@@ -747,14 +747,18 @@ function releaseVoice(voice,time){
   vibrato?.stop(time+Math.max(.50,release*5));
  }catch{}
 }
+function targetLoopGain(which){
+ const d=decks[which],active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
+ return localKeysOnly||!d.loopEnabled?0:
+  Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
+}
 function updateOverdubBalance(){
  if(!ctx)return;
- for(const d of Object.values(decks)){
+ for(const [which,d] of Object.entries(decks)){
   if(!d.liveBus||!d.loopBus)continue;
-  const active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
   d.liveBus.gain.value=Number($("liveLevel").value)/100;
-  // Multiple recorded overdubs gain compensated; they still remain independent.
-  d.loopBus.gain.value=localKeysOnly?0:Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
+  // Gate already ringing notes too when a performer stops a loop.
+  d.loopBus.gain.value=targetLoopGain(which);
  }
 }
 function setInstrument(which,instrument){
@@ -1198,7 +1202,7 @@ function toggleLoop(which){
  const target=d.loopToggleAt!==null?!d.loopToggleTarget:!d.loopEnabled;
  if(!stageStarted){
   d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
-  updateLoopControls(which);renderClips(which);
+  updateOverdubBalance();updateLoopControls(which);renderClips(which);
   return tell(which.toUpperCase()+" loops "+(target?"ready to play":"stopped")+". The original bar phase is preserved.");
  }
  d.loopToggleAt=Math.ceil((stepNumber+1)/8)*8;
@@ -1257,6 +1261,7 @@ function schedule(time,count){
    if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
     d.loopEnabled=d.loopToggleTarget;
     d.loopToggleAt=null;d.loopToggleTarget=null;
+    if(d.loopBus)d.loopBus.gain.setTargetAtTime(targetLoopGain(which),time,.018);
     updateLoopControls(which);
     trackView?.draw();
    }
@@ -1301,6 +1306,7 @@ function schedule(time,count){
       if(e.type==="note"){
        const pitch=e.midi;
        const start=time,heldSec=recordedNoteHoldSeconds(which,e);
+       const nativeHoldSec=Math.max(.12,(e.holdSteps??1)*tickSeconds());
        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
        releaseVoice(voice,start+heldSec);
        if(aiNativeReady){
@@ -1308,7 +1314,7 @@ function schedule(time,count){
         setTimeout(()=>{
          if(!aiNativeReady||revision!==seekRevision)return;
          aiMelody(pitch,true);
-         setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},heldSec*1000);
+         setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},nativeHoldSec*1000);
         },wait);
        }
        continue;
