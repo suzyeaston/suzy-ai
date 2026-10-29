@@ -155,7 +155,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'id="tracks-pyramid"', 'id="tracks-fishes"',
             '/toaster/track-view.js', 'window.SuzyTrackView',
             'songCycleSteps(which)', 'songCycleSeconds(which)',
-            'const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds()', 'function nextSongBoundary(which,n)',
+            'const origin=transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds()', 'function layerPlaybackPhase(which,layer,at)', 'function nextSongBoundary(which,n)',
             'r.first', 'recording.endAt', 'firstStep',
             'ctx.sampleRate*120', '"vocal"', 'd.anchorStep=r.beginAt',
             'd.lengthSteps=length', 'Math.min(256',
