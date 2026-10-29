@@ -2961,3 +2961,104 @@ test("drum live prompt fader and saved PCM fader remain independent",async()=>{
  get("roleLevel-drums-drums").value="70";get("roleLevel-drums-drums").oninput();
  assert.equal(get("nativeDrumSavedLevel").value,"70","global drum fader updates local fader");
 });
+
+test("piano loop -> cello and violin RECORD TAKE route chord KEYS to active instrument, not old piano",async()=>{
+ const {run,emit,get,env,calls}=rig();
+ await run("startStop()");
+ run("aiNativeReady=true");
+ calls.decodedFrames=6*48000;
+ let currentHostScene="pyramid",captureNumber=0;
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  const data=opts?.body?JSON.parse(opts.body):null;
+  if(data)commands.push({op,args:data});
+  if(op==="scene"&&data)currentHostScene=data.scene;
+  if(op==="status")return {ok:true,json:async()=>({
+   phase:"host-running",audio_engine_running:true,native_loop_capture_supported:true,
+   scene:currentHostScene
+  })};
+  if(op==="capture-start")
+   return {ok:true,json:async()=>({capture_id:"piano-strings-"+(++captureNumber)})};
+  if(op==="capture-stop")
+   return {ok:true,json:async()=>({ready:true,frames:6*48000,peak:.4,
+    audio_url:"/api/ai/capture/"+data.id})};
+  if(u.includes("/api/ai/capture/"))
+   return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ const pianoPad=get("nativeChords-pyramid-chords").children[1].children[1];
+ pianoPad.onpointerdown({button:0,preventDefault(){}});
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ pianoPad.onpointerup();
+ await run("aiCommandQueue");
+ assert.equal(run("activeChordLane.role"),"chords","a piano pad leaves piano as the selected keyboard lane");
+ await get("nativeRecord-pyramid-chords").onclick();
+ const pianoGrid=run("nativeTake.gridStartAt");
+ run("ctx.currentTime="+(pianoGrid)+"+barDuration()");
+ await get("nativeRecord-pyramid-chords").onclick();
+ assert.equal(run("nativeTake"),null);
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ const pianoSource=run("decks.pyramid.layers[0].source");
+ const period=run("decks.pyramid.pedalPeriodSeconds");
+
+ for(const [role,key,harmony,index,sceneValue,expectedWeight] of [
+  ["textureLow","z","pyramid",0,"fishes",0],
+  ["lead","b","fishes",0,"pyramid",1]
+ ]){
+  const startAt=commands.length;
+  await get("nativeRecord-pyramid-"+role).onclick();
+  assert.equal(run("nativeTake.role"),role,"the desired "+role+" is armed");
+  assert.equal(run("activeChordLane"),null,"previous piano harmony lane must be cleared on RECORD");
+  assert.equal(run("activeNativeLane"),"pyramid:"+role,"selected "+role+" is now keyboard instrument");
+  assert.equal(run("aiScene"),sceneValue,"correct Magenta scene selected for "+role);
+  assert.equal(get("nativeRecord-pyramid-"+role).disabled,false);
+  assert.match(get("nativeRecord-pyramid-"+role).textContent,/DONE → LOOP/);
+
+  const beforePoll=commands.length;
+  await run("aiStatus()");
+  assert.equal(commands.slice(beforePoll).some(c=>c.op==="scene"),
+   false,"status polling cannot steal selected native scene mid-"+role+" take");
+  assert.equal(run("aiScene"),sceneValue);
+  emit("keydown",key,"BUTTON");
+  for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+  await run("aiCommandQueue");
+  const during=commands.slice(startAt);
+  assert.ok(during.some(c=>c.op==="chord"&&c.args.harmony===harmony&&c.args.index===index),
+   "keyboard "+key+" MUST reach native AU while "+role+" is recording");
+  assert.doesNotMatch(get("warning").textContent,/Finish the other native take/,
+   "no old piano lane error while recording "+role);
+  assert.equal(run("activeChordLane.role"),role);
+  emit("keyup",key,"BUTTON");
+  await run("aiCommandQueue");
+  run("ctx.currentTime=nativeTake.gridStartAt+decks.pyramid.pedalPeriodSeconds");
+  await get("nativeRecord-pyramid-"+role).onclick();
+  assert.equal(run("nativeTake"),null);
+  assert.equal(run("decks.pyramid.layers.at(-1).instrumentRole"),role);
+  assert.equal(run("decks.pyramid.layers[0].source"),pianoSource,
+   "the original piano source must keep playing through the "+role+" overdub");
+  assert.equal(run("decks.pyramid.pedalPeriodSeconds"),period,
+   "the piano loop period must remain the shared clock");
+ }
+ assert.equal(run("decks.pyramid.layers.length"),3);
+ assert.equal(run("decks.fishes.layers.length"),0);
+});
+test("native texture lane scene survives idle Magenta status polling after cello recording",async()=>{
+ const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  if(opts?.body&&String(url).endsWith("/status"))
+   return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(!opts?.body)return {ok:true,json:async()=>({
+    phase:"host-running",audio_engine_running:true,scene:"fishes"
+  })};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('selectNativeLane("pyramid","textureLow")');
+ const index=commands.length;
+ await run("aiStatus()");
+ assert.equal(run("aiScene"),"fishes");
+ assert.equal(commands.slice(index).some(c=>c.op==="scene"&&c.args.scene==="pyramid"),
+  false,"idle poll may not undo the cello prompt before it is played");
+});
