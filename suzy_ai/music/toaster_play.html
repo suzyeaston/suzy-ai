@@ -327,13 +327,24 @@ a{color:var(--mint)}
    Its DOM remains for backward-compatible loop/transport code, not display. */
 #fullArrangement[hidden]{display:none!important}
 /* The big pedal clock stays visible while recording any instrument. */
-.pedal-clock{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px;margin:12px 0;border:2px solid #6e9c90;border-radius:14px;background:#182b2b}
-#pedalClockState{font:900 16px ui-monospace,monospace;color:#c0f9e5}
-#pedalClockCue{font:800 12px ui-monospace,monospace;color:#f9d09d;flex:1 1 230px}
-.pedal-beats{display:flex;gap:7px}
-.pedal-beat{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid #72877f;color:#b7c7c4;font:900 16px ui-monospace,monospace}
+/* Always-on floating pedal dashboard, independent of scrolling through tracks. */
+body{padding-top:86px}
+.pedal-clock{position:fixed;z-index:3000;top:8px;left:50%;transform:translateX(-50%);width:min(1010px,calc(100vw - 18px));min-height:70px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;padding:9px 12px;margin:0;border:2px solid #6e9c90;border-radius:14px;background:#122b2b;box-shadow:0 12px 30px #090711db;pointer-events:none}
+#pedalClockState{font:850 13px ui-monospace,monospace;color:#c0f9e5;white-space:nowrap}
+#pedalClockCue{font:800 12px ui-monospace,monospace;color:#f9d09d;flex:1 1 180px;text-align:center;line-height:1.3}
+#pedalCueBig{font:950 clamp(22px,2.6vw,36px)/1 ui-monospace,monospace;color:#202d27;background:#b4f1d0;border-radius:9px;min-width:102px;padding:9px 13px;text-align:center;letter-spacing:.025em}
+.pedal-clock[data-cue="count"] #pedalCueBig{background:#f8d69c;color:#402a22}
+.pedal-clock[data-cue="go"]{background:#3b3d1c;border-color:#ffe193;box-shadow:0 5px 28px #ffc85170}
+.pedal-clock[data-cue="go"] #pedalCueBig{background:#fff79d;color:#382308;animation:pedal-go-pulse .32s ease-in-out infinite alternate}
+.pedal-clock[data-cue="recording"] #pedalCueBig{background:#ffc0b8;color:#54232c}
+@keyframes pedal-go-pulse{from{transform:scale(1)}to{transform:scale(1.09)}}
+.pedal-beats{display:flex;gap:5px}
+.pedal-beat{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;border:2px solid #72877f;color:#b7c7c4;font:900 15px ui-monospace,monospace}
+.pedal-beat[hidden]{display:none!important}
 .pedal-beat.on{background:#b4f3cf;border-color:#e7ffe9;color:#18352e;box-shadow:0 0 12px #b4f3cf55}
 .pedal-beat.downbeat.on{background:#f7c5a4;border-color:#ffe8ca;color:#4e2c2d}
+@media(max-width:700px){body{padding-top:116px}.pedal-clock{padding:7px 8px;gap:7px;min-height:100px}#pedalClockState{font-size:11px}#pedalClockCue{flex-basis:100%;order:5;font-size:11px}#pedalCueBig{font-size:25px;min-width:75px;padding:6px 9px}.pedal-beat{width:24px;height:24px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){.pedal-clock[data-cue="go"] #pedalCueBig{animation:none}}
 .set-recorder{border:1px solid #f2b4bd;background:#322234;border-radius:14px;padding:14px}
 .set-recorder .start{gap:14px}
 .set-recorder .set-rec-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -371,8 +382,9 @@ a{color:var(--mint)}
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
-<div class="pedal-clock" role="group" aria-label="Live beat clock and loop recording cue">
+<div class="pedal-clock" id="pedalClock" role="group" data-cue="ready" aria-label="Floating live beat clock and recording count-in. Stays visible when scrolling.">
  <strong id="pedalClockState">○ WAITING FOR RHYTHM</strong>
+ <strong id="pedalCueBig" aria-live="polite">WAIT</strong>
  <div class="pedal-beats" aria-label="Beat position">
  <span id="pedalBeat1" class="pedal-beat downbeat">1</span>
  <span id="pedalBeat2" class="pedal-beat">2</span>
@@ -1873,7 +1885,11 @@ function rhythmBarSteps(){return DRUM_STEPS[drumMeter]||8;}
 function barDuration(){return rhythmBarSteps()*tickSeconds();}
 function gridStepAt(at,lead=.08){
  const step=rhythmBarSteps();
- return Math.max(0,Math.ceil((at+lead-transportEpoch)/(step*tickSeconds()))*step);
+ // Rhythm audio is scheduled 140ms ahead. Never arm at a tick that the
+ // browser has already scheduled, even if it looks near in UI time.
+ const scheduled=stageStarted?transportEpoch+stepNumber*tickSeconds():at;
+ const earliest=Math.max(at+lead,scheduled+.00001);
+ return Math.max(0,Math.ceil((earliest-transportEpoch)/(step*tickSeconds()))*step);
 }
 function gridTimeAt(at,lead=.08){return transportEpoch+gridStepAt(at,lead)*tickSeconds();}
 function phraseGridSteps(startAt,doneAt){
@@ -1896,12 +1912,21 @@ function writeFirstGridLoop(buffer,inputs,capturedAt,downbeatAt,gain=1){
  }
  closeAudioLoopSeam(buffer);
 }
+// The cue is read from the same Web Audio clock that schedules drum hits.
+// We display against heardAt (accounting for browser output buffering), rather
+// than a drifting setTimeout or the scheduler's already-future step counter.
 function updatePedalClock(){
- const state=$("pedalClockState"),cue=$("pedalClockCue");
+ const state=$("pedalClockState"),cue=$("pedalClockCue"),big=$("pedalCueBig");
+ const clock=$("pedalClock");
+ const show=(headline,detail,mode)=>{
+  if(big.textContent!==headline)big.textContent=headline;
+  if(cue.textContent!==detail)cue.textContent=detail;
+  clock.dataset.cue=mode;
+ };
  if(!ctx||!stageStarted){
   state.textContent="○ RHYTHM PAUSED";
-  cue.textContent="Press PLAY RHYTHM to activate the loop clock.";
   for(let i=1;i<=5;i++)$("pedalBeat"+i).classList.remove("on");
+  show("WAIT","▶ PLAY RHYTHM TO ENABLE COUNT-IN","ready");
   return;
  }
  const heardAt=ctx.currentTime-Math.max(0,Number(ctx.outputLatency)||0);
@@ -1913,31 +1938,59 @@ function updatePedalClock(){
   dot.hidden=i>beats;
   dot.classList.toggle("on",i===beat);
  }
- state.textContent="BEAT "+beat+" / "+beats+"  ·  BAR "+(Math.floor(tick/perBar)+1);
- const now=ctx.currentTime;
- const queued=Object.entries(decks).find(([,d])=>d.loopToggleAt!==null&&d.loopToggleTarget===true);
- if(queued){
-  const [which,d]=queued;
-  const remaining=Math.max(0,Math.ceil((transportEpoch+d.loopToggleAt*tickSeconds()-now)/tickSeconds()/2));
-  cue.textContent="↻ "+which.toUpperCase()+" RESTARTS ON LOOP 1 · "+remaining+" BEATS UNTIL DOWNBEAT";
+ const title="BEAT "+beat+" / "+beats+" · BAR "+(Math.floor(tick/perBar)+1);
+ if(state.textContent!==title)state.textContent=title;
+ const recordCue=(startAt,name,verb="PLAY")=>{
+  const diff=startAt-heardAt;
+  if(diff>0){
+   const remaining=Math.max(1,Math.ceil(diff/(2*tickSeconds())-.00001));
+   show(remaining<=3?String(remaining):"IN "+remaining,
+    name+" · "+verb+" WHEN IT SAYS GO! · "+remaining+" BEATS","count");
+  }else if(heardAt<startAt+2*tickSeconds()){
+   show("GO!",name+" · "+verb+" NOW! · RECORDING IS LIVE","go");
+  }else{
+   show("● REC",name+" · RECORDING · PRESS DONE NEAR THE NEXT BEAT 1","recording");
+  }
+ };
+ if(nativeTakeArming&&!nativeTake){
+  show("PREP","PREPARING "+nativeTakeArming.role.toUpperCase()+" SOUND · WAIT FOR COUNT-IN","ready");
+ }else if(vocalArming&&!recording){
+  show("PREP","CONNECTING SCARLETT MIC · WAIT FOR COUNT-IN","ready");
  }else if(nativeTake){
   const t=nativeTake;
-  if(t.finishing)cue.textContent="✓ DONE · converting captured audio · existing rhythm continues";
-  else if(t.first&&now<t.gridStartAt)cue.textContent="● "+t.role.toUpperCase()+" ARMED · PLAY ON GREEN 1 IN "+Math.max(1,Math.ceil((t.gridStartAt-now)/(2*tickSeconds())))+" BEATS";
-  else cue.textContent="● RECORDING "+t.role.toUpperCase()+" · PLAY IN TIME, THEN DONE NEAR BEAT 1";
+  if(t.finishing)show("DONE","SAVING "+t.role.toUpperCase()+" AUDIO · KEEP PLAYING THE RHYTHM","ready");
+  else if(t.first)recordCue(t.gridStartAt,t.role.toUpperCase());
+  else show("● REC",t.role.toUpperCase()+" OVERDUB · FOLLOW THE EXISTING LOOP PHASE","recording");
  }else if(recording?.kind==="vocal"){
   const t=recording;
-  cue.textContent=t.finishQueued?"✓ VOICE DONE · BUILDING BAR-LOCKED LOOP":
-    now<t.startAt?"● VOICE ARMED · SING ON GREEN 1 IN "+Math.max(1,Math.ceil((t.startAt-now)/(2*tickSeconds())))+" BEATS":
-    "● RECORDING VOICE · PRESS DONE NEAR BEAT 1";
+  if(t.finishQueued)show("DONE","FINALIZING VOICE LOOP · BEAT CONTINUES","ready");
+  else recordCue(t.startAt,"VOICE","SING");
  }else if(recording?.kind==="chords"){
-  cue.textContent=recording.finishQueued?"✓ CHORD DONE · LOOP ON NEXT GREEN 1":
-    !recording.active?"● CHORDS ARMED · PLAY ON NEXT GREEN 1":
-    "● RECORDING CHORDS · PRESS DONE NEAR BEAT 1";
+  const t=recording;
+  if(t.finishQueued)show("DONE","CHORD LOOP CLOSES ON NEXT BEAT 1","ready");
+  else recordCue(transportEpoch+t.beginAt*tickSeconds(),"CHORDS");
+ }else if(audioPrint){
+  const t=audioPrint;
+  if(t.finishQueued)show("DONE","FINISHING AUDIO OVERDUB · BEAT CONTINUES","ready");
+  else recordCue(transportEpoch+t.startStep*tickSeconds(),"AUDIO LAYER");
  }else{
-  const first=[...Object.entries(decks),["drums",drumDeck]].find(([,d])=>d.layers.some(l=>l.buffer||l.kind==="chords"));
-  cue.textContent=first?"↻ BAR-LOCKED LOOP · PLAY / OVERDUB WITH THE GREEN BEAT 1":
-   "READY · RECORD PIANO OR VOCALS · PLAY WHEN GREEN 1 LIGHTS";
+  const queued=Object.entries(decks).find(([,d])=>d.loopToggleAt!==null&&d.loopToggleTarget===true);
+  if(queued){
+   const [which,d]=queued;
+   const at=transportEpoch+d.loopToggleAt*tickSeconds();
+   if(heardAt<at){
+    const remaining=Math.max(1,Math.ceil((at-heardAt)/(2*tickSeconds())-.00001));
+    show(remaining<=3?String(remaining):"IN "+remaining,
+     which.toUpperCase()+" · RESTART ON DOWNBEAT · "+remaining+" BEATS","count");
+   }else if(heardAt<at+2*tickSeconds()){
+    show("GO!",which.toUpperCase()+" LOOP RESTARTS NOW","go");
+   }else show("↻ LOOP",which.toUpperCase()+" PLAYING","ready");
+  }else{
+   const saved=[...Object.values(decks),drumDeck].some(d=>d.layers.some(l=>l.buffer||l.kind==="chords"));
+   show(saved?"↻ LOOP":"READY",saved?
+    "BAR-LOCKED LOOPS PLAYING · GREEN 1 IS YOUR DOWNBEAT":
+    "HIT RECORD THEN FOLLOW THE FLOATING 3 · 2 · 1 · GO!","ready");
+  }
  }
 }
 function cycleSeconds(){return tickSeconds()*loopSteps;}
@@ -2389,7 +2442,7 @@ function record(which){
  choose(which);
  // Never require the performer to select a length. One click arms on the next
  // free eighth-note boundary; DONE chooses this first master-loop duration.
- const beginAt=!d.locked?Math.max(stepNumber,gridStepAt(ctx.currentTime,.08)):
+ const beginAt=!d.locked?gridStepAt(ctx.currentTime,6*tickSeconds()):
    Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
  recording={kind:"chords",scene:which,active:false,events:[],beginAt,start:0,
             first:!d.locked,endAt:beginAt+(d.locked?d.lengthSteps:256),finishQueued:false};
@@ -2695,7 +2748,7 @@ async function startNativeInstrumentTake(which,role){
   const capturedAt=(requestAt+responseAt)*.5;
    // Arm the native capture BEFORE the next true bar one. Only samples
    // recorded after the visible beat-one cue become part of the loop.
-   const gridStartAt=first?gridTimeAt(responseAt,.12):loopMasterOrigin(which);
+   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):loopMasterOrigin(which);
    const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
    take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
          beginStep,seconds,finishing:false,timer:null};
@@ -3322,7 +3375,7 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
 // AudioWorklet records on the shared browser AudioContext clock. Always
  // use the next visible bar-one cue, not an arbitrary 40ms wake-up delay.
- const start=gridTimeAt(ctx.currentTime,.08);
+ const start=gridTimeAt(ctx.currentTime,6*tickSeconds());
  const firstStep=Math.max(0,Math.round((start-transportEpoch)/tickSeconds()));
 const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
   const frames=Math.round(duration*ctx.sampleRate);
