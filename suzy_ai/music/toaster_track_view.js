@@ -47,7 +47,7 @@ class Tracks{
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
    select.type="button";select.onclick=()=>this.select(which);
-   const rec=el("button","track-record","● KEYS");
+   const rec=el("button","track-record",d.locked?"＋ OVERDUB AUDIO":"● RECORD FIRST LOOP");
    rec.type="button";rec.onclick=()=>this.record(which);
    const mic=el("button","track-voice",
      d.layers.some(l=>l.kind==="vocal")?"🎙 ADD VOICE LAYER":"🎙 RECORD FIRST VOICE");
@@ -77,13 +77,13 @@ class Tracks{
      const name=el("div","track-lane-name",icon+" "+label);
      const surface=el("div","track-lane-surface lane-"+kind);
      surface.style.setProperty("--bars",String(bars));
-     const layers=d.layers.filter(l=>l.kind===kind);
+     const layers=d.layers.filter(l=>l.kind===kind||(kind==="ai"&&l.kind==="printed"));
      if(layers.length===0)surface.append(el("div","track-empty",kind==="ai"?"Import a real Magenta take":kind==="vocal"?"Record a vocal take":"Play and record keys"));
      else layers.forEach((layer,j)=>{
        const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
-       region.title=(kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded chord/note events");
+       region.title=layer.kind==="printed"?"Recorded audio waveform with independent volume and mute":kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded chord/note events";
        const clipTitle=el("span","track-clip-title",
-         (kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":({
+         (layer.kind==="printed"?(layer.name||"AUDIO")+" ":kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":({
            keys:"PIANO ",pad:"PAD ",pluck:"PLUCK ",bass:"BASS "
          }[layer.instrument]||"KEYS "))+(j+1));
        const waveform=el("span","track-wave");
