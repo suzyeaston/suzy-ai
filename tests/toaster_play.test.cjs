@@ -134,7 +134,7 @@ test("one click starts audible browser beat and prefers Scarlett, not built-in h
  assert.equal(run("stepNumber")>0,true);
 });
 test("record chord events at cycle boundary and switch to track 2 without losing track 1",async()=>{
- const {get,run}=rig();await run("startStop()");
+ const {get,run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")'); run('setInstrumentSource("fishes","local")');
  run('record("pyramid")');
  assert.equal(run("recording.kind"),"chords");
  run("ctx.currentTime=5;scheduler()");
@@ -170,7 +170,7 @@ test("export has genuine two-cycle offline audio rendering and WAV header",async
 });
 
 test("Z X C V chords work from the computer keyboard, including focused buttons",async()=>{
- const {run,emit}=rig();await run("startStop()");
+ const {run,emit}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  for(const [i,key] of ["z","x","c","v"].entries()){
   emit("keydown",key,"BUTTON",false);
   assert.equal(run("heldKeys.size"),1);
@@ -207,7 +207,7 @@ test("Z X C V still plays immediately after moving a range fader",async()=>{
  assert.equal(run("heldKeys.size"),0);
 });
 test("rapid mouse click switches chords and each chord has an audible attack",async()=>{
- const {run,pads}=rig();await run("startStop()");
+ const {run,pads}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  const fire=(el,type,pointerId=1)=>{
   for(const fn of el._events?.[type]||[])fn({button:0,pointerId,preventDefault(){}});
  };
@@ -229,7 +229,7 @@ test("rapid mouse click switches chords and each chord has an audible attack",as
  assert.equal(run("heldKeys.size"),0);
 });
 test("second mouse pointer-down retriggers after missing pointer-up",async()=>{
- const {run,pads}=rig();await run("startStop()");
+ const {run,pads}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  const e={button:0,pointerId:7,preventDefault(){}};
  pads[0]._events.pointerdown[0](e);
  const before=run('heldKeys.get("pad:pyramid:0").voices[0]');
@@ -242,7 +242,7 @@ test("second mouse pointer-down retriggers after missing pointer-up",async()=>{
  assert.equal(run("heldKeys.size"),0);
 });
 test("short ambient-pad tap reaches its slower attack before stopping",async()=>{
- const {run,pads}=rig();await run("startStop()");
+ const {run,pads}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('setInstrument("pyramid","pad")');
  pads[2]._events.pointerdown[0]({button:0,pointerId:3,preventDefault(){}});
  const start=run('heldKeys.get("pad:pyramid:2").start');
@@ -448,20 +448,20 @@ test("room and tone effect controls work for synth, rhythm, imported loops and n
 
 test("AI SOLO lets musician hear real Magenta without the always-on browser chord oscillator",async()=>{
  const {run,get}=rig();
- await run("startStop()");
+ await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  assert.equal(run("aiSolo"),false);
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
  run("toggleAISolo()");
  assert.equal(run("aiSolo"),true);
  assert.equal(run("decks.pyramid.bus.gain.value"),0);
  assert.equal(run("stageStarted"),true,"rhythm stays playing");
- assert.equal(run("beatBus.gain.value"),.35,"rhythm level remains");
- assert.equal(get("aiSolo").textContent,"🎹 RESTORE LOCAL KEYS");
+ assert.equal(run("beatBus.gain.value"),0,"diagnostic SOLO NATIVE AI mutes browser rhythm");
+ assert.equal(get("aiSolo").textContent,"🎹 RESTORE BROWSER MIX");
  run("toggleAISolo()");
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
 });
 test("each song has an independently playable lead under the Z/X/C/V chord pads",async()=>{
- const {run,emit,get}=rig();await run("startStop()");
+ const {run,emit,get}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")'); run('setInstrumentSource("fishes","local")');
  assert.equal(run("decks.pyramid.leadInstrument"),"violin");
  assert.equal(run("decks.fishes.leadInstrument"),"nylon");
  assert.equal(run("decks.pyramid.instrument"),"keys");
@@ -484,7 +484,7 @@ test("each song has an independently playable lead under the Z/X/C/V chord pads"
  assert.equal(run("scene"),"pyramid");
 });
 test("per-song lead register and volume do not transpose chord pads or change prior overdubs",async()=>{
- const {run,emit,get}=rig();await run("startStop()");
+ const {run,emit,get}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")'); run('setInstrumentSource("fishes","local")');
  run('setLeadOctave("pyramid",12)');
  run('setLeadLevel("pyramid",40)');
  assert.equal(run("decks.pyramid.leadBus.gain.value"),.4);
@@ -524,7 +524,7 @@ test("four drum styles really differ and 3/4, 6/8, 5/4 have distinct accent grou
  assert.equal(run("songCycleSteps('pyramid')"),16);
 });
 test("overdubs preserve instruments and live/loop levels are independent",async()=>{
- const {get,run}=rig();await run("startStop()");
+ const {get,run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('setInstrument("pyramid","pad")');
  run('beginChord("pyramid",0,"live")');
  assert.equal(run('heldKeys.get("live").voices[0].osc.type'),"sine");
@@ -549,7 +549,7 @@ test("key changes can return to previous and original pitch",async()=>{
  assert.equal(get("keyValue-pyramid").textContent,"ORIGINAL");
 });
 test("both song decks may play together while choosing a different instrument",async()=>{
- const {get,run}=rig();await run("startStop()");
+ const {get,run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")'); run('setInstrumentSource("fishes","local")');
  get("mixBoth").onclick();
  assert.equal(run("blendBoth"),true);
  assert.equal(get("mix").value,"50");
@@ -1114,7 +1114,7 @@ test("releasing before DONE does not falsely tie a naturally short chord",async(
   run("songCycleSeconds('pyramid')"));
 });
 test("browser synth no longer forcibly truncates a held note to one loop duration",async()=>{
- const {run}=rig();await run("startStop()");
+ const {run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('decks.pyramid.lengthSteps=4;var releaseTimes=[];const releaseOriginal=releaseVoice;releaseVoice=(v,t)=>{releaseTimes.push(t);return releaseOriginal(v,t)}');
  run('synth("pyramid",0,1,true,3,"pad")');
  assert.equal(run("releaseTimes.length"),4);
@@ -1135,7 +1135,7 @@ test("live looper shows simple states, no beat/bar/pass counters, while tempo re
  assert.match(file,/id="tempoValue"/,"tempo display remains present");
 });
 test("stopping a sustained loop fades its active oscillator bus without stopping rhythm",async()=>{
- const {run,get}=rig();await run("startStop()");
+ const {run,get}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=5;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:5,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
  run('renderClips("pyramid")');
  run('toggleLoop("pyramid")');
@@ -1172,7 +1172,7 @@ test("AI ONLY hard-mutes ALL browser audio including rhythm vocals live pads and
  assert.equal(run("master.gain.value"),0,"scheduled rhythm and loops remain silenced");
  get("master").value="100";get("master").oninput();
  assert.equal(run("master.gain.value"),0,"master fader cannot punch through isolation");
- assert.match(get("message").textContent,/TRUE AI ONLY/);
+ assert.equal(run("aiSolo"),true,"diagnostic solo persists after key-release messages");
  run("toggleAISolo()");
  assert.equal(run("master.gain.value"),1,"restore user master gain");
 });
@@ -1230,16 +1230,16 @@ test("jazzy fifth native prompt blends live with no change at zero",async()=>{
  assert.equal(xs.length,1);
  assert.equal(JSON.parse(xs[0].opts.body).value,0);
  assert.equal(get("aiDrumMixValue").textContent,"0%");
- run("setNativeDrumBlend(35)");
- for(let i=0;i<9;i++)await new Promise(resolve=>setImmediate(resolve));
+ run("aiNativeReady=true;setNativeDrumBlend(35)");
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
  xs=calls.midi.filter(x=>x.url==="/api/ai/drum-mix");
  assert.equal(JSON.parse(xs.at(-1).opts.body).value,.35);
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/drums"&&JSON.parse(x.opts.body).value===true));
  assert.equal(get("aiDrumMix").value,"35");
  assert.equal(run("aiDrumsAllowed"),true);
  assert.equal(run("getPromptStrings().length"),5);
- run("setNativeDrumBlend(0)");
- for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ run("aiNativeReady=true;setNativeDrumBlend(0)");
+ for(let i=0;i<10;i++)await new Promise(resolve=>setImmediate(resolve));
  assert.equal(JSON.parse(calls.midi.filter(x=>x.url==="/api/ai/drum-mix").at(-1).opts.body).value,0);
 });
 test("AI only is still silent from local browser with the fifth native prompt active",async()=>{
@@ -1252,4 +1252,81 @@ test("AI only is still silent from local browser with the fifth native prompt ac
  assert.equal(run("master.gain.value"),0);
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/drum-mix"));
  assert.equal(calls.midi.filter(x=>x.url==="/api/ai/start").length,0);
+});
+
+test("Track 03 jazzy Magenta drums is visible and independently editable",()=>{
+ const {get,run}=rig();
+ assert.match(file,/id="jazzDrumDeck"/);
+ assert.match(file,/TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05/);
+ assert.match(file,/id="applyJazzDrumsPrompt"/);
+ assert.match(file,/id="promptJazzDrums"/);
+ assert.match(file,/id="aiDrumMix"/);
+ assert.ok(file.indexOf('id="jazzDrumDeck"')<file.indexOf('id="deck-pyramid"'));
+ assert.match(file,/id="rhythmAudio"/);
+ assert.equal(get("aiDrumMix").value,"0");
+ assert.equal(run("decks.pyramid.instrumentSource"),"ai");
+ assert.equal(run("decks.fishes.instrumentSource"),"ai");
+});
+test("native AI instruments are exclusive without diagnostic AI SOLO, while local rhythm stays on",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run("updateInstrumentSource('pyramid')");
+ assert.equal(run("aiSolo"),false,"pure AI solo not needed");
+ assert.equal(run("rhythmCanSound()"),true);
+ assert.equal(run("master.gain.value"),.75,"browser bus remains available for rhythm");
+ assert.equal(run("beatBus.gain.value"),.35);
+ run('beginChord("pyramid",0,"key:native")');
+ assert.equal(run('heldKeys.get("key:native").voices.length'),0);
+ assert.equal(run("decks.pyramid.bus.gain.value"),0);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(calls.midi.some(q=>q.url==="/api/ai/chord"));
+ assert.ok(!calls.midi.some(q=>q.url==="/api/perform/chord"),"never duplicate native pad to Logic/CoreMIDI");
+ run('endChord("key:native")');
+ run('beginNote(60,"key:native-melody")');
+ assert.equal(run('heldNotes.get("key:native-melody").voice'),null);
+ run('endNote("key:native-melody")');
+ assert.equal(get("instrumentSource-pyramid").getAttribute?.("aria-pressed")||run("decks.pyramid.instrumentSource"),"ai");
+});
+test("local rhythm on/off never changes AI instrument source or transport clock",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ assert.equal(run("rhythmAudioEnabled"),true);
+ run("toggleRhythmAudio()");
+ assert.equal(run("rhythmCanSound()"),false);
+ assert.equal(run("beatBus.gain.value"),0);
+ assert.equal(run("decks.pyramid.instrumentSource"),"ai");
+ assert.equal(run("stageStarted"),true);
+ assert.equal(run("master.gain.value"),.75);
+ const step=run("stepNumber");
+ run("toggleRhythmAudio()");
+ assert.equal(run("rhythmCanSound()"),true);
+ assert.equal(run("beatBus.gain.value"),.35);
+ assert.equal(run("stepNumber"),step);
+ assert.match(get("rhythmAudio").textContent,/ON/);
+});
+test("local instrument is explicit and does not also command native Magenta",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('setInstrumentSource("pyramid","local")');
+ assert.equal(run("decks.pyramid.instrumentSource"),"local");
+ assert.ok(run("decks.pyramid.bus.gain.value")>0);
+ run('beginChord("pyramid",0,"key:local")');
+ assert.equal(run('heldKeys.get("key:local").voices.length'),4);
+ run('endChord("key:local")');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(!calls.midi.some(q=>q.url==="/api/ai/chord"));
+ assert.ok(!calls.midi.some(q=>q.url==="/api/perform/chord"));
+ run('setInstrumentSource("pyramid","ai")');
+ assert.equal(run("decks.pyramid.bus.gain.value"),0);
+});
+test("native AI instrument does not secretly fall back to local piano when model unavailable",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ assert.equal(run("aiNativeReady"),false);
+ run('beginChord("pyramid",0,"key:silent")');
+ assert.equal(run('heldKeys.get("key:silent").voices.length'),0);
+ assert.equal(run("decks.pyramid.bus.gain.value"),0);
+ assert.match(get("instrumentSourceStatus-pyramid").textContent,/WAITING/);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(!calls.midi.some(q=>q.url==="/api/perform/chord"));
+ run('endChord("key:silent")');
 });

@@ -240,6 +240,18 @@ a{color:var(--mint)}
 .native-lead-actions{display:flex;gap:9px;flex-wrap:wrap}.native-lead-actions button{padding:9px 12px;font-size:11px}
 .native-lead-strip label{font:700 11px ui-monospace,monospace;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
 .native-lead-strip input{width:100%;accent-color:#a6e7ca}.native-lead-strip small{color:#bad3c8;font-size:11px}
+.jazz-drum-deck{margin:16px 0;padding:18px;background:#292332;border:1px solid #b594bd;border-radius:15px}
+.jazz-drum-controls{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.jazz-drum-controls>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.jazz-drum-controls label{font:700 11px ui-monospace,monospace}
+.jazz-drum-controls input{width:100%;accent-color:#d7bdf2}
+.jazz-drum-controls textarea{min-height:82px;background:#16131f;color:#fdf3ec;border:1px solid #a78eb8;border-radius:8px;padding:10px;font:12px/1.5 ui-monospace,monospace}
+.jazz-drum-controls small{color:#d0c2d7;font-size:11px}
+@media(max-width:680px){.jazz-drum-controls{grid-template-columns:1fr}}
+.instrument-source{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:7px 0;padding:8px 10px;border:1px solid #80b6a2;border-radius:8px;background:#1e2f2b}
+.instrument-source strong{font-size:11px}
+.instrument-source button{padding:7px 11px;font-size:11px}
+.instrument-source .subtle{font-size:11px}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -256,7 +268,7 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
 <small class="subtle">One rhythm + loop clock · changes on next 2-bar boundary</small></div>
-<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><small class="subtle">Drum MIDI and local audition. AI ONLY mutes local drums while preserving the shared clock.</small></div>
+<div class="strip"><div class="strip-header"><strong>🥁 RHYTHM</strong><span id="rhythmLevelNumber" class="stat">35%</span></div><input id="rhythmLevel" aria-label="Rhythm volume" type="range" min="0" max="100" value="35"><button id="rhythmAudio" type="button" aria-pressed="true">🥁 HEAR LOCAL RHYTHM · ON</button><small class="subtle">Rhythm monitoring is separate from AI instrument sound. Use this with native Pyramid and Fishes. Global AI SOLO still mutes all browser sound.</small></div>
 <div class="strip drum-options">
  <label for="drumMeter">DRUM METER</label>
  <select id="drumMeter" aria-label="Local drum meter grouping">
@@ -294,17 +306,14 @@ a{color:var(--mint)}
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
  <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, Fishes classical guitar, and brushed jazz drums. Live blending uses the same native engine.</p>
- <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
+ <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · native instrument selected. Start Magenta or explicitly choose LOCAL SYNTH.</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
- <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiDrums" aria-pressed="false" type="button" title="Allow Google MRT2 to create percussion as AI audio. Does not output individual drum MIDI notes.">🥁 ALLOW AI DRUM AUDIO</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
+ <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button" title="Diagnostic PURE AI SOLO: mute the entire browser mix, including rhythm and vocal monitoring. Normal native instrument mode does not need this.">🎧 SOLO NATIVE AI · MUTE RHYTHM</button>
 <button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
- <div class="ai-faders"><div><label for="aiDrumMix">🥁 JAZZ DRUM AI BLEND · <span id="aiDrumMixValue">0%</span></label>
- <input type="range" id="aiDrumMix" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
- <small class="subtle">0% preserves all four existing prompts; turn up to crossfade live toward brushed jazz drums. AI ONLY keeps this native output audible. Not a captured beat-exact audio loop.</small></div>
- <div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
+ <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
@@ -319,13 +328,28 @@ a{color:var(--mint)}
 <textarea id="promptViolin" maxlength="500">Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals</textarea></div>
 <div><label for="promptGuitar">04 · WEIRD FISHES · MAGENTA CLASSICAL GUITAR LEAD</label>
 <textarea id="promptGuitar" maxlength="500">Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals</textarea></div>
-<div><label for="promptJazzDrums">05 · JAZZ DRUMS · BRUSHED JAZZ GROOVE</label>
-<textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea></div>
 </div>
 <div class="start"><span class="subtle">Restart only the native AI to apply edited text. You may need to select mrt2_small in Google's UI again. Existing browser loops stay intact.</span>
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
 </details>
 <div class="ai-state" id="aiDiagnostics">MRT2 model and output check starts with the server.</div>
+</section>
+<section id="jazzDrumDeck" class="jazz-drum-deck" aria-label="Track 03 jazz drums native AI instrument">
+ <div class="start">
+  <div><div class="tiny">TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05</div>
+  <h2>🥁 JAZZ DRUMS</h2>
+  <p class="subtle">Your fifth AI instrument. A living brushed-jazz percussion texture blended into the same Magenta stream. It is not a separate captured loop or stem.</p></div>
+  <button id="aiDrums" aria-pressed="false" type="button" title="Allow the Google MRT2 model to generate percussion audio; independent of the browser rhythm.">🥁 ALLOW AI DRUM AUDIO</button>
+ </div>
+ <div class="jazz-drum-controls">
+  <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
+   <input id="aiDrumMix" type="range" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
+   <small>0% keeps the original four AI instruments unchanged. Increase to blend in drums, or move to 100% to audition just the jazz drum prompt.</small></div>
+  <div><label for="promptJazzDrums">DRUM SOUND PROMPT · EDITABLE</label>
+   <textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea>
+   <button type="button" id="applyJazzDrumsPrompt">↻ APPLY DRUM SOUND · RESTART AI</button>
+   <small>Editing text needs a native AU restart; the blend slider and percussion toggle work live. The separate rhythm MIDI grid above remains independently playable.</small></div>
+ </div>
 </section>
 <section id="classicDecks" class="chord-center" aria-label="Playable chord pads and instruments"><div id="decks">
 <section class="deck selected" id="deck-pyramid" data-scene="pyramid" aria-label="Pyramid deck">
@@ -336,12 +360,17 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
+<div class="instrument-source" aria-label="pyramid instrument audio source">
+ <strong>INSTRUMENT AUDIO</strong>
+ <button id="instrumentSource-pyramid" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
+ <small id="instrumentSourceStatus-pyramid" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
+ </div>
 <div class="native-lead-strip" aria-label="pyramid Magenta sound prompt blend">
  <div class="native-lead-title">✦ MAGENTA AI · VIOLIN · PROMPT 03</div>
  <div class="native-lead-actions"><button id="aiChords-pyramid" type="button">🎹 CHORD PROMPT</button><button id="aiLead-pyramid" type="button">✦ VIOLIN PROMPT</button></div>
  <label for="aiLeadMix-pyramid">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-pyramid">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
- <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="pyramid optional local fallback instrument">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
@@ -383,12 +412,17 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
+<div class="instrument-source" aria-label="fishes instrument audio source">
+ <strong>INSTRUMENT AUDIO</strong>
+ <button id="instrumentSource-fishes" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
+ <small id="instrumentSourceStatus-fishes" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
+ </div>
 <div class="native-lead-strip" aria-label="fishes Magenta sound prompt blend">
  <div class="native-lead-title">✦ MAGENTA AI · CLASSICAL GUITAR · PROMPT 04</div>
  <div class="native-lead-actions"><button id="aiChords-fishes" type="button">🎹 CHORD PROMPT</button><button id="aiLead-fishes" type="button">✦ CLASSICAL GUITAR PROMPT</button></div>
  <label for="aiLeadMix-fishes">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-fishes">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
- <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="fishes optional local fallback instrument">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
@@ -575,7 +609,7 @@ let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=
 let vocalCaptureReady=false;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
-let localKeysOnly=false,preKeysSoloMuted=null;
+let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 let activeMicDeviceId=null,micMeterSource=null,micMeterAnalyser=null,micMeterTimer=null;
@@ -593,7 +627,7 @@ let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=fals
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
@@ -809,8 +843,20 @@ function exportDrumMidi(){
  link.click();URL.revokeObjectURL(url);
  $("drumMidiStatus").textContent="GM MIDI exported · "+drumLoopSteps()+" steps · "+bpm+" BPM · import into Logic";
 }
+function rhythmCanSound(){return rhythmAudioEnabled&&!aiSolo&&!localKeysOnly;}
+function updateRhythmAudio(){
+ const audible=rhythmCanSound(),button=$("rhythmAudio");
+ button.setAttribute("aria-pressed",String(rhythmAudioEnabled));
+ button.textContent=rhythmAudioEnabled?"🥁 HEAR LOCAL RHYTHM · ON":"🥁 LOCAL RHYTHM MUTED";
+ if(beatBus)beatBus.gain.value=audible?Number($("rhythmLevel").value)/100:0;
+}
+function toggleRhythmAudio(){
+ rhythmAudioEnabled=!rhythmAudioEnabled;
+ updateRhythmAudio();
+ tell(rhythmAudioEnabled?"Local rhythm monitor ON · native instruments unaffected.":"Local rhythm monitor OFF · drum clock and MIDI pattern keep running.");
+}
 function pulse(time,count){
- if(aiSolo)return; // Transport clock remains running; no browser drum audio.
+ if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
  const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
  // Three independent hits allow a custom MIDI groove to layer kick/snare/hat.
@@ -870,16 +916,41 @@ function releaseVoice(voice,time){
   vibrato?.stop(time+Math.max(.50,release*5));
  }catch{}
 }
+function localInstrumentAudible(which){
+ return !aiSolo&&(localKeysOnly||decks[which].instrumentSource==="local");
+}
+function nativeInstrumentEnabled(which){
+ return aiNativeReady&&!localKeysOnly&&(aiSolo||decks[which].instrumentSource==="ai");
+}
+function updateInstrumentSource(which){
+ const d=decks[which],button=$("instrumentSource-"+which),status=$("instrumentSourceStatus-"+which);
+ const isNative=d.instrumentSource==="ai";
+ button.setAttribute("aria-pressed",String(isNative));
+ button.textContent=isNative?"✦ NATIVE AI INSTRUMENT":"🎹 LOCAL SYNTH INSTRUMENT";
+ status.textContent=isNative?
+  (aiNativeReady?"GOOGLE MRT2 ONLY · no browser chord or lead synth. Local rhythm stays available.":
+  "WAITING FOR GOOGLE MRT2 · no fallback piano. Switch to LOCAL SYNTH to audition."):
+  "LOCAL SYNTH SOUND · not Google AI. Tap to return to native Magenta.";
+}
+function setInstrumentSource(which,source){
+ if(source!=="ai"&&source!=="local")return;
+ if(decks[which].instrumentSource===source)return;
+ releaseAllChords();
+ decks[which].instrumentSource=source;
+ updateInstrumentSource(which);updateMix();updateOverdubBalance();
+ tell(which.toUpperCase()+" "+(source==="ai"?"NATIVE AI ONLY · no local keyboard sound; rhythm remains separate.":"LOCAL SYNTH ON · native AI notes disabled for this song."));
+}
 function targetLoopGain(which){
  const d=decks[which],active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
- return localKeysOnly||!d.loopEnabled?0:
+ return localKeysOnly||!localInstrumentAudible(which)||!d.loopEnabled?0:
   Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
 }
 function updateOverdubBalance(){
  if(!ctx)return;
  for(const [which,d] of Object.entries(decks)){
   if(!d.liveBus||!d.loopBus)continue;
-  d.liveBus.gain.value=Number($("liveLevel").value)/100;
+  d.liveBus.gain.value=localInstrumentAudible(which)?Number($("liveLevel").value)/100:0;
+  if(d.leadBus)d.leadBus.gain.value=localInstrumentAudible(which)?Number($("leadLevel-"+which).value)/100:0;
   // Gate already ringing notes too when a performer stops a loop.
   d.loopBus.gain.value=targetLoopGain(which);
  }
@@ -891,7 +962,7 @@ function setInstrument(which,instrument){
 }
 async function auditionLead(which){
  try{
-  if(aiSolo)return tell("AI ONLY · local synth preview muted. Play the MIDI pads to steer native Magenta.");
+  if(!localInstrumentAudible(which))return tell("Native AI instrument selected · local synth audition muted. Play MIDI pads to steer Magenta.");
   await openAudio();
   choose(which);
   const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
@@ -922,7 +993,7 @@ function setLeadOctave(which,value){
 function setLeadLevel(which,value){
  const level=clamp(value,0,125);
  $("leadLevelValue-"+which).textContent=level+"%";
- if(decks[which].leadBus)decks[which].leadBus.gain.value=level/100;
+ if(decks[which].leadBus)decks[which].leadBus.gain.value=localInstrumentAudible(which)?level/100:0;
 }
 function updateKeyUI(which){
  const d=decks[which],n=d.transpose;
@@ -944,7 +1015,7 @@ function setKey(which,next,remember=true){
  ". Recorded MIDI transposes without changing the underlying notes. Voice and AI WAVs do not pitch-shift.");
 }
 function synth(which,index,time=ctx.currentTime+.01,quiet=false,holdSeconds=.85,instrument=decks[which].instrument){
- if(!ctx||aiSolo)return;
+ if(!ctx||!localInstrumentAudible(which))return;
  // Do not truncate a held recorded chord at the loop seam. Releasing a
  // sustained chord before its next repetition made it sound staccato.
  const notes=SCENES[which].notes[index],sec=Math.max(.08,holdSeconds);
@@ -1021,7 +1092,7 @@ async function toggleLocalKeysOnly(){
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
  updateMix();updateOverdubBalance();
- if(beatBus)beatBus.gain.value=localKeysOnly||aiSolo?0:Number($("rhythmLevel").value)/100;
+ updateRhythmAudio();
  tell(localKeysOnly?"LOCAL KEYS ONLY · AI, rhythm, vocal loops and overdubs temporarily silenced.":"Restored rhythm, loops and the previous Magenta mute setting.");
 }
 function updateBrowserOutputGain(){
@@ -1032,7 +1103,7 @@ function toggleAISolo(){
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
- updateBrowserOutputGain();updateMix();
+ updateBrowserOutputGain();updateMix();updateRhythmAudio();updateOverdubBalance();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
   "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
   "TRUE AI ONLY · browser audio MUTED. Native AI is not confirmed audible: check model, transport and mute."):
@@ -1040,6 +1111,7 @@ function toggleAISolo(){
 }
 function aiDisplay(s){
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
+ for(const which of Object.keys(decks))updateInstrumentSource(which);
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
  // Native AU exists in either mode. A click in bookmark mode switches the SAME
@@ -1272,18 +1344,20 @@ function beginChord(which,index,key){
  choose(which);
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
- if(!aiSolo)for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
- const h={which,index,voices,start,instrument,event:null};heldKeys.set(key,h);
+ if(localInstrumentAudible(which))for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
+ const native=nativeInstrumentEnabled(which);
+ const h={which,index,voices,start,instrument,native,event:null};heldKeys.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
   const step=Math.max(0,Math.min(255,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
   h.event={step,index,holdSteps:1,instrument};
   recording.events.push(h.event);
  }
- midi(which,index);aiNote(which,index);
+ // A pad must not double-trigger local synth, CoreMIDI/Logic and native AU.
+ if(native)aiNote(which,index);
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
- tell(SCENES[which].names[index]+" · "+INSTRUMENTS[instrument].name+" · LIVE");
+ tell(SCENES[which].names[index]+" · "+(native?"NATIVE GOOGLE AI":"LOCAL "+INSTRUMENTS[instrument].name)+" · LIVE");
 }
 function endChord(key){
  const h=heldKeys.get(key);if(!h)return;
@@ -1302,7 +1376,7 @@ function endChord(key){
    el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
- if(!heldKeys.size){midiRelease();aiRelease();}
+ if(h.native&&![...heldKeys.values()].some(other=>other.native))aiRelease();
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
 function beginNote(midi,key){
@@ -1310,14 +1384,14 @@ function beginNote(midi,key){
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
  const playedMidi=midi+d.leadOctave;
- const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;
- const voice=(nativeLead||aiSolo)?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
- const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
+ const native=nativeInstrumentEnabled(scene);
+ const voice=localInstrumentAudible(scene)?makeVoice(scene,playedMidi,start,instrument,.14,true,"lead"):null;
+ const h={voice,midi:playedMidi,scene,start,instrument,native,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi:playedMidi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
  }
- aiMelody(playedMidi,true);
+ if(native)aiMelody(playedMidi,true);
  document.querySelectorAll(".note-pad").forEach(el=>{if(Number(el.dataset.note)===midi)el.classList.add("on")});
 }
 function endNote(key){
@@ -1327,7 +1401,7 @@ function endNote(key){
  const attack=INSTRUMENTS[h.instrument]?.attack??.028;
  if(h.voice)releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-(h.captureStart??h.start))/tickSeconds()));
- aiMelody(h.midi,false);
+ if(h.native)aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
   if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
  });
@@ -1479,12 +1553,14 @@ function schedule(time,count){
        const pitch=e.midi;
        const start=time,heldSec=recordedNoteHoldSeconds(which,e);
        const nativeHoldSec=Math.max(.12,(e.holdSteps??1)*tickSeconds());
-       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
-       releaseVoice(voice,start+heldSec);
-       if(aiNativeReady){
+       if(localInstrumentAudible(which)){
+        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
+        releaseVoice(voice,start+heldSec);
+       }
+       if(nativeInstrumentEnabled(which)){
         const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
         setTimeout(()=>{
-         if(!aiNativeReady||revision!==seekRevision)return;
+         if(!nativeInstrumentEnabled(which)||revision!==seekRevision)return;
          aiMelody(pitch,true);
          setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},nativeHoldSec*1000);
         },wait);
@@ -1493,10 +1569,10 @@ function schedule(time,count){
       }
       synth(which,e.index,time,true,recordedNoteHoldSeconds(which,e),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
-      if(aiNativeReady){
+      if(nativeInstrumentEnabled(which)){
        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
        setTimeout(()=>{
-        if(!aiNativeReady||revision!==seekRevision||heldKeys.size)return;
+        if(!nativeInstrumentEnabled(which)||revision!==seekRevision||heldKeys.size)return;
         aiNote(which,e.index);
         setTimeout(()=>{if(revision===seekRevision&&!heldKeys.size)aiRelease();},
           Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
@@ -2069,7 +2145,7 @@ function updateMix(){
  for(const k of Object.keys(decks)){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
-  decks[k].bus.gain.value=(aiSolo?0:level*side);
+  decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
   decks[k].voiceBus.gain.value=localKeysOnly||aiSolo?0:Number($("voice-"+k).value)/100*side;
  }
 }
@@ -2239,6 +2315,8 @@ trackView=new window.SuzyTrackView({
  onRemove:removeSongLayer
 });
 $("rhythm").onclick=startStop;
+$("rhythmAudio").onclick=toggleRhythmAudio;
+updateRhythmAudio();
 $("timelinePlay").onclick=()=>{if(!stageStarted)startStop();};
 $("timelineStop").onclick=()=>timelineStop().catch(warn);
 $("timelineRewind").onclick=()=>timelineRewind().catch(warn);
@@ -2263,6 +2341,8 @@ $("mixBoth").onclick=()=>{
  tell(blendBoth?"Both song loops play together. Each has its own sounds and key.":"Song crossfade follows the selected track.");
 };
 for(const which of Object.keys(decks)){
+ $("instrumentSource-"+which).onclick=()=>setInstrumentSource(which,decks[which].instrumentSource==="ai"?"local":"ai");
+ updateInstrumentSource(which);
  $("instrument-"+which).onchange=e=>setInstrument(which,e.target.value);
  $("lead-"+which).onchange=e=>setLead(which,e.target.value);
  $("leadOctave-"+which).onchange=e=>setLeadOctave(which,e.target.value);
@@ -2348,6 +2428,7 @@ $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
 $("aiDrumMix").oninput=()=>{$("aiDrumMixValue").textContent=$("aiDrumMix").value+"%";};
 $("aiDrumMix").onchange=()=>setNativeDrumBlend($("aiDrumMix").value);
+$("applyJazzDrumsPrompt").onclick=applyPrompts;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
@@ -2357,7 +2438,7 @@ $("drumVariation").onclick=varyDrumPattern;
 $("drumMidiExport").onclick=exportDrumMidi;
 $("drumMidiReset").onclick=()=>{customDrumHits=null;renderDrumMidiGrid();$("drumMidiStatus").textContent="DRUM MIDI RESET · editable preset pattern";};
 renderDrumMidiGrid();
-$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";if(beatBus)beatBus.gain.value=localKeysOnly||aiSolo?0:val/100};
+$("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";updateRhythmAudio();};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";updateBrowserOutputGain();};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
 function updateRoomFx(){
