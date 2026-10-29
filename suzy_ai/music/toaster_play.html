@@ -336,6 +336,13 @@ body{padding-top:86px}
 .pedal-clock[data-cue="count"] #pedalCueBig{background:#f8d69c;color:#402a22}
 .pedal-clock[data-cue="go"]{background:#3b3d1c;border-color:#ffe193;box-shadow:0 5px 28px #ffc85170}
 .pedal-clock[data-cue="go"] #pedalCueBig{background:#fff79d;color:#382308;animation:pedal-go-pulse .32s ease-in-out infinite alternate}
+.native-harmony-selector{display:grid;gap:7px;margin:11px 0;padding:10px;border:1px solid #6b9e99;border-radius:10px;background:#152728}
+.native-harmony-label{font:800 10px ui-monospace,monospace;color:#b7edde;letter-spacing:.04em}
+.native-harmony-row{display:grid;grid-template-columns:104px repeat(4,minmax(0,1fr));gap:5px;align-items:stretch}
+.native-harmony-row strong{font:800 11px ui-monospace,monospace;color:#e5e6d4;align-self:center}
+.native-harmony-pad{min-width:0;padding:9px 4px;border:1px solid #6d9b92;background:#345b53;color:#e6fff0;border-radius:8px;font:800 12px ui-monospace,monospace;touch-action:none}
+.native-harmony-pad.on{background:#fff0ad;color:#413622;box-shadow:0 0 10px #ffe9ac60}
+@media(max-width:650px){.native-harmony-row{grid-template-columns:76px repeat(4,minmax(0,1fr));gap:3px}.native-harmony-pad{font-size:10px;padding:8px 2px}}
 .pedal-clock[data-cue="recording"] #pedalCueBig{background:#ffc0b8;color:#54232c}
 @keyframes pedal-go-pulse{from{transform:scale(1)}to{transform:scale(1.09)}}
 .pedal-beats{display:flex;gap:5px}
@@ -562,6 +569,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE</button>
   <button type="button" id="nativeResume-pyramid-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-chords">PRESET · Recording automatically activates the piano prompt</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-chords" aria-label="pyramid chords instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
@@ -570,6 +578,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-pyramid-lead">● RECORD VIOLIN TAKE</button>
   <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-lead">PRESET · Recording automatically activates the violin prompt</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-lead" aria-label="pyramid lead instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureLow" aria-label="low cello drone audio layers">
@@ -579,6 +588,7 @@ body{padding-top:86px}
    <button type="button" id="nativeRecord-pyramid-textureLow">● RECORD CELLO TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureLow" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-textureLow">PRESET · Record to add a cello texture to Pyramid</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-textureLow" aria-label="pyramid textureLow instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-textureLow"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureHigh" aria-label="glassy mallet and harp audio layers">
@@ -588,6 +598,7 @@ body{padding-top:86px}
    <button type="button" id="nativeRecord-pyramid-textureHigh">● RECORD GLASS TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureHigh" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-textureHigh">PRESET · Record to add glass harmonics to Pyramid</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-textureHigh" aria-label="pyramid textureHigh instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-textureHigh"></div>
  </section>
  </div>
@@ -664,6 +675,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-fishes-chords">● RECORD ARPEGGIOS TAKE</button>
   <button type="button" id="nativeResume-fishes-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
+  <div class="native-harmony-selector" id="nativeChords-fishes-chords" aria-label="fishes chords instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-fishes-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
@@ -672,6 +684,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-fishes-lead">● RECORD CLASSICAL GUITAR TAKE</button>
   <button type="button" id="nativeResume-fishes-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="native-harmony-selector" id="nativeChords-fishes-lead" aria-label="fishes lead instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-fishes-lead"></div>
  </section>
  </div>
