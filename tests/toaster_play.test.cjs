@@ -119,7 +119,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/PLAY RHYTHM/);
  assert.match(file,/13-note|CHROMATIC/);
  assert.match(file,/id="tempo"/);
- assert.match(file,/TRACK 01/);
+ assert.match(file,/ONE LIVE SONG/);
  assert.match(file,/TRACK 02/);
  assert.match(file,/RECORD FIRST LOOP/);
  assert.match(file,/LOOP VOICE/);
@@ -2119,6 +2119,88 @@ test("voice DONE automatically begins endlessly repeating its first PCM phrase",
  assert.ok(layer.gain.gain.value>0);
  assert.equal(run("decks.pyramid.pedalPeriodSeconds"),layer.buffer.duration);
  assert.match(get("loopToggle-pyramid").textContent,/STOP LOOP/);
+});
+
+test("Pyramid Orbit keeps the original track and opens two additional real audio loop boxes",()=>{
+ for(const id of ["nativeRecord-pyramid-chords","nativeRecord-pyramid-lead",
+                  "nativeRecord-pyramid-textureLow","nativeResume-pyramid-textureLow",
+                  "nativeClips-pyramid-textureLow","nativeRecord-pyramid-textureHigh",
+                  "nativeResume-pyramid-textureHigh","nativeClips-pyramid-textureHigh",
+                  "voiceClips-pyramid","nativeRecord-drums-drums","legacyTrackTwo"]){
+  assert.match(file,new RegExp('id="'+id+'"'));
+ }
+ assert.match(file,/F♯ → Gmaj7 → A6 → F♯/);
+ assert.match(file,/LOW CELLO \/ HARMONIUM/);
+ assert.match(file,/GLASS BELLS \/ HARP/);
+ assert.match(file,/ARCHIVED TRACK 02/);
+ assert.match(file,/no Fishes chord progression/i);
+ assert.match(javascript,/function nativeTextureMix\(\)/);
+});
+test("cello and glass prompt recordings become two independently removable Pyramid layers, never a second song",async()=>{
+ const {run,get,env,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.anchorStep=0;decks.pyramid.lengthSteps=8;decks.pyramid.layers.push({id:"master-piano",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,96000,48000),level:.8,muted:false});startLoopAudio("pyramid",decks.pyramid.layers[0]);renderClips("pyramid")');
+ const originalSource=run("decks.pyramid.layers[0].source");
+ const originalBuffer=run("decks.pyramid.layers[0].buffer");
+ const commands=[];let n=0;
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(opts?.body)commands.push({op,payload:JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"orbit-"+(++n)})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:96000,peak:.4,audio_url:"/api/ai/capture/"+JSON.parse(opts.body).id})};
+  if(u.startsWith("/api/ai/capture/"))return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ for(const role of ["textureLow","textureHigh"]){
+  await run('startNativeInstrumentTake("pyramid",'+JSON.stringify(role)+')');
+  assert.equal(run("nativeTake.which"),"pyramid");
+  assert.equal(run("nativeTake.role"),role);
+  assert.equal(run("nativeTake.first"),false);
+  await run("finishNativeInstrumentTake()");
+  assert.equal(run("nativeTake"),null);
+  assert.equal(run("decks.pyramid.layers.at(-1).instrumentRole"),role);
+  assert.equal(run("decks.pyramid.layers.at(-1).kind"),"printed");
+  assert.equal(run("decks.fishes.layers.length"),0,"never record into old second song");
+  assert.equal(get("nativeClips-pyramid-"+role).children.length,1);
+  assert.match(get("nativeResume-pyramid-"+role).textContent,/STOP SAVED/);
+ }
+ assert.equal(run("decks.pyramid.layers.length"),3);
+ assert.equal(run("decks.pyramid.layers[0].source"),originalSource,"original playing source is unchanged");
+ assert.equal(run("decks.pyramid.layers[0].buffer"),originalBuffer,"original PCM was not edited");
+ assert.ok(commands.some(x=>x.op==="lead-mix"&&x.payload.scene==="fishes"&&x.payload.value===0));
+ assert.ok(commands.some(x=>x.op==="lead-mix"&&x.payload.scene==="fishes"&&x.payload.value===1));
+ assert.ok(commands.some(x=>x.op==="mix"&&x.payload.value===1));
+ assert.equal(get("mix").value,"0","global Pyramid crossfader remains untouched");
+ assert.equal(calls.screenCaptures,0);
+ get("nativeClips-pyramid-textureLow").children[0].children.find(x=>x.textContent==="×").onclick();
+ assert.equal(run('decks.pyramid.layers.filter(l=>l.instrumentRole==="textureLow").length'),0);
+ assert.equal(run('decks.pyramid.layers.filter(l=>l.instrumentRole==="textureHigh").length'),1);
+ assert.equal(run("decks.pyramid.layers[0].buffer"),originalBuffer);
+});
+test("Pyramid pads steer selected cello and glass prompts with exact F-sharp, Gmaj7, A6 MIDI notes",async()=>{
+ const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  const u=String(url),op=u.split("/").pop();
+  if(opts?.body)commands.push({op,payload:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ await run('selectNativeLane("pyramid","textureHigh")');
+ assert.equal(run("activePyramidTextureRole"),"textureHigh");
+ assert.equal(run("aiScene"),"fishes");
+ assert.equal(run("scene"),"pyramid","the original keyboard is still the Pyramid keyboard");
+ run('beginChord("pyramid",0,"key:orbit")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ const notes=commands.filter(x=>x.op==="note").map(x=>x.payload.note);
+ assert.deepEqual(notes.slice(-4),[54,58,61,66],"F sharp chord is sent exactly, not Fishes Em7");
+ assert.ok(!commands.some(x=>x.op==="chord"),"old Fishes chord presets never sneak into a new texture");
+ run('endChord("key:orbit")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(commands.filter(x=>x.op==="note-off").length>=4,"no stuck chord notes after release");
+ await run('selectNativeLane("pyramid","chords")');
+ assert.equal(run("activePyramidTextureRole"),null);
+ assert.equal(run("aiScene"),"pyramid");
 });
 
 test("first Magenta jazz drum recording behaves as an endless free-running BOSS pedal",async()=>{
