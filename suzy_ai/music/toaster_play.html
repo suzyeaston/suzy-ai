@@ -1206,7 +1206,12 @@ async function toggleAIDrums(){
  $("aiDrums").textContent=aiDrumsAllowed?"🥁 AI DRUM AUDIO ALLOWED":"🥁 ALLOW AI DRUM AUDIO";
  if(aiNativeReady){
   try{const status=await aiFetch("drums",{value:aiDrumsAllowed});aiDisplay(status);}
-  catch(e){aiDrumsAllowed=!aiDrumsAllowed;warn(e);aiDisplay({phase:"host-running",audio_engine_running:true,scene});}
+  catch(e){
+   aiDrumsAllowed=!aiDrumsAllowed;
+   $("aiDrums").setAttribute("aria-pressed",String(aiDrumsAllowed));
+   $("aiDrums").textContent=aiDrumsAllowed?"🥁 AI DRUM AUDIO ALLOWED":"🥁 ALLOW AI DRUM AUDIO";
+   warn(e);return;
+  }
  }
  tell(aiDrumsAllowed?"Magenta may generate its own percussion AUDIO. The step grid remains independent GM MIDI.":"Magenta's drum filter requested. Editable GM MIDI drums are still available.");
 }
