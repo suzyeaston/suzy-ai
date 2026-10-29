@@ -1834,7 +1834,7 @@ test("Scarlett voice overdub stays on master period even when DONE is pressed ea
  assert.equal(get("voiceClips-pyramid").children.length,1);
 });
 
-test("selecting Fishes classical guitar actually exposes its native audio and unmutes the correct browser lane",async()=>{
+test("selecting Fishes classical guitar preserves manual crossfade while preparing the native prompt",async()=>{
  const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
  const seen=[];env.fetch=async(url,opts)=>{
   if(String(url).startsWith("/api/ai/"))seen.push([String(url).split("/").pop(),JSON.parse(opts.body)]);
@@ -1842,11 +1842,11 @@ test("selecting Fishes classical guitar actually exposes its native audio and un
  };
  await run('selectNativeLane("fishes","lead")');
  assert.equal(get("mix").value,"0","selecting classical guitar must NEVER snap the DJ crossfader");
- assert.ok(run("decks.fishes.printBus.gain.value")>0);
+ assert.equal(run("decks.fishes.printBus.gain.value"),0,"Fishes saved layers stay down until performer fades across");
  assert.ok(seen.some(([op,p])=>op==="lead-mix"&&p.scene==="fishes"&&p.value===1));
  assert.ok(seen.some(([op,p])=>op==="drums"&&p.value===false));
  assert.ok(seen.some(([op,p])=>op==="drum-mix"&&p.value===0));
- assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===1));
+ assert.ok(seen.some(([op,p])=>op==="mix"&&p.value===0),"preparing Fishes does not override Pyramid crossfade");
 });
 test("the first native violin take can establish the master phrase without a MIDI foundation",async()=>{
  const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
@@ -1870,7 +1870,7 @@ test("the first native violin take can establish the master phrase without a MID
  assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
 });
 
-test("choosing the Fishes voice box makes its recorded audio audible through the top mixer",async()=>{
+test("choosing the Fishes voice box leaves the manual DJ mix unchanged",async()=>{
  const {run,get}=rig();await run("startStop()");
  assert.equal(get("mix").value,"0");
  await run('voiceLoop("fishes")');
@@ -1921,7 +1921,7 @@ test("DJ transition lasts four bars and can be interrupted instantly by the manu
  run("ctx.currentTime+=("+duration+"/2);updateSongTransition()");
  const halfway=Number(get("mix").value);
  assert.ok(halfway>=45&&halfway<=55,"musical crossfade is halfway at half the duration");
- run('ctx.currentTime+=.1;get("mix").value="25";get("mix").oninput()');
+ run('ctx.currentTime+=.1;$("mix").value="25";$("mix").oninput()');
  assert.equal(run("transition"),null,"manual performance input owns the mixer immediately");
  assert.equal(get("mix").value,"25");
  assert.equal(get("transitionCancel").disabled,true);
