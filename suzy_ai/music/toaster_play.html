@@ -1661,7 +1661,16 @@ async function aiStatus(){
   const wasReady=aiNativeReady;
   const s=await r.json();aiDisplay(s);
   if(aiNativeReady&&!wasReady){await syncAIMix();aiScene=s.scene||"pyramid";}
-  if(aiNativeReady&&s.scene!==scene)await aiFetch("scene",{scene});
+  // The cello/harp sound uses the Fishes MIDI scene for its native AU
+  // prompt slots while recording INTO Pyramid. Never let a 1s status poll
+  // overwrite the active instrument or interrupt an armed/live capture.
+  if(aiNativeReady&&!nativeTake&&!nativeTakeArming){
+   const targetScene=nativeTextureScene(scene);
+   if(s.scene!==targetScene){
+    await aiFetch("scene",{scene:targetScene});
+    aiScene=targetScene;
+   }
+  }
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
 }
 function getPromptStrings(){
@@ -2884,6 +2893,11 @@ function updateNativeLaneControls(){
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ // RECORD TAKE selects an instrument, not only a sound. The previous piano
+ // chord row used to remain active after switching to cello/violin, so Z/X/C
+ // routed back to piano and was rejected by the active native take guard.
+ if(activeChordLane&&(activeChordLane.which!==which||activeChordLane.role!==role))
+  activeChordLane=null;
  chordAuditionScene=which==="drums"?null:which; // selected native timbre wins over archived crossfade
  if(which==="pyramid"&&(role==="textureLow"||role==="textureHigh")){
   if(aiSolo)toggleAISolo();
