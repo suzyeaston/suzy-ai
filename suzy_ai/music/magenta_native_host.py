@@ -42,6 +42,7 @@ ACTIONS = {
     "capture-status": frozenset({"id"}),
     "capture-stop": frozenset({"id", "live_loop", "preroll_seconds", "period_seconds"}),
     "loop-mute": frozenset({"id", "value"}),
+    "loop-volume": frozenset({"id", "value"}),
     "loop-remove": frozenset({"id"}),
 }
 CAPTURE_ID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
