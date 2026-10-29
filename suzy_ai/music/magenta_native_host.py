@@ -33,14 +33,16 @@ ACTIONS = {
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
     "drums": frozenset({"value"}),
-    "chord": frozenset({"index"}),
+    "chord": frozenset({"index", "harmony"}),
     "tempo": frozenset({"bpm"}),
     "note": frozenset({"note"}),
     "note-off": frozenset({"note"}),
     "release": frozenset(),
     "capture-start": frozenset({"seconds"}),
     "capture-status": frozenset({"id"}),
-    "capture-stop": frozenset({"id"}),
+    "capture-stop": frozenset({"id", "live_loop", "preroll_seconds", "period_seconds"}),
+    "loop-mute": frozenset({"id", "value"}),
+    "loop-remove": frozenset({"id"}),
 }
 CAPTURE_ID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
 CAPTURE_DIR = ROOT / ".build" / "toaster-native-captures"
