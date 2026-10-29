@@ -382,6 +382,7 @@ body{padding-top:86px}
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
+<label class="native-loop-option"><input type="checkbox" id="nativeMemoryLoop" checked> ⚡ NATIVE LIVE LOOPING · direct Mac playback; WAV fallback available</label>
 <div class="pedal-clock" id="pedalClock" role="group" data-cue="ready" aria-label="Floating live beat clock and recording count-in. Stays visible when scrolling.">
  <strong id="pedalClockState">○ WAITING FOR RHYTHM</strong>
  <strong id="pedalCueBig" aria-live="polite">WAIT</strong>
@@ -867,6 +868,7 @@ let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,vocalArming=null,audioPrint=null,nativeTake=null,nativeTakeArming=null;
+const preferNativeMemoryLoop=()=>!$("nativeMemoryLoop")||$("nativeMemoryLoop").checked;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false,monitorPreparing=null;
@@ -2019,10 +2021,22 @@ function songLayerAudible(which,layer,bar){
 // Re-enable an already-running audio loop on the next rendering block instead
 // of waiting up to one bar. The source keeps its phase, so other layers remain
 // synchronized. We never restart the generator or request a new recording.
+function nativeMemoryGain(which,layer){
+ return songLayerAudible(which,layer,Math.floor(stepNumber/8))?
+  Math.max(0,Math.min(1,Number(layer.level??.8))):0;
+}
+function setNativeMemoryGain(which,layer){
+ if(!layer?.nativeLive||!layer.nativeLoopID)return;
+ const value=nativeMemoryGain(which,layer);
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(aiNativeReady)await aiFetch("loop-volume",{id:layer.nativeLoopID,value});
+ }).catch(warn);
+}
 function applyLoopGateNow(which){
  if(!ctx)return;
  const now=ctx.currentTime,at=now+.012,d=loopDeck(which);
  for(const layer of d.layers){
+  if(layer.nativeLive){setNativeMemoryGain(which,layer);continue;}
   if(!layer.buffer)continue;
   if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
   if(!layer.gain)continue;
@@ -2040,7 +2054,7 @@ function applyLoopGateNow(which){
  }
 }
 function nativeSavedLayers(which,role){
- return loopDeck(which).layers.filter(l=>l.buffer&&l.instrumentRole===role);
+ return loopDeck(which).layers.filter(l=>(l.buffer||l.nativeLive)&&l.instrumentRole===role);
 }
 function updateNativePlaybackButtons(){
  const pairs=[...Object.keys(decks).flatMap(which=>[["chords",which],["lead",which]]),
@@ -2167,6 +2181,7 @@ function schedule(time,count){
   if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
    d.loopEnabled=d.loopToggleTarget;
    d.loopToggleAt=null;d.loopToggleTarget=null;
+   for(const layer of d.layers)if(layer.nativeLive)setNativeMemoryGain(which,layer);
    if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
     aiRelease(aiChordOwner.token);
    if(d.loopBus)d.loopBus.gain.setValueAtTime(targetLoopGain(which),time);
@@ -2738,7 +2753,9 @@ async function startNativeInstrumentTake(which,role){
   if(!stageStarted)throw Error("Rhythm paused while preparing native recording. Press Play and try again.");
   const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
-  const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
+  const period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
+  // Overdub must include the wait until existing beat one plus a full pass.
+  const seconds=first?120:Math.min(120,period*2+1);
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
   const responseAt=ctx.currentTime;
@@ -2748,7 +2765,8 @@ async function startNativeInstrumentTake(which,role){
   const capturedAt=(requestAt+responseAt)*.5;
    // Arm the native capture BEFORE the next true bar one. Only samples
    // recorded after the visible beat-one cue become part of the loop.
-   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):loopMasterOrigin(which);
+   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):
+    loopMasterOrigin(which)+Math.ceil(Math.max(0,responseAt+.15-loopMasterOrigin(which))/period)*period;
    const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
    take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
          beginStep,seconds,finishing:false,timer:null};
