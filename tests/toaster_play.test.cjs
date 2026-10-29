@@ -1819,3 +1819,22 @@ test("native loop capture must not claim success when host has no AU audio tap",
  assert.match(get("nativeStatus-fishes-lead").textContent,/Rebuild the TOASTER Magenta host/);
  assert.equal(calls.screenCaptures,0);
 });
+
+test("Scarlett voice overdub stays on master period even when DONE is pressed early",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=24;decks.pyramid.anchorStep=0');
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.first"),false);
+ const frames=run("recording.processor.opts.processorOptions.frames");
+ const firstStep=run("recording.firstStep");
+ run("stepNumber="+(firstStep+5)+";ctx.currentTime=transportEpoch+stepNumber*tickSeconds()");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.finishQueued"),true);
+ assert.equal(run("recording.actualSteps"),5);
+ const worklet=calls.worklet;
+ worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames:Math.round(5*30/105*48000),peak:.12,hot:0,missing:0}});
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames,"shorter vocal take padded to full song cycle");
+ assert.equal(run("decks.pyramid.layers[0].bars"),3,"24 eighth steps remain the master period");
+ assert.equal(get("voiceClips-pyramid").children.length,1);
+});
