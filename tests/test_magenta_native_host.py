@@ -114,7 +114,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('case "transport-pause":', source)
         self.assertIn('transportPlaying.store(false, ordering: .relaxed)', source)
         self.assertIn('"transport_playing"', source)
-        self.assertIn('"native_loop_capture_supported": false', source)
+        self.assertIn('"native_loop_capture_supported": generator != nil && engine?.isRunning == true', source)
         from suzy_ai.music.magenta_native_host import ACTIONS
         self.assertEqual(ACTIONS["transport-play"], frozenset())
         self.assertEqual(ACTIONS["transport-pause"], frozenset())
