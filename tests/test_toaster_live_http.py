@@ -333,7 +333,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'function drumPattern(count)',
                        'function setDrumGroove(meter=drumMeter,style=drumStyle)',
                        'const playedMidi=midi+d.leadOctave;',
-                       'const voice=nativeLead?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
+                       'const voice=localInstrumentAudible(scene)?makeVoice(scene,playedMidi,start,instrument,.14,true,"lead"):null;',
                        'DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6})'):
             self.assertIn(marker, page)
         # The same 4/4 recording bar lengths remain intentional.
@@ -378,7 +378,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'id="aiLead-pyramid"', 'id="aiLead-fishes"',
                        'function setNativeLeadMix(which,percent)',
                        'await aiFetch("lead-mix",{scene:which,value:value/100})',
-                       'const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;',
+                       'const native=nativeInstrumentEnabled(scene);',
                        'CHORDS 100% · LEAD 0%',
                        'One MRT2 Small model, five genuine Google AU sound prompts'):
             self.assertIn(marker, page)
@@ -386,6 +386,23 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('Enter five AI prompts', page)
         self.assertIn('await aiFetch("drum-mix",{value:value/100})', page)
         self.assertIn('JAZZ DRUM AI BLEND', page)
+
+    def test_visible_jazz_drums_and_independent_native_instrument_routing(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for marker in ('id="jazzDrumDeck"', 'id="aiDrumMix"',
+                       'id="promptJazzDrums"', 'id="applyJazzDrumsPrompt"',
+                       'id="rhythmAudio"', 'id="instrumentSource-pyramid"',
+                       'id="instrumentSource-fishes"',
+                       'function localInstrumentAudible(which)',
+                       'function nativeInstrumentEnabled(which)',
+                       'function toggleRhythmAudio()',
+                       'if(native)aiNote(which,index);',
+                       'if(!rhythmCanSound())return;'):
+            self.assertIn(marker, page)
+        self.assertIn('instrumentSource:"ai"', page)
+        self.assertNotIn('midi(which,index);aiNote(which,index);', page)
+        self.assertLess(page.index('id="jazzDrumDeck"'), page.index('id="deck-pyramid"'))
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
