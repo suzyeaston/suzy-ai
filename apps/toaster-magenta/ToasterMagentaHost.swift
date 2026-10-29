@@ -84,9 +84,9 @@ final class MRT2Host {
     private var hostTransportSupplied = false
     private var prompts = [
         "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
-        "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
+        "Low expressive bowed cello, soft harmonium drone and warm sustained strings, intimate chamber music, suspended art-rock atmosphere, sparse slow-moving notes, stable F sharp tonal centre with G major seventh and A sixth harmonic colour, gentle imperfect bow texture, no drums, no bright guitar, no vocals",
         "Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals",
-        "Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals",
+        "Sparse glassy celesta and delicate harp harmonics, soft struck-bell overtones, high intimate plucked notes, drifting spacious tape echoes, suspended F sharp centre with Gmaj7 and A6 colour tones, gentle unresolved experimental chamber ambience, no fixed new chord progression, no rhythm section, no vocals",
         "Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals",
     ]
     private let chords: [String: [[UInt8]]] = [
