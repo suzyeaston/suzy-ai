@@ -278,7 +278,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'monitorDry.connect(mainBus)',
                        'monitorSend.connect(verb)',
                        'const firstStep=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()))',
-                       'arrStartBar:Math.max(0,Math.floor(take.firstStep/8))',
+                       'loopOriginStep:d.anchorStep,arrStartBar:0',
                        'function toggleLocalKeysOnly()',
                        'onAction:({action,selected,target,clipboard})',
                        'sourceOffsetBars:(layer.sourceOffsetBars||0)+(splitBar-start)'):
@@ -473,7 +473,7 @@ if __name__=="__main__":
             'function setSongEnabled(which)', 'function queueNativeSongMix()',
             'take.actualSteps=endStep-take.firstStep',
             'processor.port.postMessage({type:"finish"',
-            'loopOriginStep:take.firstStep', 'await findDevices();',
+            'loopOriginStep:d.anchorStep', 'await findDevices();',
         ):
             self.assertIn(literal, page)
         self.assertIn('class="song-lead-panel" aria-label="pyramid optional local fallback instrument" hidden', page)
