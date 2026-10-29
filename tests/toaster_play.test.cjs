@@ -1403,7 +1403,7 @@ test("native loop pedal STOP explicitly releases a tied chord; other song and rh
 test("live view replaces huge full arrangement with visible record full set controls",()=>{
  const {get}=rig();
  assert.match(file,/<section class="full-arrangement" id="fullArrangement" hidden aria-hidden="true"/);
- assert.match(file,/#fullArrangement\\[hidden\\]\\{display:none!important\\}/);
+ assert.ok(file.includes("#fullArrangement[hidden]{display:none!important}"));
  assert.doesNotMatch(file,/href="#fullArrangement"/);
  assert.match(file,/id="setRecordStart"/);
  assert.match(file,/id="setRecordStop" disabled/);
@@ -1431,7 +1431,7 @@ test("record full set captures genuine Mac system audio PLUS Scarlett into one a
  assert.match(get("setRecordStatus").textContent,/MAC AUDIO VERIFIED/);
  run("stopSetRecording()");
  for(let i=0;i<5;i++)await new Promise(resolve=>setImmediate(resolve));
- assert.match(calls.download.filename,/SUZY_TOASTER_FULL_SET.*\\.m4a$/);
+ assert.ok(calls.download.filename.startsWith("SUZY_TOASTER_FULL_SET_")&&calls.download.filename.endsWith(".m4a"));
  assert.match(get("setRecordStatus").textContent,/SET SAVED/);
  assert.equal(get("setRecordStart").disabled,false);
 });
