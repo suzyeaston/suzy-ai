@@ -306,7 +306,7 @@ a{color:var(--mint)}
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
  <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, Fishes classical guitar, and brushed jazz drums. Live blending uses the same native engine.</p>
- <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
+ <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · native instrument selected. Start Magenta or explicitly choose LOCAL SYNTH.</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button" title="Diagnostic PURE AI SOLO: mute the entire browser mix, including rhythm and vocal monitoring. Normal native instrument mode does not need this.">🎧 SOLO NATIVE AI · MUTE RHYTHM</button>
 <button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
@@ -370,7 +370,7 @@ a{color:var(--mint)}
  <div class="native-lead-actions"><button id="aiChords-pyramid" type="button">🎹 CHORD PROMPT</button><button id="aiLead-pyramid" type="button">✦ VIOLIN PROMPT</button></div>
  <label for="aiLeadMix-pyramid">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-pyramid">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
- <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="pyramid optional local fallback instrument">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
@@ -422,7 +422,7 @@ a{color:var(--mint)}
  <div class="native-lead-actions"><button id="aiChords-fishes" type="button">🎹 CHORD PROMPT</button><button id="aiLead-fishes" type="button">✦ CLASSICAL GUITAR PROMPT</button></div>
  <label for="aiLeadMix-fishes">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-fishes">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
- <small>Native MRT2 prompt slots, not local synthesizers. The Z X C V chords steer MIDI harmony and A–K notes steer melody in the currently blended generated sound. One stereo AI stream, not two stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="fishes optional local fallback instrument">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
@@ -1357,7 +1357,7 @@ function beginChord(which,index,key){
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
- tell(SCENES[which].names[index]+" · "+INSTRUMENTS[instrument].name+" · LIVE");
+ tell(SCENES[which].names[index]+" · "+(native?"NATIVE GOOGLE AI":"LOCAL "+INSTRUMENTS[instrument].name)+" · LIVE");
 }
 function endChord(key){
  const h=heldKeys.get(key);if(!h)return;
