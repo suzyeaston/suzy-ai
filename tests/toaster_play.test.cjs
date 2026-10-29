@@ -2682,3 +2682,38 @@ test("every Magenta instrument offers both sets of four chords without resetting
  for(let i=0;i<4;i++)await new Promise(resolve=>setImmediate(resolve));
  assert.ok(commands.some(c=>c.op==="release"));
 });
+
+test("SILENCE LOOPS floats with the clock and disables browser plus unknown native host loops",async()=>{
+ const {run,get,env}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ const ops=[];
+ env.fetch=async(url,opts)=>{ops.push(String(url).split("/").pop());return {ok:true,json:async()=>({})};};
+ assert.match(file,/id="silenceAllLoops"/);
+ assert.match(file,/#silenceAllLoops\{pointer-events:auto/);
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"emergency-test",kind:"vocal",buffer:ctx.createBuffer(1,48000,48000),muted:false,level:.6})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ assert.ok(run("decks.pyramid.layers[0].gain.gain.value")>0);
+ await get("silenceAllLoops").onclick();
+ assert.equal(run("decks.pyramid.loopEnabled"),false);
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),0);
+ assert.ok(ops.includes("loop-stop-all"),"host must silence orphaned native loops too");
+ assert.equal(run("stageStarted"),true,"keep rhythm running");
+});
+test("direct native memory playback follows scene crossfade and the performance master fader",async()=>{
+ const {run,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{
+  if(String(url).endsWith("/loop-volume"))calls.push(JSON.parse(opts.body));
+  return {ok:true,json:async()=>({})};
+ };
+ const id="00000000-0000-4000-8000-000000000001";
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"native-mix",kind:"printed",nativeLive:true,nativeLoopID:'+JSON.stringify(id)+',level:.8,muted:false})');
+ assert.ok(Math.abs(run("nativeMemoryGain('pyramid',decks.pyramid.layers[0])")-.8)<.00001);
+ get("mix").value="100";run("updateMix()");
+ assert.equal(run("nativeMemoryGain('pyramid',decks.pyramid.layers[0])"),0);
+ get("mix").value="0";get("performanceMaster").value="50";run("updateMix()");
+ assert.ok(Math.abs(run("nativeMemoryGain('pyramid',decks.pyramid.layers[0])")-.4)<.00001);
+ await run("aiCommandQueue");
+ assert.ok(calls.some(x=>x.value===0),"crossfade closes the Mac audio node");
+ assert.ok(calls.some(x=>Math.abs(x.value-.4)<.001),"performance fader reaches Mac PCM output");
+});
