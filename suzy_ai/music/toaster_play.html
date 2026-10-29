@@ -833,7 +833,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
+let vocalCaptureReady=false,audioPrint=null,nativeTake=null,nativeTakeArming=null;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
@@ -1903,7 +1903,7 @@ function updateNativePlaybackButtons(){
 async function toggleNativeSavedLoop(which,role){
  const layers=nativeSavedLayers(which,role);
  if(!layers.length)return warn(Error("Record a "+nativeLaneLabel(which,role)+" take first."));
- if(nativeTake)return warn(Error("Finish the current native recording before switching playback."));
+ if(nativeTake||nativeTakeArming)return warn(Error("Finish preparing or recording the native take before switching playback."));
  const d=loopDeck(which),playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
  const resume=!playing;
  layers.forEach(l=>{l.paused=!resume;});
@@ -2219,7 +2219,7 @@ async function timelineRewind(){
  tell(stageStarted?"Playing browser arrangement from BAR 1.":"Playhead returned to BAR 1; press Play.");
 }
 function record(which){
- if(nativeTake)return warn(Error("Finish the native instrument take first."));
+ if(nativeTake||nativeTakeArming)return warn(Error("Finish preparing or recording the native instrument take first."));
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
  if(audioPrint){
   if(audioPrint.which===which&&!audioPrint.freeze)return finishAudioPrint();
@@ -2434,22 +2434,27 @@ function updateNativeLaneControls(){
    const button=$("nativeRecord-"+which+"-"+role),status=$("nativeStatus-"+which+"-"+role);
    if(!button||!status)continue;
    const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
-   button.disabled=!!nativeTake&&!isRecording;
-   button.textContent=isRecording?
+   const isArming=nativeTakeArming?.which===which&&nativeTakeArming?.role===role;
+   button.disabled=!!nativeTakeArming|| (!!nativeTake&&!isRecording);
+   button.textContent=isArming?"↻ PREPARING NATIVE AUDIO · WAIT":
+    isRecording?
     (nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):
     "● RECORD "+(role==="textureLow"?"CELLO":role==="textureHigh"?"GLASS":
     role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
    updateNativePlaybackButtons();
-   if(isRecording)status.textContent=nativeTake.first?
+   if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing; audio is not recording yet";
+   else if(isRecording)status.textContent=nativeTake.first?
     "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
  const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
  const active=nativeTake?.which==="drums";
- button.disabled=!!nativeTake&&!active;
- button.textContent=active?(nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):"● RECORD AI DRUM TAKE";
- if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
+ const isArming=nativeTakeArming?.which==="drums";
+ button.disabled=!!nativeTakeArming|| (!!nativeTake&&!active);
+ button.textContent=isArming?"↻ PREPARING NATIVE AUDIO · WAIT":active?(nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):"● RECORD AI DRUM TAKE";
+ if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing";
+ else if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
  updateNativePlaybackButtons();
 }
 async function selectNativeLane(which,role){
@@ -2520,12 +2525,17 @@ async function selectNativeLane(which,role){
  tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
 }
 async function startNativeInstrumentTake(which,role){
+ // Native prompt setup/HTTP requests must finish before recording begins.
+ // The arming latch prevents rapid taps launching overlapping capture sessions.
+ if(nativeTakeArming)return tell("NATIVE CAPTURE STILL PREPARING · play only when the button changes to DONE → LOOP.");
  if(nativeTake){
   if(nativeTake.which===which&&nativeTake.role===role)return finishNativeInstrumentTake();
   return warn(Error("Finish the active native instrument take first."));
  }
  if(audioPrint||recording||setRecorder)return warn(Error("Finish the other recording first."));
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM to establish the shared loop clock."));
+ const arming={which,role};nativeTakeArming=arming;
+ updateNativeLaneControls();
  let take=null;
  try{
   const status=await aiFetch("status");
@@ -2561,8 +2571,11 @@ async function startNativeInstrumentTake(which,role){
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
   if(nativeTake===take)nativeTake=null;
-  updateNativeLaneControls();warn(e);
+  warn(e);
   $("nativeStatus-"+which+"-"+role).textContent="NOT RECORDING · "+(e?.message||e);
+ }finally{
+  if(nativeTakeArming===arming)nativeTakeArming=null;
+  updateNativeLaneControls();
  }
 }
 async function finishNativeInstrumentTake(){
@@ -2620,8 +2633,9 @@ async function finishNativeInstrumentTake(){
   // DONE is the loop pedal's automatic PLAY action, not just a Save button.
   layer.paused=false;d.loopEnabled=true;
   startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
+  const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
   el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+buffer.duration.toFixed(2)+
-   "s REPEATING · press STOP SAVED to pause, RECORD TAKE to add a pass";
+   "s REPEATING · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
   tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
@@ -3057,7 +3071,7 @@ async function voiceLoop(which){
  if(aiSolo)toggleAISolo();
  if(localKeysOnly)await toggleLocalKeysOnly();
  if(!stageStarted)return warn(Error("Start the rhythm first"));
- if(nativeTake)return warn(Error("Finish the native instrument take before recording your voice."));
+ if(nativeTake||nativeTakeArming)return warn(Error("Finish preparing or recording the native instrument take before recording your voice."));
  if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
@@ -3243,7 +3257,7 @@ function savedAudioPrint(take,result){
  tell("✓ LAYER "+d.layers.filter(l=>l.kind==="printed").length+" ADDED · all previous takes still playing. Press ADD AUDIO LAYER to build again.");
 }
 async function startAudioPrint(which,freeze=false){
- if(nativeTake)return warn(Error("Finish the native instrument take first."));
+ if(nativeTake||nativeTakeArming)return warn(Error("Finish preparing or recording the native instrument take first."));
  if(audioPrint){
   if(audioPrint.which===which&&!freeze)return finishAudioPrint();
   return warn(Error("Finish the active audio take first."));
