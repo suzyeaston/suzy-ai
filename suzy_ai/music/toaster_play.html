@@ -760,7 +760,7 @@ body{padding-top:86px}
 </div>
 <div class="vocal-recorder-status" role="status" aria-live="polite">
   <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
-  <span id="vocalLoopState">VOICE PEDAL · Record → sing → Done → repeat. No bar selection.</span>
+  <span id="vocalLoopState">VOICE PEDAL · Record → next GREEN 1 → sing → Done. Short voice loops repeat inside long instrument loops.</span>
 </div>
 <div class="voice-lanes">
  <section class="instrument-lane" id="voiceLane-pyramid" aria-label="Pyramid Scarlett voice looping">
@@ -1943,6 +1943,16 @@ function gridTimeAt(at,lead=.08){return transportEpoch+gridStepAt(at,lead)*tickS
 function phraseGridSteps(startAt,doneAt){
  return Math.max(rhythmBarSteps(),Math.min(256,
   Math.max(1,Math.round((doneAt-startAt)/barDuration()))*rhythmBarSteps()));
+}
+// Short vocal overdubs choose a whole-bar divisor of the foundation,
+// so the voice repeats sooner but still rejoins each master downbeat.
+function vocalOverdubSteps(startAt,doneAt,foundationSteps){
+ const bar=rhythmBarSteps(),master=Math.max(1,Math.round(foundationSteps));
+ const sungBars=Math.max(1,Math.ceil((doneAt-startAt)/barDuration()-.025));
+ const wanted=sungBars*bar;
+ for(let steps=bar;steps<=master;steps+=bar)
+  if(master%steps===0&&steps>=wanted)return steps;
+ return master; // nonstandard/odd-length imported loops
 }
 // Input may begin before the musical downbeat (native HTTP capture arms early).
 // Trim pre-roll and place only samples captured AFTER the downbeat into the
@@ -3586,13 +3596,14 @@ if(elapsedFrames<Math.round(.12*ctx.sampleRate))
  return tell("VOICE ARMED · begin singing, then press DONE to close your phrase.");
 take.actualFrames=Math.max(1,Math.min(take.frames,elapsedFrames));
  take.actualSteps=take.first?
-  phraseGridSteps(take.startAt,ctx.currentTime):take.steps;
+   phraseGridSteps(take.startAt,ctx.currentTime):
+   vocalOverdubSteps(take.startAt,ctx.currentTime,take.steps);
 take.finishQueued=true;
 take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   $("vocal-"+which).textContent="↻ VOICE LOOP STARTING…";
   $("vocalRecord"+(which==="pyramid"?"Pyramid":"Fishes")).textContent="↻ VOICE LOOP STARTING…";
   trackView?.draw();updateVocalState();
-  tell("VOICE DONE ✓ · your phrase repeats automatically, no preset bars.");
+  tell("VOICE DONE ✓ · short phrase repeats without waiting for the full backing loop.");
   return;
  }
  if(recording)return warn(Error("Finish the current recording first"));
@@ -3654,8 +3665,11 @@ const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
      return warn(Error("Vocal capture returned incomplete PCM"));
    // DONE ends capture now; saved first vocal loop lasts exact rhythm bars.
     // Early DONE deliberately pads the rest of the bar with silence.
-    const clipSteps=take.first?(take.actualSteps||rhythmBarSteps()):take.steps;
-    const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):frames;
+    const clipSteps=take.actualSteps||take.steps;
+     // An eight-bar instrument bed never forces eight bars of vocal silence.
+     // Preserve the master period ratio to avoid drift with noninteger frames.
+     const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):
+      clipSteps===take.steps?frames:Math.max(1,Math.round(frames*clipSteps/take.steps));
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate);
    const headroom=Number($("vocalHeadroom").value)/100;
    if(take.first){
@@ -3670,7 +3684,7 @@ d.pedalOriginOffsetSeconds=take.startAt-transportEpoch;
 writeAlignedLoopAudio(clip,[data],take.startAt,
      loopMasterOrigin(which),headroom);
    }
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:clipSteps/8,
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:clipSteps/rhythmBarSteps(),
      pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0};
    decks[which].layers.push(layer);
    layer.paused=false;d.loopEnabled=true;
@@ -3687,7 +3701,7 @@ writeAlignedLoopAudio(clip,[data],take.startAt,
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
   tell(take.first?
    "● VOICE ARMED · sing on GREEN BEAT 1, then DONE near the next beat 1. Loop duration is bar-locked.":
-   "VOICE LAYER ARMED · sing on GREEN BEAT 1 over the existing phrase. Earlier loops continue.");
+   "VOICE LAYER ARMED · sing on GREEN BEAT 1, then DONE. A short vocal repeats beneath the longer instrumental loop.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
