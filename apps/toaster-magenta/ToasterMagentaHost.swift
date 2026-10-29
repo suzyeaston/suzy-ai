@@ -658,10 +658,28 @@ final class MRT2Host {
                   let notes = chords[scene], (0..<4).contains(i) else {
                 return ["error":"AI host not ready or invalid chord index"]
             }
-            noteOff()
-            held = notes[i]
-            chordStartedAt = ProcessInfo.processInfo.systemUptime
-            for note in held where !melodyHeld.contains(note) { rawMIDI([0x90, note, 77]) }
+            let next = notes[i]
+            if request["legato"] as? Bool == true {
+                // Loop playback: retain common tones instead of sending
+                // note-off/on pairs at every chord transition. A chord held
+                // across the loop seam can therefore remain truly sustained.
+                cancelPendingChordRelease()
+                let previousNotes = Set(held), nextNotes = Set(next)
+                for note in held where !nextNotes.contains(note) && !melodyHeld.contains(note) {
+                    rawMIDI([0x80, note, 0])
+                }
+                held = next
+                chordStartedAt = ProcessInfo.processInfo.systemUptime
+                for note in held where !previousNotes.contains(note) && !melodyHeld.contains(note) {
+                    rawMIDI([0x90, note, 77])
+                }
+            } else {
+                // Manual taps remain articulated, preserving playability.
+                noteOff()
+                held = next
+                chordStartedAt = ProcessInfo.processInfo.systemUptime
+                for note in held where !melodyHeld.contains(note) { rawMIDI([0x90, note, 77]) }
+            }
         case "release":
             releaseChordAfterMinimumHold()
         default: return ["error":"unknown operation"]
