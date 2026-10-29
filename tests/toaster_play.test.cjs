@@ -2060,7 +2060,7 @@ test("BOSS pedal: DONE plays piano sample zero indefinitely without another tap"
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
  assert.equal(run("decks.pyramid.layers[0].paused"),false);
  assert.equal(run("decks.pyramid.loopEnabled"),true);
- assert.match(get("nativeStatus-pyramid-chords").textContent,/BARS.*WAV handoff/);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/BARS.*WAV HANDOFF/);
  assert.match(get("nativeResume-pyramid-chords").textContent,/STOP SAVED/);
  const source=run("decks.pyramid.layers[0].source");
  await run('toggleNativeSavedLoop("pyramid","chords")');
@@ -2087,7 +2087,8 @@ test("overdub inherits first piano duration, remains audible alongside it",async
  await run("finishNativeInstrumentTake()");
  const period=run("decks.pyramid.pedalPeriodSeconds");
  run("ctx.currentTime+=.3");await run('startNativeInstrumentTake("pyramid","lead")');
- assert.ok(Math.abs(lengths[1]-period)<1/48000);
+ assert.ok(lengths[1]>=period*2,
+  "native overdub capture includes full period after waiting for the existing downbeat");
  run("ctx.currentTime+=decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),2);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
@@ -2326,7 +2327,7 @@ test("RECORD TAKE still auto-selects the instrument prompt after removing manual
  await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
- assert.match(get("nativeStatus-pyramid-chords").textContent,/WAV handoff after DONE/);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/WAV HANDOFF \(FALLBACK\)/);
 });
 
 test("real native WAV frame duration wins over an inaccurate browser DONE timestamp",async()=>{
@@ -2367,7 +2368,7 @@ test("drum take inherits piano's exact 3.7s pedal period and phase rather than s
  assert.equal(run("drumDeck.pedalPeriodSeconds"),3.7);
  assert.equal(run("drumDeck.pedalOriginOffsetSeconds"),1.1);
  assert.equal(run("drumDeck.anchorStep"),3);
- assert.equal(run("nativeTake.seconds"),3.7);
+ assert.ok(run("nativeTake.seconds")>=7.4,"host stores pre-roll plus original 3.7s period");
 });
 test("vocal first phrase begins immediately and DONE establishes an unquantized PCM period",async()=>{
  const {run,calls,get}=rig();await run("startStop()");
