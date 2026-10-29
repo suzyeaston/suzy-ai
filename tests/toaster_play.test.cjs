@@ -131,7 +131,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/ENABLE MAGENTA/);
  assert.match(file,/Native Google Magenta AU is optional/);
  assert.match(javascript,/await aiFetch\("chord",legato\?\{index,legato:true\}:\{index\}\)/);
- assert.match(javascript,/await aiFetch\("mix",\{value:effectiveSongMix\(\)\}\)/);
+ assert.match(javascript,/await aiFetch\("mix",\{value:which==="fishes"\?1:0\}\)/,\n  "native recording selects the active prompt independently of browser crossfade");
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
  assert.ok(file.indexOf('id="deck-fishes"')<file.indexOf('id="micInput"'));
