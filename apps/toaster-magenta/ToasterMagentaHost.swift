@@ -360,12 +360,17 @@ final class MRT2Host {
                 "native_loop_frames": frames, "native_loop_rate": format.sampleRate,
                 "native_loop_scheduled_ms": max(0, delayMs)]
     }
-    private func setNativeLoopMuted(id: String, muted: Bool) -> [String: Any] {
-        guard let node = nativeLoopPlayers[id] else {
-            return ["error": "Unknown native memory loop"]
+    private func setNativeLoopVolume(id: String, level: Double) -> [String: Any] {
+        guard let node = nativeLoopPlayers[id], level.isFinite,
+              level >= 0, level <= 1 else {
+            return ["error": "Unknown native memory loop or invalid volume"]
         }
-        node.volume = muted ? 0 : 0.8
-        return ["native_loop_id": id, "native_loop_muted": muted]
+        node.volume = Float(level)
+        return ["native_loop_id": id, "native_loop_volume": level,
+                "native_loop_muted": level == 0]
+    }
+    private func setNativeLoopMuted(id: String, muted: Bool) -> [String: Any] {
+        setNativeLoopVolume(id: id, level: muted ? 0 : 0.8)
     }
     private func removeNativeLoop(id: String) -> [String: Any] {
         guard let node = nativeLoopPlayers.removeValue(forKey: id) else {
@@ -819,6 +824,10 @@ final class MRT2Host {
             guard let id = request["id"] as? String,
                   let muted = request["value"] as? Bool else { return ["error": "loop id/value required"] }
             return setNativeLoopMuted(id: id, muted: muted)
+        case "loop-volume":
+            guard let id = request["id"] as? String,
+                  let value = request["value"] as? Double else { return ["error": "loop id/value required"] }
+            return setNativeLoopVolume(id: id, level: value)
         case "loop-remove":
             guard let id = request["id"] as? String else { return ["error": "loop id required"] }
             return removeNativeLoop(id: id)
