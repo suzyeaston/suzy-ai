@@ -997,9 +997,9 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  run(`ctx.currentTime=transportEpoch+(${close}+3)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null,"recorder closes and becomes playback on the very next scheduled clock tick");
  assert.equal(run("decks.pyramid.locked"),true);
- assert.equal(run("decks.pyramid.lengthSteps"),5);
- assert.equal(run("decks.pyramid.anchorStep"),start);
- assert.equal(run("decks.pyramid.layers[0].events[0].step"),1);
+ assert.equal(run("decks.pyramid.lengthSteps"),4,"first silent tick is removed");
+ assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
+ assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
  assert.match(get("record-pyramid").textContent,/OVERDUB/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
@@ -1016,8 +1016,8 @@ test("DONE after a different phrase duration locks that custom length and not an
  const finish=run("recording.endAt");
  assert.equal(finish-begin,12,"second phrase is 12 ticks, not restricted to 8/16/32");
  run(`ctx.currentTime=transportEpoch+(${finish}+2)*tickSeconds();scheduler()`);
- assert.equal(run("decks.fishes.lengthSteps"),12);
- assert.equal(run("decks.fishes.anchorStep"),begin);
+ assert.equal(run("decks.fishes.lengthSteps"),11,"trim one silent tick before first chord");
+ assert.equal(run("decks.fishes.anchorStep"),begin+1);
  assert.ok(!file.includes('id="loopBars-fishes"'));
  assert.match(get("recordHint-fishes").textContent,/LOOP PLAYING/);
 });
@@ -1107,7 +1107,7 @@ test("local replay sustains a chord held through DONE across next loop attack",a
  run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+5;ctx.currentTime=.38');
  run('beginChord("pyramid",0,"key:sustain")');
  run('endRecord()');
- assert.equal(run("decks.pyramid.lengthSteps"),5);
+ assert.equal(run("decks.pyramid.lengthSteps"),4,"shorter phrase after removing initial silence");
  assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),true);
  const original=run("decks.pyramid.layers[0].events[0].holdSteps*tickSeconds()");
  const loopSeconds=run("songCycleSeconds('pyramid')");
@@ -1403,7 +1403,7 @@ test("native loop pedal STOP explicitly releases a tied chord; other song and rh
 test("live view replaces huge full arrangement with visible record full set controls",()=>{
  const {get}=rig();
  assert.match(file,/<section class="full-arrangement" id="fullArrangement" hidden aria-hidden="true"/);
- assert.match(file,/#fullArrangement\\[hidden\\]\\{display:none!important\\}/);
+ assert.ok(file.includes("#fullArrangement[hidden]{display:none!important}"));
  assert.doesNotMatch(file,/href="#fullArrangement"/);
  assert.match(file,/id="setRecordStart"/);
  assert.match(file,/id="setRecordStop" disabled/);
