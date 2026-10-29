@@ -2370,6 +2370,60 @@ const NATIVE_LANE_LABELS={
 };
 let activePyramidTextureRole=null;
 let textureHeldNotes=[];
+let activeNativeLane=null;
+let drumPadPreparing=null;
+const DRUM_PAD_NOTES=[36,38,42,51]; // GM kick, acoustic snare, closed hat, ride
+const DRUM_PAD_CODES={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3};
+const drumPadHeld=new Map();
+// Reuse the existing Magenta scene/prompt routing, not a parallel local drum
+// synth. The browser drum sequencer still plays independently and is not printed.
+async function ensureDrumPadPrompt(){
+ if(activeNativeLane==="drums:drums")return;
+ if(!drumPadPreparing)
+  drumPadPreparing=selectNativeLane("drums","drums").finally(()=>{drumPadPreparing=null});
+ await drumPadPreparing;
+}
+function showDrumPad(index,down){
+ for(const el of document.querySelectorAll(".drum-pad"))
+  if(Number(el.dataset.drum)===index){
+   el.classList.toggle("on",down);el.setAttribute("aria-pressed",String(down));
+  }
+}
+function beginDrumPad(index,key){
+ if(!Number.isInteger(index)||index<0||index>=DRUM_PAD_NOTES.length)return;
+ if(drumPadHeld.has(key))return;
+ if(!aiNativeReady)return warn(Error("ENABLE MAGENTA to play the AI jazz drum pads."));
+ if(!ctx||!stageStarted)return warn(Error("Press PLAY RHYTHM before performing jazz drum pads."));
+ const voice={index,note:DRUM_PAD_NOTES[index],down:true,onSent:false};
+ drumPadHeld.set(key,voice);
+ showDrumPad(index,true);
+ (async()=>{
+  await ensureDrumPadPrompt();
+  // Serialize MIDI with all other native AU commands, preserving fast taps.
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   await aiFetch("note",{note:voice.note});
+   voice.onSent=true;
+   if(!voice.down)await aiFetch("note-off",{note:voice.note});
+  });
+  await aiCommandQueue;
+ })().catch(e=>{
+  if(drumPadHeld.get(key)===voice)drumPadHeld.delete(key);
+  showDrumPad(index,false);warn(e);
+ });
+ $("nativeStatus-drums-drums").textContent="● JAZZ DRUM PAD "+(index+1)+" · MIDI "+voice.note+" → LIVE MAGENTA";
+}
+function endDrumPad(key){
+ const voice=drumPadHeld.get(key);if(!voice)return;
+ drumPadHeld.delete(key);voice.down=false;
+ showDrumPad(voice.index,[...drumPadHeld.values()].some(v=>v.index===voice.index));
+ if(voice.onSent){
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(aiNativeReady)await aiFetch("note-off",{note:voice.note});
+  }).catch(warn);
+ }
+}
+function releaseAllDrumPads(){for(const key of [...drumPadHeld.keys()])endDrumPad(key);}
+
 function nativeTextureScene(which){return which==="pyramid"&&activePyramidTextureRole?"fishes":which;}
 function nativeTextureMix(){return activePyramidTextureRole?1:effectiveSongMix();}
 
@@ -2419,7 +2473,8 @@ async function selectNativeLane(which,role){
   $("aiLeadMix-fishes").value=String(weight*100);
   $("aiLeadMixValue-fishes").textContent=weight?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
   await aiFetch("mix",{value:1});
-  $("nativeStatus-pyramid-"+role).textContent="SELECTED · "+nativeLaneLabel(which,role)+" · audio records into Pyramid";
+  activeNativeLane=which+":"+role;
+  $("nativeStatus-pyramid-"+role).textContent="ACTIVE · "+nativeLaneLabel(which,role)+" · audio records into Pyramid";
   tell("✦ "+nativeLaneLabel(which,role)+" · Pyramid loop continues unchanged. Z/X/C/V retain your Pyramid harmony.");
   return;
  }
@@ -2435,7 +2490,8 @@ async function selectNativeLane(which,role){
   $("aiDrumMix").value="100";$("aiDrumMixValue").textContent="100%";
   await aiFetch("drums",{value:true});
   await aiFetch("drum-mix",{value:1});
-  $("nativeStatus-drums-drums").textContent="AI DRUMS SELECTED · only real native output will be captured";
+  activeNativeLane="drums:drums";
+  $("nativeStatus-drums-drums").textContent="DRUM PADS ACTIVE · 1–4 trigger the native jazz drum prompt";
   tell("✦ NATIVE AI JAZZ DRUMS · play or record the real AU sound, not the browser beat.");
   return;
  }
@@ -2460,6 +2516,7 @@ async function selectNativeLane(which,role){
  await aiFetch("lead-mix",{scene:which,value:blend});
  $("aiLeadMix-"+which).value=String(blend*100);
  $("aiLeadMixValue-"+which).textContent=blend?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
+ activeNativeLane=which+":"+role;
  tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
 }
 async function startNativeInstrumentTake(which,role){
@@ -3571,12 +3628,10 @@ $("savePyramidLoop").onclick=()=>{
  const before=scene;scene="pyramid";
  Promise.resolve(readAndExport()).finally(()=>{scene=before;});
 };
-$("nativePlay-drums-drums").onclick=()=>selectNativeLane("drums","drums").catch(warn);
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
  for(const role of (k==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"])){
-  $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
   $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
   $("nativeResume-"+k+"-"+role).onclick=()=>toggleNativeSavedLoop(k,role).catch(warn);
  }
@@ -3594,6 +3649,26 @@ for(const k of Object.keys(decks)){
 }
 // Buttons keep focus after clicking. Ignore only *editable* fields, not BUTTON.
 // Capture keyup as well as keydown so sustain always ends, even after switching decks.
+document.querySelectorAll(".drum-pad").forEach(el=>{
+ const index=Number(el.dataset.drum),key="pad-drum:"+index;
+ el.addEventListener("pointerdown",e=>{
+  if(e.button!==0)return;
+  e.preventDefault();el.setPointerCapture?.(e.pointerId);
+  beginDrumPad(index,key);
+ });
+ for(const type of ["pointerup","pointercancel","lostpointercapture"])
+  el.addEventListener(type,()=>endDrumPad(key));
+ el.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key===" ")&&!e.repeat){
+   e.preventDefault();e.stopPropagation?.();beginDrumPad(index,key);
+  }
+ });
+ el.addEventListener("keyup",e=>{
+  if(e.key==="Enter"||e.key===" "){
+   e.preventDefault();e.stopPropagation?.();endDrumPad(key);
+  }
+ });
+});
 document.querySelectorAll(".pad").forEach(el=>{
  const which=el.dataset.scene,index=Number(el.dataset.chord),key="pad:"+which+":"+index;
  el.addEventListener("pointerdown",e=>{if(e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);beginChord(which,index,key)});
@@ -3614,6 +3689,10 @@ const isTyping=e=>{
 };
 document.addEventListener("keydown",e=>{
  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey||isTyping(e))return;
+ const drumIndex=DRUM_PAD_CODES[e.code];
+ if(drumIndex!==undefined){
+  e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
+ }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
  if(chordKey!==null){e.preventDefault();beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);}
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
@@ -3622,6 +3701,10 @@ document.addEventListener("keydown",e=>{
  else if(e.key===" "&&e.target?.tagName!=="BUTTON"){e.preventDefault();startStop();}
 });
 document.addEventListener("keyup",e=>{
+ const drumIndex=DRUM_PAD_CODES[e.code];
+ if(drumIndex!==undefined){
+  e.preventDefault();endDrumPad("key-drum:"+e.code);return;
+ }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
  if(chordKey!==null){e.preventDefault();endChord("key:"+chordKey);}
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
@@ -3633,8 +3716,10 @@ document.querySelectorAll(".note-pad").forEach(el=>{
  el.addEventListener("pointerdown",e=>{if(e.button!==0)return;e.preventDefault();el.setPointerCapture?.(e.pointerId);beginNote(note,id)});
  for(const type of ["pointerup","pointercancel","lostpointercapture"])el.addEventListener(type,()=>endNote(id));
 });
-window.addEventListener("blur",releaseAllChords);
-document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
+window.addEventListener("blur",()=>{releaseAllChords();releaseAllDrumPads();});
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){releaseAllChords();releaseAllDrumPads();}
+});
 $("setRecordStart").onclick=startSetRecording;
 $("setRecordStop").onclick=stopSetRecording;
 $("mix").oninput=()=>{
