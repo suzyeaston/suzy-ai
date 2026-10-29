@@ -2553,8 +2553,10 @@ function updateNativeLaneControls(){
    updateNativePlaybackButtons();
    if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing; audio is not recording yet";
    else if(isRecording)status.textContent=nativeTake.first?
-    "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
-    "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
+     (ctx.currentTime<nativeTake.gridStartAt?
+      "● ARMED · WAIT FOR GREEN BEAT 1 · then play your phrase":
+      "● NATIVE AU RECORDING · DONE NEAR GREEN BEAT 1 · whole-bar loop"):
+     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
  const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
@@ -2563,7 +2565,9 @@ function updateNativeLaneControls(){
  button.disabled=!!nativeTakeArming|| (!!nativeTake&&!active);
  button.textContent=isArming?"↻ PREPARING NATIVE AUDIO · WAIT":active?(nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):"● RECORD AI DRUM TAKE";
  if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing";
- else if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
+ else if(active)status.textContent=nativeTake.first&&ctx.currentTime<nativeTake.gridStartAt?
+   "● DRUMS ARMED · PLAY ON GREEN BEAT 1":
+   "● RECORDING NATIVE JAZZ DRUMS · DONE NEAR GREEN BEAT 1 · browser beat excluded";
  updateNativePlaybackButtons();
 }
 async function selectNativeLane(which,role){
@@ -2676,14 +2680,19 @@ async function startNativeInstrumentTake(which,role){
   // The Swift tap starts inside the request. Midpoint of the RTT is closer
   // than the old "after HTTP response" position, without trusting wall-clock.
   const capturedAt=(requestAt+responseAt)*.5;
-  take={which,role,first,id:begin.capture_id,startedAt:capturedAt,
-        beginStep:Math.floor((capturedAt-transportEpoch)/tickSeconds()),
-        seconds,finishing:false,timer:null};
+   // Arm the native capture BEFORE the next true bar one. Only samples
+   // recorded after the visible beat-one cue become part of the loop.
+   const gridStartAt=first?gridTimeAt(responseAt,.12):loopMasterOrigin(which);
+   const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
+   take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
+         beginStep,seconds,finishing:false,timer:null};
   nativeTake=take;
   updateNativeLaneControls();
   const statusEl=$("nativeStatus-"+which+"-"+role);
-  statusEl.textContent=first?"● REAL NATIVE AUDIO · perform, then press DONE to define the loop":
-   "● REAL NATIVE AUDIO · stacking one full phrase, no screen sharing";
+  statusEl.textContent=first?
+     "● ARMED · WAIT FOR THE GREEN BEAT 1 · THEN PLAY · DONE NEAR BEAT 1":
+     "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
+   updatePedalClock();
   if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+40));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
@@ -2699,8 +2708,11 @@ async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
  take.finishing=true;clearTimeout(take.timer);
- take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
- updateNativeLaneControls();
+ // Don't save an empty native capture before the visible beat-one cue.
+  if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+   return tell("NATIVE LOOP ARMED · play at least one beat after GREEN 1 before DONE.");
+  take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
+  updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const result=await aiFetch("capture-stop",{id:take.id});
@@ -2714,26 +2726,23 @@ async function finishNativeInstrumentTake(){
   await openAudio();
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
   const d=loopDeck(which);
-  // The actual captured native PCM sample count owns the first period.
-// Browser button timestamps cannot crop audio recorded on the separate AU clock.
-const frames=take.first?recorded.length:Math.max(1,Math.round(
- (d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
+  // First audio length MUST span whole rhythm bars, not the AU WAV's
+   // arbitrary sample count (including capture-start and STOP HTTP jitter).
+   const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):d.lengthSteps;
+   const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
+    Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
   const inputs=Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel));
   let shifted=0;
   if(take.first){
-   for(let channel=0;channel<buffer.numberOfChannels;channel++)
-    buffer.getChannelData(channel).set(inputs[channel].subarray(0,frames));
-   closeAudioLoopSeam(buffer);
-   d.locked=true;
-   d.lengthSteps=Math.max(1,Math.min(256,Math.round(buffer.duration/tickSeconds())));
-   d.anchorStep=take.beginStep;d.loopEnabled=true;
-   d.pedalPeriodSeconds=buffer.duration;
-   // The master origin is the beginning of captured audio, never the DONE
-// click or a delayed WAV decode. All future layers inherit this phase.
-d.pedalOriginOffsetSeconds=take.startedAt-transportEpoch;
-  }else{
+    // Capture began before the musician's green beat-one cue; drop pre-roll.
+    writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
+    d.locked=true;d.lengthSteps=masterSteps;
+    d.anchorStep=take.beginStep;d.loopEnabled=true;
+    d.pedalPeriodSeconds=buffer.duration;
+    d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
+   }else{
    shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
@@ -2750,8 +2759,8 @@ d.pedalOriginOffsetSeconds=take.startedAt-transportEpoch;
   layer.paused=false;d.loopEnabled=true;
   startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
-  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+buffer.duration.toFixed(2)+
-   "s REPEATING · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+d.lengthSteps/rhythmBarSteps()+
+    " BARS @ "+bpm+" BPM · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
   tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
