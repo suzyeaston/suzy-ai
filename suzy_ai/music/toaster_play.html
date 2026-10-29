@@ -328,7 +328,8 @@ a{color:var(--mint)}
 <div class="strip"><div class="strip-header"><strong>🎛 TONE</strong><span class="stat" id="toneValue">75%</span></div>
 <input id="tone" aria-label="Browser mix tone and lowpass" type="range" min="0" max="100" value="75">
 <small class="subtle">Warm ↔ bright · browser instruments and loops</small></div>
-<div class="strip"><div class="strip-header"><strong>🎧 MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser synth and loops, not external Magenta</small></div>
+<div class="strip"><div class="strip-header"><strong>🎚 SET MASTER TRIM</strong><span id="performanceMasterValue" class="stat">100%</span></div><input id="performanceMaster" type="range" aria-label="Linked browser and native Magenta performance output trim" min="0" max="100" value="100"><small class="subtle">Controls browser + native Magenta together. Scarlett direct headphone monitor remains separate.</small></div>
+<div class="strip"><div class="strip-header"><strong>🎧 BROWSER MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser rhythm, local synth, recorded vocals. Light safety compression is enabled.</small></div>
 <div class="strip"><div class="strip-header"><strong>LIVE KEYS</strong><span id="liveLevelValue">80%</span></div><input id="liveLevel" type="range" min="15" max="125" value="80" aria-label="Live instrument monitoring volume"><small class="subtle">What your hands play right now</small></div>
 <div class="strip"><div class="strip-header"><strong>RECORDED KEYS</strong><span id="loopLevelValue">100%</span></div><input id="loopLevel" type="range" min="15" max="125" value="100" aria-label="Recorded loop playback level"><small class="subtle">Balance against live notes · compensates for stacked layers</small></div>
 </div>
@@ -374,7 +375,7 @@ a{color:var(--mint)}
  <div class="jazz-drum-controls">
   <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
    <input id="aiDrumMix" type="range" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
-   <small>0% keeps the original four AI instruments unchanged. Increase to blend in drums, or move to 100% to audition just the jazz drum prompt.</small></div>
+   <small>0% keeps four AI sounds unchanged; turning up adds freely evolving jazz percussion, NOT a bar-locked drum loop. The separate browser rhythm grid above stays on beat.</small></div>
   <div><label for="promptJazzDrums">DRUM SOUND PROMPT · EDITABLE</label>
    <textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea>
    <button type="button" id="applyJazzDrumsPrompt">↻ APPLY DRUM SOUND · RESTART AI</button>
@@ -818,7 +819,7 @@ async function openAudio(){
  if(!ctx){
   ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:$("browserLatency").value});
   $("browserLatency").disabled=true;
-  master=ctx.createGain();master.gain.value=aiSolo?0:Number($("master").value)/100;
+  master=ctx.createGain();master.gain.value=aiSolo?0:Number($("master").value)/100*(Number($("performanceMaster").value)/100);
   // Browser-only compressor for stacked loops. Doesn't touch native MRT2 or the Scarlett ADC.
   const safety=ctx.createDynamicsCompressor();
   safety.threshold.value=-9;safety.knee.value=4;safety.ratio.value=14;
@@ -1266,7 +1267,7 @@ async function toggleLocalKeysOnly(){
  tell(localKeysOnly?"LOCAL KEYS ONLY · AI, rhythm, vocal loops and overdubs temporarily silenced.":"Restored rhythm, loops and the previous Magenta mute setting.");
 }
 function updateBrowserOutputGain(){
- if(master)master.gain.value=aiSolo?0:Number($("master").value)/100;
+ if(master)master.gain.value=aiSolo?0:Number($("master").value)/100*(Number($("performanceMaster").value)/100);
 }
 function toggleAISolo(){
  if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
@@ -1432,7 +1433,7 @@ async function syncAIMix(){
   await aiFetch("mix",{value:effectiveSongMix()});
   for(const which of ["pyramid","fishes"])
    await aiFetch("lead-mix",{scene:which,value:Number($("aiLeadMix-"+which).value)/100});
-  await aiFetch("volume",{value:Number($("aiVolume").value)/100});
+  await aiFetch("volume",{value:Number($("aiVolume").value)/100*(Number($("performanceMaster").value)/100)});
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
   await aiFetch("drums",{value:aiDrumsAllowed});
@@ -2684,6 +2685,11 @@ $("drumMidiReset").onclick=()=>{customDrumHits=null;renderDrumMidiGrid();$("drum
 renderDrumMidiGrid();
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";updateRhythmAudio();};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";updateBrowserOutputGain();};
+$("performanceMaster").oninput=()=>{
+ $("performanceMasterValue").textContent=$("performanceMaster").value+"%";
+ updateBrowserOutputGain();
+ if(aiNativeReady)aiFetch("volume",{value:Number($("aiVolume").value)/100*(Number($("performanceMaster").value)/100)}).catch(warn);
+};
 $("tempo").oninput=()=>changeTempo($("tempo").value);
 function updateRoomFx(){
  const value=Number($("reverb").value);
