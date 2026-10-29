@@ -831,6 +831,11 @@ final class MRT2Host {
         case "loop-remove":
             guard let id = request["id"] as? String else { return ["error": "loop id required"] }
             return removeNativeLoop(id: id)
+        case "loop-stop-all":
+            // Does not discard captured buffers, so the user can unmute
+            // known saved loops later. Still works after a browser refresh.
+            for node in nativeLoopPlayers.values { node.volume = 0 }
+            return ["native_loops_silenced": nativeLoopPlayers.count]
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
