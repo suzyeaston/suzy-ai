@@ -45,8 +45,8 @@ ACTIONS = {
 CAPTURE_ID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
 CAPTURE_DIR = ROOT / ".build" / "toaster-native-captures"
 
-def native_capture_wav(capture_id):
-    """Return a bounded, host-generated WAV file only; never user paths."""
+def native_capture_wav(capture_id, consume=False):
+    """Return bounded host-generated WAV bytes; optionally release temp disk space."""
     if not isinstance(capture_id, str) or not CAPTURE_ID.fullmatch(capture_id):
         raise ValueError("invalid native capture ID")
     path = CAPTURE_DIR / (capture_id + ".wav")
@@ -55,7 +55,10 @@ def native_capture_wav(capture_id):
     size = path.stat().st_size
     if not 44 <= size <= 120 * 1024 * 1024:
         raise ValueError("native capture is incomplete or too large")
-    return path.read_bytes()
+    data = path.read_bytes()
+    if consume:
+        path.unlink(missing_ok=True)
+    return data
 
 PROMPTS = {
     "pyramid": "Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals",
