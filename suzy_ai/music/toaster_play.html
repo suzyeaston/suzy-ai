@@ -3665,7 +3665,7 @@ const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
      return warn(Error("Vocal capture returned incomplete PCM"));
    // DONE ends capture now; saved first vocal loop lasts exact rhythm bars.
     // Early DONE deliberately pads the rest of the bar with silence.
-    const clipSteps=take.actualSteps||take.steps;
+    const clipSteps=take.actualSteps||(take.first?rhythmBarSteps():take.steps);
      // An eight-bar instrument bed never forces eight bars of vocal silence.
      // Preserve the master period ratio to avoid drift with noninteger frames.
      const clipFrames=take.first?Math.round(clipSteps*tickSeconds()*ctx.sampleRate):
