@@ -2035,12 +2035,19 @@ function songLayerAudible(which,layer,bar){
 // of waiting up to one bar. The source keeps its phase, so other layers remain
 // synchronized. We never restart the generator or request a new recording.
 function nativeMemoryGain(which,layer){
- return songLayerAudible(which,layer,Math.floor(stepNumber/8))?
-  Math.max(0,Math.min(1,Number(layer.level??.8))):0;
+ if(!songLayerAudible(which,layer,Math.floor(stepNumber/8)))return 0;
+ const crossfade=Number($("mix").value)/100;
+ const side=which==="drums"?1:which==="pyramid"?(1-crossfade):crossfade;
+ const enabled=which==="drums"||(!localKeysOnly&&decks[which].enabled);
+ const fader=which==="drums"?1:Number($("level-"+which).value)/100;
+ const master=Number($("performanceMaster").value)/100;
+ return enabled?clamp((layer.level??.8)*side*fader*master,0,1):0;
 }
 function setNativeMemoryGain(which,layer){
  if(!layer?.nativeLive||!layer.nativeLoopID)return;
  const value=nativeMemoryGain(which,layer);
+ if(layer.nativeVolumeLast===value)return; // avoid redundant HTTP requests.
+ layer.nativeVolumeLast=value;
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   if(aiNativeReady)await aiFetch("loop-volume",{id:layer.nativeLoopID,value});
  }).catch(warn);
@@ -3832,6 +3839,7 @@ function updateMix(){
    decks[k].voiceBus.gain.value=vocalGain;
    if(decks[k].voiceFxBus)decks[k].voiceFxBus.gain.value=vocalGain;
    if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
+   for(const layer of decks[k].layers)if(layer.nativeLive)setNativeMemoryGain(k,layer);
  }
 }
 async function readAndExport(){
