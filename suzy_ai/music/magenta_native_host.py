@@ -33,14 +33,14 @@ ACTIONS = {
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
     "drums": frozenset({"value"}),
-    "chord": frozenset({"index", "harmony"}),
+    "chord": frozenset({"index"}),
     "tempo": frozenset({"bpm"}),
     "note": frozenset({"note"}),
     "note-off": frozenset({"note"}),
     "release": frozenset(),
     "capture-start": frozenset({"seconds"}),
     "capture-status": frozenset({"id"}),
-    "capture-stop": frozenset({"id", "live_loop", "preroll_seconds", "period_seconds"}),
+    "capture-stop": frozenset({"id"}),
     "loop-mute": frozenset({"id", "value"}),
     "loop-volume": frozenset({"id", "value"}),
     "loop-remove": frozenset({"id"}),
@@ -229,9 +229,15 @@ class NativeMagentaHost:
         with self.lock:
             if action not in ACTIONS or not isinstance(data, dict):
                 raise ValueError("unknown AI action")
-            if (set(data) != ACTIONS[action]
-                    and not (action == "start" and set(data) == {"prompts"})
-                    and not (action == "chord" and set(data) == {"index", "legato"})):
+            fields = set(data)
+            chord_fields = action == "chord" and {"index"} <= fields <= {"index", "legato", "harmony"}
+            capture_fields = action == "capture-stop" and (
+                fields == {"id"} or
+                fields == {"id", "live_loop", "preroll_seconds", "period_seconds"}
+            )
+            if (fields != ACTIONS[action]
+                    and not (action == "start" and fields == {"prompts"})
+                    and not chord_fields and not capture_fields):
                 raise ValueError("invalid AI action fields")
             if action == "configure-prompts" or (action == "start" and "prompts" in data):
                 strings = data["prompts"]
@@ -258,6 +264,9 @@ class NativeMagentaHost:
                     raise ValueError("chord must be integer 0..3")
                 if "legato" in data and type(data["legato"]) is not bool:
                     raise ValueError("legato must be boolean")
+                if "harmony" in data and (type(data["harmony"]) is not str
+                                          or data["harmony"] not in ("pyramid", "fishes")):
+                    raise ValueError("chord harmony must be pyramid or fishes")
             if action == "tempo":
                 bpm = data["bpm"]
                 if type(bpm) not in (int, float) or not 60 <= bpm <= 190:
@@ -270,9 +279,23 @@ class NativeMagentaHost:
                 seconds = data["seconds"]
                 if type(seconds) not in (int, float) or not 0.25 <= seconds <= 120:
                     raise ValueError("capture duration must be 0.25…120 seconds")
-            if action in ("capture-status", "capture-stop"):
+            if action in ("capture-status", "capture-stop", "loop-mute", "loop-volume", "loop-remove"):
                 if not isinstance(data["id"], str) or not CAPTURE_ID.fullmatch(data["id"]):
                     raise ValueError("invalid native capture ID")
+            if action == "capture-stop" and "live_loop" in data:
+                if type(data["live_loop"]) is not bool:
+                    raise ValueError("live_loop must be true or false")
+                for field, low, high in (("preroll_seconds", 0, 120),
+                                         ("period_seconds", 0.25, 120)):
+                    value = data[field]
+                    if type(value) not in (int, float) or not low <= value <= high:
+                        raise ValueError(field + " outside supported range")
+            if action == "loop-mute" and type(data["value"]) is not bool:
+                raise ValueError("loop-mute requires a boolean")
+            if action == "loop-volume":
+                value = data["value"]
+                if type(value) not in (int, float) or not 0 <= value <= 1:
+                    raise ValueError("loop-volume must be 0..1")
             if action == "start" and self.launching:
                 return self._inactive_status()
             if action == "start":
