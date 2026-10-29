@@ -30,6 +30,7 @@ ACTIONS = {
     "volume": frozenset({"value"}),
     "reverb": frozenset({"value"}),
     "mute": frozenset({"value"}),
+    "drums": frozenset({"value"}),
     "chord": frozenset({"index"}),
     "tempo": frozenset({"bpm"}),
     "note": frozenset({"note"}),
@@ -221,7 +222,7 @@ class NativeMagentaHost:
                 v = data["value"]
                 if type(v) not in (int, float) or not 0 <= v <= 1:
                     raise ValueError("value must be 0..1")
-            if action == "mute" and type(data["value"]) is not bool:
+            if action in ("mute", "drums") and type(data["value"]) is not bool:
                 raise ValueError("mute must be true or false")
             if action == "chord" and (type(data["index"]) is not int or not 0 <= data["index"] < 4):
                 raise ValueError("chord must be integer 0..3")
