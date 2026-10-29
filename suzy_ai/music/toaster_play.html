@@ -50,6 +50,9 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .loop-pedal{background:#98d9c5;color:#18362d;border:1px solid #76ac95;min-width:120px}
 .loop-pedal.queued{background:#f3d49a;color:#362716}
 .timeline{position:relative;height:13px;background:#131019;border:1px solid #68566e;border-radius:20px;flex:1;min-width:70px;overflow:hidden}
+/* Live performance needs a pedal, not a tiny misleading playhead: preserve
+   the DOM for existing transport JS, but remove the visual timeline. */
+.deck-transport .timeline{display:none!important}
 .timeline::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 49.5%,#ffffff35 50%,transparent 50.5%)}
 .playhead{position:absolute;top:0;bottom:0;left:0;width:4px;background:var(--mint);box-shadow:0 0 8px var(--mint)}
 .clips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;min-height:30px;align-items:center}
@@ -426,7 +429,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-pyramid" aria-label="pyramid return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -478,7 +481,7 @@ a{color:var(--mint)}
 <button type="button" id="keyUndo-fishes" aria-label="fishes return to previous key">↶ BACK</button>
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
-<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, then press DONE to define the loop duration.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -1521,7 +1524,9 @@ function beginChord(which,index,key){
  const native=nativeInstrumentEnabled(which);
  const h={which,index,voices,start,instrument,native,event:null};heldKeys.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
-  const step=Math.max(0,Math.min(255,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
+  // Assign the onset to the subdivision it was actually played in. Rounding
+  // forward could add a late hit or a full extra tick of apparent silence.
+  const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,index,holdSteps:1,instrument};
   recording.events.push(h.event);
  }
@@ -1930,9 +1935,9 @@ function record(which){
   recording.finishQueued=true;
   $("record-"+which).textContent="↻ "+(recording.first?"LOOP STARTING":"OVERDUB FINISHING")+"…";
   $("recordHint-"+which).textContent=recording.first?
-   "DONE · first phrase repeats from its opening note":"DONE · original loop continues";
+   "DONE ✓ · auto-replay on next pulse":"DONE ✓ · original loop continues";
   tell(recording.first?
-   "DONE · "+((recording.endAt-recording.beginAt)/2)+" beats · playback starts at the next eighth-note clock tick.":
+   "DONE ✓ · closing on the next available pulse, then auto-repeating from your FIRST note. No extra PLAY click.":
    "OVERDUB DONE · the original pattern keeps repeating.");
   return;
  }
@@ -1954,9 +1959,22 @@ function record(which){
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
  const r=recording,d=decks[r.scene];
- const length=r.first?Math.max(1,Math.min(256,r.endAt-r.beginAt)):d.lengthSteps;
+ let length=r.first?Math.max(1,Math.min(256,r.endAt-r.beginAt)):d.lengthSteps;
  // Discard hits at/after DONE; they belong to the following pass.
  r.events=r.events.filter(e=>e.step<length);
+ if(r.first&&r.events.length){
+  // A player may arm RECORD and take a breath before their first note.
+  // That dead lead-in used to repeat as an audible pause every cycle.
+  // Trim it without moving the musical closing tick: at r.endAt the
+  // shortened pattern is already at phase zero and starts immediately.
+  const emptyTicks=Math.max(0,Math.min(length-1,Math.min(...r.events.map(e=>e.step))));
+  if(emptyTicks){
+   r.events.forEach(e=>{e.step-=emptyTicks;});
+   r.beginAt+=emptyTicks;
+   r.start+=emptyTicks*tickSeconds();
+   length-=emptyTicks;
+  }
+ }
  for(const h of heldKeys.values()){
   if(h.event&&h.which===r.scene){
    h.event.holdSteps=Math.max(.25,Math.min(length,(r.start+length*tickSeconds()-(h.captureStart??h.start))/tickSeconds()));
@@ -1975,7 +1993,7 @@ function endRecord(){
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="● OVERDUB";
- $("recordHint-"+r.scene).textContent=r.events.length?"↻ READY · LOOP PLAYING · "+r.events.length+" events":"EMPTY · try recording again";
+ $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · press STOP LOOP to pause":"EMPTY · try recording again";
  if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
  else {
@@ -1987,8 +2005,7 @@ function endRecord(){
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
  instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor((r.first?r.beginAt:d.anchorStep)/8))});
  renderClips(r.scene);
- tell("↻ LOOP PLAYING NOW · "+(length/2)+" beats defined by DONE · "+
-  r.events.length+" notes/chords. Press OVERDUB to layer, STOP LOOP to pause the phrase.");
+ tell("↻ LOOPING · repeating your "+r.scene.toUpperCase()+" phrase from its FIRST note, with no empty lead-in. Press OVERDUB or STOP LOOP when ready.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
