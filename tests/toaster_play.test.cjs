@@ -11,13 +11,14 @@ const tracksJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster
 const timelineJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_performance_timeline.js"),"utf8");
 const voiceFollowJS = fs.readFileSync(path.join(__dirname,"..","suzy_ai/music/toaster_voice_follow.js"),"utf8");
 function rig(){
- const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null,inputs:[],forceDeviceId:null};
+ const nodes=new Map(),listeners=new Map(),calls={midi:[],output:null,download:null,inputs:[],forceDeviceId:null,
+ systemAudioAvailable:true,screenCaptures:0,recordingStream:null,recordingMime:null};
  const klass=()=>({add(){},remove(){},toggle(){},contains(){return false}});
  const el=(v="")=>({
    value:v,textContent:"",style:{setProperty(name,value){this[name]=value}},dataset:{},children:[],options:[],
    classList:klass(),disabled:false,selectedOptions:[{textContent:"Automatic"}],
    setAttribute(){},addEventListener(type,fn){this._events??={};(this._events[type]??=[]).push(fn);},append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},
-   add(x){this.options.push(x);},remove(){},click(){},
+   add(x){this.options.push(x);},remove(){},click(){if(this.download)calls.download={filename:this.download,url:this.href};},
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
@@ -44,6 +45,8 @@ function rig(){
   createBiquadFilter(){return new AudioNode()}
   createBufferSource(){return new AudioNode()}
   createMediaStreamSource(){return new AudioNode()}
+  createMediaStreamDestination(){const n=new AudioNode();n.stream={getAudioTracks:()=>[{kind:"audio",readyState:"live"}]};return n;}
+  async close(){this.state="closed";}
   createScriptProcessor(){const n=new AudioNode(); n.onaudioprocess=null;calls.processor=n;return n;}
   createBuffer(ch,len,sr){return new AudioBuffer(ch,len,sr)}
   async resume(){this.state="running";}
@@ -71,7 +74,15 @@ function rig(){
   confirm:()=>true,
   AudioContext,OfflineAudioContext,Blob,crypto:{randomUUID:()=>String(Math.random())},
   fetch:async (url,opts)=>{calls.midi.push({url,opts});return {ok:true,json:async()=>({})}},
-  navigator:{mediaDevices:{enumerateDevices:async()=>io,getUserMedia:async constraints=>{
+  navigator:{mediaDevices:{enumerateDevices:async()=>io,getDisplayMedia:async constraints=>{
+   calls.screenCaptures++;
+   calls.displayConstraints=constraints;
+   const video={kind:"video",readyState:"live",addEventListener(){},stop(){this.readyState="ended";}};
+   const audio={kind:"audio",readyState:"live",stop(){this.readyState="ended";}};
+   const audioTracks=calls.systemAudioAvailable?[audio]:[];
+   return {active:true,getVideoTracks:()=>[video],getAudioTracks:()=>audioTracks,
+    getTracks:()=>[video,...audioTracks]};
+  },getUserMedia:async constraints=>{
    calls.inputs.push(constraints);
    const requested=constraints.audio===true?"mac0":constraints.audio.deviceId?.exact||constraints.audio.deviceId?.ideal||"mac0";
    const device=io.find(d=>d.kind==="audioinput"&&d.deviceId===requested);
@@ -85,7 +96,11 @@ function rig(){
   addEventListener(type,fn){if(!listeners.has('window:'+type))listeners.set('window:'+type,[]);listeners.get('window:'+type).push(fn)},
   setInterval:()=>1,clearInterval(){},setTimeout(){},clearTimeout(){},
   URL:{createObjectURL(){return "blob:test"},revokeObjectURL(){}},
-  MediaRecorder:class{constructor(){this.state="inactive";this.mimeType="audio/webm";}start(){this.state="recording"}stop(){this.state="inactive";this.ondataavailable?.({data:new Blob(["capture"])});this.onstop?.();}}
+  MediaRecorder:class{static isTypeSupported(type){return type==="audio/mp4";}
+    constructor(stream,options){this.state="inactive";this.mimeType=options?.mimeType||"audio/webm";
+     calls.recordingStream=stream;calls.recordingMime=this.mimeType;}
+    start(){this.state="recording"}
+    stop(){this.state="inactive";this.ondataavailable?.({data:new Blob(["set-audio"])});this.onstop?.();}}
  };
  env.window=env;
  vm.createContext(env);
@@ -1383,4 +1398,60 @@ test("native loop pedal STOP explicitly releases a tied chord; other song and rh
  assert.ok(calls.midi.some(x=>x.url==="/api/ai/release"));
  assert.equal(run("stageStarted"),true,"shared drum clock remains running");
  assert.equal(run("decks.fishes.loopEnabled"),true);
+});
+
+test("live view replaces huge full arrangement with visible record full set controls",()=>{
+ const {get}=rig();
+ assert.match(file,/<section class="full-arrangement" id="fullArrangement" hidden aria-hidden="true"/);
+ assert.match(file,/#fullArrangement\\[hidden\\]\\{display:none!important\\}/);
+ assert.doesNotMatch(file,/href="#fullArrangement"/);
+ assert.match(file,/id="setRecordStart"/);
+ assert.match(file,/id="setRecordStop" disabled/);
+ assert.match(file,/id="setRecordMic" type="checkbox" checked/);
+ assert.match(file,/id="setRecordStatus"/);
+ assert.ok(file.indexOf('id="setRecordStart"')<file.indexOf('id="rhythm"'));
+ assert.equal(get("setRecordStatus").textContent,"");
+});
+test("record full set captures genuine Mac system audio PLUS Scarlett into one audio file",async()=>{
+ const {run,calls,get}=rig();
+ get("setRecordMic").checked=true;
+ await run("startSetRecording()");
+ assert.equal(calls.screenCaptures,1);
+ assert.equal(calls.displayConstraints.systemAudio,"include");
+ assert.equal(calls.displayConstraints.audio,true);
+ assert.equal(calls.recordingMime,"audio/mp4");
+ assert.equal(run("setRecorder.recorder.state"),"recording");
+ assert.equal(run("setRecorder.addedMic"),true);
+ assert.equal(run("setRecorder.display.getAudioTracks().length"),1);
+ assert.equal(get("setRecordStart").disabled,true);
+ assert.equal(get("setRecordStop").disabled,false);
+ assert.ok(calls.inputs.some(x=>x.audio?.deviceId?.exact==="mic1"),"selected Scarlett stream used");
+ run("setRecorder.heardSystemAudio=true");
+ run("setRecordClock()");
+ assert.match(get("setRecordStatus").textContent,/MAC AUDIO VERIFIED/);
+ run("stopSetRecording()");
+ for(let i=0;i<5;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.match(calls.download.filename,/SUZY_TOASTER_FULL_SET.*\\.m4a$/);
+ assert.match(get("setRecordStatus").textContent,/SET SAVED/);
+ assert.equal(get("setRecordStart").disabled,false);
+});
+test("screen capture without system audio refuses to start, never produces a misleading empty set",async()=>{
+ const {run,calls,get}=rig();
+ calls.systemAudioAvailable=false;
+ get("setRecordMic").checked=false;
+ await run("startSetRecording()");
+ assert.equal(run("setRecorder"),null);
+ assert.equal(calls.recordingStream,null);
+ assert.equal(calls.download,null);
+ assert.match(get("setRecordStatus").textContent,/WITHOUT SYSTEM AUDIO/);
+ assert.equal(get("setRecordStart").disabled,false);
+});
+test("mic monitoring must be off when recorder separately includes Scarlett",async()=>{
+ const {run,calls,get}=rig();
+ get("setRecordMic").checked=true;
+ run("monitoringVoice=true");
+ await run("startSetRecording()");
+ assert.equal(calls.screenCaptures,0);
+ assert.equal(run("setRecorder"),null);
+ assert.match(get("setRecordStatus").textContent,/Turn OFF browser microphone monitoring/);
 });

@@ -252,6 +252,19 @@ a{color:var(--mint)}
 .instrument-source strong{font-size:11px}
 .instrument-source button{padding:7px 11px;font-size:11px}
 .instrument-source .subtle{font-size:11px}
+/* The old 15-minute arrangement editor is intentionally not a live-view panel.
+   Its DOM remains for backward-compatible loop/transport code, not display. */
+#fullArrangement[hidden]{display:none!important}
+.set-recorder{border:1px solid #f2b4bd;background:#322234;border-radius:14px;padding:14px}
+.set-recorder .start{gap:14px}
+.set-recorder .set-rec-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#setRecordStart{background:#b44660;color:#fff8f2;border-color:#f0a7bd}
+#setRecordStop{background:#f7c7cc;color:#3b2130}
+#setRecordStatus{font:700 12px ui-monospace,monospace;color:#b9f3d3}
+#setRecordStatus.is-recording{color:#ffc2b3}
+.set-record-details{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.set-record-details label{display:flex;align-items:center;gap:6px}
+.set-recorder small{display:block;margin-top:7px}
 </style></head><body><main>
 <header>
 <div class="brand">
@@ -259,8 +272,22 @@ a{color:var(--mint)}
 <div class="bread"></div><div class="slot"></div><div class="body"><div class="face">• •</div><div class="smile"></div></div><div class="lever"></div><div class="foot"></div></div>
 <div><div class="tiny">FUTUREPROOF · THE APPLIANCE LATENT SPACE</div><h1>SUZY//TOAST 🍞</h1><p class="subtle">Play it. Loop it. Add a voice. Make it evolve.</p></div>
 </div>
-<div class="start"><a class="track-jump" href="#fullArrangement">🎛 OPEN TRACKS</a><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
+<div class="start"><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
+<section class="set-recorder" aria-label="Record entire live set as audio">
+ <div class="start"><div><div class="tiny">LIVE RECORDING · COMPLETE SET</div>
+ <h2>🔴 Record the performance</h2>
+ <p class="subtle">Capture the Mac's audible system mix (including native Google Magenta and TOASTER rhythm) and optionally the Scarlett microphone in one audio file.</p></div>
+ <div class="set-rec-actions">
+  <button type="button" id="setRecordStart">● RECORD FULL SET</button>
+  <button type="button" id="setRecordStop" disabled>■ STOP & SAVE AUDIO</button>
+ </div></div>
+ <div class="set-record-details">
+  <label><input id="setRecordMic" type="checkbox" checked> Include Scarlett / VE-22 voice</label>
+  <span id="setRecordStatus" role="status" aria-live="polite">READY · Not recording</span>
+ </div>
+ <small>On your Mac, choose <strong>Entire Screen</strong> and enable <strong>Share system audio</strong> in Chrome's sharing picker. TOASTER refuses to record unless system audio is actually shared. Keep browser microphone monitoring OFF when including Scarlett to avoid doubled vocals. Save happens when you press STOP.</small>
+</section>
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
@@ -496,7 +523,7 @@ a{color:var(--mint)}
 <p class="subtle">TOASTER can follow your sung pitch from the Scarlett and send MIDI notes to the existing *instrumental* MRT2 model. Your microphone stays local. This does not create a synthetic singer or reproduce words; the VE-22 is still your vocal harmony option.</p></div>
 <div class="voice-follow-actions"><button type="button" id="voiceFollow">🎙 ENABLE VOICE → MAGENTA</button><span id="voiceFollowStatus" role="status">OFF · Requires working Magenta and microphone permission</span></div></div>
 </section>
-<section class="full-arrangement" id="fullArrangement" aria-label="Full length editable performance timeline">
+<section class="full-arrangement" id="fullArrangement" hidden aria-hidden="true" aria-label="Legacy full length editable performance timeline">
 <div class="start"><div><div class="tiny">ARRANGE / REAL CLIPS / LIVE DRAG</div><h2>One timeline for the complete performance</h2>
 <p class="subtle">Click a bar number or song section on the ruler to position playback, then press Play. Clicking while playing jumps immediately. Click an empty lane to locate and choose a paste bar; drag recorded clips to arrange them. Native Magenta has its own transport.</p></div>
 <div class="arrangement-transport" aria-label="Browser timeline transport">
@@ -633,6 +660,7 @@ const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[]
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
+let setRecorder=null,setRecordingStartTime=0,setRecordTimer=null,setRecordingChunks=[],setDisplayStream=null,setMixContext=null,setMixMicSource=null;
 let fullTimeline=null;
 let arranger=null;
 function tell(s){$("message").textContent=s;$("warning").textContent="";}
@@ -646,6 +674,141 @@ function makeReverb(){
  }}
  return b;
 }
+function setRecordClock(){
+ if(!setRecorder)return;
+ const seconds=Math.floor((Date.now()-setRecordingStartTime)/1000);
+ const mm=String(Math.floor(seconds/60)).padStart(2,"0"),ss=String(seconds%60).padStart(2,"0");
+ const analyser=setRecorder.analyser;
+ if(analyser){
+  const samples=new Float32Array(analyser.fftSize||2048);
+  analyser.getFloatTimeDomainData(samples);
+  let energy=0;
+  for(let i=0;i<samples.length;i++)energy+=samples[i]*samples[i];
+  if(Math.sqrt(energy/samples.length)>.00035)setRecorder.heardSystemAudio=true;
+ }
+ $("setRecordStatus").textContent="● REC "+mm+":"+ss+
+  (setRecorder.heardSystemAudio?" · MAC AUDIO VERIFIED":" · CHECK SYSTEM AUDIO / PLAY A SOUND")+
+  (setRecorder.addedMic?" + SCARLETT":"");
+}
+function resetSetRecordControls(){
+ if(setRecordTimer){clearInterval(setRecordTimer);setRecordTimer=null;}
+ $("setRecordStart").disabled=false;
+ $("setRecordStop").disabled=true;
+ $("setRecordMic").disabled=false;
+ $("setRecordStatus").classList.remove("is-recording");
+}
+async function finishSetRecording(capture){
+ try{
+  const type=capture.recorder.mimeType||"audio/webm";
+  const chunks=capture.chunks;
+  if(!chunks.length||chunks.every(c=>!c?.size)){
+   warn(Error("Full-set capture ended without recorded audio. No file was saved."));
+   $("setRecordStatus").textContent="NO AUDIO · CHECK MAC SYSTEM AUDIO SHARING";
+   return;
+  }
+  const extension=type.includes("mp4")?"m4a":type.includes("ogg")?"ogg":"webm";
+  const audio=new Blob(chunks,{type}),url=URL.createObjectURL(audio);
+  const download=document.createElement("a");
+  download.href=url;
+  download.download="SUZY_TOASTER_FULL_SET_"+new Date(capture.started).toISOString().replace(/[:.]/g,"-")+"."+extension;
+  download.click();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+  $("setRecordStatus").textContent="✓ SET SAVED · "+extension.toUpperCase()+
+   (capture.heardSystemAudio?" · SYSTEM AUDIO VERIFIED":" · WARNING: NO SYSTEM LEVEL DETECTED");
+  tell("Recording downloaded as "+download.download+". "+(extension==="m4a"?"Import directly into Logic.":"If Logic cannot read WebM, convert the file to WAV before importing."));
+ }catch(e){warn(e);$("setRecordStatus").textContent="SAVE ERROR · CHECK CHROME DOWNLOADS";}
+ finally{
+  try{capture.display.getTracks().forEach(t=>t.stop());}catch{}
+  try{capture.micSource?.disconnect();capture.systemSource?.disconnect();capture.analyser?.disconnect();}catch{}
+  try{await capture.audioContext.close();}catch{}
+  resetSetRecordControls();
+ }
+}
+async function startSetRecording(){
+ if(setRecorder)return;
+ const button=$("setRecordStart");
+ button.disabled=true;
+ $("setRecordStatus").textContent="SELECT ENTIRE SCREEN + SHARE SYSTEM AUDIO IN CHROME";
+ let display=null,audioContext=null,micSource=null,systemSource=null,analyser=null;
+ try{
+  if(!navigator.mediaDevices?.getDisplayMedia||typeof MediaRecorder==="undefined")
+   throw Error("Full-set system capture needs current Google Chrome on macOS.");
+  if($("setRecordMic").checked&&monitoringVoice)
+   throw Error("Turn OFF browser microphone monitoring first, or the Scarlett vocal would be recorded twice.");
+  // No browser mix-only fallback: that would silently omit the native Google AU.
+  // Unlock the capture AudioContext from the original button click *before*
+  // the macOS sharing picker consumes user activation.
+  const CaptureContext=window.AudioContext||window.webkitAudioContext;
+  audioContext=new CaptureContext();
+  await audioContext.resume();
+  display=await navigator.mediaDevices.getDisplayMedia({
+   video:{frameRate:1},audio:true,systemAudio:"include",selfBrowserSurface:"include"
+  });
+  if(!display.getAudioTracks?.().some(t=>t.readyState!=="ended"))
+   throw Error("Chrome shared the screen WITHOUT SYSTEM AUDIO. Try again, choose Entire Screen and enable Share system audio. Nothing was recorded.");
+  // Record precisely what is audible at the Mac output, including the separate
+  // native Google AU. Never route this capture into speakers (feedback risk).
+  const destination=audioContext.createMediaStreamDestination();
+  systemSource=audioContext.createMediaStreamSource(display);
+  analyser=audioContext.createAnalyser();
+  analyser.fftSize=2048;
+  systemSource.connect(analyser);
+  systemSource.connect(destination);
+  let addedMic=false;
+  if($("setRecordMic").checked){
+   // Existing enableMic() verifies the selected Scarlett by exact device ID.
+   const voiceStream=await enableMic();
+   micSource=audioContext.createMediaStreamSource(voiceStream);
+   const voiceGain=audioContext.createGain();
+   voiceGain.gain.value=.85;
+   micSource.connect(voiceGain);
+   voiceGain.connect(destination);
+   addedMic=true;
+  }
+  // Prefer M4A/AAC for importing into Logic; fallback to reliable Chrome WebM.
+  const type=["audio/mp4;codecs=mp4a.40.2","audio/mp4","audio/webm;codecs=opus","audio/webm"]
+   .find(x=>MediaRecorder.isTypeSupported?.(x))||"";
+  const recorder=new MediaRecorder(destination.stream,{
+   ...(type?{mimeType:type}:{}),audioBitsPerSecond:192000
+  });
+  const capture={recorder,display,audioContext,micSource,systemSource,analyser,
+   chunks:[],addedMic,heardSystemAudio:false,started:Date.now()};
+  recorder.ondataavailable=e=>{if(e.data?.size)capture.chunks.push(e.data);};
+  recorder.onerror=e=>warn(Error("Full-set encoder error: "+(e.error?.message||"unknown recording error")));
+  recorder.onstop=()=>{if(setRecorder===capture)setRecorder=null;finishSetRecording(capture);};
+  setRecorder=capture;
+  setRecordingStartTime=capture.started;
+  recorder.start(1000);
+  const track=display.getVideoTracks?.()[0];
+  track?.addEventListener?.("ended",()=>{if(setRecorder===capture)stopSetRecording();});
+  $("setRecordStop").disabled=false;
+  $("setRecordMic").disabled=true;
+  $("setRecordStatus").classList.add("is-recording");
+  setRecordClock();
+  setRecordTimer=setInterval(setRecordClock,350);
+  tell("SET RECORDING · Mac system audio"+(addedMic?" and Scarlett voice":"")+" · perform normally. Press STOP & SAVE AUDIO when finished.");
+ }catch(e){
+  if(setRecorder?.recorder?.state==="recording")setRecorder.recorder.stop();
+  else{
+   display?.getTracks().forEach(t=>t.stop());
+   try{micSource?.disconnect();systemSource?.disconnect();analyser?.disconnect();}catch{}
+   try{await audioContext?.close();}catch{}
+  }
+  setRecorder=null;
+  resetSetRecordControls();
+  $("setRecordStatus").textContent="NOT RECORDING · "+(e?.message||e);
+  warn(e);
+ }
+}
+function stopSetRecording(){
+ if(!setRecorder)return;
+ const capture=setRecorder;
+ $("setRecordStop").disabled=true;
+ $("setRecordStatus").textContent="FINISHING · SAVING AUDIO TO DOWNLOADS…";
+ if(capture.recorder.state==="recording")capture.recorder.stop();
+ else if(capture.recorder.state==="inactive"){setRecorder=null;finishSetRecording(capture);}
+}
+
 async function openAudio(){
  if(!ctx){
   ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:$("browserLatency").value});
@@ -2436,6 +2599,8 @@ document.querySelectorAll(".note-pad").forEach(el=>{
 });
 window.addEventListener("blur",releaseAllChords);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllChords();});
+$("setRecordStart").onclick=startSetRecording;
+$("setRecordStop").onclick=stopSetRecording;
 $("mix").oninput=()=>{blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");$("mixBoth").textContent="♫ LAYER BOTH SONGS";updateMix();};
 $("mix").onchange=syncAIMix;
 $("aiEnable").onclick=toggleAI;
@@ -2482,7 +2647,10 @@ $("vocalHeadroom").oninput=()=>{$("vocalHeadroomNumber").textContent=$("vocalHea
 $("aiImport").onchange=e=>{importAudio(e.target.files?.[0]);e.target.value=""};
 $("export").onclick=readAndExport;
 updateMix();updateVocalState();updateTransportUI();
-window.addEventListener("beforeunload",()=>{stopMicMeter();micStream?.getTracks().forEach(t=>t.stop());});
+window.addEventListener("beforeunload",e=>{
+ if(setRecorder){e.preventDefault();e.returnValue="A full set recording is in progress. Press STOP & SAVE AUDIO first.";return;}
+ stopMicMeter();micStream?.getTracks().forEach(t=>t.stop());
+});
 aiStatus();
 if(!aiPoll)aiPoll=setInterval(aiStatus,1200);
 </script></body></html>
