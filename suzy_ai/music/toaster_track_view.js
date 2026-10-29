@@ -49,28 +49,17 @@ class Tracks{
    select.type="button";select.onclick=()=>this.select(which);
    const rec=el("button","track-record",d.locked&&d.layers.length?"＋ ADD INSTRUMENT LAYER":"● RECORD FIRST LOOP");
    rec.type="button";rec.onclick=()=>this.record(which);
-   const mic=el("button","track-voice","🎙 VOICE");
+   const mic=el("button","track-voice",
+      d.layers.some(l=>l.kind==="vocal")?"🎙 ADD VOICE LAYER":"🎙 RECORD FIRST VOICE");
    mic.type="button";mic.onclick=()=>this.voice(which);
    controls.append(select,rec,mic);
-   if(!d.locked){
-    const first=el("label","track-first-length","If VOICE is the first take:");
-    const length=el("select","track-first-size");
-    length.setAttribute("aria-label","Length of first vocal loop for "+which);
-    for(const n of [2,4,8,16,32]){
-      const o=el("option","",n+" bars");o.value=String(n);length.append(o);
-    }
-    length.value=String(d.initialBars||8);
-    length.onchange=()=>{d.initialBars=Number(length.value);this.draw()};
-    first.append(length);controls.append(first);
-   }
    const recState=this.getRecording();
    if(recState?.scene===which&&recState.kind==="chords"){
     rec.textContent=recState.finishQueued?"↻ LOOP STARTING":recState.active?(recState.first?"■ DONE → LOOP":"■ DONE LAYER"):"● ARMED";
     rec.classList.add("active");
    }
    if(recState?.scene===which&&recState.kind==="vocal"){
-    mic.textContent=recState.first?(recState.finishQueued?"🎙 FINISH QUEUED":"■ FINISH FIRST VOICE"):
-      "🎙 VOCAL OVERDUB";
+    mic.textContent=recState.finishQueued?"↻ VOICE LOOP STARTING":"■ DONE VOICE → LOOP";
     mic.classList.add("active");
    }
    header.append(controls);
@@ -125,7 +114,7 @@ class Tracks{
    lanes.append(head);column.append(lanes);
    const summary=el("div","track-foot",d.locked&&d.layers.length
      ?"Your first phrase sets the loop length. For another LOCAL SYNTH layer, choose a different NEW LAYER SOUND before recording. Native Magenta remains one shared AI stream. Remove all clips to start over."
-     :"Fresh loop: press RECORD FIRST LOOP, play, then DONE. You do not need to reload to start again.");
+     :"Fresh loop: press RECORD FIRST LOOP (or RECORD FIRST VOICE), play or sing, then DONE. No bar selection or reload.");
    column.append(summary);
   }
   this.tick();
@@ -142,7 +131,7 @@ class Tracks{
    if(label){
      const captured=rec?.scene===which;
      label.textContent=captured?
-       (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● RECORDING NEW LAYER"):"● RECORDING VOICE"):"◉ ARMED"):
+       (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● RECORDING NEW LAYER"):"● VOICE · PRESS DONE"):"◉ ARMED"):
        !d.locked?"○ READY TO RECORD":
        !this.getRunning()?"Ⅱ PAUSED":
        d.loopEnabled?"↻ LOOPING":"■ LOOP STOPPED";

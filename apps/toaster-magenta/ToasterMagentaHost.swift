@@ -589,7 +589,8 @@ final class MRT2Host {
             if x != scene {
                 allNotesOff()
                 scene = x
-                blend = x == "pyramid" ? 0 : 1
+                // MIDI scene selection changes the available chord voicing,
+                // NOT the performer's manually chosen crossfade. Preserve blend.
                 configure()
             }
         case "mix":
