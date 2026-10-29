@@ -8,6 +8,7 @@ import AudioToolbox
 import CoreAudioKit // AUv3's custom-view controller API is exposed by CoreAudioKit.
 import Synchronization // Lock-free state read on the real-time render callback.
 import AppKit
+import Darwin // mach_absolute_time keeps the native loop anchored to AU render host time.
 
 final class MRT2Host {
     private var engine: AVAudioEngine?
@@ -65,6 +66,13 @@ final class MRT2Host {
     private var nativeCaptureLimit: AVAudioFramePosition = 0
     private var nativeCapturePeak: Float = 0
     private var nativeCaptureRate: Double = 0
+    // The audio-tap thread makes a bounded PCM copy, never I/O or playback.
+    // Unlike the old WAV handoff, these buffers can be scheduled directly
+    // to the SAME AVAudioEngine for low-latency gapless .loops playback.
+    private var nativeCaptureBuffers: [AVAudioPCMBuffer] = []
+    private var nativeCaptureStartHostTime: UInt64 = 0
+    private var nativeLoopPlayers: [String: AVAudioPlayerNode] = [:]
+    private var nativeLoopFrames: [String: Int] = [:]
     private let nativeCaptureDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent(".build/toaster-native-captures", isDirectory: true)
     // Diagnostic override. Default unchanged; set SUZY_MRT2_MIDI_GATE=0
@@ -133,7 +141,9 @@ final class MRT2Host {
                 && transportPlaying.load(ordering: .relaxed),
             "transport_playing": transportPlaying.load(ordering: .relaxed),
             "native_loop_capture_supported": generator != nil && engine?.isRunning == true,
-            "native_loop_capture_source": "host_main_mixer_pcm_not_browser_system_audio",
+            "native_loop_capture_source": "google_reverb_output_tap_pcm_without_browser_or_loop_feedback",
+            "native_memory_loop_supported": generator != nil && engine?.isRunning == true,
+            "native_memory_loop_count": nativeLoopPlayers.count,
             "text_prompts": prompts,
             "prompt_slot_count": prompts.count,
             "prompt_weights": (10...14).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
@@ -158,7 +168,7 @@ final class MRT2Host {
     }
     // The installed tap copies a short buffer on its callback and queues WAV
     // writes. It never writes a file or takes a blocking lock on the render path.
-    private func collectNativeCapture(_ buffer: AVAudioPCMBuffer) {
+    private func collectNativeCapture(_ buffer: AVAudioPCMBuffer, at when: AVAudioTime) {
         guard nativeCaptureArmed.load(ordering: .relaxed),
               let input = buffer.floatChannelData,
               buffer.frameLength > 0,
@@ -169,8 +179,10 @@ final class MRT2Host {
         for ch in 0..<Int(buffer.format.channelCount) {
             output[ch].update(from: input[ch], count: count)
         }
+        let hostTime = when.isHostTimeValid ? when.hostTime : mach_absolute_time()
         nativeCaptureQueue.async { [weak self] in
             guard let self = self, let file = self.nativeCaptureFile else { return }
+            if self.nativeCaptureStartHostTime == 0 { self.nativeCaptureStartHostTime = hostTime }
             let remaining = self.nativeCaptureLimit - self.nativeCaptureFrames
             guard remaining > 0 else { return }
             if AVAudioFramePosition(copy.frameLength) > remaining {
@@ -185,6 +197,8 @@ final class MRT2Host {
             }
             do {
                 try file.write(from: copy)
+                // Max 120s x 48k stereo float ≈ 46 MB; releases on STOP.
+                self.nativeCaptureBuffers.append(copy)
                 self.nativeCaptureFrames += AVAudioFramePosition(copy.frameLength)
                 if self.nativeCaptureFrames >= self.nativeCaptureLimit {
                     self.nativeCaptureFile = nil
@@ -215,6 +229,8 @@ final class MRT2Host {
                 let file = try AVAudioFile(forWriting: path, settings: format.settings,
                     commonFormat: .pcmFormatFloat32, interleaved: false)
                 nativeCaptureID = id
+                nativeCaptureBuffers.removeAll(keepingCapacity: false)
+                nativeCaptureStartHostTime = 0
                 nativeCaptureFrames = 0
                 nativeCapturePeak = 0
                 nativeCaptureRate = format.sampleRate
@@ -228,18 +244,142 @@ final class MRT2Host {
             }
         }
     }
-    private func nativeCaptureState(_ id: String, stop: Bool = false) -> [String: Any] {
-        nativeCaptureQueue.sync {
-            guard id == nativeCaptureID, !id.isEmpty else { return ["error": "Unknown native capture"] }
+    // The loop is PLAYED IN THE NATIVE AUDIO ENGINE. The browser can still
+    // fetch the companion WAV for a waveform/export without blocking replay.
+    // This route deliberately taps the AU reverb node, never the main mixer:
+    // loop playback cannot feed itself into the next recorded take.
+    private func nativeCaptureState(_ id: String, stop: Bool = false,
+                                    liveLoop: Bool = false, preRoll: Double = 0,
+                                    period: Double = 0) -> [String: Any] {
+        let snapshot = nativeCaptureQueue.sync { () -> (status: [String: Any], pcm: [AVAudioPCMBuffer], hostTime: UInt64) in
+            guard id == nativeCaptureID, !id.isEmpty else {
+                return (["error": "Unknown native capture"], [], 0)
+            }
             if stop {
                 nativeCaptureArmed.store(false, ordering: .relaxed)
                 nativeCaptureFile = nil
             }
             let ready = nativeCaptureFile == nil
-            return ["capture_id": id, "ready": ready, "frames": nativeCaptureFrames,
-                    "rate": nativeCaptureRate, "peak": nativeCapturePeak,
-                    "audio_url": ready && nativeCaptureFrames > 0 ? "/api/ai/capture/" + id : ""]
+            let result: [String: Any] = [
+                "capture_id": id, "ready": ready, "frames": nativeCaptureFrames,
+                "rate": nativeCaptureRate, "peak": nativeCapturePeak,
+                "audio_url": ready && nativeCaptureFrames > 0 ? "/api/ai/capture/" + id : ""
+            ]
+            let copies = ready && stop && liveLoop ? nativeCaptureBuffers : []
+            if ready && stop { nativeCaptureBuffers.removeAll() }
+            return (result, copies, nativeCaptureStartHostTime)
         }
+        var result = snapshot.status
+        if stop && liveLoop && result["error"] == nil {
+            let outcome = startNativeMemoryLoop(id: id, copies: snapshot.pcm,
+                                                firstHostTime: snapshot.hostTime,
+                                                preRoll: preRoll, period: period)
+            for (key, value) in outcome { result[key] = value }
+        }
+        return result
+    }
+    private func startNativeMemoryLoop(id: String, copies: [AVAudioPCMBuffer],
+                                       firstHostTime: UInt64, preRoll: Double,
+                                       period: Double) -> [String: Any] {
+        guard let audio = engine, audio.isRunning, !copies.isEmpty,
+              firstHostTime != 0, preRoll.isFinite, preRoll >= 0,
+              period.isFinite, period >= 0.25, period <= 120 else {
+            return ["native_loop_playing": false,
+                    "native_loop_error": "No valid native PCM / loop timing; browser WAV fallback remains."]
+        }
+        let format = copies[0].format
+        guard format.commonFormat == .pcmFormatFloat32,
+              !format.isInterleaved, format.channelCount > 0 else {
+            return ["native_loop_playing": false, "native_loop_error": "Unsupported native PCM format"]
+        }
+        // Trim the audio captured before GREEN 1, not the leading musical rest.
+        let skip = max(0, Int((preRoll * format.sampleRate).rounded()))
+        let frames = Int((period * format.sampleRate).rounded())
+        guard frames > 0, frames <= Int(format.sampleRate * 120),
+              let output = AVAudioPCMBuffer(pcmFormat: format,
+                                            frameCapacity: AVAudioFrameCount(frames)),
+              let dst = output.floatChannelData else {
+            return ["native_loop_playing": false, "native_loop_error": "Could not allocate loop buffer"]
+        }
+        output.frameLength = AVAudioFrameCount(frames)
+        for channel in 0..<Int(format.channelCount) {
+            dst[channel].initialize(repeating: 0, count: frames)
+        }
+        var readPosition = 0
+        for fragment in copies {
+            guard let src = fragment.floatChannelData else { continue }
+            let fragmentFrames = Int(fragment.frameLength)
+            let sourceStart = max(0, skip - readPosition)
+            let targetStart = max(0, readPosition - skip)
+            let count = max(0, min(fragmentFrames - sourceStart, frames - targetStart))
+            if count > 0 {
+                for channel in 0..<Int(format.channelCount) {
+                    dst[channel].advanced(by: targetStart)
+                        .update(from: src[channel].advanced(by: sourceStart), count: count)
+                }
+            }
+            readPosition += fragmentFrames
+            if targetStart >= frames { break }
+        }
+        // One-sample discontinuities can click on a fast loop. Equalize only
+        // a short crossfade at the seam; leave the downbeat attack intact.
+        let fade = min(Int(format.sampleRate * 0.003), frames / 32)
+        if fade > 1 {
+            for channel in 0..<Int(format.channelCount) {
+                let samples = dst[channel]
+                let center = (samples[0] + samples[frames - 1]) * 0.5
+                for i in 0..<fade {
+                    let blend = Float(fade - i) / Float(fade) * 0.5
+                    samples[i] = samples[i] * (1 - blend) + center * blend
+                    let j = frames - 1 - i
+                    samples[j] = samples[j] * (1 - blend) + center * blend
+                }
+            }
+        }
+        let player = AVAudioPlayerNode()
+        // The player is mixed OUTSIDE the captured AU node and never fed back.
+        audio.attach(player)
+        audio.connect(player, to: audio.mainMixerNode, format: format)
+        player.volume = 0.8
+        player.scheduleBuffer(output, at: nil, options: [.loops], completionHandler: nil)
+        // Preserve the original host-audio beat-one timestamp across HTTP
+        // latency. If DONE happens too close to beat one, schedule the NEXT
+        // complete boundary. Buffer repetition is sample-accurate thereafter.
+        let first = firstHostTime &+ AVAudioTime.hostTime(forSeconds: preRoll)
+        let cycle = max(UInt64(1), AVAudioTime.hostTime(forSeconds: period))
+        let earliest = mach_absolute_time() &+ AVAudioTime.hostTime(forSeconds: 0.16)
+        let repeats = earliest > first ? (earliest - first + cycle - 1) / cycle : 0
+        let scheduled = first &+ repeats &* cycle
+        player.play(at: AVAudioTime(hostTime: scheduled))
+        nativeLoopPlayers[id] = player
+        nativeLoopFrames[id] = frames
+        let delayMs = Int(Double(scheduled > mach_absolute_time() ?
+                                scheduled - mach_absolute_time() : 0) /
+                          Double(AVAudioTime.hostTime(forSeconds: 1)) * 1000)
+        return ["native_loop_playing": true, "native_loop_id": id,
+                "native_loop_frames": frames, "native_loop_rate": format.sampleRate,
+                "native_loop_scheduled_ms": max(0, delayMs)]
+    }
+    private func setNativeLoopVolume(id: String, level: Double) -> [String: Any] {
+        guard let node = nativeLoopPlayers[id], level.isFinite,
+              level >= 0, level <= 1 else {
+            return ["error": "Unknown native memory loop or invalid volume"]
+        }
+        node.volume = Float(level)
+        return ["native_loop_id": id, "native_loop_volume": level,
+                "native_loop_muted": level == 0]
+    }
+    private func setNativeLoopMuted(id: String, muted: Bool) -> [String: Any] {
+        setNativeLoopVolume(id: id, level: muted ? 0 : 0.8)
+    }
+    private func removeNativeLoop(id: String) -> [String: Any] {
+        guard let node = nativeLoopPlayers.removeValue(forKey: id) else {
+            return ["error": "Unknown native memory loop"]
+        }
+        node.stop()
+        engine?.detach(node)
+        nativeLoopFrames.removeValue(forKey: id)
+        return ["native_loop_removed": id]
     }
     private func parameter(_ address: AUParameterAddress, _ value: Float) {
         guard let au = generator?.auAudioUnit,
@@ -484,8 +624,11 @@ final class MRT2Host {
                     audio.connect(unit, to: reverb, format: nil)
                     audio.connect(reverb, to: audio.mainMixerNode, format: nil)
                     self.reverbUnit = reverb
-                    audio.mainMixerNode.installTap(onBus: 0, bufferSize: 2048, format: nil) { [weak self] buffer, _ in
-                        self?.collectNativeCapture(buffer)
+                    // Tap native AU-only audio BEFORE the memory-looper mixer.
+                    // A mainMixer tap would record old loops again on overdub,
+                    // creating uncontrolled accumulation and feedback.
+                    reverb.installTap(onBus: 0, bufferSize: 2048, format: nil) { [weak self] buffer, when in
+                        self?.collectNativeCapture(buffer, at: when)
                         guard let samples = buffer.floatChannelData else { return }
                         let strideLength = max(1, Int(buffer.frameLength) / 128)
                         let count = min(Int(buffer.format.channelCount), 2)
@@ -637,7 +780,11 @@ final class MRT2Host {
     }
     func stop() {
         nativeCaptureArmed.store(false, ordering: .relaxed)
-        nativeCaptureQueue.sync { nativeCaptureFile = nil }
+        nativeCaptureQueue.sync {
+            nativeCaptureFile = nil
+            nativeCaptureBuffers.removeAll()
+        }
+        for id in Array(nativeLoopPlayers.keys) { _ = removeNativeLoop(id: id) }
         allNotesOff()
         auUIWindow?.close()
         auUIWindow = nil
@@ -669,7 +816,26 @@ final class MRT2Host {
             return nativeCaptureState(id)
         case "capture-stop":
             guard let id = request["id"] as? String else { return ["error":"capture ID required"] }
-            return nativeCaptureState(id, stop: true)
+            return nativeCaptureState(id, stop: true,
+                liveLoop: request["live_loop"] as? Bool ?? false,
+                preRoll: request["preroll_seconds"] as? Double ?? 0,
+                period: request["period_seconds"] as? Double ?? 0)
+        case "loop-mute":
+            guard let id = request["id"] as? String,
+                  let muted = request["value"] as? Bool else { return ["error": "loop id/value required"] }
+            return setNativeLoopMuted(id: id, muted: muted)
+        case "loop-volume":
+            guard let id = request["id"] as? String,
+                  let value = request["value"] as? Double else { return ["error": "loop id/value required"] }
+            return setNativeLoopVolume(id: id, level: value)
+        case "loop-remove":
+            guard let id = request["id"] as? String else { return ["error": "loop id required"] }
+            return removeNativeLoop(id: id)
+        case "loop-stop-all":
+            // Does not discard captured buffers, so the user can unmute
+            // known saved loops later. Still works after a browser refresh.
+            for node in nativeLoopPlayers.values { node.volume = 0 }
+            return ["native_loops_silenced": nativeLoopPlayers.count]
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
@@ -769,7 +935,11 @@ final class MRT2Host {
                   let notes = chords[scene], (0..<4).contains(i) else {
                 return ["error":"AI host not ready or invalid chord index"]
             }
-            let next = notes[i]
+            let harmony = request["harmony"] as? String ?? scene
+            guard let nextNotes = chords[harmony] else {
+                return ["error": "harmony must be pyramid or fishes"]
+            }
+            let next = nextNotes[i]
             if request["legato"] as? Bool == true {
                 // Loop playback: retain common tones instead of sending
                 // note-off/on pairs at every chord transition. A chord held

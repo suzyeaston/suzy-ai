@@ -336,6 +336,14 @@ body{padding-top:86px}
 .pedal-clock[data-cue="count"] #pedalCueBig{background:#f8d69c;color:#402a22}
 .pedal-clock[data-cue="go"]{background:#3b3d1c;border-color:#ffe193;box-shadow:0 5px 28px #ffc85170}
 .pedal-clock[data-cue="go"] #pedalCueBig{background:#fff79d;color:#382308;animation:pedal-go-pulse .32s ease-in-out infinite alternate}
+#silenceAllLoops{pointer-events:auto;background:#8c2639;color:#fff;border:2px solid #ffc5bd;font:850 11px ui-monospace,monospace;padding:9px;border-radius:9px;white-space:nowrap}
+.native-harmony-selector{display:grid;gap:7px;margin:11px 0;padding:10px;border:1px solid #6b9e99;border-radius:10px;background:#152728}
+.native-harmony-label{font:800 10px ui-monospace,monospace;color:#b7edde;letter-spacing:.04em}
+.native-harmony-row{display:grid;grid-template-columns:104px repeat(4,minmax(0,1fr));gap:5px;align-items:stretch}
+.native-harmony-row strong{font:800 11px ui-monospace,monospace;color:#e5e6d4;align-self:center}
+.native-harmony-pad{min-width:0;padding:9px 4px;border:1px solid #6d9b92;background:#345b53;color:#e6fff0;border-radius:8px;font:800 12px ui-monospace,monospace;touch-action:none}
+.native-harmony-pad.on{background:#fff0ad;color:#413622;box-shadow:0 0 10px #ffe9ac60}
+@media(max-width:650px){.native-harmony-row{grid-template-columns:76px repeat(4,minmax(0,1fr));gap:3px}.native-harmony-pad{font-size:10px;padding:8px 2px}}
 .pedal-clock[data-cue="recording"] #pedalCueBig{background:#ffc0b8;color:#54232c}
 @keyframes pedal-go-pulse{from{transform:scale(1)}to{transform:scale(1.09)}}
 .pedal-beats{display:flex;gap:5px}
@@ -382,6 +390,7 @@ body{padding-top:86px}
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
+<label class="native-loop-option"><input type="checkbox" id="nativeMemoryLoop" checked> ⚡ NATIVE LIVE LOOPING · direct Mac playback; WAV fallback available</label>
 <div class="pedal-clock" id="pedalClock" role="group" data-cue="ready" aria-label="Floating live beat clock and recording count-in. Stays visible when scrolling.">
  <strong id="pedalClockState">○ WAITING FOR RHYTHM</strong>
  <strong id="pedalCueBig" aria-live="polite">WAIT</strong>
@@ -393,6 +402,7 @@ body{padding-top:86px}
  <span id="pedalBeat5" class="pedal-beat" hidden>5</span>
  </div>
  <span id="pedalClockCue" role="status" aria-live="polite">Press PLAY RHYTHM. Then record on the highlighted 1.</span>
+ <button type="button" id="silenceAllLoops" aria-label="Emergency silence all saved loops including native Mac audio" title="Instantly silence every recorded loop. Does not delete saved audio or stop the rhythm.">⛔ SILENCE LOOPS</button>
 </div>
 <div class="mixer">
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
@@ -561,6 +571,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE</button>
   <button type="button" id="nativeResume-pyramid-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-chords">PRESET · Recording automatically activates the piano prompt</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-chords" aria-label="pyramid chords instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
@@ -569,6 +580,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-pyramid-lead">● RECORD VIOLIN TAKE</button>
   <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-lead">PRESET · Recording automatically activates the violin prompt</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-lead" aria-label="pyramid lead instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureLow" aria-label="low cello drone audio layers">
@@ -578,6 +590,7 @@ body{padding-top:86px}
    <button type="button" id="nativeRecord-pyramid-textureLow">● RECORD CELLO TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureLow" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-textureLow">PRESET · Record to add a cello texture to Pyramid</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-textureLow" aria-label="pyramid textureLow instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-textureLow"></div>
  </section>
  <section class="instrument-lane texture-orbit" id="instrument-pyramid-textureHigh" aria-label="glassy mallet and harp audio layers">
@@ -587,6 +600,7 @@ body{padding-top:86px}
    <button type="button" id="nativeRecord-pyramid-textureHigh">● RECORD GLASS TAKE</button>
    <button type="button" id="nativeResume-pyramid-textureHigh" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-textureHigh">PRESET · Record to add glass harmonics to Pyramid</div>
+  <div class="native-harmony-selector" id="nativeChords-pyramid-textureHigh" aria-label="pyramid textureHigh instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-pyramid-textureHigh"></div>
  </section>
  </div>
@@ -663,6 +677,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-fishes-chords">● RECORD ARPEGGIOS TAKE</button>
   <button type="button" id="nativeResume-fishes-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
+  <div class="native-harmony-selector" id="nativeChords-fishes-chords" aria-label="fishes chords instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-fishes-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
@@ -671,6 +686,7 @@ body{padding-top:86px}
   <button type="button" id="nativeRecord-fishes-lead">● RECORD CLASSICAL GUITAR TAKE</button>
   <button type="button" id="nativeResume-fishes-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
+  <div class="native-harmony-selector" id="nativeChords-fishes-lead" aria-label="fishes lead instrument chords from Pyramid and Weird Fishes"></div>
   <div class="lane-clips" id="nativeClips-fishes-lead"></div>
  </section>
  </div>
@@ -867,6 +883,7 @@ let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,vocalArming=null,audioPrint=null,nativeTake=null,nativeTakeArming=null;
+const preferNativeMemoryLoop=()=>$("nativeMemoryLoop")?.checked!==false;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false,monitorPreparing=null;
@@ -2019,10 +2036,29 @@ function songLayerAudible(which,layer,bar){
 // Re-enable an already-running audio loop on the next rendering block instead
 // of waiting up to one bar. The source keeps its phase, so other layers remain
 // synchronized. We never restart the generator or request a new recording.
+function nativeMemoryGain(which,layer){
+ if(!songLayerAudible(which,layer,Math.floor(stepNumber/8)))return 0;
+ const crossfade=Number($("mix").value)/100;
+ const side=which==="drums"?1:which==="pyramid"?(1-crossfade):crossfade;
+ const enabled=which==="drums"||(!localKeysOnly&&decks[which].enabled);
+ const fader=which==="drums"?1:Number($("level-"+which).value)/100;
+ const master=Number($("performanceMaster").value)/100;
+ return enabled?clamp((layer.level??.8)*side*fader*master,0,1):0;
+}
+function setNativeMemoryGain(which,layer){
+ if(!layer?.nativeLive||!layer.nativeLoopID)return;
+ const value=nativeMemoryGain(which,layer);
+ if(layer.nativeVolumeLast===value)return; // avoid redundant HTTP requests.
+ layer.nativeVolumeLast=value;
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(aiNativeReady)await aiFetch("loop-volume",{id:layer.nativeLoopID,value});
+ }).catch(warn);
+}
 function applyLoopGateNow(which){
  if(!ctx)return;
  const now=ctx.currentTime,at=now+.012,d=loopDeck(which);
  for(const layer of d.layers){
+  if(layer.nativeLive){setNativeMemoryGain(which,layer);continue;}
   if(!layer.buffer)continue;
   if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
   if(!layer.gain)continue;
@@ -2040,7 +2076,7 @@ function applyLoopGateNow(which){
  }
 }
 function nativeSavedLayers(which,role){
- return loopDeck(which).layers.filter(l=>l.buffer&&l.instrumentRole===role);
+ return loopDeck(which).layers.filter(l=>(l.buffer||l.nativeLive)&&l.instrumentRole===role);
 }
 function updateNativePlaybackButtons(){
  const pairs=[...Object.keys(decks).flatMap(which=>[["chords",which],["lead",which]]),
@@ -2086,6 +2122,30 @@ function updateLoopControls(which){
   "⌛ RESTART QUEUED · CANCEL":d.loopEnabled?"■ STOP LOOP":"▶ RESTART ON 1";
  now.disabled=!d.locked||!d.layers.length||d.loopEnabled;
  now.textContent="▶ HEAR NOW · MID-PHRASE";
+}
+async function emergencySilenceAllLoops(){
+ // Hard-gate browser PCM first, before any asynchronous host requests.
+ for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]]){
+  d.loopEnabled=false;d.loopToggleAt=null;d.loopToggleTarget=null;
+  for(const layer of d.layers){
+   stopLayerWash(layer);stopLayerEcho(layer);
+   if(layer.gain&&ctx){
+    layer.gain.gain.cancelScheduledValues(ctx.currentTime);
+    layer.gain.gain.setValueAtTime(0,ctx.currentTime);
+   }
+   if(layer.nativeLive)setNativeMemoryGain(which,layer);
+  }
+  if(d.loopBus&&ctx)d.loopBus.gain.setValueAtTime(0,ctx.currentTime);
+  if(which!=="drums")updateLoopControls(which);
+ }
+ updateNativePlaybackButtons();
+ tell("⛔ ALL LOOPS SILENCED · MIDI and saved audio kept; RHYTHM continues. RESTART ON 1 to resume.");
+ // Last command wins, including if the native Mac engine survived a
+ // previous browser refresh and those loop IDs are no longer in the UI.
+ try{
+  await aiCommandQueue.catch(()=>{});
+  await aiFetch("loop-stop-all");
+ }catch(e){warn(e);}
 }
 async function resumeLoopImmediately(which){
  const d=decks[which];
@@ -2167,6 +2227,7 @@ function schedule(time,count){
   if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
    d.loopEnabled=d.loopToggleTarget;
    d.loopToggleAt=null;d.loopToggleTarget=null;
+   for(const layer of d.layers)if(layer.nativeLive)setNativeMemoryGain(which,layer);
    if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
     aiRelease(aiChordOwner.token);
    if(d.loopBus)d.loopBus.gain.setValueAtTime(targetLoopGain(which),time);
@@ -2502,6 +2563,8 @@ function removeSongLayer(which,id){
  const d=loopDeck(which),layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  stopLayerWash(layer);stopLayerEcho(layer);
+ if(layer.nativeLive&&layer.nativeLoopID)
+  aiFetch("loop-remove",{id:layer.nativeLoopID}).catch(warn);
  if(layer.source)try{layer.source.stop()}catch{}
  try{layer.filterNode?.disconnect()}catch{}
  // Release a tied native chord before removing the original MIDI take.
@@ -2603,6 +2666,82 @@ function nativeTextureScene(which){return which==="pyramid"&&activePyramidTextur
 function nativeTextureMix(){return activePyramidTextureRole?1:effectiveSongMix();}
 
 function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
+// Two chord sets for EVERY instrument, without switching the recorded song
+// or resetting its master clock. Selecting the chord harmony changes MIDI
+// notes, NOT the currently active Magenta sound prompt.
+const laneChordHeld=new Map();
+let activeChordLane=null,laneChordOwner=null;
+function renderNativeChordPads(which,role){
+ const parent=$("nativeChords-"+which+"-"+role);
+ if(!parent)return;
+ parent.replaceChildren();
+ const label=document.createElement("div");
+ label.className="native-harmony-label";
+ label.textContent="4 CHORD PADS PER SONG · select an instrument and play; Z X C V follows the last tapped lane · ESC returns to normal pads";
+ parent.append(label);
+ for(const harmony of ["pyramid","fishes"]){
+  const row=document.createElement("div");row.className="native-harmony-row";
+  const title=document.createElement("strong");
+  title.textContent=harmony==="pyramid"?"PYRAMID":"WEIRD FISHES";
+  row.append(title);
+  for(const [index,chord] of SCENES[harmony].names.entries()){
+   const pad=document.createElement("button");
+   pad.type="button";pad.className="native-harmony-pad";
+   pad.textContent=chord;pad.title=nativeLaneLabel(which,role)+
+    " plays "+harmony+" "+chord+" using the CURRENT prompt (MIDI only)";
+   const pointer="lane:"+which+":"+role+":"+harmony+":"+index;
+   pad.onpointerdown=e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault?.();pad.setPointerCapture?.(e.pointerId);
+    beginLaneHarmony(which,role,harmony,index,pointer,pad);
+   };
+   for(const end of ["onpointerup","onpointercancel","onlostpointercapture"])
+    pad[end]=()=>endLaneHarmony(pointer,pad);
+   pad.onkeydown=e=>{
+    if(e.repeat||!(e.key===" "||e.key==="Enter"))return;
+    e.preventDefault?.();beginLaneHarmony(which,role,harmony,index,pointer,pad);
+   };
+   pad.onkeyup=e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault?.();endLaneHarmony(pointer,pad);}};
+   row.append(pad);
+  }
+  parent.append(row);
+ }
+}
+function beginLaneHarmony(which,role,harmony,index,key,pad=null){
+ if(!ctx||!stageStarted)return warn(Error("Start PLAY RHYTHM before playing chords."));
+ if(!aiNativeReady)return warn(Error("Enable Magenta to hear native instrument chord pads."));
+ if(nativeTake&&(nativeTake.which!==which||nativeTake.role!==role))
+  return warn(Error("Finish the other native take before changing instrument sounds."));
+ if(laneChordHeld.has(key))return;
+ const take={which,role,harmony,index,down:true,started:false};
+ laneChordHeld.set(key,take);laneChordOwner=key;
+ activeChordLane={which,role,harmony};
+ pad?.classList.add("on");
+ (async()=>{
+  if(activeNativeLane!==which+":"+role)await selectNativeLane(which,role);
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(!aiNativeReady)return;
+   // Harmony override prevents a cello/violin PROMPT changing just because
+   // Weird Fishes pitches are used. All chords play the real MRT2 AU.
+   await aiFetch("chord",{index,harmony,legato:true});
+   take.started=true;
+   if(!take.down&&laneChordOwner===key)await aiFetch("release");
+  });
+  await aiCommandQueue;
+ })().catch(warn);
+ tell("✦ "+nativeLaneLabel(which,role)+" · "+harmony.toUpperCase()+" "+SCENES[harmony].names[index]+
+  " · Z X C V now play this lane (ESC to return to song pads).");
+}
+function endLaneHarmony(key,pad=null){
+ const held=laneChordHeld.get(key);if(!held)return;
+ held.down=false;laneChordHeld.delete(key);pad?.classList.remove("on");
+ if(held.started&&laneChordOwner===key){
+  laneChordOwner=null;
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(aiNativeReady)await aiFetch("release");
+  }).catch(warn);
+ }
+}
 function updateNativeLaneControls(){
  for(const which of Object.keys(decks)){
   for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"])){
@@ -2689,7 +2828,9 @@ async function selectNativeLane(which,role){
  // doesn't unintentionally record a percussion texture.
  await aiFetch("scene",{scene:which});
  aiScene=which;
- await aiFetch("mix",{value:effectiveSongMix()});
+ // The source being recorded must use its own Magenta prompt, independent
+ // of the browser DJ crossfade used to mix already-recorded tracks.
+ await aiFetch("mix",{value:which==="fishes"?1:0});
  await aiFetch("drum-mix",{value:0});
  await aiFetch("drums",{value:false});
  aiDrumsAllowed=false;
@@ -2738,7 +2879,9 @@ async function startNativeInstrumentTake(which,role){
   if(!stageStarted)throw Error("Rhythm paused while preparing native recording. Press Play and try again.");
   const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
-  const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
+  const period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
+  // Overdub must include the wait until existing beat one plus a full pass.
+  const seconds=first?120:Math.min(120,period*2+1);
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
   const responseAt=ctx.currentTime;
@@ -2748,7 +2891,8 @@ async function startNativeInstrumentTake(which,role){
   const capturedAt=(requestAt+responseAt)*.5;
    // Arm the native capture BEFORE the next true bar one. Only samples
    // recorded after the visible beat-one cue become part of the loop.
-   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):loopMasterOrigin(which);
+   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):
+    loopMasterOrigin(which)+Math.ceil(Math.max(0,responseAt+.15-loopMasterOrigin(which))/period)*period;
    const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
    take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
          beginStep,seconds,finishing:false,timer:null};
@@ -2759,7 +2903,9 @@ async function startNativeInstrumentTake(which,role){
      "● ARMED · WAIT FOR THE GREEN BEAT 1 · THEN PLAY · DONE NEAR BEAT 1":
      "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
    updatePedalClock();
-  if(!first)take.timer=setTimeout(()=>{if(nativeTake===take)finishNativeInstrumentTake().catch(warn)},Math.ceil(seconds*1000+40));
+  if(!first)take.timer=setTimeout(()=>{
+   if(nativeTake===take)finishNativeInstrumentTake().catch(warn);
+  },Math.max(50,Math.ceil((gridStartAt+period-ctx.currentTime)*1000)));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
   if(nativeTake===take)nativeTake=null;
@@ -2773,46 +2919,75 @@ async function startNativeInstrumentTake(which,role){
 async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
+ if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+  return tell("WAIT FOR GO! · play at least one beat before DONE.");
  take.finishing=true;clearTimeout(take.timer);
- // Don't save an empty native capture before the visible beat-one cue.
-  if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
-   return tell("NATIVE LOOP ARMED · play at least one beat after GREEN 1 before DONE.");
   take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
   updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
-  const result=await aiFetch("capture-stop",{id:take.id});
+  const targetDeck=loopDeck(which);
+  const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):targetDeck.lengthSteps;
+  const periodSeconds=take.first?masterSteps*tickSeconds():
+   (targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds());
+  const result=await aiFetch("capture-stop",{
+   id:take.id,live_loop:preferNativeMemoryLoop(),
+   preroll_seconds:Math.max(0,take.gridStartAt-take.startedAt),
+   period_seconds:periodSeconds
+  });
   if(!result.ready||!result.audio_url||Number(result.frames)<1000)
    throw Error("Native capture is empty or incomplete.");
   if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
-  const response=await fetch(result.audio_url,{
-   headers:{"X-Suzy-Token":token},cache:"no-store"
-  });
-  if(!response.ok)throw Error("Could not read the native host's recorded WAV ("+response.status+").");
-  await openAudio();
-  const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  const liveStarted=result.native_loop_playing===true;
+  if(liveStarted){
+   // Avoid an audible burst from the wrong deck during WAV waveform fetch.
+   const fade=Number($("mix").value)/100;
+   const side=which==="drums"?1:which==="pyramid"?1-fade:fade;
+   await aiFetch("loop-volume",{id:result.native_loop_id||take.id,
+    value:clamp(.8*side*(which==="drums"?1:Number($("level-"+which).value)/100)*
+     Number($("performanceMaster").value)/100,0,1)}).catch(warn);
+  }
+  if(liveStarted)
+   el.textContent="↻ NATIVE AUDIO LOOP SCHEDULED · "+Math.round(result.native_loop_scheduled_ms||0)+
+    "ms TO NEXT ORIGINAL DOWNBEAT · NO WAV PLAYBACK WAIT";
+  let recorded=null;
+  try{
+   const response=await fetch(result.audio_url,{
+    headers:{"X-Suzy-Token":token},cache:"no-store"
+   });
+   if(!response.ok)throw Error("Could not read native capture WAV ("+response.status+").");
+   await openAudio();
+   recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  }catch(e){
+   // The native loop is already live. Never lose the only STOP control merely
+   // because the optional waveform/WAV download was delayed or unavailable.
+   if(!liveStarted)throw e;
+   tell("NATIVE LOOP IS PLAYING · optional waveform WAV unavailable; saved live controls stay available.");
+  }
   const d=loopDeck(which);
   // First audio length MUST span whole rhythm bars, not the AU WAV's
    // arbitrary sample count (including capture-start and STOP HTTP jitter).
-   const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):d.lengthSteps;
    const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
     Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
-  const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
-  const inputs=Array.from({length:buffer.numberOfChannels},
-   (_,channel)=>recorded.getChannelData(channel));
+  const buffer=recorded?ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate):null;
+  const inputs=buffer?Array.from({length:buffer.numberOfChannels},
+   (_,channel)=>recorded.getChannelData(channel)):[];
   let shifted=0;
   if(take.first){
     // Capture began before the musician's green beat-one cue; drop pre-roll.
-    writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
+    if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
     d.locked=true;d.lengthSteps=masterSteps;
     d.anchorStep=take.beginStep;d.loopEnabled=true;
-    d.pedalPeriodSeconds=buffer.duration;
+    d.pedalPeriodSeconds=buffer?.duration||periodSeconds;
     d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
    }else{
-   shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
+   if(buffer)shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
+  const nativeLive=result.native_loop_playing===true;
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
-   name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
+   name:nativeLaneLabel(which,role)+(nativeLive?" · NATIVE MEMORY":" · BROWSER WAV FALLBACK"),
+   nativeLive,nativeLoopID:nativeLive?(result.native_loop_id||take.id):null,
+   buffer,level:.8,muted:false,
    pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
@@ -2823,10 +2998,14 @@ async function finishNativeInstrumentTake(){
   }
   // DONE is the loop pedal's automatic PLAY action, not just a Save button.
   layer.paused=false;d.loopEnabled=true;
-  startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
+  // Do not double-play the memory PCM through the browser.
+  if(!nativeLive)startLoopAudio(which,layer);
+  renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
   el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+d.lengthSteps/rhythmBarSteps()+
-    " BARS @ "+bpm+" BPM · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
+    " BARS @ "+bpm+" BPM · "+(nativeLive?
+    "NATIVE MEMORY REPLAY · NO WAV PLAYBACK HANDOFF":
+    handoffMs+"ms WAV HANDOFF (FALLBACK)")+" · STOP SAVED pauses playback";
   tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
@@ -3010,6 +3189,7 @@ function renderInstrumentClips(which){
     layer.muted=!layer.muted;
      if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
      if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+     if(layer.nativeLive)setNativeMemoryGain(which,layer);
     renderClips(which);
    };
    const fade=document.createElement("input");
@@ -3019,6 +3199,7 @@ function renderInstrumentClips(which){
    fade.oninput=()=>{
     layer.level=Number(fade.value)/100;
     if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.02);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    const remove=document.createElement("button");remove.textContent="×";
    remove.title="Remove only this recorded audio pass";
@@ -3040,6 +3221,10 @@ function renderInstrumentClips(which){
    wash.setAttribute("aria-pressed",String(!!layer.washFx));
    wash.title="Hold a diffused feedback reverb tail from this recorded audio, not the live native AU";
    wash.onclick=()=>toggleLayerWash(which,layer);
+   if(layer.nativeLive){
+    filter.disabled=true;echo.disabled=true;wash.disabled=true;
+    filterLabel.title="Direct Mac audio loop: browser-only filter and FX are unavailable.";
+   }
    row.append(name,mute,fade,filterLabel,echo,wash,remove);box.append(row);
   }
  }
@@ -3071,6 +3256,7 @@ function renderClips(which){
    layer.muted=!layer.muted;
     if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
     if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    renderClips(which);
   };
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
@@ -3082,6 +3268,7 @@ function renderClips(which){
    level.oninput=()=>{
     layer.level=Number(level.value)/100;
     if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.024);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    row.append(level);
   }
@@ -3602,7 +3789,7 @@ async function startAudioPrint(which,freeze=false){
 }
 
 function startLoopAudio(which,l,startAt=null){
- if(!ctx||!l.buffer)return;
+ if(!ctx||!l.buffer||l.nativeLive)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
@@ -3688,6 +3875,7 @@ function updateMix(){
    decks[k].voiceBus.gain.value=vocalGain;
    if(decks[k].voiceFxBus)decks[k].voiceFxBus.gain.value=vocalGain;
    if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
+   for(const layer of decks[k].layers)if(layer.nativeLive)setNativeMemoryGain(k,layer);
  }
 }
 async function readAndExport(){
@@ -3869,6 +4057,7 @@ $("voiceFollow").onclick=toggleVoiceFollow;
 $("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
 $("vocalFxPanic").onclick=panicVocalFx;
+$("silenceAllLoops").onclick=()=>emergencySilenceAllLoops().catch(warn);
 $("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);};
 $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
@@ -3915,6 +4104,9 @@ $("savePyramidLoop").onclick=()=>{
  const before=scene;scene="pyramid";
  Promise.resolve(readAndExport()).finally(()=>{scene=before;});
 };
+for(const which of Object.keys(decks))
+ for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"]))
+  renderNativeChordPads(which,role);
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
@@ -3981,8 +4173,16 @@ document.addEventListener("keydown",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
+ if(e.code==="Escape"&&activeChordLane){
+  activeChordLane=null;tell("Z X C V RETURNED TO NORMAL SONG CHORD PADS.");return;
+ }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
- if(chordKey!==null){e.preventDefault();beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);}
+ if(chordKey!==null){
+  e.preventDefault();
+  if(activeChordLane)beginLaneHarmony(activeChordLane.which,activeChordLane.role,
+   activeChordLane.harmony,CHORD_LAYOUT[chordKey],"key-lane:"+e.code);
+  else beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);
+ }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
  }
@@ -3994,7 +4194,11 @@ document.addEventListener("keyup",e=>{
   e.preventDefault();endDrumPad("key-drum:"+e.code);return;
  }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
- if(chordKey!==null){e.preventDefault();endChord("key:"+chordKey);}
+ if(chordKey!==null){
+  e.preventDefault();
+  if(laneChordHeld.has("key-lane:"+e.code))endLaneHarmony("key-lane:"+e.code);
+  else endChord("key:"+chordKey);
+ }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();endNote("key-note:"+e.key.toLowerCase());
  }
@@ -4044,6 +4248,9 @@ $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").te
 $("performanceMaster").oninput=()=>{
  $("performanceMasterValue").textContent=$("performanceMaster").value+"%";
  updateBrowserOutputGain();
+ // Saved native memory loops live in the Mac host, not the Web Audio master.
+ for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]])
+  for(const layer of d.layers)if(layer.nativeLive)setNativeMemoryGain(which,layer);
  if(aiNativeReady)aiFetch("volume",{value:Number($("aiVolume").value)/100*(Number($("performanceMaster").value)/100)}).catch(warn);
 };
 $("tempo").oninput=()=>changeTempo($("tempo").value);
