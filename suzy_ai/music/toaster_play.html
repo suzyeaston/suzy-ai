@@ -473,14 +473,16 @@ a{color:var(--mint)}
  <section class="instrument-lane" id="instrument-pyramid-chords" aria-label="pyramid piano recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 01</div><h3>🎹 PIANO</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-chords">✦ SELECT PIANO SOUND</button>
-  <button type="button" id="nativeRecord-pyramid-chords">● LOOP PIANO</button></div>
+  <button type="button" id="nativeRecord-pyramid-chords">● RECORD PIANO TAKE</button>
+  <button type="button" id="nativeResume-pyramid-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-chords">READY · Play notes, then record the generated sound</div>
   <div class="lane-clips" id="nativeClips-pyramid-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-pyramid-lead" aria-label="pyramid bowed violin recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 03</div><h3>🎻 VIOLIN</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-pyramid-lead">✦ SELECT VIOLIN SOUND</button>
-  <button type="button" id="nativeRecord-pyramid-lead">● LOOP VIOLIN</button></div>
+  <button type="button" id="nativeRecord-pyramid-lead">● RECORD VIOLIN TAKE</button>
+  <button type="button" id="nativeResume-pyramid-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-pyramid-lead">READY · Record the real AU output, not a browser substitute</div>
   <div class="lane-clips" id="nativeClips-pyramid-lead"></div>
  </section>
@@ -554,14 +556,16 @@ a{color:var(--mint)}
  <section class="instrument-lane" id="instrument-fishes-chords" aria-label="fishes guitar arpeggios recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 02</div><h3>🎹 GUITAR ARPEGGIOS</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-fishes-chords">✦ SELECT ARPEGGIO SOUND</button>
-  <button type="button" id="nativeRecord-fishes-chords">● LOOP GUITAR ARPEGGIOS</button></div>
+  <button type="button" id="nativeRecord-fishes-chords">● RECORD ARPEGGIOS TAKE</button>
+  <button type="button" id="nativeResume-fishes-chords" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-chords">READY · Play notes, then record the generated sound</div>
   <div class="lane-clips" id="nativeClips-fishes-chords"></div>
  </section>
  <section class="instrument-lane" id="instrument-fishes-lead" aria-label="fishes classical guitar recording">
   <div class="tiny">✦ NATIVE MAGENTA · PROMPT 04</div><h3>🎻 CLASSICAL GUITAR</h3>
   <div class="lane-buttons"><button type="button" id="nativePlay-fishes-lead">✦ SELECT CLASSICAL GUITAR SOUND</button>
-  <button type="button" id="nativeRecord-fishes-lead">● LOOP CLASSICAL GUITAR</button></div>
+  <button type="button" id="nativeRecord-fishes-lead">● RECORD CLASSICAL GUITAR TAKE</button>
+  <button type="button" id="nativeResume-fishes-lead" disabled>▶ PLAY SAVED</button></div>
   <div class="lane-status" id="nativeStatus-fishes-lead">READY · Record the real AU output, not a browser substitute</div>
   <div class="lane-clips" id="nativeClips-fishes-lead"></div>
  </section>
@@ -1764,30 +1768,73 @@ function clipActiveAt(layer,bar){
 // A BOSS-style pause/restart gates ALL saved song loops, never the shared
 // rhythm clock. The source's phase keeps running silently while stopped.
 function songLayerAudible(which,layer,bar){
- return decks[which].loopEnabled!==false && clipActiveAt(layer,bar);
+ return decks[which].loopEnabled!==false && layer.paused!==true && clipActiveAt(layer,bar);
+}
+// Re-enable an already-running audio loop on the next rendering block instead
+// of waiting up to one bar. The source keeps its phase, so other layers remain
+// synchronized. We never restart the generator or request a new recording.
+function applyLoopGateNow(which){
+ if(!ctx)return;
+ const now=ctx.currentTime,at=now+.012,d=decks[which];
+ for(const layer of d.layers){
+  if(!layer.buffer)continue;
+  if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
+  if(!layer.gain)continue;
+  const target=songLayerAudible(which,layer,Math.floor(stepNumber/8))?(layer.level??.65):0;
+  const param=layer.gain.gain;
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(param.value,at);
+  param.linearRampToValueAtTime(target,at+.035);
+ }
+ if(d.loopBus){
+  const param=d.loopBus.gain;
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(param.value,at);
+  param.linearRampToValueAtTime(targetLoopGain(which),at+.035);
+ }
+}
+function nativeSavedLayers(which,role){
+ return decks[which].layers.filter(l=>l.buffer&&l.instrumentRole===role);
+}
+function updateNativePlaybackButtons(){
+ for(const which of Object.keys(decks))for(const role of ["chords","lead"]){
+  const button=$("nativeResume-"+which+"-"+role),layers=nativeSavedLayers(which,role);
+  if(!button)continue;
+  button.disabled=!layers.length;
+  const playing=layers.length&&layers.some(l=>!l.paused)&&decks[which].loopEnabled;
+  button.textContent=!layers.length?"▶ PLAY SAVED":playing?"■ STOP SAVED":"▶ PLAY SAVED";
+  button.title="Play/pause this instrument's saved PCM layers immediately, in phase with the master loop.";
+ }
+}
+async function toggleNativeSavedLoop(which,role){
+ const layers=nativeSavedLayers(which,role);
+ if(!layers.length)return warn(Error("Record a "+nativeLaneLabel(which,role)+" take first."));
+ if(nativeTake)return warn(Error("Finish the current native recording before switching playback."));
+ const d=decks[which],playing=d.loopEnabled&&layers.some(l=>!l.paused);
+ const resume=!playing;
+ layers.forEach(l=>{l.paused=!resume;});
+ if(resume&&!d.loopEnabled){d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
+ if(resume&&!stageStarted)await startStop();
+ applyLoopGateNow(which);
+ updateLoopControls(which);updateNativePlaybackButtons();
+ tell(nativeLaneLabel(which,role)+(resume?" · SAVED AUDIO PLAYING NOW (PHASE LOCKED)":" · SAVED AUDIO PAUSED")+" · record another take anytime.");
 }
 function updateLoopControls(which){
  const d=decks[which],button=$("loopToggle-"+which);
  button.disabled=!d.locked||!d.layers.length;
- button.classList.toggle("queued",d.loopToggleAt!==null);
- button.textContent=!d.locked?"↻ NO LOOP YET":d.loopToggleAt!==null?
-  (d.loopToggleTarget?"▶ START NEXT BAR":"■ STOP NEXT BAR"):
-  d.loopEnabled?"■ STOP LOOP":"▶ RESTART LOOP";
+ button.classList.remove("queued");
+ button.textContent=!d.locked?"↻ NO LOOP YET":d.loopEnabled?"■ STOP LOOP":"▶ RESTART NOW";
 }
-function toggleLoop(which){
+async function toggleLoop(which){
  const d=decks[which];
- if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before using LOOP ON/OFF."));
- if(recording)return warn(Error("Finish recording before stopping or restarting a loop."));
- const target=d.loopToggleAt!==null?!d.loopToggleTarget:!d.loopEnabled;
- if(!stageStarted){
-  d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
-  updateOverdubBalance();updateLoopControls(which);renderClips(which);
-  return tell(which.toUpperCase()+" loops "+(target?"ready to play":"stopped")+". The original bar phase is preserved.");
- }
- d.loopToggleAt=Math.ceil((stepNumber+1)/8)*8;
- d.loopToggleTarget=target;
- updateLoopControls(which);
- tell(which.toUpperCase()+" · "+(target?"RESTART":"STOP")+" LOOP queued for next bar, in the original pattern.");
+ if(!d.locked||!d.layers.length)return warn(Error("Record the first "+which+" phrase before playing."));
+ if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
+ const target=!d.loopEnabled;
+ d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
+ if(target&&!stageStarted)await startStop();
+ applyLoopGateNow(which);
+ updateLoopControls(which);updateNativePlaybackButtons();
+ tell(which.toUpperCase()+" · "+(target?"LOOP AUDIBLE NOW · phase stays aligned":"LOOP STOPPED NOW")+" · no next-bar wait.");
 }
 function nextSongBoundary(which,n){
  const d=decks[which],length=songCycleSteps(which),anchor=d.anchorStep||0;
@@ -2226,8 +2273,9 @@ function updateNativeLaneControls(){
    const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
    button.disabled=!!nativeTake&&!isRecording;
    button.textContent=isRecording?
-    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → STACK"):
-    "● LOOP "+(role==="lead"?(which==="pyramid"?"VIOLIN":"GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"));
+    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → SAVE"):
+    "● RECORD "+(role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
+   updateNativePlaybackButtons();
    if(isRecording)status.textContent=nativeTake.first?
     "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
@@ -2498,6 +2546,7 @@ function renderInstrumentClips(which){
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
  renderInstrumentClips(which);
+ updateNativePlaybackButtons();
  updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
@@ -3273,6 +3322,7 @@ for(const k of Object.keys(decks)){
  for(const role of ["chords","lead"]){
   $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
   $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
+  $("nativeResume-"+k+"-"+role).onclick=()=>toggleNativeSavedLoop(k,role).catch(warn);
  }
  $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
  $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
@@ -3280,7 +3330,7 @@ for(const k of Object.keys(decks)){
  updateAudioPrintUI();
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
- $("loopToggle-"+k).onclick=()=>toggleLoop(k);
+ $("loopToggle-"+k).onclick=()=>toggleLoop(k).catch(warn);
  updateLoopControls(k);
  $("vocal-"+k).onclick=()=>voiceLoop(k);
  $("level-"+k).oninput=()=>{$("levelNum-"+k).textContent=$("level-"+k).value+"%";updateMix()};
