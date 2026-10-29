@@ -2837,8 +2837,11 @@ async function finishNativeInstrumentTake(){
    }else{
    shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
+  const nativeLive=result.native_loop_playing===true;
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
-   name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
+   name:nativeLaneLabel(which,role)+(nativeLive?" · NATIVE MEMORY":" · BROWSER WAV FALLBACK"),
+   nativeLive,nativeLoopID:nativeLive?(result.native_loop_id||take.id):null,
+   buffer,level:.8,muted:false,
    pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
@@ -2849,10 +2852,14 @@ async function finishNativeInstrumentTake(){
   }
   // DONE is the loop pedal's automatic PLAY action, not just a Save button.
   layer.paused=false;d.loopEnabled=true;
-  startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
+  // Do not double-play the memory PCM through the browser.
+  if(!nativeLive)startLoopAudio(which,layer);
+  renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
   el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+d.lengthSteps/rhythmBarSteps()+
-    " BARS @ "+bpm+" BPM · "+handoffMs+"ms WAV handoff after DONE · STOP SAVED pauses playback";
+    " BARS @ "+bpm+" BPM · "+(nativeLive?
+    "NATIVE MEMORY REPLAY · NO WAV PLAYBACK HANDOFF":
+    handoffMs+"ms WAV HANDOFF (FALLBACK)")+" · STOP SAVED pauses playback";
   tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
@@ -3628,7 +3635,7 @@ async function startAudioPrint(which,freeze=false){
 }
 
 function startLoopAudio(which,l,startAt=null){
- if(!ctx||!l.buffer)return;
+ if(!ctx||!l.buffer||l.nativeLive)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
