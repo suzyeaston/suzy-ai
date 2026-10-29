@@ -1874,3 +1874,12 @@ test("the first native violin take can establish the master phrase without a MID
  assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
  assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
 });
+
+test("choosing the Fishes voice box makes its recorded audio audible through the top mixer",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ assert.equal(get("mix").value,"0");
+ await run('voiceLoop("fishes")');
+ assert.equal(get("mix").value,"100");
+ assert.ok(run("decks.fishes.voiceBus.gain.value")>0);
+ assert.equal(run("recording.kind"),"vocal");
+});
