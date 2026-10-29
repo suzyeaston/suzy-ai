@@ -272,6 +272,13 @@ a{color:var(--mint)}
 .instrument-lane .lane-clips{display:grid;gap:6px}
 .instrument-lane .clip{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0;padding:7px}
 .instrument-lane .clip input[type=range]{width:86px}
+.instrument-lane .clip .clip-filter{accent-color:#dc94dd;width:92px}
+.instrument-lane .clip .clip-fx{font-size:11px;padding:6px 8px}
+.instrument-lane .clip .clip-fx[aria-pressed="true"]{border-color:#b9f0d7;color:#b9f0d7;background:#304c49}
+.dj-transition{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.dj-transition select,.dj-transition button{font-size:12px;padding:7px 9px}
+.dj-transition .dj-status{font-size:11px;color:#b9f0d7;min-width:180px}
+
 #classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
 #classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
 #jazzDrumDeck{display:none}
@@ -352,7 +359,18 @@ a{color:var(--mint)}
   <small id="drumMidiStatus" class="subtle" role="status">Editable two-cycle General MIDI groove. Variation is algorithmic, not MRT2-generated MIDI. Export to Logic as .mid.</small>
  </div>
 </div>
-<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · playing a chord will not reset this blend</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
+<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · selecting violin or guitar will NOT move the crossfader.</small>
+<button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button>
+<div class="dj-transition" aria-label="Automatic DJ-style song transitions">
+ <label for="transitionBars">FADE LENGTH</label>
+ <select id="transitionBars" aria-label="Transition length in song bars">
+  <option value="4" selected>4 bars</option><option value="8">8 bars</option>
+ </select>
+ <button id="transitionPyramid" type="button">⇠ TO PYRAMID</button>
+ <button id="transitionFishes" type="button">TO FISHES ⇢</button>
+ <button id="transitionCancel" type="button" disabled>■ STOP FADE</button>
+ <span class="dj-status" role="status" id="transitionStatus">READY · manual crossfader</span>
+</div></div>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
 <small class="subtle">Applies to browser mix and native AI reverb</small></div>
@@ -735,7 +753,7 @@ const INSTRUMENTS={
  nylon:{name:"Nylon classical guitar (synth)",wave:"triangle",overtone:"sine",mix:.24,attack:.009,release:.18,sustain:.17,octave:0,filter:3300}
 };
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
-let blendBoth=false,aiMixQueued=false;
+let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
@@ -1908,6 +1926,7 @@ function schedule(time,count){
 }
 function scheduler(){
  if(!ctx||!stageStarted)return;
+ updateSongTransition();
  const now=ctx.currentTime;
  while(nextStepAt<now+.14){
   schedule(nextStepAt,stepNumber);
@@ -1997,6 +2016,7 @@ async function startStop(){
  try{
   await openAudio();
   if(stageStarted){
+   cancelSongTransition("PAUSED · fade cancelled");
    parkedBar=currentTransportBar();
    releaseAllChords();
    if(aiChordOwner?.loopEvent)aiRelease(aiChordOwner.token);
@@ -2211,27 +2231,19 @@ function updateNativeLaneControls(){
   }
  }
 }
-function focusSongMixer(which){
- $("mix").value=which==="pyramid"?"0":"100";
- blendBoth=false;
- $("mixBoth").setAttribute("aria-pressed","false");
- $("mixBoth").textContent="♫ LAYER BOTH SONGS";
- updateMix();
-}
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
- // A performer who selects a different instrument must actually hear it:
- // expose that song in the top mixer and lift diagnostic SOLO modes.
+ // Select the Google sound WITHOUT touching the performer's song crossfader.
+ // Stored audio remains in the existing mix while the new prompt is prepared.
  if(aiSolo)toggleAISolo();
  if(localKeysOnly)await toggleLocalKeysOnly();
  choose(which);
- focusSongMixer(which);
  // Google's one native generator selects a prompt; recorded PCM continues
  // independently. Suppress native jazz drums so the violin/guitar take
  // doesn't unintentionally record a percussion texture.
  await aiFetch("scene",{scene:which});
  aiScene=which;
- await aiFetch("mix",{value:which==="pyramid"?0:1});
+ await aiFetch("mix",{value:effectiveSongMix()});
  await aiFetch("drum-mix",{value:0});
  await aiFetch("drums",{value:false});
  const blend=role==="lead"?1:0;
@@ -2573,9 +2585,8 @@ async function toggleVoiceMonitor(){
 }
 async function voiceLoop(which){
  choose(which);
- // Selecting a voice lane must not leave its newly recorded layer inaudible
- // behind the other song's crossfader position.
- focusSongMixer(which);
+ // Voice capture never changes the mix: fade in the recorded layer on the
+ // master crossfader when musically appropriate.
  if(aiSolo)toggleAISolo();
  if(localKeysOnly)await toggleLocalKeysOnly();
  if(!stageStarted)return warn(Error("Start the rhythm first"));
@@ -2868,6 +2879,44 @@ async function importAudio(file){
   tell("Imported real audio into "+which+" · "+bars+" bars at "+bpm+" BPM. Source was padded or trimmed, not time-stretched.");
  }catch(e){warn(e)}
 }
+// Shared browser mix and native AU prompt weights follow the same gradual fade.
+function cancelSongTransition(label="MANUAL MIX · fade cancelled"){
+ if(!transition)return;
+ transition=null;
+ $("transitionCancel").disabled=true;
+ $("transitionStatus").textContent=label;
+}
+function startSongTransition(which){
+ if(!stageStarted||!ctx)return warn(Error("Start the master rhythm before an automatic crossfade."));
+ if(!decks.pyramid.enabled||!decks.fishes.enabled)
+  return warn(Error("Enable both Pyramid and Fishes to crossfade their loops."));
+ const bars=Number($("transitionBars").value);
+ if(![4,8].includes(bars))return warn(Error("Choose a 4- or 8-bar transition."));
+ const from=Number($("mix").value),to=which==="fishes"?100:0;
+ if(from===to){cancelSongTransition();$("transitionStatus").textContent="ALREADY AT "+which.toUpperCase();return;}
+ transition={from,to,which,bars,started:ctx.currentTime,
+  seconds:bars*4*60/bpm,lastNative:-1};
+ $("transitionCancel").disabled=false;
+ $("transitionStatus").textContent="↝ "+which.toUpperCase()+" · "+bars+" BARS";
+ updateSongTransition();
+}
+function updateSongTransition(){
+ if(!transition||!ctx)return;
+ const t=transition,progress=Math.max(0,Math.min(1,(ctx.currentTime-t.started)/t.seconds));
+ // Cosine easing: a gentler beginning and ending for long ambient fades.
+ const blend=(1-Math.cos(Math.PI*progress))*.5;
+ const value=Math.round(t.from+(t.to-t.from)*blend);
+ $("mix").value=String(value);
+ updateMix();
+ if(progress===1||ctx.currentTime-t.lastNative>=.20){
+  t.lastNative=ctx.currentTime;
+  queueNativeSongMix(); // coalesced: never queue hundreds of network requests.
+ }
+ $("transitionStatus").textContent=progress<1?
+  "↝ "+t.which.toUpperCase()+" · "+Math.round(progress*100)+"% · "+t.bars+" BARS":
+  "✓ "+t.which.toUpperCase()+" · FADE COMPLETE";
+ if(progress>=1){transition=null;$("transitionCancel").disabled=true;queueNativeSongMix();}
+}
 function updateMix(){
  const x=Number($("mix").value)/100;
  $("mixValue").textContent=Math.round((1-x)*100)+" / "+Math.round(x*100);
@@ -3063,6 +3112,7 @@ $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
 $("mixBoth").onclick=()=>{
+ cancelSongTransition();
  blendBoth=!blendBoth;
  $("mixBoth").setAttribute("aria-pressed",String(blendBoth));
  $("mixBoth").textContent=blendBoth?"♫ BOTH SONGS LIVE":"♫ LAYER BOTH SONGS";
@@ -3160,11 +3210,15 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)releaseAllC
 $("setRecordStart").onclick=startSetRecording;
 $("setRecordStop").onclick=stopSetRecording;
 $("mix").oninput=()=>{
+ cancelSongTransition();
  blendBoth=false;$("mixBoth").setAttribute("aria-pressed","false");
  $("mixBoth").textContent="♫ LAYER BOTH SONGS";
  updateMix();queueNativeSongMix(); // Real-time Google AU crossfade while dragging.
 };
 $("mix").onchange=queueNativeSongMix;
+$("transitionPyramid").onclick=()=>startSongTransition("pyramid");
+$("transitionFishes").onclick=()=>startSongTransition("fishes");
+$("transitionCancel").onclick=()=>cancelSongTransition("■ FADE STOPPED · manual control");
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
