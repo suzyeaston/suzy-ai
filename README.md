@@ -8,6 +8,18 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## 🎚 Sound-on-sound PCM audio looper (October 28, 2026, experimental)
+
+**Goal:** Build a set by capturing the *sound*, not replaying extra MIDI notes. You can progressively accumulate individual audio takes and take them away with per-layer MUTE and independent AUDIO LEVEL faders. Sound is buffered in browser memory; export important takes before reloading. **This feature is not yet validated on the performance Scarlett/Magenta rig.**
+
+1. **Make a first phrase:** On Pyramid or Fishes, press RECORD FIRST LOOP, play Z/X/C/V or A–K, then DONE. This establishes the repeating phrase length. The chord events condition Magenta but are still MIDI until printed.
+2. **Print the foundation:** Press **PRINT MIDI → AUDIO**. In explicit **LOCAL SYNTH** mode, TOASTER records just the existing local MIDI oscillator bus, excluding older audio playback. In the default **NATIVE AI** mode, it asks Chrome to share **Entire Screen + system audio** to capture the true Mac / Magenta output. Once a non-silent audio take is captured, the original MIDI layer is **muted** so you don't hear the same phrase twice. It remains in the clip list if you want to unmute it later.
+3. **Record the next sound:** Choose **NEW AUDIO LAYER SOURCE** (LIVE LOCAL KEYS, BROWSER RHYTHM or MAC OUTPUT), then press **RECORD AUDIO LAYER** or the main **OVERDUB AUDIO** button. Play another sound and press **DONE AUDIO → LOOP**. The new take is a PCM waveform, padded with silence to the *existing* master phrase length, so it repeats on the same clock. It does **not** record previous audio layers into itself when capturing isolated browser sources.
+4. **Build and strip back:** Every PCM audio clip has its own volume slider, MUTE/UNMUTE and × remove. Use them to fade the arrangement gradually rather than committing a destructive merged overdub. Recording a browser **RHYTHM** pass also switches off its live drum monitor on completion to prevent a doubled beat; restore it if desired.
+5. **AI jazz drums:** Google's generated AI drums use the same native stereo output as its piano and guitar. To print their actual sound, select **MAC OUTPUT**. The browser's editable rhythm is the reliable tempo-locked percussion source.
+
+**Capture limitation:** The native Magenta AU is a *separate* Mac output, not a browser Web Audio node. Chrome's system-audio share can include native Magenta, **but also every other app or existing audible loop**. It is **not an isolated Magenta stem** and repeatedly overdubbing that mixed output may re-record old layers and make them louder. For clean layered tracks, close other audible apps and use LOCAL KEYS / BROWSER RHYTHM where possible; a dedicated native-AU tap or virtual audio bus is future work. Browser audio takes are recorded through AudioWorklet from live/rhythm/MIDI buses **before their saved PCM layers**, reducing feedback. The system capture requires user permission each time. Recording is mono, capped at 120 seconds per layer, and is not a sample-accurate replacement for a hardware RC loop station.
+
 ## 🍞 TOASTER PLAY · two-deck rehearsal instrument (October 27, 2026)
 
 **Start here for a fast, human-led rehearsal.** On the 8 GB performance Mac, the new minimal TOASTER is a browser-local synthesizer, rhythm engine, chord-event looper, basic vocal looper and two-song mixer. No physical Keystation or running Magenta model is required to hear TOASTER's **own** instruments.
