@@ -1343,14 +1343,16 @@ function beginChord(which,index,key){
  choose(which);
  const notes=SCENES[which].notes[index],start=ctx.currentTime+.008,voices=[];
  const instrument=decks[which].instrument;
- if(!aiSolo)for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
- const h={which,index,voices,start,instrument,event:null};heldKeys.set(key,h);
+ if(localInstrumentAudible(which))for(const note of notes)voices.push(makeVoice(which,note,start,instrument,.14/notes.length,true));
+ const native=nativeInstrumentEnabled(which);
+ const h={which,index,voices,start,instrument,native,event:null};heldKeys.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===which&&recording.active){
   const step=Math.max(0,Math.min(255,Math.round((ctx.currentTime-recording.start)/tickSeconds())));
   h.event={step,index,holdSteps:1,instrument};
   recording.events.push(h.event);
  }
- midi(which,index);aiNote(which,index);
+ // A pad must not double-trigger local synth, CoreMIDI/Logic and native AU.
+ if(native)aiNote(which,index);
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
@@ -1373,7 +1375,7 @@ function endChord(key){
    el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
- if(!heldKeys.size){midiRelease();aiRelease();}
+ if(h.native&&![...heldKeys.values()].some(other=>other.native))aiRelease();
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
 function beginNote(midi,key){
@@ -1381,14 +1383,14 @@ function beginNote(midi,key){
  if(heldNotes.has(key))return;
  const start=ctx.currentTime+.006,d=decks[scene],instrument=d.leadInstrument;
  const playedMidi=midi+d.leadOctave;
- const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;
- const voice=(nativeLead||aiSolo)?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");
- const h={voice,midi:playedMidi,scene,start,instrument,event:null};heldNotes.set(key,h);
+ const native=nativeInstrumentEnabled(scene);
+ const voice=localInstrumentAudible(scene)?makeVoice(scene,playedMidi,start,instrument,.14,true,"lead"):null;
+ const h={voice,midi:playedMidi,scene,start,instrument,native,event:null};heldNotes.set(key,h);
  if(recording?.kind==="chords"&&recording.scene===scene&&recording.active){
   const step=Math.max(0,Math.min(255,Math.floor((ctx.currentTime-recording.start)/tickSeconds()+.001)));
   h.event={step,midi:playedMidi,holdSteps:1,type:"note",instrument};recording.events.push(h.event);
  }
- aiMelody(playedMidi,true);
+ if(native)aiMelody(playedMidi,true);
  document.querySelectorAll(".note-pad").forEach(el=>{if(Number(el.dataset.note)===midi)el.classList.add("on")});
 }
 function endNote(key){
@@ -1398,7 +1400,7 @@ function endNote(key){
  const attack=INSTRUMENTS[h.instrument]?.attack??.028;
  if(h.voice)releaseVoice(h.voice,Math.max(now,h.start+Math.max(.105,attack+.055)));
  if(h.event)h.event.holdSteps=Math.max(.25,Math.min(256,(now-(h.captureStart??h.start))/tickSeconds()));
- aiMelody(h.midi,false);
+ if(h.native)aiMelody(h.midi,false);
  document.querySelectorAll(".note-pad").forEach(el=>{
   if(Number(el.dataset.note)===h.midi)el.classList.toggle("on",[...heldNotes.values()].some(v=>v.midi===h.midi));
  });
@@ -1550,12 +1552,14 @@ function schedule(time,count){
        const pitch=e.midi;
        const start=time,heldSec=recordedNoteHoldSeconds(which,e);
        const nativeHoldSec=Math.max(.12,(e.holdSteps??1)*tickSeconds());
-       const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
-       releaseVoice(voice,start+heldSec);
-       if(aiNativeReady){
+       if(localInstrumentAudible(which)){
+        const voice=makeVoice(which,pitch,start,e.instrument||"keys",.10,false);
+        releaseVoice(voice,start+heldSec);
+       }
+       if(nativeInstrumentEnabled(which)){
         const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
         setTimeout(()=>{
-         if(!aiNativeReady||revision!==seekRevision)return;
+         if(!nativeInstrumentEnabled(which)||revision!==seekRevision)return;
          aiMelody(pitch,true);
          setTimeout(()=>{if(revision===seekRevision)aiMelody(pitch,false);},nativeHoldSec*1000);
         },wait);
@@ -1564,10 +1568,10 @@ function schedule(time,count){
       }
       synth(which,e.index,time,true,recordedNoteHoldSeconds(which,e),e.instrument||"keys");
       // Recorded harmony conditions the same live Magenta AU, when enabled.
-      if(aiNativeReady){
+      if(nativeInstrumentEnabled(which)){
        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
        setTimeout(()=>{
-        if(!aiNativeReady||revision!==seekRevision||heldKeys.size)return;
+        if(!nativeInstrumentEnabled(which)||revision!==seekRevision||heldKeys.size)return;
         aiNote(which,e.index);
         setTimeout(()=>{if(revision===seekRevision&&!heldKeys.size)aiRelease();},
           Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
