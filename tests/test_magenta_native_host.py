@@ -144,8 +144,9 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('private func cancelPendingChordRelease()', source)
         self.assertIn('pendingChordRelease?.cancel()', source)
         self.assertIn('case "chord":', source)
-        self.assertLess(source.index('            noteOff()\n            held = notes[i]'),
-                        source.index('            chordStartedAt = ProcessInfo.processInfo.systemUptime'))
+        self.assertIn('            } else {\n                // Manual taps remain articulated', source)
+        self.assertIn('                noteOff()\n                held = next', source)
+        self.assertIn('                chordStartedAt = ProcessInfo.processInfo.systemUptime', source)
         self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
         self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
 
