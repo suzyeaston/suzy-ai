@@ -1330,3 +1330,57 @@ test("native AI instrument does not secretly fall back to local piano when model
  assert.ok(!calls.midi.some(q=>q.url==="/api/perform/chord"));
  run('endChord("key:silent")');
 });
+
+test("older loop note-off cannot release a newer native chord",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ const old=run('aiNote("pyramid",0,{legato:true})');
+ const next=run('aiNote("pyramid",1,{legato:true})');
+ assert.ok(next>old);
+ run(`aiRelease(${old})`);
+ assert.equal(run("aiChordOwner.token"),next);
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
+ const chords=calls.midi.filter(x=>x.url==="/api/ai/chord");
+ assert.equal(chords.length,2);
+ assert.deepEqual(chords.map(x=>JSON.parse(x.opts.body)),[{index:0,legato:true},{index:1,legato:true}]);
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/release").length,0,"old timer must not kill newer chord");
+ run(`aiRelease(${next})`);
+ for(let i=0;i<5;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/release").length,1);
+ assert.equal(run("aiChordOwner"),null);
+});
+test("native MIDI loop tied at DONE stays held across the next repetition",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ run('var loopTie={step:0,index:0,holdSteps:4,sustainAcrossBoundary:true}');
+ const start=run('aiNote("pyramid",loopTie.index,{loopEvent:loopTie,legato:true})');
+ const same=run('aiNote("pyramid",loopTie.index,{loopEvent:loopTie,legato:true})');
+ assert.equal(same,start,"second pass reuses same held chord; no staccato reattack");
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/chord").length,1);
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/release").length,0);
+ assert.equal(run("aiChordOwner.loopEvent===loopTie"),true);
+ // A genuinely new chord changes harmony without an intervening gap.
+ const newChord=run('aiNote("pyramid",1,{loopEvent:{index:1},legato:true})');
+ run(`aiRelease(${start})`);
+ for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/chord").length,2);
+ assert.equal(calls.midi.filter(x=>x.url==="/api/ai/release").length,0);
+ run(`aiRelease(${newChord})`);
+});
+test("native loop pedal STOP explicitly releases a tied chord; other song and rhythm unaffected",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run("aiNativeReady=true;aiScene='pyramid'");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"tie",kind:"chords",events:[{step:0,index:0,holdSteps:8,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
+ run("renderClips('pyramid')");
+ const token=run('aiNote("pyramid",0,{loopEvent:decks.pyramid.layers[0].events[0],legato:true})');
+ run('toggleLoop("pyramid")');
+ const stop=run("decks.pyramid.loopToggleAt");
+ run(`ctx.currentTime=transportEpoch+(${stop}+1)*tickSeconds();scheduler()`);
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(run("decks.pyramid.loopEnabled"),false);
+ assert.equal(run("aiChordOwner"),null);
+ assert.ok(calls.midi.some(x=>x.url==="/api/ai/release"));
+ assert.equal(run("stageStarted"),true,"shared drum clock remains running");
+ assert.equal(run("decks.fishes.loopEnabled"),true);
+});
