@@ -55,6 +55,18 @@ final class MRT2Host {
     // This is not a hit-level drum MIDI output or a sequencer.
     private var aiDrumsAllowed = false
     private var outputSignalDetected = false
+    // Capture the real AU mixer output, not a browser imitation. Audio writes
+    // are serialized off the real-time tap; only small PCM copies occur there.
+    private let nativeCaptureQueue = DispatchQueue(label: "suzy.toaster.native-pcm", qos: .userInitiated)
+    private let nativeCaptureArmed = Atomic<Bool>(false)
+    private var nativeCaptureFile: AVAudioFile?
+    private var nativeCaptureID = ""
+    private var nativeCaptureFrames: AVAudioFramePosition = 0
+    private var nativeCaptureLimit: AVAudioFramePosition = 0
+    private var nativeCapturePeak: Float = 0
+    private var nativeCaptureRate: Double = 0
+    private let nativeCaptureDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent(".build/toaster-native-captures", isDirectory: true)
     // Diagnostic override. Default unchanged; set SUZY_MRT2_MIDI_GATE=0
     // BEFORE starting the stage server to test prompt-only native audio.
     private let midiGateEnabled = ProcessInfo.processInfo.environment["SUZY_MRT2_MIDI_GATE"] != "0"
@@ -120,7 +132,8 @@ final class MRT2Host {
             "transport_moving": hostTransportSupplied && (engine?.isRunning ?? false)
                 && transportPlaying.load(ordering: .relaxed),
             "transport_playing": transportPlaying.load(ordering: .relaxed),
-            "native_loop_capture_supported": false, // Browser's current recorder cannot capture this AU's PCM.
+            "native_loop_capture_supported": generator != nil && engine?.isRunning == true,
+            "native_loop_capture_source": "host_main_mixer_pcm_not_browser_system_audio",
             "text_prompts": prompts,
             "prompt_slot_count": prompts.count,
             "prompt_weights": (10...14).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
@@ -142,6 +155,91 @@ final class MRT2Host {
             "midi_input": "TOASTER direct AU, not CoreMIDI",
             "output": "macOS system default, separate from browser audio",
         ]
+    }
+    // The installed tap copies a short buffer on its callback and queues WAV
+    // writes. It never writes a file or takes a blocking lock on the render path.
+    private func collectNativeCapture(_ buffer: AVAudioPCMBuffer) {
+        guard nativeCaptureArmed.load(ordering: .relaxed),
+              let input = buffer.floatChannelData,
+              buffer.frameLength > 0,
+              let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength),
+              let output = copy.floatChannelData else { return }
+        copy.frameLength = buffer.frameLength
+        let count = Int(buffer.frameLength)
+        for ch in 0..<Int(buffer.format.channelCount) {
+            output[ch].update(from: input[ch], count: count)
+        }
+        nativeCaptureQueue.async { [weak self] in
+            guard let self = self, let file = self.nativeCaptureFile else { return }
+            let remaining = self.nativeCaptureLimit - self.nativeCaptureFrames
+            guard remaining > 0 else { return }
+            if AVAudioFramePosition(copy.frameLength) > remaining {
+                copy.frameLength = AVAudioFrameCount(remaining)
+            }
+            if let channels = copy.floatChannelData {
+                for ch in 0..<Int(copy.format.channelCount) {
+                    for i in stride(from: 0, to: Int(copy.frameLength), by: 32) {
+                        self.nativeCapturePeak = max(self.nativeCapturePeak, abs(channels[ch][i]))
+                    }
+                }
+            }
+            do {
+                try file.write(from: copy)
+                self.nativeCaptureFrames += AVAudioFramePosition(copy.frameLength)
+                if self.nativeCaptureFrames >= self.nativeCaptureLimit {
+                    self.nativeCaptureFile = nil
+                    self.nativeCaptureArmed.store(false, ordering: .relaxed)
+                }
+            } catch {
+                self.nativeCaptureFile = nil
+                self.nativeCaptureArmed.store(false, ordering: .relaxed)
+            }
+        }
+    }
+    private func startNativeCapture(_ seconds: Double) -> [String: Any] {
+        guard active, let audio = engine, audio.isRunning, seconds.isFinite,
+              seconds >= 0.25, seconds <= 120 else {
+            return ["error": "Native AU must be playing; capture duration must be 0.25…120 seconds"]
+        }
+        let format = audio.mainMixerNode.outputFormat(forBus: 0)
+        guard format.commonFormat == .pcmFormatFloat32, format.channelCount > 0 else {
+            return ["error": "Native mixer is not providing float PCM"]
+        }
+        return nativeCaptureQueue.sync {
+            guard nativeCaptureFile == nil else { return ["error": "A native capture is already running"] }
+            let id = UUID().uuidString.lowercased()
+            do {
+                try FileManager.default.createDirectory(at: nativeCaptureDirectory,
+                    withIntermediateDirectories: true)
+                let path = nativeCaptureDirectory.appendingPathComponent(id + ".wav")
+                let file = try AVAudioFile(forWriting: path, settings: format.settings,
+                    commonFormat: .pcmFormatFloat32, interleaved: false)
+                nativeCaptureID = id
+                nativeCaptureFrames = 0
+                nativeCapturePeak = 0
+                nativeCaptureRate = format.sampleRate
+                nativeCaptureLimit = AVAudioFramePosition((seconds * format.sampleRate).rounded())
+                nativeCaptureFile = file
+                nativeCaptureArmed.store(true, ordering: .relaxed)
+                return ["capture_id": id, "rate": format.sampleRate,
+                        "channels": Int(format.channelCount), "max_frames": nativeCaptureLimit]
+            } catch {
+                return ["error": "Could not open native AU PCM file: \(error.localizedDescription)"]
+            }
+        }
+    }
+    private func nativeCaptureState(_ id: String, stop: Bool = false) -> [String: Any] {
+        nativeCaptureQueue.sync {
+            guard id == nativeCaptureID, !id.isEmpty else { return ["error": "Unknown native capture"] }
+            if stop {
+                nativeCaptureArmed.store(false, ordering: .relaxed)
+                nativeCaptureFile = nil
+            }
+            let ready = nativeCaptureFile == nil
+            return ["capture_id": id, "ready": ready, "frames": nativeCaptureFrames,
+                    "rate": nativeCaptureRate, "peak": nativeCapturePeak,
+                    "audio_url": ready && nativeCaptureFrames > 0 ? "/api/ai/capture/" + id : ""]
+        }
     }
     private func parameter(_ address: AUParameterAddress, _ value: Float) {
         guard let au = generator?.auAudioUnit,
@@ -387,6 +485,7 @@ final class MRT2Host {
                     audio.connect(reverb, to: audio.mainMixerNode, format: nil)
                     self.reverbUnit = reverb
                     audio.mainMixerNode.installTap(onBus: 0, bufferSize: 2048, format: nil) { [weak self] buffer, _ in
+                        self?.collectNativeCapture(buffer)
                         guard let samples = buffer.floatChannelData else { return }
                         let strideLength = max(1, Int(buffer.frameLength) / 128)
                         let count = min(Int(buffer.format.channelCount), 2)
@@ -537,6 +636,8 @@ final class MRT2Host {
         }
     }
     func stop() {
+        nativeCaptureArmed.store(false, ordering: .relaxed)
+        nativeCaptureQueue.sync { nativeCaptureFile = nil }
         allNotesOff()
         auUIWindow?.close()
         auUIWindow = nil
@@ -560,6 +661,15 @@ final class MRT2Host {
         let type = request["op"] as? String ?? ""
         switch type {
         case "status": break
+        case "capture-start":
+            guard let seconds = request["seconds"] as? Double else { return ["error":"seconds required"] }
+            return startNativeCapture(seconds)
+        case "capture-status":
+            guard let id = request["id"] as? String else { return ["error":"capture ID required"] }
+            return nativeCaptureState(id)
+        case "capture-stop":
+            guard let id = request["id"] as? String else { return ["error":"capture ID required"] }
+            return nativeCaptureState(id, stop: true)
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
