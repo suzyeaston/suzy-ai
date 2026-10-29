@@ -8,6 +8,16 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## ✦ PYRAMID ORBIT · one evolving live composition (performer-first UX)
+
+The original Pyramid piano, violin, microphone loops and first-track PCM are the composition's anchor, with **no changes to the existing capture or playback algorithms**. The old second-song deck, mixer and voice controls remain accessible in collapsed archive sections. Before updating/reloading the app, **export your precious Pyramid loop**. Audio recorded in the running browser is not persisted to GitHub and can be lost on refresh.
+
+Magenta's former second-song sound slots **02 and 04** are now **low cello/harmonium** and **glassy celesta/harp**. Both new visible instrument lanes live inside Track 01: their actual native PCM is recorded to `decks.pyramid.layers`, then plays through `decks.pyramid.printBus` alongside the piano, violin, voice and independent AI jazz drums. Every recorded texture has individual mute, fade, filter, echo, hold, and remove.
+
+The harmonic guide remains the current Pyramid chord pads **F♯ → Gmaj7 → A6 → F♯**. When either texture is selected, live Pyramid chord buttons send those exact MIDI pitches to the native host; they do not play the archived Weird Fishes chord preset. The native host still uses its historical internal scene name `fishes` to select prompt slots 02 and 04. This does **not** route audio into a second browser track.
+
+The Pyramid piano prompt, violin prompt, drums and audio-loop engine are deliberately retained. Text prompt changes need the existing five-prompt update/native restart workflow to affect an already loaded Magenta AU. **Do not interrupt your current rehearsal to reload unsaved loops.**
+
 ## 🎚 Live DJ transitions and instant piano replay (experimental)
 
 - Each native instrument box now distinguishes **RECORD [INSTRUMENT] TAKE** (records genuine AU audio) from **PLAY SAVED / STOP SAVED** (toggles only its previously recorded PCM layers). Playback is immediate with a short smoothing fade and **preserves the original master-loop phase** rather than waiting for the next bar. The song-wide **STOP LOOP / RESTART NOW** also gates saved audio immediately. PLAY SAVED resumes the browser rhythm/transport automatically after a full pause.
