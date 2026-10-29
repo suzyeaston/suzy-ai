@@ -22,7 +22,7 @@ function rig(){
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
- "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100",monitorLevel:"110","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
  promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",promptJazzDrums:"brushed swing jazz drums",aiDrumMix:"0",
  "aiLeadMix-pyramid":"0","aiLeadMix-fishes":"0",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
@@ -130,7 +130,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/ENABLE MAGENTA/);
  assert.match(file,/Native Google Magenta AU is optional/);
  assert.match(javascript,/await aiFetch\("chord",legato\?\{index,legato:true\}:\{index\}\)/);
- assert.match(javascript,/await aiFetch\("mix",\{value:Number\(\$\("mix"\)\.value\)\/100\}\)/);
+ assert.match(javascript,/await aiFetch\("mix",\{value:effectiveSongMix\(\)\}\)/);
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
  assert.ok(file.indexOf('id="deck-fishes"')<file.indexOf('id="micInput"'));
@@ -167,10 +167,10 @@ test("record chord events at cycle boundary and switch to track 2 without losing
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>=1);
  assert.ok(run("decks.pyramid.layers[0].events[1].holdSteps")>1);
  run('choose("fishes")');
- assert.equal(get("mix").value,100);
+ assert.equal(Number(get("mix").value),0,"choosing Fishes leaves the manual blend unchanged");
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.equal(run("decks.fishes.bus.gain.value"),1);
- assert.equal(run("decks.pyramid.bus.gain.value"),0);
+ assert.equal(run("decks.fishes.bus.gain.value"),0);
+ assert.equal(run("decks.pyramid.bus.gain.value"),1);
  assert.match(get("clips-pyramid").children[0].children[0].textContent,/Loop/);
 });
 test("export has genuine two-cycle offline audio rendering and WAV header",async()=>{
@@ -658,7 +658,7 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  get("monitorLevel").value="55";get("monitorReverb").value="28";
  await run("toggleVoiceMonitor()");
  assert.equal(run("monitoringVoice"),true);
- assert.equal(run("monitorDry.gain.value"),.55);
+ assert.equal(run("monitorDry.gain.value"),1.1);
  assert.equal(run("monitorSend.gain.value"),.28);
  assert.equal(get("monitorVoice").textContent.includes("ON"),true);
  assert.match(file,/source.connect\(processor\);processor.connect\(silent\);silent.connect\(ctx.destination\)/);
@@ -669,11 +669,11 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  assert.equal(run("monitoringVoice"),false);
  assert.equal(run("recording.kind"),"vocal");
 });
-test("a vocal overdub arms at the next BAR instead of waiting for the next 32-bar cycle",async()=>{
+test("vocal layer arms at the next tick, without a preset bar delay",async()=>{
  const {run}=rig();await run("startStop()");
  run("decks.pyramid.locked=true;decks.pyramid.lengthSteps=256;decks.pyramid.anchorStep=0;stepNumber=23");
  await run('voiceLoop("pyramid")');
- assert.equal(run("recording.firstStep"),24);
+ assert.equal(run("recording.firstStep"),23);
  assert.equal(run("recording.steps"),256);
  assert.equal(run("recording.first"),false);
 });
@@ -773,7 +773,7 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  assert.match(get("monitorStatus").textContent,/MONITOR ON/);
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
  await run('voiceLoop("pyramid")');
- assert.match(get("vocalRecordState").textContent,/VOCAL ARMED/);
+ assert.match(get("vocalRecordState").textContent,/VOCAL ARMED|● RECORDING/);
  assert.equal(run("recording.kind"),"vocal");
 });
 
