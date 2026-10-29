@@ -1082,3 +1082,66 @@ test("pausing and restarting rhythm never resets original recorded loop downbeat
  assert.equal(run("decks.pyramid.anchorStep"),saved);
  assert.equal(run("decks.pyramid.lengthSteps"),16);
 });
+
+test("local replay sustains a chord held through DONE across next loop attack",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+5;ctx.currentTime=.38');
+ run('beginChord("pyramid",0,"key:sustain")');
+ run('endRecord()');
+ assert.equal(run("decks.pyramid.lengthSteps"),5);
+ assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),true);
+ const original=run("decks.pyramid.layers[0].events[0].holdSteps*tickSeconds()");
+ const loopSeconds=run("songCycleSeconds('pyramid')");
+ const sustained=run("recordedNoteHoldSeconds('pyramid',decks.pyramid.layers[0].events[0])");
+ assert.ok(sustained>loopSeconds,"held chord overlaps the next iteration instead of going silent");
+ assert.ok(sustained>original,"recorded duration is extended solely at the loop seam");
+ const noTie=run("recordedNoteHoldSeconds('pyramid',{holdSteps:1})");
+ assert.ok(noTie<loopSeconds,"released chord still has its original short musical phrasing");
+});
+test("releasing before DONE does not falsely tie a naturally short chord",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+6;ctx.currentTime=.4');
+ run('beginChord("pyramid",0,"key:released")');
+ run('ctx.currentTime+=.2;endChord("key:released")');
+ run('endRecord()');
+ assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),undefined);
+ assert.ok(run("recordedNoteHoldSeconds('pyramid',decks.pyramid.layers[0].events[0])")<
+  run("songCycleSeconds('pyramid')"));
+});
+test("browser synth no longer forcibly truncates a held note to one loop duration",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.lengthSteps=4;var releaseTimes=[];const releaseOriginal=releaseVoice;releaseVoice=(v,t)=>{releaseTimes.push(t);return releaseOriginal(v,t)}');
+ run('synth("pyramid",0,1,true,3,"pad")');
+ assert.equal(run("releaseTimes.length"),4);
+ assert.ok(run("releaseTimes.every(t=>Math.abs(t-4)<.00001)"),
+  "all chord notes release after the specified three-second hold, not after the 4-tick cycle");
+});
+test("live looper shows simple states, no beat/bar/pass counters, while tempo remains",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ const trackJS=tracksJS;
+ assert.doesNotMatch(trackJS,/track-ruler|track-bar|\\u0022BEAT |\\u0022BAR |LOOP \\u0022\\+pass/);
+ assert.match(trackJS,/LOOPING/);
+ assert.match(file,/id="tempo"/);
+ run("trackView.draw()");
+ assert.doesNotMatch(get("track-loop-label-pyramid").textContent,/BAR|BEAT|LOOP [0-9]/);
+ assert.doesNotMatch(get("timelineTransportStatus").textContent,/BAR|BEAT/);
+ assert.doesNotMatch(get("vocalLoopState").textContent,/BAR [0-9]/);
+ assert.match(get("tempoValue").textContent,/BPM/);
+});
+test("stopping a sustained loop fades its active oscillator bus without stopping rhythm",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=5;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:5,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
+ run('renderClips("pyramid")');
+ run('toggleLoop("pyramid")');
+ const end=run("decks.pyramid.loopToggleAt");
+ run(`ctx.currentTime=transportEpoch+(${end}+1)*tickSeconds();scheduler()`);
+ assert.equal(run("decks.pyramid.loopEnabled"),false);
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),0,"already playing notes fade out on STOP");
+ assert.equal(run("stageStarted"),true);
+ run('toggleLoop("pyramid")');
+ const resume=run("decks.pyramid.loopToggleAt");
+ run(`ctx.currentTime=transportEpoch+(${resume}+1)*tickSeconds();scheduler()`);
+ assert.ok(run("decks.pyramid.loopBus.gain.value")>0,"audible bus is restored at bar-quantized restart");
+});
