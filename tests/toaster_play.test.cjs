@@ -2325,7 +2325,7 @@ test("failed native preparation restores the piano record control for retry",asy
  assert.match(get("nativeStatus-pyramid-chords").textContent,/NOT RECORDING/);
 });
 test("RECORD TAKE still auto-selects the instrument prompt after removing manual select buttons",async()=>{
- const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
  const calls=[];
  env.fetch=async(url,opts)=>{
   const op=String(url).split("/").pop();
