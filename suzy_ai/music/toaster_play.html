@@ -318,6 +318,13 @@ a{color:var(--mint)}
 .legacy-mixer{grid-column:1/-1;border:1px solid #65556b;border-radius:10px;padding:8px}
 .legacy-mixer>summary{cursor:pointer;font-size:12px;font-weight:750;color:#cfb8ca}
 .legacy-mixer>.strip{margin-top:10px}
+.instrument-mixer{grid-column:1/-1;border:1px solid #a78ea8;background:#211a2a;border-radius:12px;padding:12px}
+.instrument-mixer h3{margin:0 0 4px;font-size:16px;color:var(--mint)}
+.instrument-mixer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
+.instrument-mix-channel{display:block;background:#30263a;border:1px solid #685771;border-radius:9px;padding:9px}
+.instrument-mix-channel .strip-header{margin-bottom:6px}
+.instrument-mix-channel input{display:block}
+
 .legacy-song-drawer #deck-fishes{margin:12px 0 0}
 /* Archived voice take controls remain accessible. */
 .legacy-voice-drawer{grid-column:1/-1;border:1px solid #65556b;border-radius:12px;padding:10px}
@@ -457,6 +464,19 @@ body{padding-top:86px}
 <div class="strip"><div class="strip-header"><strong>🎧 BROWSER MASTER</strong><span id="masterValue" class="stat">75%</span></div><input id="master" type="range" aria-label="Browser master volume" min="0" max="100" value="75"><small class="subtle">Browser rhythm, local synth, recorded vocals. Light safety compression is enabled.</small></div>
 <div class="strip"><div class="strip-header"><strong>LIVE KEYS</strong><span id="liveLevelValue">80%</span></div><input id="liveLevel" type="range" min="15" max="125" value="80" aria-label="Live instrument monitoring volume"><small class="subtle">What your hands play right now</small></div>
 <div class="strip"><div class="strip-header"><strong>RECORDED KEYS</strong><span id="loopLevelValue">100%</span></div><input id="loopLevel" type="range" min="15" max="125" value="100" aria-label="Recorded loop playback level"><small class="subtle">Balance against live notes · compensates for stacked layers</small></div>
+<div class="instrument-mixer" aria-label="Individual saved instrument mixer">
+<h3>🎚 LIVE TRACK MIX · EACH INSTRUMENT</h3>
+<small class="subtle">Independent saved PCM track volumes, including native Mac memory loops. The LIVE AI VOLUME controls the single current Magenta-generated stereo sound. Voice loops are separate from Scarlett live monitoring.</small>
+<div class="instrument-mixer-grid"><label class="instrument-mix-channel" for="roleLevel-pyramid-chords"><span class="strip-header"><strong>🎹 PIANO</strong><span class="stat" id="roleValue-pyramid-chords">100%</span></span><input id="roleLevel-pyramid-chords" type="range" min="0" max="125" value="100" aria-label="🎹 PIANO saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-pyramid-lead"><span class="strip-header"><strong>🎻 VIOLIN</strong><span class="stat" id="roleValue-pyramid-lead">100%</span></span><input id="roleLevel-pyramid-lead" type="range" min="0" max="125" value="100" aria-label="🎻 VIOLIN saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-pyramid-textureLow"><span class="strip-header"><strong>🎻 CELLO</strong><span class="stat" id="roleValue-pyramid-textureLow">100%</span></span><input id="roleLevel-pyramid-textureLow" type="range" min="0" max="125" value="100" aria-label="🎻 CELLO saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-pyramid-textureHigh"><span class="strip-header"><strong>✨ GLASS / HARP</strong><span class="stat" id="roleValue-pyramid-textureHigh">100%</span></span><input id="roleLevel-pyramid-textureHigh" type="range" min="0" max="125" value="100" aria-label="✨ GLASS / HARP saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-drums-drums"><span class="strip-header"><strong>🥁 AI JAZZ DRUMS</strong><span class="stat" id="roleValue-drums-drums">100%</span></span><input id="roleLevel-drums-drums" type="range" min="0" max="125" value="100" aria-label="🥁 AI JAZZ DRUMS saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-pyramid-voice"><span class="strip-header"><strong>🎙 VOICE LOOPS</strong><span class="stat" id="roleValue-pyramid-voice">100%</span></span><input id="roleLevel-pyramid-voice" type="range" min="0" max="125" value="100" aria-label="🎙 VOICE LOOPS saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-fishes-chords"><span class="strip-header"><strong>🎹 FISHES ARPS</strong><span class="stat" id="roleValue-fishes-chords">100%</span></span><input id="roleLevel-fishes-chords" type="range" min="0" max="125" value="100" aria-label="🎹 FISHES ARPS saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-fishes-lead"><span class="strip-header"><strong>🎸 FISHES GUITAR</strong><span class="stat" id="roleValue-fishes-lead">100%</span></span><input id="roleLevel-fishes-lead" type="range" min="0" max="125" value="100" aria-label="🎸 FISHES GUITAR saved track playback volume"></label>
+<label class="instrument-mix-channel" for="roleLevel-fishes-voice"><span class="strip-header"><strong>🎙 FISHES VOICE</strong><span class="stat" id="roleValue-fishes-voice">100%</span></span><input id="roleLevel-fishes-voice" type="range" min="0" max="125" value="100" aria-label="🎙 FISHES VOICE saved track playback volume"></label></div>
+</div>
 </div>
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
@@ -2054,7 +2074,7 @@ function nativeMemoryGain(which,layer){
  const enabled=which==="drums"||(!localKeysOnly&&decks[which].enabled);
  const fader=which==="drums"?1:Number($("level-"+which).value)/100;
  const master=Number($("performanceMaster").value)/100;
- return enabled?clamp((layer.level??.8)*side*fader*master,0,1):0;
+ return enabled?clamp((layer.level??.8)*instrumentRoleGain(which,layer)*side*fader*master,0,1):0;
 }
 function setNativeMemoryGain(which,layer){
  if(!layer?.nativeLive||!layer.nativeLoopID)return;
@@ -2073,7 +2093,7 @@ function applyLoopGateNow(which){
   if(!layer.buffer)continue;
   if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
   if(!layer.gain)continue;
-  const target=songLayerAudible(which,layer,Math.floor(stepNumber/8))?(layer.level??.65):0;
+  const target=songLayerAudible(which,layer,Math.floor(stepNumber/8))?effectiveLoopLevel(which,layer):0;
   const param=layer.gain.gain;
   param.cancelScheduledValues(at);
   param.setValueAtTime(param.value,at);
@@ -2610,6 +2630,26 @@ function updateRecordControls(which){
   "↻ LOOP PLAYING · ADD AUDIO LAYER to stack another take · mute, fade or remove any pass";
 }
 
+const MIX_LANES=Object.freeze([["pyramid","chords"],["pyramid","lead"],["pyramid","textureLow"],["pyramid","textureHigh"],["drums","drums"],["pyramid","voice"],["fishes","chords"],["fishes","lead"],["fishes","voice"]]);
+function instrumentRoleGain(which,layer){
+ const role=layer.instrumentRole||(layer.kind==="vocal"?"voice":null);
+ const input=role?$("roleLevel-"+which+"-"+role):null;
+ return input?clamp(Number(input.value)/100,0,1.25):1;
+}
+function effectiveLoopLevel(which,layer){return (layer.level??.65)*instrumentRoleGain(which,layer);}
+function updateInstrumentFader(which,role){
+ const fader=$("roleLevel-"+which+"-"+role),label=$("roleValue-"+which+"-"+role);
+ if(!fader)return;
+ label.textContent=Math.round(clamp(Number(fader.value),0,125))+"%";
+ if(!ctx)return;
+ for(const layer of loopDeck(which).layers){
+  if((layer.instrumentRole||(layer.kind==="vocal"?"voice":null))!==role)continue;
+  if(layer.nativeLive){setNativeMemoryGain(which,layer);continue;}
+  if(layer.gain)layer.gain.gain.setTargetAtTime(
+   songLayerAudible(which,layer,Math.floor(stepNumber/8))?effectiveLoopLevel(which,layer):0,
+   ctx.currentTime,.02);
+ }
+}
 const NATIVE_LANE_LABELS={
  "pyramid:chords":"PYRAMID PIANO","pyramid:lead":"PYRAMID VIOLIN",
  "pyramid:textureLow":"PYRAMID LOW CELLO / HARMONIUM",
@@ -2957,7 +2997,7 @@ async function finishNativeInstrumentTake(){
    const fade=Number($("mix").value)/100;
    const side=which==="drums"?1:which==="pyramid"?1-fade:fade;
    await aiFetch("loop-volume",{id:result.native_loop_id||take.id,
-    value:clamp(.8*side*(which==="drums"?1:Number($("level-"+which).value)/100)*
+    value:clamp(.8*instrumentRoleGain(which,{instrumentRole:role})*side*(which==="drums"?1:Number($("level-"+which).value)/100)*
      Number($("performanceMaster").value)/100,0,1)}).catch(warn);
   }
   if(liveStarted)
@@ -3201,7 +3241,7 @@ function renderInstrumentClips(which){
    mute.onclick=()=>{
     layer.muted=!layer.muted;
      if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
-     if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+     if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:effectiveLoopLevel(which,layer),ctx.currentTime,.02);
      if(layer.nativeLive)setNativeMemoryGain(which,layer);
     renderClips(which);
    };
@@ -3211,7 +3251,7 @@ function renderInstrumentClips(which){
    fade.setAttribute("aria-label",(layer.name||"Voice")+" volume");
    fade.oninput=()=>{
     layer.level=Number(fade.value)/100;
-    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.02);
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(effectiveLoopLevel(which,layer),ctx.currentTime,.02);
     if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    const remove=document.createElement("button");remove.textContent="×";
@@ -3268,7 +3308,7 @@ function renderClips(which){
   const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{
    layer.muted=!layer.muted;
     if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
-    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:effectiveLoopLevel(which,layer),ctx.currentTime,.018);
     if(layer.nativeLive)setNativeMemoryGain(which,layer);
    renderClips(which);
   };
@@ -3280,7 +3320,7 @@ function renderClips(which){
    level.title="Independent PCM audio layer volume";level.setAttribute("aria-label",layer.name+" audio level");
    level.oninput=()=>{
     layer.level=Number(level.value)/100;
-    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.024);
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(effectiveLoopLevel(which,layer),ctx.currentTime,.024);
     if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    row.append(level);
@@ -3805,7 +3845,7 @@ function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer||l.nativeLive)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
+ gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?effectiveLoopLevel(which,l):0;
  filter.type="lowpass";filter.Q.value=.65;
  filter.frequency.value=layerFilterFrequency(l.filterAmount??100);
  src.connect(gain);gain.connect(filter);filter.connect(layerOutputBus(which,l));
@@ -3902,7 +3942,9 @@ async function readAndExport(){
    const side=1;
    for(const layer of d.layers){
     if(layer.muted)continue;
-    const gain=offline.createGain();gain.gain.value=side*(layer.kind==="chords"?Number($("level-"+which).value)/100:Number($("voice-"+which).value)/100)*.75;
+    const gain=offline.createGain();
+     const trackGain=layer.kind==="vocal"?Number($("voice-"+which).value)/100:Number($("level-"+which).value)/100;
+     gain.gain.value=side*trackGain*(layer.level??.75)*instrumentRoleGain(which,layer);
     gain.connect(masterOut);
     if(layer.kind==="chords"){
      for(const cycle of [0,1])for(const event of layer.events){
@@ -4267,6 +4309,9 @@ $("drumMidiReset").onclick=()=>{customDrumHits=null;renderDrumMidiGrid();$("drum
 renderDrumMidiGrid();
 $("rhythmLevel").oninput=()=>{const val=Number($("rhythmLevel").value);$("rhythmLevelNumber").textContent=val+"%";updateRhythmAudio();};
 $("master").oninput=()=>{const val=Number($("master").value);$("masterValue").textContent=val+"%";updateBrowserOutputGain();};
+for(const [which,role] of MIX_LANES){
+ $("roleLevel-"+which+"-"+role).oninput=()=>updateInstrumentFader(which,role);
+}
 $("performanceMaster").oninput=()=>{
  $("performanceMasterValue").textContent=$("performanceMaster").value+"%";
  updateBrowserOutputGain();
