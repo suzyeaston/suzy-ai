@@ -251,7 +251,10 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertEqual(ACTIONS["lead-mix"], {"scene", "value"})
         self.assertIn("violin", PROMPTS["pyramid_violin"])
         self.assertIn("celesta", PROMPTS["fishes_guitar"])
-        self.assertIn("brushed", PROMPTS["jazz_drums"])
+        self.assertIn("jazz-rock", PROMPTS["jazz_drums"])
+        self.assertIn("snare ghost notes", PROMPTS["jazz_drums"])
+        self.assertIn("steady pulse", PROMPTS["jazz_drums"])
+        self.assertLessEqual(len(PROMPTS["jazz_drums"]), 500)
         self.assertEqual(ACTIONS["drum-mix"], {"value"})
         swift = (Path(__file__).resolve().parents[1]
                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
@@ -267,7 +270,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('let music = 1.0 - drumBlend', swift)
         self.assertIn('case "drum-mix":', swift)
         self.assertIn('drumBlend = Float(x);configure()', swift)
-        # Original Pyramid piano, violin and brushed drum prompts remain unchanged.
+        # All five native defaults must mirror the Python prompt presets.
         self.assertIn(PROMPTS["pyramid"], swift)
         self.assertIn(PROMPTS["fishes"], swift)
 
