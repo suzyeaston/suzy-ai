@@ -298,6 +298,8 @@ a{color:var(--mint)}
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiDrums" aria-pressed="false" type="button" title="Allow Google MRT2 to create percussion as AI audio. Does not output individual drum MIDI notes.">🥁 ALLOW AI DRUM AUDIO</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
 <button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
+ <button id="externalMidiPads" type="button" aria-pressed="false" title="Optional: send pads to external CoreMIDI instead of native Magenta. Disabled whenever native AU is running.">↗ EXTERNAL MIDI OFF</button>
+ <div id="padMidiRouteStatus" role="status" aria-live="polite" class="subtle">PAD MIDI: LOCAL ONLY · external CoreMIDI disabled</div>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
@@ -584,6 +586,7 @@ const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
 const CHORD_CODES=Object.freeze({KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v"});
 const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
+let externalMidiPads=false,activeChordMidiRoute=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false,aiDrumsAllowed=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
@@ -949,6 +952,8 @@ function synth(which,index,time=ctx.currentTime+.01,quiet=false,holdSeconds=.85,
  }
 }
 function midi(which,index){
+ // External CoreMIDI is OPT-IN and MUST NOT mirror the native Google AU.
+ if(!externalMidiPads||aiNativeReady||aiSolo)return;
  // CoreMIDI conditioning is optional; no model is being run by this webpage.
  const headers={"Content-Type":"application/json","X-Suzy-Token":token};
  midiQueue=midiQueue.catch(()=>{}).then(async()=>{
@@ -961,9 +966,50 @@ function midi(which,index){
  }).catch(()=>{});
 }
 function midiRelease(){
+ // Allow a note-off even after the bridge is disabled. Clears any note that
+ // was held before native AU became ready or AI ONLY was enabled.
  midiQueue=midiQueue.catch(()=>{}).then(()=>fetch("/api/perform/release-chord",{
   method:"POST",headers:{"Content-Type":"application/json","X-Suzy-Token":token},body:"{}"
  })).catch(()=>{});
+}
+function padMidiRoute(){
+ // Native AU always wins, even if a user previously enabled CoreMIDI.
+ // AI ONLY never falls back to a third-party/Logic instrument.
+ if(aiNativeReady)return "native";
+ if(aiSolo)return "none";
+ return externalMidiPads?"external":"none";
+}
+function updatePadMidiRouteUI(){
+ const route=padMidiRoute(),button=$("externalMidiPads"),status=$("padMidiRouteStatus");
+ button.disabled=aiNativeReady||aiSolo;
+ button.setAttribute("aria-pressed",String(externalMidiPads));
+ button.textContent=externalMidiPads?"↗ EXTERNAL MIDI ON":"↗ EXTERNAL MIDI OFF";
+ status.textContent=route==="native"?
+  "PAD MIDI → GOOGLE MRT2 ONLY · SUZY AI MIDI bridge OFF":
+  route==="external"?"PAD MIDI → EXTERNAL SUZY AI MIDI ONLY · native AU not active":
+  aiSolo?"AI ONLY · waiting for native Magenta · no fallback synth or external MIDI":
+  "PAD MIDI → LOCAL KEYS · external CoreMIDI OFF";
+}
+function toggleExternalMidiPads(){
+ if(aiNativeReady||aiSolo)return warn(Error("External MIDI is disabled while native Magenta or AI ONLY is active. Only one MIDI destination can control the pads."));
+ externalMidiPads=!externalMidiPads;
+ if(!externalMidiPads){midiRelease();if(activeChordMidiRoute==="external")activeChordMidiRoute=null;}
+ updatePadMidiRouteUI();
+ tell(externalMidiPads?"External MIDI enabled for SUZY AI MIDI. Native Google AU is inactive.":"External MIDI stopped; browser keys remain playable.");
+}
+function dispatchPadChord(which,index){
+ const route=padMidiRoute();
+ if(activeChordMidiRoute==="external"&&route!=="external")midiRelease();
+ if(activeChordMidiRoute==="native"&&route!=="native")aiRelease();
+ activeChordMidiRoute=route;
+ if(route==="native")aiNote(which,index);
+ else if(route==="external")midi(which,index);
+}
+function releasePadChord(){
+ const route=activeChordMidiRoute;
+ activeChordMidiRoute=null;
+ if(route==="native")aiRelease();
+ else if(route==="external")midiRelease();
 }
 // Genuine MRT2 AU prompt host: never call these endpoints until explicitly enabled.
 // `phase=host-running` means the native engine is running, not proof the neural model produced audible sound.
@@ -1025,16 +1071,31 @@ function updateBrowserOutputGain(){
 function toggleAISolo(){
  if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
  aiSolo=!aiSolo;
+ if(aiSolo){
+  // Stop all notes in third-party instruments before isolating native AU.
+  midiRelease();
+  externalMidiPads=false;
+  if(activeChordMidiRoute==="external")activeChordMidiRoute=null;
+ }
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
- updateBrowserOutputGain();updateMix();
+ updateBrowserOutputGain();updateMix();updatePadMidiRouteUI();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
   "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
   "TRUE AI ONLY · browser audio MUTED. Native AI is not confirmed audible: check model, transport and mute."):
   "Browser mix restored. Keys, drums and recorded loops audible again.");
 }
 function aiDisplay(s){
+ const wasNativeReady=aiNativeReady;
  aiNativeReady=s.phase==="host-running"&&s.audio_engine_running===true;
+ if(aiNativeReady&&!wasNativeReady){
+  // On model startup, immediately stop an external CoreMIDI route instead of
+  // continuing to trigger Logic/Jam and the native AU simultaneously.
+  if(externalMidiPads||activeChordMidiRoute==="external"){
+   externalMidiPads=false;midiRelease();activeChordMidiRoute=null;
+  }
+ }
+ updatePadMidiRouteUI();
  aiNativeStarting=["initializing","starting"].includes(s.phase);
  const button=$("aiEnable");
  // Native AU exists in either mode. A click in bookmark mode switches the SAME
@@ -1251,7 +1312,7 @@ function beginChord(which,index,key){
   h.event={step,index,holdSteps:1,instrument};
   recording.events.push(h.event);
  }
- midi(which,index);aiNote(which,index);
+ dispatchPadChord(which,index);
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
@@ -1274,7 +1335,7 @@ function endChord(key){
    el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
- if(!heldKeys.size){midiRelease();aiRelease();}
+ if(!heldKeys.size)releasePadChord();
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
 function beginNote(midi,key){
@@ -2316,6 +2377,8 @@ $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
 $("aiDrums").onclick=()=>toggleAIDrums().catch(warn);
 $("aiSolo").onclick=toggleAISolo;
+$("externalMidiPads").onclick=toggleExternalMidiPads;
+updatePadMidiRouteUI();
 $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
