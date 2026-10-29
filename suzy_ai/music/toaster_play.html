@@ -281,7 +281,12 @@ a{color:var(--mint)}
 
 #classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
 #classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
-#jazzDrumDeck{display:none}
+/* Drum instrument is a native AU lane; the browser MIDI rhythm remains a master clock. */
+#jazzDrumDeck{display:block}
+#jazzDrumDeck .jazz-drum-controls{margin-top:10px}
+#nativeDrumClips{display:grid;gap:6px;margin-top:9px}
+#nativeDrumClips .clip{display:flex;flex-wrap:wrap;gap:7px}
+
 #classicDecks .deck > .clips{display:none}
 #classicDecks .deck-transport button.rec,#classicDecks .deck-transport .timeline,
 #classicDecks .deck-transport .record-hint{display:none}
@@ -418,8 +423,19 @@ a{color:var(--mint)}
  <div class="start">
   <div><div class="tiny">TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05</div>
   <h2>🥁 JAZZ DRUMS</h2>
-  <p class="subtle">Your fifth AI instrument. A living brushed-jazz percussion texture blended into the same Magenta stream. It is not a separate captured loop or stem.</p></div>
+  <p class="subtle">Your fifth AI instrument. Select its actual Google AU sound and record each take as a separate looping PCM layer. Browser rhythm stays independent.</p></div>
   <button id="aiDrums" aria-pressed="false" type="button" title="Allow the Google MRT2 model to generate percussion audio; independent of the browser rhythm.">🥁 ALLOW AI DRUM AUDIO</button>
+ </div>
+ <div class="instrument-lane" id="nativeDrumLane" aria-label="Real Magenta AI drum sound on sound loop controls">
+  <div class="tiny">✦ NATIVE AI DRUMS · SAVED AUDIO TRACK · NOT BROWSER RHYTHM</div>
+  <div class="lane-buttons">
+   <button type="button" id="nativePlay-drums-drums">✦ SELECT AI DRUM SOUND</button>
+   <button type="button" id="nativeRecord-drums-drums">● RECORD AI DRUM TAKE</button>
+   <button type="button" id="nativeResume-drums-drums" disabled>▶ PLAY SAVED</button>
+  </div>
+  <div class="lane-status" id="nativeStatus-drums-drums" role="status">READY · Real Magenta percussion records to its own global PCM lane.</div>
+  <div class="lane-clips" id="nativeDrumClips"><span class="subtle">NO SAVED AI DRUM AUDIO YET</span></div>
+  <small class="subtle">Saved AI drums stay audible through the Pyramid → Fishes crossfade. Each take can be muted, filtered, faded or removed. The programmable browser rhythm is never recorded here.</small>
  </div>
  <div class="jazz-drum-controls">
   <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
@@ -761,6 +777,8 @@ let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
+const drumDeck={layers:[],bus:null,locked:true,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
+
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
@@ -950,6 +968,8 @@ async function openAudio(){
   mixFilter.frequency.value=220+Math.pow(Number($("tone").value)/100,2)*19000;
   mixFilter.Q.value=.65;mixFilter.connect(master);
   mainBus=ctx.createGain();mainBus.connect(mixFilter);
+  drumDeck.bus=ctx.createGain();drumDeck.bus.gain.value=1;
+  drumDeck.bus.connect(mainBus);
   beatBus=ctx.createGain();beatBus.gain.value=Number($("rhythmLevel").value)/100;beatBus.connect(mixFilter);
   verb=ctx.createConvolver();verb.buffer=makeReverb();
   wet=ctx.createGain();wet.gain.value=Number($("reverb").value)/180;
@@ -1767,15 +1787,16 @@ function clipActiveAt(layer,bar){
 }
 // A BOSS-style pause/restart gates ALL saved song loops, never the shared
 // rhythm clock. The source's phase keeps running silently while stopped.
+function loopDeck(which){return which==="drums"?drumDeck:decks[which];}
 function songLayerAudible(which,layer,bar){
- return decks[which].loopEnabled!==false && layer.paused!==true && clipActiveAt(layer,bar);
+ return loopDeck(which).loopEnabled!==false && layer.paused!==true && clipActiveAt(layer,bar);
 }
 // Re-enable an already-running audio loop on the next rendering block instead
 // of waiting up to one bar. The source keeps its phase, so other layers remain
 // synchronized. We never restart the generator or request a new recording.
 function applyLoopGateNow(which){
  if(!ctx)return;
- const now=ctx.currentTime,at=now+.012,d=decks[which];
+ const now=ctx.currentTime,at=now+.012,d=loopDeck(which);
  for(const layer of d.layers){
   if(!layer.buffer)continue;
   if(!layer.source&&stageStarted)startLoopAudio(which,layer,at);
@@ -1794,14 +1815,16 @@ function applyLoopGateNow(which){
  }
 }
 function nativeSavedLayers(which,role){
- return decks[which].layers.filter(l=>l.buffer&&l.instrumentRole===role);
+ return loopDeck(which).layers.filter(l=>l.buffer&&l.instrumentRole===role);
 }
 function updateNativePlaybackButtons(){
- for(const which of Object.keys(decks))for(const role of ["chords","lead"]){
+ const pairs=[...Object.keys(decks).flatMap(which=>[["chords",which],["lead",which]]),
+  ["drums","drums"]];
+ for(const [role,which] of pairs){
   const button=$("nativeResume-"+which+"-"+role),layers=nativeSavedLayers(which,role);
   if(!button)continue;
   button.disabled=!layers.length;
-  const playing=stageStarted&&layers.length&&layers.some(l=>!l.paused)&&decks[which].loopEnabled;
+  const playing=stageStarted&&layers.length&&layers.some(l=>!l.paused)&&loopDeck(which).loopEnabled;
   button.textContent=!layers.length?"▶ PLAY SAVED":playing?"■ STOP SAVED":"▶ PLAY SAVED";
   button.title="Play/pause this instrument's saved PCM layers immediately, in phase with the master loop.";
  }
@@ -1810,13 +1833,14 @@ async function toggleNativeSavedLoop(which,role){
  const layers=nativeSavedLayers(which,role);
  if(!layers.length)return warn(Error("Record a "+nativeLaneLabel(which,role)+" take first."));
  if(nativeTake)return warn(Error("Finish the current native recording before switching playback."));
- const d=decks[which],playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
+ const d=loopDeck(which),playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
  const resume=!playing;
  layers.forEach(l=>{l.paused=!resume;});
  if(resume&&!d.loopEnabled){d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
  if(resume&&!stageStarted)await startStop();
  applyLoopGateNow(which);
- updateLoopControls(which);updateNativePlaybackButtons();
+ if(which!=="drums")updateLoopControls(which);
+ updateNativePlaybackButtons();
  tell(nativeLaneLabel(which,role)+(resume?" · SAVED AUDIO PLAYING NOW (PHASE LOCKED)":" · SAVED AUDIO PAUSED")+" · record another take anytime.");
 }
 function updateLoopControls(which){
@@ -2229,7 +2253,7 @@ function endRecord(){
  tell("↻ MIDI FOUNDATION LOOPING · PRINT MIDI → AUDIO to freeze its sound; future takes record audio waveforms.");
 }
 function removeSongLayer(which,id){
- const d=decks[which],layer=d.layers.find(l=>l.id===id);
+ const d=loopDeck(which),layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  stopLayerWash(layer);stopLayerEcho(layer);
  if(layer.source)try{layer.source.stop()}catch{}
@@ -2391,6 +2415,7 @@ async function finishNativeInstrumentTake(){
 // prompt generation remains on its separate macOS output, and browser drums
 // never enter these sends. Feedback stays below unity to protect headphones.
 function layerOutputBus(which,layer){
+ if(which==="drums")return drumDeck.bus; // outside song crossfaders
  return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
 }
 function layerPlaybackPhase(which,layer,at){
@@ -2490,9 +2515,9 @@ function toggleLayerWash(which,layer){
 }
 
 function renderInstrumentClips(which){
- const d=decks[which];
- for(const role of ["chords","lead","voice"]){
-  const box=role==="voice"?$("voiceClips-"+which):$("nativeClips-"+which+"-"+role);
+ const d=loopDeck(which);
+ for(const role of (which==="drums"?["drums"]:["chords","lead","voice"])){
+  const box=role==="drums"?$("nativeDrumClips"):role==="voice"?$("voiceClips-"+which):$("nativeClips-"+which+"-"+role);
   if(!box)continue;
   box.replaceChildren();
   const layers=d.layers.filter(layer=>role==="voice"?layer.kind==="vocal":layer.instrumentRole===role);
@@ -2546,6 +2571,12 @@ function renderInstrumentClips(which){
 }
 
 function renderClips(which){
+ if(which==="drums"){
+  renderInstrumentClips("drums");
+  updateNativePlaybackButtons();
+  updateNativeLaneControls();
+  return;
+ }
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
  renderInstrumentClips(which);
  updateNativePlaybackButtons();
