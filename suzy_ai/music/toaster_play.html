@@ -1982,8 +1982,14 @@ async function timelineRewind(){
 }
 function record(which){
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
- if(audioPrint)return warn(Error("Finish AUDIO RECORD before opening the MIDI recorder."));
+ if(audioPrint){
+  if(audioPrint.which===which&&!audioPrint.freeze)return finishAudioPrint();
+  return warn(Error("Finish the active audio print first."));
+ }
  const d=decks[which];
+ // MIDI conditions only the initial phrase. All following recording passes
+ // print REAL waveform audio to a separate, independently fadeable clip.
+ if(d.locked&&!recording)return startAudioPrint(which,false);
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish the current take first."));
   if(recording.finishQueued)return tell("DONE queued · playback starts at the next short clock tick.");
@@ -2059,7 +2065,7 @@ function endRecord(){
   }
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
- $("record-"+r.scene).textContent="● OVERDUB";
+ $("record-"+r.scene).textContent="＋ OVERDUB AUDIO";
  $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · press STOP LOOP to pause":"EMPTY · try recording again";
  if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
@@ -2072,7 +2078,7 @@ function endRecord(){
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
  instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor((r.first?r.beginAt:d.anchorStep)/8))});
  renderClips(r.scene);
- tell("↻ LOOPING · repeating your "+r.scene.toUpperCase()+" phrase from its FIRST note, with no empty lead-in. Press OVERDUB or STOP LOOP when ready.");
+ tell("↻ MIDI FOUNDATION LOOPING · PRINT MIDI → AUDIO to freeze its sound; future takes record audio waveforms.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
@@ -2090,6 +2096,9 @@ function renderClips(which){
  trackView?.draw();
  fullTimeline?.render();
  updateVocalState();
+ if(!recording||recording.scene!==which)
+  $("record-"+which).textContent=d.locked?"＋ OVERDUB AUDIO":"● RECORD FIRST LOOP";
+ updateAudioPrintUI();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
