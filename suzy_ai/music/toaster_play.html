@@ -326,6 +326,14 @@ a{color:var(--mint)}
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
 #fullArrangement[hidden]{display:none!important}
+/* The big pedal clock stays visible while recording any instrument. */
+.pedal-clock{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px;margin:12px 0;border:2px solid #6e9c90;border-radius:14px;background:#182b2b}
+#pedalClockState{font:900 16px ui-monospace,monospace;color:#c0f9e5}
+#pedalClockCue{font:800 12px ui-monospace,monospace;color:#f9d09d;flex:1 1 230px}
+.pedal-beats{display:flex;gap:7px}
+.pedal-beat{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid #72877f;color:#b7c7c4;font:900 16px ui-monospace,monospace}
+.pedal-beat.on{background:#b4f3cf;border-color:#e7ffe9;color:#18352e;box-shadow:0 0 12px #b4f3cf55}
+.pedal-beat.downbeat.on{background:#f7c5a4;border-color:#ffe8ca;color:#4e2c2d}
 .set-recorder{border:1px solid #f2b4bd;background:#322234;border-radius:14px;padding:14px}
 .set-recorder .start{gap:14px}
 .set-recorder .set-rec-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -363,6 +371,17 @@ a{color:var(--mint)}
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
+<div class="pedal-clock" role="group" aria-label="Live beat clock and loop recording cue">
+ <strong id="pedalClockState">○ WAITING FOR RHYTHM</strong>
+ <div class="pedal-beats" aria-label="Beat position">
+ <span id="pedalBeat1" class="pedal-beat downbeat">1</span>
+ <span id="pedalBeat2" class="pedal-beat">2</span>
+ <span id="pedalBeat3" class="pedal-beat">3</span>
+ <span id="pedalBeat4" class="pedal-beat">4</span>
+ <span id="pedalBeat5" class="pedal-beat" hidden>5</span>
+ </div>
+ <span id="pedalClockCue" role="status" aria-live="polite">Press PLAY RHYTHM. Then record on the highlighted 1.</span>
+</div>
 <div class="mixer">
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
 <input id="tempo" aria-label="Rhythm and loop tempo in beats per minute" type="range" min="70" max="170" value="105">
@@ -1847,6 +1866,80 @@ function releaseAllChords(){
  for(const key of [...heldNotes.keys()])endNote(key);
 }
 function tickSeconds(){return 30/bpm;}
+// Exactly one quarter/eighth-note rhythm grid for ALL browser PCM layers.
+// Native AU WAV duration and browser button/network round trips must never
+// establish a second, free-running musical clock.
+function rhythmBarSteps(){return DRUM_STEPS[drumMeter]||8;}
+function barDuration(){return rhythmBarSteps()*tickSeconds();}
+function gridStepAt(at,lead=.08){
+ const step=rhythmBarSteps();
+ return Math.max(0,Math.ceil((at+lead-transportEpoch)/(step*tickSeconds()))*step);
+}
+function gridTimeAt(at,lead=.08){return transportEpoch+gridStepAt(at,lead)*tickSeconds();}
+function phraseGridSteps(startAt,doneAt){
+ return Math.max(rhythmBarSteps(),Math.min(256,
+  Math.max(1,Math.round((doneAt-startAt)/barDuration()))*rhythmBarSteps()));
+}
+// Input may begin before the musical downbeat (native HTTP capture arms early).
+// Trim pre-roll and place only samples captured AFTER the downbeat into the
+// bar-exact PCM loop. No wrapping pre-roll into the end of a phrase.
+function writeFirstGridLoop(buffer,inputs,capturedAt,downbeatAt,gain=1){
+ const delta=Math.round((downbeatAt-capturedAt)*buffer.sampleRate);
+ const sourceStart=Math.max(0,delta),destinationStart=Math.max(0,-delta);
+ for(let ch=0;ch<buffer.numberOfChannels;ch++){
+  const src=inputs[Math.min(ch,inputs.length-1)];
+  if(!src)continue;
+  const len=Math.max(0,Math.min(src.length-sourceStart,buffer.length-destinationStart));
+  if(!len)continue;
+  const output=buffer.getChannelData(ch);
+  for(let i=0;i<len;i++)output[destinationStart+i]=src[sourceStart+i]*gain;
+ }
+ closeAudioLoopSeam(buffer);
+}
+function updatePedalClock(){
+ const state=$("pedalClockState"),cue=$("pedalClockCue");
+ if(!ctx||!stageStarted){
+  state.textContent="○ RHYTHM PAUSED";
+  cue.textContent="Press PLAY RHYTHM to activate the loop clock.";
+  for(let i=1;i<=5;i++)$("pedalBeat"+i).classList.remove("on");
+  return;
+ }
+ const heardAt=ctx.currentTime-Math.max(0,Number(ctx.outputLatency)||0);
+ const tick=Math.max(0,Math.floor((heardAt-transportEpoch)/tickSeconds()+.0001));
+ const perBar=rhythmBarSteps(),beat=Math.floor((tick%perBar)/2)+1;
+ const beats=Math.ceil(perBar/2);
+ for(let i=1;i<=5;i++){
+  const dot=$("pedalBeat"+i);
+  dot.hidden=i>beats;
+  dot.classList.toggle("on",i===beat);
+ }
+ state.textContent="BEAT "+beat+" / "+beats+"  ·  BAR "+(Math.floor(tick/perBar)+1);
+ const now=ctx.currentTime;
+ const queued=Object.entries(decks).find(([,d])=>d.loopToggleAt!==null&&d.loopToggleTarget===true);
+ if(queued){
+  const [which,d]=queued;
+  const remaining=Math.max(0,Math.ceil((transportEpoch+d.loopToggleAt*tickSeconds()-now)/tickSeconds()/2));
+  cue.textContent="↻ "+which.toUpperCase()+" RESTARTS ON LOOP 1 · "+remaining+" BEATS UNTIL DOWNBEAT";
+ }else if(nativeTake){
+  const t=nativeTake;
+  if(t.finishing)cue.textContent="✓ DONE · converting captured audio · existing rhythm continues";
+  else if(t.first&&now<t.gridStartAt)cue.textContent="● "+t.role.toUpperCase()+" ARMED · PLAY ON GREEN 1 IN "+Math.max(1,Math.ceil((t.gridStartAt-now)/(2*tickSeconds())))+" BEATS";
+  else cue.textContent="● RECORDING "+t.role.toUpperCase()+" · PLAY IN TIME, THEN DONE NEAR BEAT 1";
+ }else if(recording?.kind==="vocal"){
+  const t=recording;
+  cue.textContent=t.finishQueued?"✓ VOICE DONE · BUILDING BAR-LOCKED LOOP":
+    now<t.startAt?"● VOICE ARMED · SING ON GREEN 1 IN "+Math.max(1,Math.ceil((t.startAt-now)/(2*tickSeconds())))+" BEATS":
+    "● RECORDING VOICE · PRESS DONE NEAR BEAT 1";
+ }else if(recording?.kind==="chords"){
+  cue.textContent=recording.finishQueued?"✓ CHORD DONE · LOOP ON NEXT GREEN 1":
+    !recording.active?"● CHORDS ARMED · PLAY ON NEXT GREEN 1":
+    "● RECORDING CHORDS · PRESS DONE NEAR BEAT 1";
+ }else{
+  const first=[...Object.entries(decks),["drums",drumDeck]].find(([,d])=>d.layers.some(l=>l.buffer||l.kind==="chords"));
+  cue.textContent=first?"↻ BAR-LOCKED LOOP · PLAY / OVERDUB WITH THE GREEN BEAT 1":
+   "READY · RECORD PIANO OR VOCALS · PLAY WHEN GREEN 1 LIGHTS";
+ }
+}
 function cycleSeconds(){return tickSeconds()*loopSteps;}
 function songCycleSteps(which){return decks[which].lengthSteps||16;}
 function songCycleSeconds(which){return songCycleSteps(which)*tickSeconds();}
@@ -2163,6 +2256,7 @@ function updateTransportUI(){
    " · Browser loops only · Native Magenta independent";
 }
 function updateTimeline(){
+ updatePedalClock();
  if(!ctx||!stageStarted)return;
  const phase=phaseSeconds()/cycleSeconds();
  for(const which of Object.keys(decks))$("head-"+which).style.left=(phase*100)+"%";
