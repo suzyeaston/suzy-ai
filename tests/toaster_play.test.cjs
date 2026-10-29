@@ -261,7 +261,7 @@ test("manual hold length is retained by event loops and renders sustained chord 
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
- assert.match(javascript,/Math\.max\(\.12,\(e\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
+ assert.match(javascript,/recordedNoteHoldSeconds\(which,e\)/);
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
 });
 
@@ -726,7 +726,8 @@ test("browser timeline stop and rewind preserve vocal clips while resetting bar 
  assert.equal(run("stageStarted"),false);
  assert.equal(run("stepNumber"),0);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.match(get("timelineTransportStatus").textContent,/STOPPED.*BAR 1/);
+ assert.match(get("timelineTransportStatus").textContent,/STOPPED/);
+ assert.doesNotMatch(get("timelineTransportStatus").textContent,/BAR|BEAT/);
  assert.match(get("vocalLoopState").textContent,/1 VOCAL LOOP SAVED/);
  await run("startStop()");
  run("stepNumber=96");
@@ -771,7 +772,7 @@ test("clicking bar ruler locates real cursor while stopped, and Play begins from
  assert.equal(run("stepNumber"),bar*8);
  assert.equal(run("scene"),"fishes");
  assert.match(get("fullPosition").textContent,new RegExp("BAR "+(bar+1)));
- assert.match(get("timelinePlay").textContent,new RegExp("PLAY FROM BAR "+(bar+1)));
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
  assert.equal(run("stageStarted"),false);
  await run("startStop()");
  assert.equal(run("stageStarted"),true);
@@ -807,12 +808,12 @@ test("Stop parks the playhead at its current bar; rewind returns to 1, with real
  assert.equal(run("stageStarted"),false);
  assert.equal(run("parkedBar"),75);
  assert.equal(run("stepNumber"),75*8);
- assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 76/);
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
  assert.equal(run("decks.pyramid.layers.length"),1);
  await run("timelineRewind()");
  assert.equal(run("parkedBar"),0);
  assert.equal(run("stepNumber"),0);
- assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 1/);
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
 });
 test("click seeking during an active recording is refused without moving clock",async()=>{
  const {run}=rig();await run("startStop()");
