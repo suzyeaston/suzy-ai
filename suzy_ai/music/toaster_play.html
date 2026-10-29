@@ -843,8 +843,20 @@ function exportDrumMidi(){
  link.click();URL.revokeObjectURL(url);
  $("drumMidiStatus").textContent="GM MIDI exported · "+drumLoopSteps()+" steps · "+bpm+" BPM · import into Logic";
 }
+function rhythmCanSound(){return rhythmAudioEnabled&&!aiSolo&&!localKeysOnly;}
+function updateRhythmAudio(){
+ const audible=rhythmCanSound(),button=$("rhythmAudio");
+ button.setAttribute("aria-pressed",String(rhythmAudioEnabled));
+ button.textContent=rhythmAudioEnabled?"🥁 HEAR LOCAL RHYTHM · ON":"🥁 LOCAL RHYTHM MUTED";
+ if(beatBus)beatBus.gain.value=audible?Number($("rhythmLevel").value)/100:0;
+}
+function toggleRhythmAudio(){
+ rhythmAudioEnabled=!rhythmAudioEnabled;
+ updateRhythmAudio();
+ tell(rhythmAudioEnabled?"Local rhythm monitor ON · native instruments unaffected.":"Local rhythm monitor OFF · drum clock and MIDI pattern keep running.");
+}
 function pulse(time,count){
- if(aiSolo)return; // Transport clock remains running; no browser drum audio.
+ if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
  const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
  // Three independent hits allow a custom MIDI groove to layer kick/snare/hat.
@@ -904,16 +916,41 @@ function releaseVoice(voice,time){
   vibrato?.stop(time+Math.max(.50,release*5));
  }catch{}
 }
+function localInstrumentAudible(which){
+ return !aiSolo&&(localKeysOnly||decks[which].instrumentSource==="local");
+}
+function nativeInstrumentEnabled(which){
+ return aiNativeReady&&!localKeysOnly&&(aiSolo||decks[which].instrumentSource==="ai");
+}
+function updateInstrumentSource(which){
+ const d=decks[which],button=$("instrumentSource-"+which),status=$("instrumentSourceStatus-"+which);
+ const isNative=d.instrumentSource==="ai";
+ button.setAttribute("aria-pressed",String(isNative));
+ button.textContent=isNative?"✦ NATIVE AI INSTRUMENT":"🎹 LOCAL SYNTH INSTRUMENT";
+ status.textContent=isNative?
+  (aiNativeReady?"GOOGLE MRT2 ONLY · no browser chord or lead synth. Local rhythm stays available.":
+  "WAITING FOR GOOGLE MRT2 · no fallback piano. Switch to LOCAL SYNTH to audition."):
+  "LOCAL SYNTH SOUND · not Google AI. Tap to return to native Magenta.";
+}
+function setInstrumentSource(which,source){
+ if(source!=="ai"&&source!=="local")return;
+ if(decks[which].instrumentSource===source)return;
+ releaseAllChords();
+ decks[which].instrumentSource=source;
+ updateInstrumentSource(which);updateMix();updateOverdubBalance();
+ tell(which.toUpperCase()+" "+(source==="ai"?"NATIVE AI ONLY · no local keyboard sound; rhythm remains separate.":"LOCAL SYNTH ON · native AI notes disabled for this song."));
+}
 function targetLoopGain(which){
  const d=decks[which],active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
- return localKeysOnly||!d.loopEnabled?0:
+ return !localInstrumentAudible(which)||!d.loopEnabled?0:
   Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
 }
 function updateOverdubBalance(){
  if(!ctx)return;
  for(const [which,d] of Object.entries(decks)){
   if(!d.liveBus||!d.loopBus)continue;
-  d.liveBus.gain.value=Number($("liveLevel").value)/100;
+  d.liveBus.gain.value=localInstrumentAudible(which)?Number($("liveLevel").value)/100:0;
+  if(d.leadBus)d.leadBus.gain.value=localInstrumentAudible(which)?Number($("leadLevel-"+which).value)/100:0;
   // Gate already ringing notes too when a performer stops a loop.
   d.loopBus.gain.value=targetLoopGain(which);
  }
@@ -925,7 +962,7 @@ function setInstrument(which,instrument){
 }
 async function auditionLead(which){
  try{
-  if(aiSolo)return tell("AI ONLY · local synth preview muted. Play the MIDI pads to steer native Magenta.");
+  if(!localInstrumentAudible(which))return tell("Native AI instrument selected · local synth audition muted. Play MIDI pads to steer Magenta.");
   await openAudio();
   choose(which);
   const d=decks[which],notes=SCENES[which].notes[0].slice(0,3);
@@ -956,7 +993,7 @@ function setLeadOctave(which,value){
 function setLeadLevel(which,value){
  const level=clamp(value,0,125);
  $("leadLevelValue-"+which).textContent=level+"%";
- if(decks[which].leadBus)decks[which].leadBus.gain.value=level/100;
+ if(decks[which].leadBus)decks[which].leadBus.gain.value=localInstrumentAudible(which)?level/100:0;
 }
 function updateKeyUI(which){
  const d=decks[which],n=d.transpose;
@@ -978,7 +1015,7 @@ function setKey(which,next,remember=true){
  ". Recorded MIDI transposes without changing the underlying notes. Voice and AI WAVs do not pitch-shift.");
 }
 function synth(which,index,time=ctx.currentTime+.01,quiet=false,holdSeconds=.85,instrument=decks[which].instrument){
- if(!ctx||aiSolo)return;
+ if(!ctx||!localInstrumentAudible(which))return;
  // Do not truncate a held recorded chord at the loop seam. Releasing a
  // sustained chord before its next repetition made it sound staccato.
  const notes=SCENES[which].notes[index],sec=Math.max(.08,holdSeconds);
