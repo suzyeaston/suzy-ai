@@ -336,6 +336,7 @@ body{padding-top:86px}
 .pedal-clock[data-cue="count"] #pedalCueBig{background:#f8d69c;color:#402a22}
 .pedal-clock[data-cue="go"]{background:#3b3d1c;border-color:#ffe193;box-shadow:0 5px 28px #ffc85170}
 .pedal-clock[data-cue="go"] #pedalCueBig{background:#fff79d;color:#382308;animation:pedal-go-pulse .32s ease-in-out infinite alternate}
+#silenceAllLoops{pointer-events:auto;background:#8c2639;color:#fff;border:2px solid #ffc5bd;font:850 11px ui-monospace,monospace;padding:9px;border-radius:9px;white-space:nowrap}
 .native-harmony-selector{display:grid;gap:7px;margin:11px 0;padding:10px;border:1px solid #6b9e99;border-radius:10px;background:#152728}
 .native-harmony-label{font:800 10px ui-monospace,monospace;color:#b7edde;letter-spacing:.04em}
 .native-harmony-row{display:grid;grid-template-columns:104px repeat(4,minmax(0,1fr));gap:5px;align-items:stretch}
@@ -401,6 +402,7 @@ body{padding-top:86px}
  <span id="pedalBeat5" class="pedal-beat" hidden>5</span>
  </div>
  <span id="pedalClockCue" role="status" aria-live="polite">Press PLAY RHYTHM. Then record on the highlighted 1.</span>
+ <button type="button" id="silenceAllLoops" aria-label="Emergency silence all saved loops including native Mac audio" title="Instantly silence every recorded loop. Does not delete saved audio or stop the rhythm.">⛔ SILENCE LOOPS</button>
 </div>
 <div class="mixer">
 <div class="strip"><div class="strip-header"><strong>⏱ TEMPO</strong><span id="tempoValue" class="stat">105 BPM</span></div>
@@ -2120,6 +2122,30 @@ function updateLoopControls(which){
   "⌛ RESTART QUEUED · CANCEL":d.loopEnabled?"■ STOP LOOP":"▶ RESTART ON 1";
  now.disabled=!d.locked||!d.layers.length||d.loopEnabled;
  now.textContent="▶ HEAR NOW · MID-PHRASE";
+}
+async function emergencySilenceAllLoops(){
+ // Hard-gate browser PCM first, before any asynchronous host requests.
+ for(const [which,d] of [...Object.entries(decks),["drums",drumDeck]]){
+  d.loopEnabled=false;d.loopToggleAt=null;d.loopToggleTarget=null;
+  for(const layer of d.layers){
+   stopLayerWash(layer);stopLayerEcho(layer);
+   if(layer.gain&&ctx){
+    layer.gain.gain.cancelScheduledValues(ctx.currentTime);
+    layer.gain.gain.setValueAtTime(0,ctx.currentTime);
+   }
+   if(layer.nativeLive)setNativeMemoryGain(which,layer);
+  }
+  if(d.loopBus&&ctx)d.loopBus.gain.setValueAtTime(0,ctx.currentTime);
+  if(which!=="drums")updateLoopControls(which);
+ }
+ updateNativePlaybackButtons();
+ tell("⛔ ALL LOOPS SILENCED · MIDI and saved audio kept; RHYTHM continues. RESTART ON 1 to resume.");
+ // Last command wins, including if the native Mac engine survived a
+ // previous browser refresh and those loop IDs are no longer in the UI.
+ try{
+  await aiCommandQueue.catch(()=>{});
+  await aiFetch("loop-stop-all");
+ }catch(e){warn(e);}
 }
 async function resumeLoopImmediately(which){
  const d=decks[which];
@@ -4021,6 +4047,7 @@ $("voiceFollow").onclick=toggleVoiceFollow;
 $("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
 $("vocalFxPanic").onclick=panicVocalFx;
+$("silenceAllLoops").onclick=()=>emergencySilenceAllLoops().catch(warn);
 $("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);};
 $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
