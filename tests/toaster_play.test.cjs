@@ -114,7 +114,7 @@ test("the musician sees the toaster, one-click beat, two decks and hidden setup"
  assert.match(file,/MRT2 prompt/);
  assert.match(file,/ENABLE MAGENTA/);
  assert.match(file,/Native Google Magenta AU is optional/);
- assert.match(javascript,/await aiFetch\("chord",\{index\}\)/);
+ assert.match(javascript,/await aiFetch\("chord",legato\?\{index,legato:true\}:\{index\}\)/);
  assert.match(javascript,/await aiFetch\("mix",\{value:Number\(\$\("mix"\)\.value\)\/100\}\)/);
  assert.ok(file.indexOf('id="rhythm"')<file.indexOf('id="deck-pyramid"'));
  assert.ok(file.indexOf('id="deck-pyramid"')<file.indexOf('id="deck-fishes"'));
