@@ -2398,3 +2398,15 @@ test("vocal first phrase begins immediately and DONE establishes an unquantized 
  assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
 });
+
+test("drums recorded first become the precise master for an immediate Scarlett vocal layer",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('drumDeck.locked=true;drumDeck.lengthSteps=15;drumDeck.anchorStep=4;drumDeck.pedalPeriodSeconds=3.71;drumDeck.pedalOriginOffsetSeconds=.85');
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.first"),false);
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.equal(run("decks.pyramid.pedalPeriodSeconds"),3.71);
+ assert.equal(run("decks.pyramid.pedalOriginOffsetSeconds"),.85);
+ assert.equal(run("recording.frames"),Math.round(3.71*48000));
+ assert.ok(Math.abs(run("recording.startAt-ctx.currentTime")-.04)<.001);
+});
