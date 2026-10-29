@@ -47,15 +47,15 @@ class Tracks{
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
    select.type="button";select.onclick=()=>this.select(which);
-   const rec=el("button","track-record","● KEYS");
+   const rec=el("button","track-record",d.locked&&d.layers.length?"＋ ADD INSTRUMENT LAYER":"● RECORD FIRST LOOP");
    rec.type="button";rec.onclick=()=>this.record(which);
    const mic=el("button","track-voice",
-     d.layers.some(l=>l.kind==="vocal")?"🎙 ADD VOICE LAYER":"🎙 RECORD FIRST VOICE");
+      d.layers.some(l=>l.kind==="vocal")?"🎙 ADD VOICE LAYER":"🎙 RECORD FIRST VOICE");
    mic.type="button";mic.onclick=()=>this.voice(which);
    controls.append(select,rec,mic);
    const recState=this.getRecording();
    if(recState?.scene===which&&recState.kind==="chords"){
-    rec.textContent=recState.finishQueued?"↻ LOOP STARTING":recState.active?(recState.first?"■ DONE → LOOP":"■ DONE OVERDUB"):"● ARMED";
+    rec.textContent=recState.finishQueued?"↻ LOOP STARTING":recState.active?(recState.first?"■ DONE → LOOP":"■ DONE LAYER"):"● ARMED";
     rec.classList.add("active");
    }
    if(recState?.scene===which&&recState.kind==="vocal"){
@@ -112,9 +112,9 @@ class Tracks{
    }
    const head=el("div","track-song-playhead");head.id="track-head-"+which;
    lanes.append(head);column.append(lanes);
-   const summary=el("div","track-foot",d.locked
-     ?"Overdubs follow your first phrase. Remove every clip to reset the master loop."
-     :"Record the first KEY or VOICE phrase, then press DONE. That defines the loop length, with no bar selection.");
+   const summary=el("div","track-foot",d.locked&&d.layers.length
+     ?"Your first phrase sets the loop length. For another LOCAL SYNTH layer, choose a different NEW LAYER SOUND before recording. Native Magenta remains one shared AI stream. Remove all clips to start over."
+     :"Fresh loop: press RECORD FIRST LOOP (or RECORD FIRST VOICE), play or sing, then DONE. No bar selection or reload.");
    column.append(summary);
   }
   this.tick();
@@ -131,7 +131,7 @@ class Tracks{
    if(label){
      const captured=rec?.scene===which;
      label.textContent=captured?
-       (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● ADDING LAYER"):"● VOICE · PRESS DONE"):"◉ ARMED"):
+       (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● RECORDING NEW LAYER"):"● VOICE · PRESS DONE"):"◉ ARMED"):
        !d.locked?"○ READY TO RECORD":
        !this.getRunning()?"Ⅱ PAUSED":
        d.loopEnabled?"↻ LOOPING":"■ LOOP STOPPED";
