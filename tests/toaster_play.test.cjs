@@ -2010,8 +2010,9 @@ test("all PCM audio uses the same phase and endpoints meet without clicks",async
  const fixed=run('(()=>{const b=ctx.createBuffer(1,1200,1000);const p=new Float32Array(1200);p[0]=1;p[1199]=-1;writeAlignedLoopAudio(b,[p],0,0);return [b.getChannelData(0)[0],b.getChannelData(0)[1199]];})()');
  assert.ok(Math.abs(fixed[0]-fixed[1])<1e-7);
 });
-test("native loop duration is measured when DONE is pressed, not after slow fetch",async()=>{
- const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+test("slow native WAV handoff preserves original DONE phase instead of sliding piano downbeat",async()=>{
+ const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=4*48000;
  env.fetch=async(url,opts)=>{
   const u=String(url),op=u.split("/").pop();
   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
@@ -2029,6 +2030,11 @@ test("native loop duration is measured when DONE is pressed, not after slow fetc
  assert.equal(run("decks.pyramid.locked"),true);
  assert.ok(run("decks.pyramid.lengthSteps")<20,"network stall must not create dead air in phrase");
  assert.equal(run("decks.pyramid.layers[0].loopOriginStep"),run("decks.pyramid.anchorStep"));
+ const source=run("decks.pyramid.layers[0].source");
+ assert.equal(run("decks.pyramid.pedalPeriodSeconds"),4);
+ assert.ok(Math.abs(source.startOffset-2)<.001,"after an 18s WAV delay, join the four-second piano phrase at phase two, not sample zero");
+ assert.equal(source.loop,true);
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-4.025)<.001,"first piano's master origin remains anchored to the DONE press");
 });
 test("Scarlett overdub stays anchored to the first phrase",async()=>{
  const {run,calls}=rig();await run("startStop()");
