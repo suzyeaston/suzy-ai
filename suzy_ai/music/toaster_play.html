@@ -1934,6 +1934,8 @@ async function startStop(){
     try{recording.source.disconnect();recording.processor.disconnect();recording.silent.disconnect()}catch{}
     $("vocal-"+recording.scene).textContent="🎙 LOOP VOICE";
    }
+   if(audioPrint&&cleanupAudioPrint(audioPrint,true))
+    warn(Error("Rhythm stopped; incomplete sound-on-sound audio take discarded."));
    if(recording)warn(Error("Recording stopped with rhythm; discard incomplete take."));
    recording=null;
    for(const [which,d] of Object.entries(decks)){
@@ -2091,10 +2093,25 @@ function renderClips(which){
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
-  const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
-  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=songLayerAudible(which,layer,Math.floor(stepNumber/8))?.65:0;renderClips(which);};
+  const name=document.createElement("span");name.textContent=(layer.kind==="printed"?"🔊 "+layer.name:layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
+  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{
+   layer.muted=!layer.muted;
+   if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+   renderClips(which);
+  };
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
-  row.append(name,mute,remove);box.append(row);
+  row.append(name,mute);
+  if(layer.kind==="printed"){
+   const level=document.createElement("input");level.type="range";level.min="0";level.max="100";
+   level.value=String(Math.round((layer.level??1)*100));level.className="layer-level";
+   level.title="Independent PCM audio layer volume";level.setAttribute("aria-label",layer.name+" audio level");
+   level.oninput=()=>{
+    layer.level=Number(level.value)/100;
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.024);
+   };
+   row.append(level);
+  }
+  row.append(remove);box.append(row);
  });
 }
 function stopMicMeter(){
@@ -2275,6 +2292,7 @@ async function toggleVoiceMonitor(){
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
   if(take.finishQueued)return tell("DONE queued · vocal loop closing on the next pulse.");
@@ -2718,7 +2736,7 @@ trackView=new window.SuzyTrackView({
   const layer=decks[which].layers.find(l=>l.id===id);
   if(!layer)return;
   layer.muted=!layer.muted;
-  if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;
+  if(layer.gain)layer.gain.gain.value=layer.muted?0:(layer.level??.65);
   renderClips(which);
  },
  onRemove:removeSongLayer
@@ -2776,6 +2794,10 @@ for(const which of Object.keys(decks)){
  updateKeyUI(which);
 }
 for(const k of Object.keys(decks)){
+ $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
+ $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
+ $("printSource-"+k).value=decks[k].instrumentSource==="ai"?"mac":"keys";
+ updateAudioPrintUI();
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
  $("loopToggle-"+k).onclick=()=>toggleLoop(k);
