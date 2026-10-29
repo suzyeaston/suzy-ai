@@ -155,7 +155,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'id="tracks-pyramid"', 'id="tracks-fishes"',
             '/toaster/track-view.js', 'window.SuzyTrackView',
             'songCycleSteps(which)', 'songCycleSeconds(which)',
-            'const origin=transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds()', 'function layerPlaybackPhase(which,layer,at)', 'function nextSongBoundary(which,n)',
+            'const origin=layer.pedalAligned?loopMasterOrigin(which):', 'function layerPlaybackPhase(which,layer,at)', 'function nextSongBoundary(which,n)',
             'r.first', 'recording.endAt', 'firstStep',
             'ctx.sampleRate*120', '"vocal"', 'd.anchorStep=r.beginAt',
             'd.lengthSteps=length', 'Math.min(256',
@@ -189,7 +189,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('r.endAt-r.beginAt', html)
         self.assertIn('finishQueued:false', html)
         self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}', html)
-        self.assertIn('if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}', html)
+        self.assertIn('d.pedalPeriodSeconds=clip.duration', html)
         self.assertIn('if(!d.layers.length){', html)
         self.assertIn('d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;', html)
         self.assertIn('updateRecordControls(which);', html)
