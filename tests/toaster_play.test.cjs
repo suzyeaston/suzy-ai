@@ -1431,7 +1431,7 @@ test("record full set captures genuine Mac system audio PLUS Scarlett into one a
  assert.match(get("setRecordStatus").textContent,/MAC AUDIO VERIFIED/);
  run("stopSetRecording()");
  for(let i=0;i<5;i++)await new Promise(resolve=>setImmediate(resolve));
- assert.match(calls.download.filename,/SUZY_TOASTER_FULL_SET.*\\.m4a$/);
+ assert.ok(calls.download.filename.startsWith("SUZY_TOASTER_FULL_SET_")&&calls.download.filename.endsWith(".m4a"));
  assert.match(get("setRecordStatus").textContent,/SET SAVED/);
  assert.equal(get("setRecordStart").disabled,false);
 });
@@ -1494,7 +1494,7 @@ test("chord presses record in played subdivision, never round up and create fals
 });
 test("live deck no longer exposes misleading moving playhead while loop clock stays functional",async()=>{
  const {run,get}=rig();
- assert.match(file,/\\.deck-transport \\.timeline\\{display:none!important\\}/);
+ assert.ok(file.includes(".deck-transport .timeline{display:none!important}"));
  assert.match(file,/id="head-pyramid"/);
  assert.match(file,/id="head-fishes"/);
  await run("startStop()");
