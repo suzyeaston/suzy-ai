@@ -514,11 +514,14 @@ body{padding-top:86px}
  <div class="start">
   <div><div class="tiny">TRACK 03 · NATIVE GOOGLE MAGENTA · PROMPT 05</div>
   <h2>🥁 JAZZ DRUMS</h2>
-  <p class="subtle">PLAY 1–4 on your keyboard or tap the pads to condition live Magenta jazz drums, then press RECORD TAKE → DONE → LOOP. Your AI drums repeat alongside Pyramid; browser rhythm remains a separate backing clock.</p></div>
+  <p class="subtle">Play the SAME Pyramid Z X C and Weird Fishes B N M , chord pads as every instrument, using the jazz-drum Magenta prompt. Keys 1–4 remain optional kick/snare/hat/ride triggers. Record generated AUDIO with RECORD TAKE → DONE → LOOP.</p></div>
   <button id="aiDrums" aria-pressed="false" type="button" title="Allow the Google MRT2 model to generate percussion audio; independent of the browser rhythm.">🥁 ALLOW AI DRUM AUDIO</button>
  </div>
  <div class="instrument-lane" id="nativeDrumLane" aria-label="Real Magenta AI drum sound on sound loop controls">
   <div class="tiny">✦ NATIVE AI DRUMS · SAVED AUDIO TRACK · NOT BROWSER RHYTHM</div>
+  <button type="button" id="selectDrumChords">🥁 PLAY JAZZ DRUM CHORDS · Z X C / B N M ,</button>
+  <div class="native-harmony-selector" id="nativeChords-drums-drums" aria-label="jazz drums instrument chord pads from Pyramid and Weird Fishes"></div>
+  <small class="subtle">Tap a chord above to select the jazz-drum sound, or press PLAY JAZZ DRUM CHORDS then use its computer keys. Chords condition evolving jazz drum generation, not fixed kick/snare samples.</small>
   <div class="drum-pads" id="nativeDrumPads" role="group" aria-label="Play Magenta jazz drum triggers with keys 1 through 4">
    <button type="button" class="drum-pad" data-drum="0" aria-label="Key 1, kick" aria-pressed="false"><kbd>1</kbd><b>🥁 KICK</b></button>
    <button type="button" class="drum-pad" data-drum="1" aria-label="Key 2, snare" aria-pressed="false"><kbd>2</kbd><b>SNARE</b></button>
@@ -532,9 +535,15 @@ body{padding-top:86px}
   </div>
   <div class="lane-status" id="nativeStatus-drums-drums" role="status">PRESET · Play 1–4 to activate AI drums, then RECORD → DONE → LOOP</div>
   <div class="lane-clips" id="nativeDrumClips"><span class="subtle">NO SAVED AI DRUM AUDIO YET</span></div>
+  <label for="nativeDrumSavedLevel">🥁 SAVED JAZZ DRUM LOOP VOLUME · <strong id="nativeDrumSavedValue">100%</strong></label>
+  <input id="nativeDrumSavedLevel" type="range" min="0" max="125" value="100" aria-label="Saved jazz drum audio loop volume, synced to the track mixer">
+  <small class="subtle">Independent recorded PCM loop level, synced to the drum fader in LIVE TRACK MIX.</small>
   <small class="subtle">The native recording saves what Magenta actually plays, not the programmable browser drum beat. DONE automatically repeats your new take, and STOP SAVED stops it. Each take has mute, filter, fade and remove.</small>
  </div>
  <div class="jazz-drum-controls">
+  <div><label for="aiDrumLevel">🥁 LIVE AI JAZZ DRUM LEVEL · <strong id="aiDrumLevelValue">100%</strong></label>
+   <input id="aiDrumLevel" type="range" min="0" max="125" step="1" value="100" aria-label="Live fifth Magenta jazz drum prompt level">
+   <small>0% silences the live jazz-drum prompt; 100% gives normal strength. This controls the fifth Magenta prompt, not a separate post-generation audio stem. Saved loops have their own fader above.</small></div>
   <div><label for="aiDrumMix">AI JAZZ DRUMS ↔ OTHER AI INSTRUMENTS <strong id="aiDrumMixValue">0%</strong></label>
    <input id="aiDrumMix" type="range" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
    <small>0% keeps four AI sounds unchanged; turning up adds freely evolving jazz percussion, NOT a bar-locked drum loop. The separate browser rhythm grid above stays on beat.</small></div>
@@ -1735,9 +1744,19 @@ async function syncAIMix(){
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
   await aiFetch("drums",{value:aiDrumsAllowed});
+  await aiFetch("drum-level",{value:Number($("aiDrumLevel").value)/100});
   await aiFetch("drum-mix",{value:Number($("aiDrumMix").value)/100});
   await aiFetch("tempo",{bpm});
  }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
+}
+function setNativeDrumLevel(percent){
+ const value=clamp(percent,0,125);
+ $("aiDrumLevel").value=String(value);
+ $("aiDrumLevelValue").textContent=value+"%";
+ if(!aiNativeReady)return;
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(aiNativeReady)await aiFetch("drum-level",{value:value/100});
+ }).catch(warn);
 }
 function setNativeDrumBlend(percent){
  const value=clamp(percent,0,100);
@@ -2666,6 +2685,10 @@ function updateInstrumentFader(which,role){
  const fader=$("roleLevel-"+which+"-"+role),label=$("roleValue-"+which+"-"+role);
  if(!fader)return;
  label.textContent=Math.round(clamp(Number(fader.value),0,125))+"%";
+ if(which==="drums"&&role==="drums"){
+  $("nativeDrumSavedLevel").value=fader.value;
+  $("nativeDrumSavedValue").textContent=label.textContent;
+ }
  if(!ctx)return;
  for(const layer of loopDeck(which).layers){
   if((layer.instrumentRole||(layer.kind==="vocal"?"voice":null))!==role)continue;
@@ -2798,6 +2821,9 @@ function beginLaneHarmony(which,role,harmony,index,key,pad=null){
  laneChordHeld.set(key,take);laneChordOwner=key;
  activeChordLane={which,role,harmony};
  pad?.classList.add("on");
+ if(which==="drums")$("nativeStatus-drums-drums").textContent=
+  "● LIVE JAZZ DRUMS · "+harmony.toUpperCase()+" "+SCENES[harmony].names[index]+
+  " · generated by native drum prompt";
  (async()=>{
   if(activeNativeLane!==which+":"+role)await selectNativeLane(which,role);
   aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
@@ -2858,7 +2884,7 @@ function updateNativeLaneControls(){
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
- if(which!=="drums")chordAuditionScene=which; // selected native timbre wins over archived crossfade
+ chordAuditionScene=which==="drums"?null:which; // selected native timbre wins over archived crossfade
  if(which==="pyramid"&&(role==="textureLow"||role==="textureHigh")){
   if(aiSolo)toggleAISolo();
   if(localKeysOnly)await toggleLocalKeysOnly();
@@ -2896,8 +2922,8 @@ async function selectNativeLane(which,role){
   await aiFetch("drums",{value:true});
   await aiFetch("drum-mix",{value:1});
   activeNativeLane="drums:drums";
-  $("nativeStatus-drums-drums").textContent="DRUM PADS ACTIVE · 1–4 trigger the native jazz drum prompt";
-  tell("✦ NATIVE AI JAZZ DRUMS · play or record the real AU sound, not the browser beat.");
+  $("nativeStatus-drums-drums").textContent="JAZZ DRUM CHORD BANK ACTIVE · Z X C / B N M , · 1–4 optional percussion notes";
+  tell("✦ NATIVE AI JAZZ DRUMS · Pyramid and Weird Fishes CHORDS condition Magenta; 1–4 remain optional.");
   return;
  }
  // Select the Google sound WITHOUT touching the performer's song crossfader.
@@ -4197,6 +4223,8 @@ $("savePyramidLoop").onclick=()=>{
 for(const which of Object.keys(decks))
  for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"]))
   renderNativeChordPads(which,role);
+renderNativeChordPads("drums","drums");
+$("selectDrumChords").onclick=()=>selectNativeLane("drums","drums").catch(warn);
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
@@ -4263,7 +4291,8 @@ document.addEventListener("keydown",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
- if((e.code==="Escape"||e.key==="Escape")&&activeChordLane){
+ if((e.code==="Escape"||e.key==="Escape")&&(activeChordLane||activeNativeLane)){
+  if(activeNativeLane==="drums:drums")setNativeDrumBlend(0);
   activeChordLane=null;activeNativeLane=null;
   tell("KEYBOARD RESET · PYRAMID Z X C · FISHES B N M , · normal song pads");
   return;
@@ -4278,18 +4307,11 @@ document.addEventListener("keydown",e=>{
   // Both keyboard banks stay live without changing the count-in clock.
   // Last selected native track defines the instrument; both song chord
   // banks select its harmony. Press ESC to return to ordinary song pads.
-  const parts=activeNativeLane&&activeNativeLane!=="drums:drums"?
-   activeNativeLane.split(":"):null;
+  const parts=activeNativeLane?activeNativeLane.split(":"):null;
   const lane=activeChordLane||(parts?{which:parts[0],role:parts[1]}:null);
   if(lane&&aiNativeReady)beginLaneHarmony(lane.which,lane.role,
    chord.which,chord.index,"key-lane:"+chordKey);
-  else{
-   if(activeNativeLane==="drums:drums"&&aiNativeReady){
-    activeNativeLane=null;
-    setNativeDrumBlend(0); // return from the 100% drum-only prompt
-   }
-   beginChord(chord.which,chord.index,"key:"+chordKey);
-  }
+  else beginChord(chord.which,chord.index,"key:"+chordKey);
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
@@ -4342,7 +4364,12 @@ $("aiDrums").onclick=()=>toggleAIDrums().catch(warn);
 $("aiSolo").onclick=toggleAISolo;
 $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
+$("aiDrumLevel").oninput=()=>setNativeDrumLevel($("aiDrumLevel").value);
 $("aiDrumMix").oninput=()=>{$("aiDrumMixValue").textContent=$("aiDrumMix").value+"%";};
+$("nativeDrumSavedLevel").oninput=()=>{
+ $("roleLevel-drums-drums").value=$("nativeDrumSavedLevel").value;
+ updateInstrumentFader("drums","drums");
+};
 $("aiDrumMix").onchange=()=>setNativeDrumBlend($("aiDrumMix").value);
 $("applyJazzDrumsPrompt").onclick=applyPrompts;
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};

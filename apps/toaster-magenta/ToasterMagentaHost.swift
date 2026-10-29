@@ -52,6 +52,7 @@ final class MRT2Host {
     private var reverbAmount: Float = 0.18
     private var muted = false
     private var drumBlend: Float = 0 // fifth real text-prompt weight, no second model
+    private var drumLevel: Float = 1 // fifth prompt level independent of saved PCM drums
     // Google's AU Filter Drums toggles whether its generated AUDIO may have percussion.
     // This is not a hit-level drum MIDI output or a sequencer.
     private var aiDrumsAllowed = false
@@ -130,6 +131,7 @@ final class MRT2Host {
             "muted": muted,
             "ai_drums_allowed": aiDrumsAllowed,
             "drum_prompt_blend": Double(drumBlend),
+            "drum_prompt_level": Double(drumLevel),
             "drum_filter_parameter_readback": Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: 39)?.value ?? -1),
             "held_notes": (held + Array(melodyHeld)).map(Int.init),
             "chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000),
@@ -397,7 +399,7 @@ final class MRT2Host {
         parameter(11, music * blend * (1.0 - f))
         parameter(12, music * (1.0 - blend) * p)
         parameter(13, music * blend * f)
-        parameter(14, drumBlend)
+        parameter(14, max(0, min(1.25, drumBlend * drumLevel))) // live drum prompt fader, not a post-AU stem
         parameter(15, 0)
         parameter(39, aiDrumsAllowed ? 0.0 : 1.0) // Google "Filter Drums": 0 allows AI percussion audio, 1 suppresses
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
@@ -879,6 +881,11 @@ final class MRT2Host {
                 return ["error":"drum-mix must be 0..1"]
             }
             drumBlend = Float(x);configure()
+        case "drum-level":
+            guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1.25 else {
+                return ["error":"drum-level must be 0..1.25"]
+            }
+            drumLevel = Float(x);configure()
         case "lead-mix":
             guard let which = request["scene"] as? String, chords[which] != nil,
                   let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
