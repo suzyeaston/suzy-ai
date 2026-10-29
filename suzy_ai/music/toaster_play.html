@@ -942,7 +942,7 @@ function setInstrumentSource(which,source){
 }
 function targetLoopGain(which){
  const d=decks[which],active=d.layers.filter(l=>l.kind==="chords"&&!l.muted).length;
- return !localInstrumentAudible(which)||!d.loopEnabled?0:
+ return localKeysOnly||!localInstrumentAudible(which)||!d.loopEnabled?0:
   Number($("loopLevel").value)/100/Math.sqrt(Math.max(1,active));
 }
 function updateOverdubBalance(){
