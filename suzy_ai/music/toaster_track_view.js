@@ -42,7 +42,7 @@ class Tracks{
    const column=$("tracks-"+which);if(!column)continue;column.replaceChildren();
    const header=el("div","track-top");
    const title=el("div","track-title",which==="pyramid"?"01 · PYRAMID":"02 · WEIRD FISHES");
-   const badge=el("span","track-loop-badge",d.locked?(d.lengthSteps/2)+"-BEAT MASTER LOOP · "+(d.loopEnabled?"ON":"OFF"):"FIRST DONE SETS LENGTH");
+   const badge=el("span","track-loop-badge",d.locked?(d.loopEnabled?"↻ LOOP READY":"■ LOOP STOPPED"):"RECORD → DONE → LOOP");
    header.append(title,badge);
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
@@ -74,15 +74,14 @@ class Tracks{
     mic.classList.add("active");
    }
    header.append(controls);
-   const status=el("div","track-loop-label",d.locked?"LOOP READY · "+(d.lengthSteps/2)+" BEATS":"FIRST LOOP NOT YET RECORDED");
+   const status=el("div","track-loop-label",d.locked?"↻ LOOP READY":"FIRST LOOP NOT YET RECORDED");
    status.id="track-loop-label-"+which;header.append(status);
    const progress=el("div","track-loop-progress");const fill=el("div","track-loop-fill");
    fill.id="track-loop-fill-"+which;progress.append(fill);header.append(progress);
    column.append(header);
-   const ruler=el("div","track-ruler");
-   const n=Math.max(2,bars);
-   for(let i=0;i<Math.ceil(n);i++){const mark=el("span","track-bar",i%4===0?"BAR "+(i+1):"·");ruler.append(mark)}
-   column.append(ruler);
+   // Performer-facing loop view intentionally omits bar/beat numbers.
+   // Quantization is retained internally and the arrangement editor still
+   // supports its own navigable time ruler.
    const lanes=el("div","track-lanes");
    for(const [kind,label,icon] of LANES){
      const row=el("div","track-lane");
@@ -93,8 +92,7 @@ class Tracks{
      if(layers.length===0)surface.append(el("div","track-empty",kind==="ai"?"Import a real Magenta take":kind==="vocal"?"Record a vocal take":"Play and record keys"));
      else layers.forEach((layer,j)=>{
        const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
-       region.title=(kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded MIDI-like chord events")+
-         " · "+(layer.bars||bars)+" bars";
+       region.title=(kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded chord/note events");
        const clipTitle=el("span","track-clip-title",
          (kind==="ai"?"AI TAKE ":kind==="vocal"?"VOICE ":({
            keys:"PIANO ",pad:"PAD ",pluck:"PLUCK ",bass:"BASS "
@@ -126,7 +124,7 @@ class Tracks{
    const head=el("div","track-song-playhead");head.id="track-head-"+which;
    lanes.append(head);column.append(lanes);
    const summary=el("div","track-foot",d.locked
-     ?"All overdubs follow your "+(d.lengthSteps/2)+"-beat master phrase. Remove every clip to reset it."
+     ?"Overdubs follow your first phrase. Remove every clip to reset the master loop."
      :"First KEYS take: press RECORD, play your phrase, press DONE. That sets the loop length. First VOICE take uses its separate vocal bar selection.");
    column.append(summary);
   }
@@ -142,10 +140,12 @@ class Tracks{
    head.style.left="calc(90px + (100% - 90px) * "+(phase/length)+")";
    const label=$("track-loop-label-"+which),fill=$("track-loop-fill-"+which);
    if(label){
-     const bar=Math.floor(phase/8)+1,pass=Math.floor(Math.max(0,step-origin)/length)+1;
-     label.textContent=(d.locked?"↻ LOOP "+pass+" · ":"○ NOT RECORDED · ")+
-       "BEAT "+(phase/2+1).toFixed(1)+" / "+(length/2)+(this.getRunning()?(d.loopEnabled?" · PLAYING":" · LOOP STOPPED"):" · TRANSPORT PAUSED")+
-       (rec?.scene===which?" · ● RECORDING":"");
+     const captured=rec?.scene===which;
+     label.textContent=captured?
+       (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● OVERDUBBING"):"● RECORDING VOICE"):"◉ ARMED"):
+       !d.locked?"○ READY TO RECORD":
+       !this.getRunning()?"Ⅱ PAUSED":
+       d.loopEnabled?"↻ LOOPING":"■ LOOP STOPPED";
    }
    if(fill)fill.style.width=((phase/length)*100)+"%";
    col.classList.toggle("is-playing",this.getRunning());
