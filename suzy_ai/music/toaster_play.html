@@ -1827,7 +1827,7 @@ function choose(which){
  }
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
- tell(which==="pyramid"?"PYRAMID · use Z X C / B N M , for chords":"WEIRD FISHES · use Z X C / B N M , for chords");
+ tell(which==="pyramid"?"PYRAMID · Z X C chords · Fishes B N M ,":"WEIRD FISHES · B N M , chords · Pyramid Z X C");
 }
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
@@ -2743,7 +2743,7 @@ function beginLaneHarmony(which,role,harmony,index,key,pad=null){
   await aiCommandQueue;
  })().catch(warn);
  tell("✦ "+nativeLaneLabel(which,role)+" · "+harmony.toUpperCase()+" "+SCENES[harmony].names[index]+
-  " · Z X C / B N M , now play this lane (ESC to return to song pads).");
+  " · PYRAMID Z X C / FISHES B N M , play this sound (ESC resets).");
 }
 function endLaneHarmony(key,pad=null){
  const held=laneChordHeld.get(key);if(!held)return;
@@ -4186,15 +4186,22 @@ document.addEventListener("keydown",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
- if(e.code==="Escape"&&activeChordLane){
-  activeChordLane=null;tell("Z X C / B N M , RETURNED TO NORMAL SONG CHORD PADS.");return;
+ if((e.code==="Escape"||e.key==="Escape")&&activeChordLane){
+  activeChordLane=null;
+  tell("KEYBOARD RESET · PYRAMID Z X C · FISHES B N M , · normal song pads");
+  return;
  }
- const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ const chordKey=CHORD_CODES[e.code]||
+  (Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?
+   String(e.key).toLowerCase():null);
  if(chordKey!==null){
   e.preventDefault();
+  const chord=CHORD_LAYOUT[chordKey];
+  // Shortcuts select harmony; the last tapped Magenta lane selects timbre.
+  // Both keyboard banks stay live without changing the count-in clock.
   if(activeChordLane)beginLaneHarmony(activeChordLane.which,activeChordLane.role,
-   activeChordLane.harmony,CHORD_LAYOUT[chordKey],"key-lane:"+e.code);
-  else beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);
+   chord.which,chord.index,"key-lane:"+chordKey);
+  else beginChord(chord.which,chord.index,"key:"+chordKey);
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
@@ -4206,10 +4213,12 @@ document.addEventListener("keyup",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();endDrumPad("key-drum:"+e.code);return;
  }
- const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ const chordKey=CHORD_CODES[e.code]||
+  (Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?
+   String(e.key).toLowerCase():null);
  if(chordKey!==null){
   e.preventDefault();
-  if(laneChordHeld.has("key-lane:"+e.code))endLaneHarmony("key-lane:"+e.code);
+  if(laneChordHeld.has("key-lane:"+chordKey))endLaneHarmony("key-lane:"+chordKey);
   else endChord("key:"+chordKey);
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
