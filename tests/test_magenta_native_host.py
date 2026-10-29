@@ -250,7 +250,7 @@ class NativeMRT2Tests(unittest.TestCase):
         ])
         self.assertEqual(ACTIONS["lead-mix"], {"scene", "value"})
         self.assertIn("violin", PROMPTS["pyramid_violin"])
-        self.assertIn("nylon", PROMPTS["fishes_guitar"])
+        self.assertIn("celesta", PROMPTS["fishes_guitar"])
         self.assertIn("brushed", PROMPTS["jazz_drums"])
         self.assertEqual(ACTIONS["drum-mix"], {"value"})
         swift = (Path(__file__).resolve().parents[1]
@@ -267,7 +267,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('let music = 1.0 - drumBlend', swift)
         self.assertIn('case "drum-mix":', swift)
         self.assertIn('drumBlend = Float(x);configure()', swift)
-        # Original primary prompt wording is intentionally unchanged.
+        # Original Pyramid piano, violin and brushed drum prompts remain unchanged.
         self.assertIn(PROMPTS["pyramid"], swift)
         self.assertIn(PROMPTS["fishes"], swift)
 
