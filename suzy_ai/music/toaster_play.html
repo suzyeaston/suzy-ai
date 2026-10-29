@@ -275,6 +275,11 @@ a{color:var(--mint)}
 #classicDecks .instrument-tools,#classicDecks .native-lead-strip,#classicDecks .audio-loop-pedal,
 #classicDecks .deck-faders,#classicDecks .deck-transport button[id^=vocal-],
 #jazzDrumDeck{display:none}
+#classicDecks .deck > .clips{display:none}
+.advanced-session{margin:0 0 10px;font-size:12px}
+.advanced-session>summary{cursor:pointer;color:#ccb7d1;font-weight:700}
+.advanced-session .set-recorder{margin-top:10px}
+
 .instrument-lane button:disabled{opacity:.5}
 
 
@@ -300,6 +305,7 @@ a{color:var(--mint)}
 </div>
 <div class="start"><div class="stat" id="outputStatus">AUDIO: tap PLAY RHYTHM</div></div>
 </header>
+<details class="advanced-session"><summary>▸ ADVANCED · Record the entire performance</summary>
 <section class="set-recorder" aria-label="Record entire live set as audio">
  <div class="start"><div><div class="tiny">LIVE RECORDING · COMPLETE SET</div>
  <h2>🔴 Record the performance</h2>
@@ -313,7 +319,7 @@ a{color:var(--mint)}
   <span id="setRecordStatus" role="status" aria-live="polite">READY · Not recording</span>
  </div>
  <small>On your Mac, choose <strong>Entire Screen</strong> and enable <strong>Share system audio</strong> in Chrome's sharing picker. TOASTER refuses to record unless system audio is actually shared. Keep browser microphone monitoring OFF when including Scarlett to avoid doubled vocals. Save happens when you press STOP.</small>
-</section>
+</section></details>
 <section aria-label="Session rhythm and master">
 <div class="start"><div><div class="tiny">01 / ONE CLICK TO START</div><h2>A gentle pulse to build on</h2><p class="subtle">A live 2-bar cycle keeps looping, even while you record new parts.</p></div>
 <button id="rhythm" class="big" aria-pressed="false">▶ PLAY RHYTHM</button></div>
