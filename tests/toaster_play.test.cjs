@@ -28,8 +28,9 @@ function rig(){
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
  const pads=["pyramid","fishes"].flatMap(scene=>[0,1,2,3].map(chord=>Object.assign(el(),{dataset:{scene,chord:String(chord)}})));
  const notePads=Array.from({length:13},(_,i)=>Object.assign(el(),{dataset:{note:String(i+60)}}));
+ const drumPads=Array.from({length:4},(_,i)=>Object.assign(el(),{dataset:{drum:String(i)}}));
  const doc={getElementById:get,createElement:()=>el(),body:el(),addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);},
-  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".note-pad"?notePads:[]}};
+  querySelectorAll(css){return css===".deck"?deckElements:css===".pad"?pads:css===".drum-pad"?drumPads:css===".note-pad"?notePads:[]}};
  class Param{constructor(){this.value=0}setValueAtTime(v){this.value=v}linearRampToValueAtTime(v){this.value=v}exponentialRampToValueAtTime(v){this.value=v}setTargetAtTime(v){this.value=v}cancelScheduledValues(){}}
  class AudioNode{constructor(){this.gain=new Param();this.frequency=new Param();this.Q=new Param();this.threshold=new Param();this.knee=new Param();this.ratio=new Param();this.attack=new Param();this.release=new Param();this.delayTime=new Param();this.buffer=null;this.type="";this.stopAt=null;this.startAt=null;this.startOffset=null}connect(){return this}disconnect(){}start(t,offset){this.startAt=t;this.startOffset=offset}stop(t){this.stopAt=t}getFloatTimeDomainData(samples){samples.fill(0)}}
  class AudioBuffer{
@@ -109,10 +110,10 @@ function rig(){
  vm.runInContext(timelineJS,env,{filename:"toaster_performance_timeline.js"});
  vm.runInContext(javascript,env,{filename:"toaster_play.html"});
  const emit=(name,key,target="BUTTON",repeat=false)=>{
-  const event={key,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
+  const event={key,code:/^[1-4]$/.test(String(key))?"Digit"+key:undefined,repeat,target:{tagName:target==="RANGE"?"INPUT":target,type:target==="RANGE"?"range":"text",isContentEditable:false,closest(){return null}},preventDefault(){}};
   for(const fn of listeners.get(name)||[])fn(event);
  };
- return {env,get,calls,io,pads,run:(js)=>vm.runInContext(js,env),emit};
+ return {env,get,calls,io,pads,drumPads,run:(js)=>vm.runInContext(js,env),emit};
 }
 test("the musician sees the toaster, one-click beat, two decks and hidden setup",()=>{
  assert.match(file,/Smiling pink toaster/);
@@ -1748,7 +1749,7 @@ test("performer cards have piano, native violin, native guitar and separate Scar
  const {get}=rig();
  for(const which of ["pyramid","fishes"]){
   for(const role of ["chords","lead"]){
-   assert.match(file,new RegExp('id="nativePlay-'+which+'-'+role+'"'));
+   assert.doesNotMatch(file,new RegExp('id="nativePlay-'+which+'-'+role+'"'),"no redundant sound selector");
    assert.match(file,new RegExp('id="nativeRecord-'+which+'-'+role+'"'));
    assert.match(file,new RegExp('id="nativeClips-'+which+'-'+role+'"'));
   }
@@ -2227,4 +2228,79 @@ test("first Magenta jazz drum recording behaves as an endless free-running BOSS 
  assert.equal(run("rhythmAudioEnabled"),true);
  await run('toggleNativeSavedLoop("drums","drums")');
  assert.ok(run("drumDeck.layers[0].gain.gain.value")>0);
+});
+
+test("jazz drums have four chord-style pads, keys 1–4, and no redundant SELECT SOUND controls",()=>{
+ const {drumPads}=rig();
+ assert.match(file,/id="nativeDrumPads"/);
+ for(const [i,description] of ["kick","snare","closed hat","ride"].entries()){
+  assert.match(file,new RegExp('data-drum="'+i+'"'));
+  assert.match(file,new RegExp('Key '+(i+1)+', '+description));
+ }
+ assert.equal(drumPads.length,4);
+ assert.match(file,/id="nativeRecord-drums-drums"/);
+ assert.match(file,/id="nativeResume-drums-drums"/);
+ assert.doesNotMatch(file,/id="nativePlay-/);
+ for(const role of ["chords","lead","textureLow","textureHigh"])
+  assert.match(file,new RegExp('id="nativeRecord-pyramid-'+role+'"'));
+ assert.match(file,/Press PLAY RHYTHM/);
+});
+test("keys 1–4 activate preset Magenta drums and send actual MIDI note-on/off without touching Pyramid loops",async()=>{
+ const {run,get,env,emit}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"magic-piano",kind:"printed",instrumentRole:"chords",buffer:ctx.createBuffer(1,48000,48000),level:.8,muted:false});startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ const pianoSource=run("decks.pyramid.layers[0].source");
+ const requests=[];
+ env.fetch=async (url,opts)=>{if(opts?.body)requests.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});return {ok:true,json:async()=>({})}};
+ for(const [i,note] of [36,38,42,51].entries()){
+  const k=String(i+1);
+  emit("keydown",k);
+  for(let n=0;n<12;n++)await new Promise(resolve=>setImmediate(resolve));
+  await run("aiCommandQueue");
+  assert.ok(requests.some(x=>x.op==="note"&&x.args.note===note),"drum pad "+k+" sends native MIDI "+note);
+  emit("keyup",k);
+  for(let n=0;n<8;n++)await new Promise(resolve=>setImmediate(resolve));
+  await run("aiCommandQueue");
+  assert.ok(requests.some(x=>x.op==="note-off"&&x.args.note===note),"drum pad "+k+" releases its MIDI");
+ }
+ assert.ok(requests.some(x=>x.op==="drums"&&x.args.value===true),"prompt activated automatically");
+ assert.ok(requests.some(x=>x.op==="drum-mix"&&x.args.value===1));
+ assert.equal(run("activeNativeLane"),"drums:drums");
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.equal(run("decks.pyramid.layers[0].source"),pianoSource,"drum performance never rewinds recorded piano");
+ assert.equal(run("drumDeck.layers.length"),0,"playing pads alone does not create a take");
+ assert.match(get("nativeStatus-drums-drums").textContent,/JAZZ DRUM PAD/);
+});
+test("drum pad shortcuts do not hijack typing or existing Pyramid Z/X/C/V key chords",async()=>{
+ const {run,env,emit}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{if(opts?.body)calls.push({op:String(url).split("/").pop(),data:JSON.parse(opts.body)});return {ok:true,json:async()=>({})}};
+ emit("keydown","1","TEXTAREA");
+ for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.filter(x=>x.op==="note").length,0);
+ emit("keydown","z");
+ assert.equal(run('heldKeys.has("key:z")'),true,"Pyramid chord shortcuts remain playable");
+ emit("keyup","z");
+ assert.equal(run('heldKeys.has("key:z")'),false);
+ assert.equal(run("drumDeck.layers.length"),0);
+});
+test("RECORD TAKE still auto-selects the instrument prompt after removing manual select buttons",async()=>{
+ const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const calls=[];
+ env.fetch=async(url,opts)=>{
+  const op=String(url).split("/").pop();
+  if(opts?.body)calls.push({op,args:JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"auto-piano"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({ready:true,frames:48000,peak:.5,audio_url:"/api/ai/capture/auto-piano"})};
+  if(String(url)==="/api/ai/capture/auto-piano")return {ok:true,arrayBuffer:async()=>new ArrayBuffer(44)};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ assert.ok(calls.some(x=>x.op==="scene"&&x.args.scene==="pyramid"));
+ assert.ok(calls.some(x=>x.op==="lead-mix"&&x.args.scene==="pyramid"&&x.args.value===0));
+ assert.equal(run("nativeTake.role"),"chords");
+ await run("finishNativeInstrumentTake()");
+ assert.equal(run("decks.pyramid.layers.length"),1);
+ assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
 });
