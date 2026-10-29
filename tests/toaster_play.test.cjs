@@ -186,21 +186,28 @@ test("export has genuine two-cycle offline audio rendering and WAV header",async
  assert.match(run('$("message").textContent'),/Exported pyramid/);
 });
 
-test("Z X C V chords work from the computer keyboard, including focused buttons",async()=>{
- const {run,emit}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
- for(const [i,key] of ["z","x","c","v"].entries()){
-  emit("keydown",key,"BUTTON",false);
-  assert.equal(run("heldKeys.size"),1);
-  assert.equal(run('heldKeys.get("key:'+key+'").index'),i);
-  assert.equal(run('heldKeys.get("key:'+key+'").voices.length'),4);
-  emit("keydown",key,"BUTTON",true);
-  assert.equal(run("heldKeys.size"),1,"OS repeat must not retrigger held chord");
-  emit("keyup",key,"BUTTON");
-  assert.equal(run("heldKeys.size"),0);
- }
+test("Pyramid Z X C and Weird Fishes B N M comma work from the keyboard even with focused buttons",async()=>{
+ const {run,emit}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local");setInstrumentSource("fishes","local")');
+ for(const [which,keys] of [["pyramid",["z","x","c"]],["fishes",["b","n","m",","]]])
+  for(const [i,key] of keys.entries()){
+   emit("keydown",key,"BUTTON",false);
+   assert.equal(run("heldKeys.size"),1);
+   assert.equal(run('heldKeys.get("key:'+key+'").which'),which);
+   assert.equal(run('heldKeys.get("key:'+key+'").index'),i);
+   assert.equal(run('heldKeys.get("key:'+key+'").voices.length'),4);
+   emit("keydown",key,"BUTTON",true);
+   assert.equal(run("heldKeys.size"),1,"OS repeat must not retrigger the chord");
+   emit("keyup",key,"BUTTON");
+   assert.equal(run("heldKeys.size"),0);
+  }
+ emit("keydown","v","BUTTON");
+ assert.equal(run("heldKeys.size"),0,"V is no longer a keyboard chord pad");
+ emit("keyup","v","BUTTON");
  emit("keydown","1","BODY");
- assert.equal(run("heldKeys.size"),0,"number keys do not trigger chords");
+ assert.equal(run("heldKeys.size"),0);
  emit("keyup","1","BODY");
+ assert.equal(run("SCENES.pyramid.notes.length"),4,"old fourth MIDI voicing retained for saved loops");
 });
 test("typing in editable controls never triggers chord keydown",async()=>{
  const {run,emit}=rig();await run("startStop()");
@@ -214,7 +221,7 @@ test("typing in editable controls never triggers chord keydown",async()=>{
  assert.equal(run("heldKeys.size"),1);
  emit("keyup","x","BUTTON");
 });
-test("Z X C V still plays immediately after moving a range fader",async()=>{
+test("Z X C and B N M comma still play after moving a range fader",async()=>{
  const {run,emit}=rig();await run("startStop()");
  emit("keydown","x","RANGE");
  assert.equal(run('heldKeys.get("key:x").index'),1);
@@ -2666,10 +2673,12 @@ test("every Magenta instrument offers both sets of four chords without resetting
   ["pyramid","textureLow"],["pyramid","textureHigh"],["fishes","chords"],["fishes","lead"]]){
   const bank=get("nativeChords-"+which+"-"+role);
   assert.equal(bank.children.length,3,which+" "+role+" has both song rows");
-  assert.equal(bank.children[1].children.length,5);
-  assert.equal(bank.children[2].children.length,5);
-  for(const [index,name] of ["Em7","F♯m7","A","Gmaj7"].entries())
-   assert.equal(bank.children[2].children[index+1].textContent,name);
+  assert.equal(bank.children[1].children.length,4,"three unique Pyramid pads and one song label");
+  assert.equal(bank.children[2].children.length,5,"all four Weird Fishes chords retained");
+  for(const [index,label] of ["Z · F♯","X · Gmaj7","C · A6"].entries())
+   assert.equal(bank.children[1].children[index+1].textContent,label);
+  for(const [index,label] of ["B · Em7","N · F♯m7","M · A",", · Gmaj7"].entries())
+   assert.equal(bank.children[2].children[index+1].textContent,label);
  }
  const bank=get("nativeChords-pyramid-lead");
  const fis=bank.children[2].children[2]; // Fishes F sharp minor seventh
@@ -2718,4 +2727,47 @@ test("direct native memory playback follows scene crossfade and the performance 
  await run("aiCommandQueue");
  assert.ok(calls.some(x=>x.value===0),"crossfade closes the Mac audio node");
  assert.ok(calls.some(x=>Math.abs(x.value-.4)<.001),"performance fader reaches Mac PCM output");
+});
+
+test("same native piano lane plays both Pyramid and Fishes keyboard harmonies without changing its prompt or clock",async()=>{
+ const {run,emit,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+  if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+  return {ok:true,json:async()=>({})};
+ };
+ const piano=get("nativeChords-pyramid-chords").children[1].children[1];
+ piano.onpointerdown({button:0,preventDefault(){}});
+ for(let k=0;k<10;k++)await new Promise(resolve=>setImmediate(resolve));
+ piano.onpointerup();
+ commands.length=0;
+ for(const [key,harmony,index] of [["z","pyramid",0],["x","pyramid",1],["c","pyramid",2],
+  ["b","fishes",0],["n","fishes",1],["m","fishes",2],[",","fishes",3]]){
+  emit("keydown",key,"BUTTON");
+  for(let k=0;k<5;k++)await new Promise(resolve=>setImmediate(resolve));
+  const chord=commands.filter(x=>x.op==="chord").at(-1);
+  assert.equal(chord?.args.harmony,harmony,key+" source chord bank");
+  assert.equal(chord?.args.index,index,key+" chord index");
+  assert.equal(run("activeNativeLane"),"pyramid:chords");
+  assert.equal(run("scene"),"pyramid","hotkeys must not change the loop clock/song");
+  emit("keyup",key,"BUTTON");
+  for(let k=0;k<4;k++)await new Promise(resolve=>setImmediate(resolve));
+ }
+ assert.equal(run("laneChordHeld.size"),0,"all notes are released");
+ emit("keydown","v","BUTTON");
+ assert.equal(run("laneChordHeld.size"),0,"V no longer triggers any native chord");
+ emit("keyup","v","BUTTON");
+ emit("keydown","Escape","BUTTON");
+ assert.equal(run("activeChordLane"),null,"ESC restores ordinary song keyboard targets");
+});
+test("visible chord pads match dedicated shortcuts and never show Pyramid V",()=>{
+ assert.match(file,/id="pads-pyramid"/);
+ assert.doesNotMatch(file,/data-scene="pyramid" data-chord="3"/);
+ assert.match(file,/#pads-pyramid\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/);
+ assert.match(file,/data-scene="fishes" data-chord="0"><kbd>B<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="1"><kbd>N<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="2"><kbd>M<\/kbd>/);
+ assert.match(file,/data-scene="fishes" data-chord="3"><kbd>,<\/kbd>/);
+ assert.doesNotMatch(file,/<kbd>V<\/kbd>/);
+ assert.match(file,/PYRAMID: Z X C · WEIRD FISHES: B N M ,/);
 });

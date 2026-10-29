@@ -38,6 +38,9 @@ main>section{border:1px solid #745e78;background:#ffffff0b;border-radius:17px;pa
 .deck[data-scene=fishes] .deck-badge{background:var(--mint)}
 .deck-info{font-size:11px;color:#c8bac8}
 .pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+#pads-pyramid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.native-harmony-row[data-harmony="pyramid"]{grid-template-columns:104px repeat(3,minmax(0,1fr))}
+@media(max-width:650px){.native-harmony-row[data-harmony="pyramid"]{grid-template-columns:76px repeat(3,minmax(0,1fr))}}
 .pad{height:88px;background:linear-gradient(155deg,#70485f,#48334e);border:2px solid #b08b9c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
 .pad kbd{font:800 13px ui-monospace,monospace}.pad b{font-size:clamp(16px,2.2vw,24px)}
 .pad.on{background:linear-gradient(150deg,#ffe2b9,#ffb7cc);color:#552c45}
@@ -530,7 +533,6 @@ body{padding-top:86px}
 <button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>
 <button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>
 <button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>
-<button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
 <div class="instrument-source" aria-label="pyramid instrument audio source">
  <button type="button" id="songEnabled-pyramid" aria-pressed="true">🔊 PYRAMID ON</button>
@@ -543,11 +545,11 @@ body{padding-top:86px}
  <div class="native-lead-actions"><button id="aiChords-pyramid" type="button">🎹 CHORD PROMPT</button><button id="aiLead-pyramid" type="button">✦ VIOLIN PROMPT</button></div>
  <label for="aiLeadMix-pyramid">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-pyramid">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
- <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C / B N M , and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="pyramid optional local fallback instrument" hidden aria-hidden="true">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
- <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C / B N M , chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-pyramid" aria-label="pyramid lead instrument">
    <option value="violin" selected>Bowed violin (synth)</option>
@@ -636,10 +638,10 @@ body{padding-top:86px}
 <section class="deck" id="deck-fishes" data-scene="fishes" aria-label="Archived Weird Fishes deck">
 <div><div class="deck-head"><span class="deck-badge">TRACK 02</span><div><h2>WEIRD FISHES</h2><div class="deck-info">Interlocking shimmer · gentle motion</div></div></div><button id="select-fishes" aria-pressed="false">PLAY THIS TRACK</button></div>
 <div class="pads" id="pads-fishes">
-<button class="pad" data-scene="fishes" data-chord="0"><kbd>Z</kbd><b>Em7</b></button>
-<button class="pad" data-scene="fishes" data-chord="1"><kbd>X</kbd><b>F♯m7</b></button>
-<button class="pad" data-scene="fishes" data-chord="2"><kbd>C</kbd><b>A</b></button>
-<button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
+<button class="pad" data-scene="fishes" data-chord="0"><kbd>B</kbd><b>Em7</b></button>
+<button class="pad" data-scene="fishes" data-chord="1"><kbd>N</kbd><b>F♯m7</b></button>
+<button class="pad" data-scene="fishes" data-chord="2"><kbd>M</kbd><b>A</b></button>
+<button class="pad" data-scene="fishes" data-chord="3"><kbd>,</kbd><b>Gmaj7</b></button>
 </div>
 <div class="instrument-source" aria-label="fishes instrument audio source">
  <button type="button" id="songEnabled-fishes" aria-pressed="true">🔊 FISHES ON</button>
@@ -652,11 +654,11 @@ body{padding-top:86px}
  <div class="native-lead-actions"><button id="aiChords-fishes" type="button">🎹 CHORD PROMPT</button><button id="aiLead-fishes" type="button">✦ CLASSICAL GUITAR PROMPT</button></div>
  <label for="aiLeadMix-fishes">CHORD ↔ LEAD AI BLEND <strong id="aiLeadMixValue-fishes">CHORDS 100% · LEAD 0%</strong></label>
  <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
- <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
+ <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C / B N M , and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
 <details class="song-lead-panel" aria-label="fishes optional local fallback instrument" hidden aria-hidden="true">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
- <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
+ <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C / B N M , chords</small></div>
  <div class="lead-controls">
   <label>LEAD SOUND <select id="lead-fishes" aria-label="fishes lead instrument">
    <option value="violin">Bowed violin (synth)</option>
@@ -818,7 +820,7 @@ body{padding-top:86px}
 </section>
 <section class="note-bank" aria-label="Playable computer keyboard">
 <div class="start"><div><div class="tiny">KEYBOARD / CHORDS + MELODY</div>
-<h2>Z X C V are your chords. A–K is your piano.</h2>
+<h2>PYRAMID: Z X C · WEIRD FISHES: B N M , · A–K plays notes.</h2>
 <p class="subtle">Hold a key to sustain; release for a soft fade. Play melodies over your chord loops.</p></div>
 <div class="stat">C4 → C5 · CHROMATIC</div></div>
 <div class="note-keys">
@@ -856,7 +858,7 @@ body{padding-top:86px}
 <div><button id="export">↓ EXPORT SELECTED SONG WAV</button></div>
 </div></details>
 </section>
-<div id="message" role="status" aria-live="polite">Press PLAY RHYTHM, then use Z X C V to play chords. Hold for sustain; A–K plays notes.</div>
+<div id="message" role="status" aria-live="polite">Press PLAY RHYTHM · Pyramid Z X C · Weird Fishes B N M , (comma). Hold to sustain; A–K plays notes.</div>
 <div id="warning" role="alert"></div>
 <footer class="subtle">Original harmonic sketches, not Radiohead transcriptions. Browser-local loop engine, not Logic-synced. Mic remains physically routed through VE-22 → Scarlett. Native Google Magenta AU is optional and starts only with ENABLE MAGENTA. Model audio must be tested by ear. <a href="/toaster/studio">Older advanced studio</a>.</footer>
 </main>
@@ -898,8 +900,17 @@ const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip
 let parkedBar=0,seekRevision=0;
 const heldKeys=new Map();
 const heldNotes=new Map();
-const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
-const CHORD_CODES=Object.freeze({KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v"});
+// Pyramid's fourth source voicing repeats F♯. Retain source data for
+// older loop recordings, but remove the redundant V pad and keyboard shortcut.
+const CHORD_SHORTCUTS=Object.freeze({pyramid:["Z","X","C"],fishes:["B","N","M",","]});
+const CHORD_LAYOUT=Object.freeze({
+ z:{which:"pyramid",index:0},x:{which:"pyramid",index:1},c:{which:"pyramid",index:2},
+ b:{which:"fishes",index:0},n:{which:"fishes",index:1},m:{which:"fishes",index:2},
+ ",":{which:"fishes",index:3}
+});
+const CHORD_CODES=Object.freeze({
+ KeyZ:"z",KeyX:"x",KeyC:"c",KeyB:"b",KeyN:"n",KeyM:"m",Comma:","
+});
 const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false,aiDrumsAllowed=false;
@@ -1539,7 +1550,7 @@ function toggleAISolo(){
  $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
  updateBrowserOutputGain();updateMix();updateRhythmAudio();updateOverdubBalance();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
-  "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
+  "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C / B N M , steer native MRT2.":
   "TRUE AI ONLY · browser audio MUTED. Native AI is not confirmed audible: check model, transport and mute."):
   "Browser mix restored. Keys, drums and recorded loops audible again.");
 }
@@ -1816,7 +1827,7 @@ function choose(which){
  }
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
  for(const k of Object.keys(SCENES))$("select-"+k).setAttribute("aria-pressed",String(k===which));
- tell(which==="pyramid"?"PYRAMID · use Z X C V for chords":"WEIRD FISHES · use Z X C V for chords");
+ tell(which==="pyramid"?"PYRAMID · Z X C chords · Fishes B N M ,":"WEIRD FISHES · B N M , chords · Pyramid Z X C");
 }
 function beginChord(which,index,key){
  if(!ctx)return warn(Error("Press PLAY RHYTHM to enable your speakers first"));
@@ -2445,7 +2456,7 @@ async function startStop(){
    }playTimer=setInterval(scheduler,25);scheduler();
    $("rhythm").textContent="Ⅱ PAUSE RHYTHM";$("rhythm").setAttribute("aria-pressed","true");
    await findDevices();
-   tell("Rhythm live! Press RECORD FIRST LOOP, play Z X C V, then press DONE to start repeating.");
+   tell("Rhythm live! Press RECORD FIRST LOOP, play Z X C / B N M ,, then press DONE to start repeating.");
    updateVocalState();updateTransportUI();
   }
  }catch(e){warn(e);}
@@ -2677,17 +2688,19 @@ function renderNativeChordPads(which,role){
  parent.replaceChildren();
  const label=document.createElement("div");
  label.className="native-harmony-label";
- label.textContent="4 CHORD PADS PER SONG · select an instrument and play; Z X C V follows the last tapped lane · ESC returns to normal pads";
+ label.textContent="PYRAMID Z X C · WEIRD FISHES B N M , (comma) · tap a pad to choose its instrument sound; ESC returns to normal song pads";
  parent.append(label);
  for(const harmony of ["pyramid","fishes"]){
   const row=document.createElement("div");row.className="native-harmony-row";
+  row.dataset.harmony=harmony;
   const title=document.createElement("strong");
   title.textContent=harmony==="pyramid"?"PYRAMID":"WEIRD FISHES";
   row.append(title);
-  for(const [index,chord] of SCENES[harmony].names.entries()){
+  for(const [index,chord] of SCENES[harmony].names.slice(0,CHORD_SHORTCUTS[harmony].length).entries()){
    const pad=document.createElement("button");
    pad.type="button";pad.className="native-harmony-pad";
-   pad.textContent=chord;pad.title=nativeLaneLabel(which,role)+
+   const shortcut=CHORD_SHORTCUTS[harmony][index];
+   pad.textContent=shortcut+" · "+chord;pad.title="KEY "+shortcut+" · "+nativeLaneLabel(which,role)+
     " plays "+harmony+" "+chord+" using the CURRENT prompt (MIDI only)";
    const pointer="lane:"+which+":"+role+":"+harmony+":"+index;
    pad.onpointerdown=e=>{
@@ -2730,7 +2743,7 @@ function beginLaneHarmony(which,role,harmony,index,key,pad=null){
   await aiCommandQueue;
  })().catch(warn);
  tell("✦ "+nativeLaneLabel(which,role)+" · "+harmony.toUpperCase()+" "+SCENES[harmony].names[index]+
-  " · Z X C V now play this lane (ESC to return to song pads).");
+  " · PYRAMID Z X C / FISHES B N M , play this sound (ESC resets).");
 }
 function endLaneHarmony(key,pad=null){
  const held=laneChordHeld.get(key);if(!held)return;
@@ -4173,15 +4186,22 @@ document.addEventListener("keydown",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
- if(e.code==="Escape"&&activeChordLane){
-  activeChordLane=null;tell("Z X C V RETURNED TO NORMAL SONG CHORD PADS.");return;
+ if((e.code==="Escape"||e.key==="Escape")&&activeChordLane){
+  activeChordLane=null;
+  tell("KEYBOARD RESET · PYRAMID Z X C · FISHES B N M , · normal song pads");
+  return;
  }
- const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ const chordKey=CHORD_CODES[e.code]||
+  (Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?
+   String(e.key).toLowerCase():null);
  if(chordKey!==null){
   e.preventDefault();
+  const chord=CHORD_LAYOUT[chordKey];
+  // Shortcuts select harmony; the last tapped Magenta lane selects timbre.
+  // Both keyboard banks stay live without changing the count-in clock.
   if(activeChordLane)beginLaneHarmony(activeChordLane.which,activeChordLane.role,
-   activeChordLane.harmony,CHORD_LAYOUT[chordKey],"key-lane:"+e.code);
-  else beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);
+   chord.which,chord.index,"key-lane:"+chordKey);
+  else beginChord(chord.which,chord.index,"key:"+chordKey);
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
@@ -4193,10 +4213,12 @@ document.addEventListener("keyup",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();endDrumPad("key-drum:"+e.code);return;
  }
- const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
+ const chordKey=CHORD_CODES[e.code]||
+  (Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?
+   String(e.key).toLowerCase():null);
  if(chordKey!==null){
   e.preventDefault();
-  if(laneChordHeld.has("key-lane:"+e.code))endLaneHarmony("key-lane:"+e.code);
+  if(laneChordHeld.has("key-lane:"+chordKey))endLaneHarmony("key-lane:"+chordKey);
   else endChord("key:"+chordKey);
  }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
