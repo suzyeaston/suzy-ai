@@ -296,7 +296,7 @@ a{color:var(--mint)}
  <p>One MRT2 Small model, four genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, and Fishes classical guitar. Live blending uses the same native engine.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
- <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
+ <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiDrums" aria-pressed="false" type="button" title="Allow Google MRT2 to create percussion as AI audio. Does not output individual drum MIDI notes.">🥁 ALLOW AI DRUM AUDIO</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
 <button id="localKeysSolo" type="button" aria-pressed="false">🎹 SOLO LOCAL KEYS</button>
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
@@ -584,7 +584,7 @@ const CHORD_LAYOUT=Object.freeze({z:0,x:1,c:2,v:3});
 const CHORD_CODES=Object.freeze({KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v"});
 const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72});
 let midiQueue=Promise.resolve(),chordMidiScene=null;
-let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false;
+let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false,aiDrumsAllowed=false;
 let aiCommandQueue=Promise.resolve();
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
@@ -1064,6 +1064,9 @@ function aiDisplay(s){
  }else{
   help.textContent="Starting Magenta. Model selector will unlock when the native AU is running.";
  }
+ if(typeof s.ai_drums_allowed==="boolean")aiDrumsAllowed=s.ai_drums_allowed;
+ $("aiDrums").setAttribute("aria-pressed",String(aiDrumsAllowed));
+ $("aiDrums").textContent=aiDrumsAllowed?"🥁 AI DRUM AUDIO ALLOWED":"🥁 ALLOW AI DRUM AUDIO";
  if(typeof s.muted==="boolean")aiMuted=s.muted;
  $("aiMute").setAttribute("aria-pressed",String(aiMuted));
  $("aiMute").textContent=aiMuted?"🔈 UNMUTE AI":"🔇 MUTE AI";
@@ -1160,6 +1163,7 @@ async function syncAIMix(){
   await aiFetch("volume",{value:Number($("aiVolume").value)/100});
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
+  await aiFetch("drums",{value:aiDrumsAllowed});
   await aiFetch("tempo",{bpm});
  }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
 }
@@ -1195,6 +1199,16 @@ async function toggleAIMute(){
  if(!aiNativeReady){tell("AI will start "+(aiMuted?"muted":"unmuted")+".");return;}
  try{await aiFetch("mute",{value:aiMuted});tell(aiMuted?"MAGENTA MUTED · browser chords and loops continue":"MAGENTA UNMUTED · play a chord");}
  catch(e){warn(e);}
+}
+async function toggleAIDrums(){
+ aiDrumsAllowed=!aiDrumsAllowed;
+ $("aiDrums").setAttribute("aria-pressed",String(aiDrumsAllowed));
+ $("aiDrums").textContent=aiDrumsAllowed?"🥁 AI DRUM AUDIO ALLOWED":"🥁 ALLOW AI DRUM AUDIO";
+ if(aiNativeReady){
+  try{const status=await aiFetch("drums",{value:aiDrumsAllowed});aiDisplay(status);}
+  catch(e){aiDrumsAllowed=!aiDrumsAllowed;warn(e);aiDisplay({phase:"host-running",audio_engine_running:true,scene});}
+ }
+ tell(aiDrumsAllowed?"Magenta may generate its own percussion AUDIO. The step grid remains independent GM MIDI.":"Magenta's drum filter requested. Editable GM MIDI drums are still available.");
 }
 function aiRelease(){
  if(!aiNativeReady)return;
@@ -2295,6 +2309,7 @@ $("mix").onchange=syncAIMix;
 $("aiEnable").onclick=toggleAI;
 $("applyPrompts").onclick=applyPrompts;
 $("aiMute").onclick=toggleAIMute;
+$("aiDrums").onclick=()=>toggleAIDrums().catch(warn);
 $("aiSolo").onclick=toggleAISolo;
 $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
