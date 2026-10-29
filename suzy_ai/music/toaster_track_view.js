@@ -30,9 +30,9 @@ function peakBins(buffer,count=44){
  return out;
 }
 class Tracks{
- constructor({decks,select,record,voice,onMute,onRemove,getRecording,getStep,getRunning}){
+ constructor({decks,select,record,voice,onMute,onRemove,getRecording,getAudioPrint,getStep,getRunning}){
   this.decks=decks;this.select=select;this.record=record;this.voice=voice;
-  this.onMute=onMute;this.onRemove=onRemove;this.getRecording=getRecording;
+  this.onMute=onMute;this.onRemove=onRemove;this.getRecording=getRecording;this.getAudioPrint=getAudioPrint||(()=>null);
   this.getStep=getStep;this.getRunning=getRunning;
   this.draw();
  }
@@ -47,7 +47,7 @@ class Tracks{
    const controls=el("div","track-controls");
    const select=el("button","track-select","↳ PLAY SONG");
    select.type="button";select.onclick=()=>this.select(which);
-   const rec=el("button","track-record",d.locked?"＋ OVERDUB AUDIO":"● RECORD FIRST LOOP");
+   const rec=el("button","track-record",d.locked?"＋ ADD AUDIO LAYER":"● RECORD FIRST LOOP");
    rec.type="button";rec.onclick=()=>this.record(which);
    const mic=el("button","track-voice",
      d.layers.some(l=>l.kind==="vocal")?"🎙 ADD VOICE LAYER":"🎙 RECORD FIRST VOICE");
@@ -56,6 +56,11 @@ class Tracks{
    const recState=this.getRecording();
    if(recState?.scene===which&&recState.kind==="chords"){
     rec.textContent=recState.finishQueued?"↻ LOOP STARTING":recState.active?(recState.first?"■ DONE → LOOP":"■ DONE OVERDUB"):"● ARMED";
+    rec.classList.add("active");
+   }
+   const currentAudio=this.getAudioPrint();
+   if(currentAudio?.which===which&&!currentAudio.freeze){
+    rec.textContent=currentAudio.finishQueued?"↻ SAVING LAYER…":"■ DONE LAYER EARLY";
     rec.classList.add("active");
    }
    if(recState?.scene===which&&recState.kind==="vocal"){
@@ -78,7 +83,7 @@ class Tracks{
      const surface=el("div","track-lane-surface lane-"+kind);
      surface.style.setProperty("--bars",String(bars));
      const layers=d.layers.filter(l=>l.kind===kind||(kind==="ai"&&l.kind==="printed"));
-     if(layers.length===0)surface.append(el("div","track-empty",kind==="ai"?"Import a real Magenta take":kind==="vocal"?"Record a vocal take":"Play and record keys"));
+     if(layers.length===0)surface.append(el("div","track-empty",kind==="ai"?"Recorded audio takes appear here":kind==="vocal"?"Record a vocal take":"Play and record keys"));
      else layers.forEach((layer,j)=>{
        const region=el("div","track-region region-"+kind+(layer.muted?" track-muted":""));
        region.title=layer.kind==="printed"?"Recorded audio waveform with independent volume and mute":kind==="ai"?"Imported Magenta audio":kind==="vocal"?"Recorded microphone audio":"Recorded chord/note events";
@@ -113,7 +118,7 @@ class Tracks{
    const head=el("div","track-song-playhead");head.id="track-head-"+which;
    lanes.append(head);column.append(lanes);
    const summary=el("div","track-foot",d.locked
-     ?"PCM overdubs follow the first phrase. PRINT MIDI → AUDIO freezes the original. Remove every clip to reset the master loop."
+     ?"Keep stacking waveform takes on the same first phrase. Every pass can be muted, faded or removed; native Magenta capture is optional."
      :"Record the first KEY or VOICE phrase, then press DONE. That defines the loop length, with no bar selection.");
    column.append(summary);
   }
@@ -129,8 +134,10 @@ class Tracks{
    head.style.left="calc(90px + (100% - 90px) * "+(phase/length)+")";
    const label=$("track-loop-label-"+which),fill=$("track-loop-fill-"+which);
    if(label){
+     const audioTake=this.getAudioPrint();
      const captured=rec?.scene===which;
-     label.textContent=captured?
+     label.textContent=audioTake?.which===which&&!audioTake.freeze?
+       (audioTake.finishQueued?"↻ SAVING NEW AUDIO LAYER":"● RECORDING AUDIO · EXISTING LOOP CONTINUES"):captured?
        (rec.active?(rec.kind==="chords"?(rec.first?"● RECORDING · PRESS DONE":"● ADDING LAYER"):"● VOICE · PRESS DONE"):"◉ ARMED"):
        !d.locked?"○ READY TO RECORD":
        !this.getRunning()?"Ⅱ PAUSED":
