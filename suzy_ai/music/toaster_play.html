@@ -293,7 +293,7 @@ a{color:var(--mint)}
 </section>
 <section class="ai-strip" aria-label="Real Magenta AI instrument">
  <div><div class="tiny">✦ GOOGLE MAGENTA · ACTUAL AUDIO UNIT</div><h2>AI makes the atmosphere</h2>
- <p>One MRT2 Small model, four genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, and Fishes classical guitar. Live blending uses the same native engine.</p>
+ <p>One MRT2 Small model, five genuine Google AU sound prompts: Pyramid chords, Fishes chords, Pyramid violin, Fishes classical guitar, and brushed jazz drums. Live blending uses the same native engine.</p>
  <div id="aiHostStatus" role="status" aria-live="polite">AI OFF · local chords work without it</div></div>
  <div class="ai-actions"><button id="aiEnable" aria-pressed="false">✦ ENABLE MAGENTA</button>
  <button id="aiMute" aria-pressed="false">🔇 MUTE AI</button><button id="aiDrums" aria-pressed="false" type="button" title="Allow Google MRT2 to create percussion as AI audio. Does not output individual drum MIDI notes.">🥁 ALLOW AI DRUM AUDIO</button><button id="aiSolo" aria-pressed="false" type="button" title="Mute all browser audio, including pads, drum sound, vocals, and loops. Keys still steer Google MRT2.">🎧 HEAR AI ONLY</button>
@@ -301,12 +301,15 @@ a{color:var(--mint)}
  <button id="aiGoogleModel" type="button" disabled>🧩 OPEN GOOGLE MODEL SELECTOR</button>
  <button id="aiTransport" type="button" disabled>⏸ PAUSE AI GENERATION</button>
  <div id="aiModelHelp" role="status" aria-live="polite">Enable Google AU model-selection mode in the native host first.</div></div>
- <div class="ai-faders"><div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
+ <div class="ai-faders"><div><label for="aiDrumMix">🥁 JAZZ DRUM AI BLEND · <span id="aiDrumMixValue">0%</span></label>
+ <input type="range" id="aiDrumMix" min="0" max="100" step="1" value="0" aria-label="Fifth native jazz drums prompt blend">
+ <small class="subtle">0% preserves all four existing prompts; turn up to crossfade live toward brushed jazz drums. AI ONLY keeps this native output audible. Not a captured beat-exact audio loop.</small></div>
+ <div><label for="aiVolume">AI VOLUME · <span id="aiVolumeValue">28</span>%</label>
  <input type="range" id="aiVolume" min="0" max="65" value="28"></div>
  <div><label for="aiReverb">AI REVERB · <span id="aiReverbValue">18</span>%</label>
  <input type="range" id="aiReverb" min="0" max="100" value="18"></div>
  <small class="subtle" style="grid-column:1/-1">Independent native AI volume and mute; ROOM FX above also adjusts its reverb. Native audio does not enter browser loop capture.</small></div>
-<details class="prompt-editor" id="promptEditor"><summary>✦ EDIT FOUR MAGENTA SOUND PROMPTS</summary>
+<details class="prompt-editor" id="promptEditor"><summary>✦ EDIT FIVE MAGENTA SOUND PROMPTS</summary>
 <div class="prompt-grid">
 <div><label for="promptPyramid">01 · PYRAMID · intimate piano</label>
 <textarea id="promptPyramid" maxlength="500">Intimate warm piano chords, fragile orchestral strings, sparse melancholic experimental art rock, slow floating asymmetric pulse, soft bass, subtle ambient textures, restrained percussion, no vocals</textarea></div>
@@ -316,6 +319,8 @@ a{color:var(--mint)}
 <textarea id="promptViolin" maxlength="500">Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals</textarea></div>
 <div><label for="promptGuitar">04 · WEIRD FISHES · MAGENTA CLASSICAL GUITAR LEAD</label>
 <textarea id="promptGuitar" maxlength="500">Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals</textarea></div>
+<div><label for="promptJazzDrums">05 · JAZZ DRUMS · BRUSHED JAZZ GROOVE</label>
+<textarea id="promptJazzDrums" maxlength="500">Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals</textarea></div>
 </div>
 <div class="start"><span class="subtle">Restart only the native AI to apply edited text. You may need to select mrt2_small in Google's UI again. Existing browser loops stay intact.</span>
 <button id="applyPrompts" type="button">↻ APPLY PROMPTS</button></div>
@@ -1111,8 +1116,8 @@ async function aiStatus(){
  }catch(e){aiNativeReady=false;$("aiHostStatus").textContent="AI HOST OFFLINE · browser instrument active";}
 }
 function getPromptStrings(){
- const prompts=["promptPyramid","promptFishes","promptViolin","promptGuitar"].map(id=>$(id).value.trim());
- if(prompts.some(p=>!p||p.length>500))throw Error("Enter four AI prompts, maximum 500 characters each");
+ const prompts=["promptPyramid","promptFishes","promptViolin","promptGuitar","promptJazzDrums"].map(id=>$(id).value.trim());
+ if(prompts.some(p=>!p||p.length>500))throw Error("Enter five AI prompts, maximum 500 characters each");
  return prompts;
 }
 async function applyPrompts(){
@@ -1124,7 +1129,7 @@ async function applyPrompts(){
   const result=await aiFetch("start",{prompts});
   aiDisplay(result);
   if(aiNativeReady)await syncAIMix();
-  tell("Four Magenta prompts configured. Select mrt2_small in the Google UI if prompted, then audition the chord and lead blend controls.");
+  tell("Five Magenta prompts configured. Select mrt2_small in Google's window if prompted, then audition JAZZ DRUM AI BLEND.");
  }catch(e){warn(e);$("aiHostStatus").textContent="PROMPT UPDATE FAILED · "+e.message;}
 }
 async function toggleAI(){
@@ -1164,8 +1169,31 @@ async function syncAIMix(){
   await aiFetch("reverb",{value:Number($("reverb").value)/100});
   await aiFetch("mute",{value:aiMuted});
   await aiFetch("drums",{value:aiDrumsAllowed});
+  await aiFetch("drum-mix",{value:Number($("aiDrumMix").value)/100});
   await aiFetch("tempo",{bpm});
  }catch(e){$("aiHostStatus").textContent="AI MIX ROUTING ERROR · "+e.message;}
+}
+function setNativeDrumBlend(percent){
+ const value=clamp(percent,0,100);
+ $("aiDrumMix").value=String(value);
+ $("aiDrumMixValue").textContent=value+"%";
+ // Raising the fifth prompt also opens Google's AI percussion filter. The
+ // existing 4-slot mix is untouched at zero (no extra model/process).
+ if(value>0){
+  aiDrumsAllowed=true;
+  $("aiDrums").setAttribute("aria-pressed","true");
+  $("aiDrums").textContent="🥁 AI DRUM AUDIO ALLOWED";
+ }
+ if(!aiNativeReady){
+  tell("JAZZ DRUM AI BLEND "+value+"% · start the native Magenta AU to audition.");
+  return;
+ }
+ aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+  if(!aiNativeReady)return;
+  if(value>0)await aiFetch("drums",{value:true});
+  await aiFetch("drum-mix",{value:value/100});
+ }).catch(e=>warn(e));
+ tell("JAZZ DRUM AI BLEND "+value+"% · "+(value?"live jazz percussion prompt in ONE native Magenta stream.":"four original prompts restored."));
 }
 function aiMelody(note,on){
  if(!aiNativeReady)return;
@@ -2318,6 +2346,8 @@ $("aiDrums").onclick=()=>toggleAIDrums().catch(warn);
 $("aiSolo").onclick=toggleAISolo;
 $("aiGoogleModel").onclick=openGoogleModelSelector;
 $("aiTransport").onclick=toggleAITransport;
+$("aiDrumMix").oninput=()=>{$("aiDrumMixValue").textContent=$("aiDrumMix").value+"%";};
+$("aiDrumMix").onchange=()=>setNativeDrumBlend($("aiDrumMix").value);
 $("aiVolume").oninput=()=>{$("aiVolumeValue").textContent=$("aiVolume").value};
 $("aiVolume").onchange=syncAIMix;
 $("aiReverb").oninput=()=>{$("aiReverbValue").textContent=$("aiReverb").value;$("reverb").value=$("aiReverb").value;updateRoomFx();};
