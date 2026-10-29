@@ -202,6 +202,7 @@ a{color:var(--mint)}
 .live-voice-monitor button{background:#aee8d8;color:#20332d;min-height:46px}
 .live-voice-monitor button[aria-pressed=true]{background:#f2ccab;color:#3d2d35}
 #monitorStatus{font-size:11px;color:var(--mint)}
+#vocalFxPanic{background:#8d2637;color:#fff;border-color:#e8a7a7;font-weight:900}
 .full-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:7px 0}
 .full-toolbar button{font-size:11px;padding:8px 10px}
 .full-clip.is-selected{outline:3px solid #ffe7ab;outline-offset:2px}
@@ -683,7 +684,8 @@ a{color:var(--mint)}
 <label for="micMeter">LIVE MIC SIGNAL <meter id="micMeter" min="0" max="1" value="0" style="width:130px"></meter></label>
 <span id="micPeakLive" role="status">NO TEST YET · sing into the VE-22</span>
 <button type="button" id="monitorVoice" aria-pressed="false">🎙 MONITOR VOICE · OFF</button>
-<label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="200" value="110"></label>
+<button type="button" id="vocalFxPanic" aria-label="Emergency silence vocal effects and loops, without losing saved recordings" title="Stop vocal effects, monitoring and vocal playback. Piano, AI instruments and saved layers remain.">⛔ KILL VOCAL FX</button>
+<label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="100" value="80"></label>
 <label>LIVE REVERB <input id="monitorReverb" type="range" min="0" max="75" value="28"></label>
 <span id="monitorStatus" role="status">MONITOR OFF · not recording</span>
 </div>
@@ -833,10 +835,10 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false,audioPrint=null,nativeTake=null,nativeTakeArming=null;
+let vocalCaptureReady=false,vocalArming=null,audioPrint=null,nativeTake=null,nativeTakeArming=null;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
-let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
+let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false,monitorPreparing=null;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
@@ -858,7 +860,7 @@ let aiCommandQueue=Promise.resolve();
 let aiChordToken=0,aiChordOwner=null;
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,enabled:true,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- printBus:null,instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ printBus:null,voiceFxBus:null,instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
@@ -1041,8 +1043,14 @@ async function openAudio(){
     // capture tap or let native-only source selection silence it.
     d.printBus=ctx.createGain();d.printBus.connect(mainBus);d.printBus.connect(verb);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
-  }
-  // Shared low-memory voice send. Both live mic and stored vocal loops stay DRY.
+    // Wet-only FX return: never run an echo tail through echo/reverb again.
+    d.voiceFxBus=ctx.createGain();
+    d.voiceFxSafety=ctx.createDynamicsCompressor();
+    d.voiceFxSafety.threshold.value=-18;d.voiceFxSafety.knee.value=3;
+    d.voiceFxSafety.ratio.value=20;d.voiceFxSafety.attack.value=.004;d.voiceFxSafety.release.value=.18;
+    d.voiceFxBus.connect(d.voiceFxSafety);d.voiceFxSafety.connect(mainBus);
+   }
+   // Shared low-memory voice send. Both live mic and stored vocal loops stay DRY.
   vocalEchoInput=ctx.createGain();vocalEchoDelay=ctx.createDelay(2.0);
   vocalEchoTone=ctx.createBiquadFilter();vocalEchoTone.type="lowpass";
   vocalEchoFeedbackNode=ctx.createGain();vocalEchoWet=ctx.createGain();
@@ -1906,7 +1914,10 @@ async function toggleNativeSavedLoop(which,role){
  if(nativeTake||nativeTakeArming)return warn(Error("Finish preparing or recording the native take before switching playback."));
  const d=loopDeck(which),playing=stageStarted&&d.loopEnabled&&layers.some(l=>!l.paused);
  const resume=!playing;
- layers.forEach(l=>{l.paused=!resume;});
+ layers.forEach(l=>{
+   l.paused=!resume;
+   if(!resume){stopLayerWash(l);stopLayerEcho(l);}
+  });
  if(resume&&!d.loopEnabled){d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
  if(resume&&!stageStarted)await startStop();
  applyLoopGateNow(which);
@@ -1926,8 +1937,12 @@ async function toggleLoop(which){
  if(recording||nativeTake||audioPrint)return warn(Error("Finish the active recording before changing playback."));
  const target=!d.loopEnabled;
  d.loopEnabled=target;d.loopToggleAt=null;d.loopToggleTarget=null;
- if(!target&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
-  aiRelease(aiChordOwner.token); // release held native note immediately, too
+ if(!target){
+   // STOP applies to FX tails as well as the repeating source.
+   for(const layer of d.layers){stopLayerWash(layer);stopLayerEcho(layer);}
+   if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+    aiRelease(aiChordOwner.token);
+  }
  if(target&&!stageStarted)await startStop();
  applyLoopGateNow(which);
  updateLoopControls(which);updateNativePlaybackButtons();
@@ -2700,6 +2715,12 @@ function layerOutputBus(which,layer){
  if(which==="drums")return drumDeck.bus; // outside song crossfaders
  return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
 }
+// Tail audio is already processed. Return it directly to the mix, following
+// the voice DJ fader without injecting it into a fresh tape-echo/reverb send.
+function layerFxReturnBus(which,layer){
+ return which!=="drums"&&layer.kind==="vocal"?
+  decks[which].voiceFxBus:layerOutputBus(which,layer);
+}
 function layerPlaybackPhase(which,layer,at){
  const origin=layer.pedalAligned?loopMasterOrigin(which):
   transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
@@ -2757,10 +2778,10 @@ function echoOutLayer(which,layer){
        feedback=ctx.createGain(),output=ctx.createGain();
  delay.delayTime.value=Math.max(.2,Math.min(.8,60/bpm*.75));
  tone.type="lowpass";tone.frequency.value=4200;tone.Q.value=.55;
- feedback.gain.value=.44;output.gain.value=.6;
+ feedback.gain.value=.36;output.gain.value=.42;
  sample.input.connect(delay);delay.connect(tone);
  tone.connect(feedback);feedback.connect(delay);
- tone.connect(output);output.connect(layerOutputBus(which,layer));
+ tone.connect(output);output.connect(layerFxReturnBus(which,layer));
  const fx={feedback,output,nodes:[sample.source,sample.input,delay,tone,feedback,output]};
  layer.echoFx=fx;
  layer.muted=true;
@@ -2778,20 +2799,20 @@ function toggleLayerWash(which,layer){
  if(!sample)return;
  // Two lightly diffused feedback combs create a long, soft reverb hold.
  // This is a reverb-style ambience, not a spectral freeze of the Google AU.
- const output=ctx.createGain();output.gain.value=.33;
+ const output=ctx.createGain();output.gain.value=.24;
  const nodes=[sample.source,sample.input,output],feedbacks=[];
  for(const seconds of [.167,.239]){
   const delay=ctx.createDelay(1),filter=ctx.createBiquadFilter(),
         feedback=ctx.createGain(),send=ctx.createGain();
   delay.delayTime.value=seconds;
   filter.type="lowpass";filter.frequency.value=3400;filter.Q.value=.45;
-  feedback.gain.value=.88;send.gain.value=.5;
+  feedback.gain.value=.65;send.gain.value=.4;
   sample.input.connect(delay);
   delay.connect(filter);filter.connect(send);send.connect(output);
   filter.connect(feedback);feedback.connect(delay);
   nodes.push(delay,filter,feedback,send);feedbacks.push(feedback);
  }
- output.connect(layerOutputBus(which,layer));
+ output.connect(layerFxReturnBus(which,layer));
  layer.washFx={nodes,feedbacks,output};
  renderClips(which);
  tell("∞ REVERB HOLD · "+(layer.name||"VOICE")+" ambience sustained. Tap HOLD again to release.");
@@ -2818,7 +2839,8 @@ function renderInstrumentClips(which){
    mute.textContent=layer.muted?"UNMUTE":"MUTE";
    mute.onclick=()=>{
     layer.muted=!layer.muted;
-    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+     if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
+     if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
     renderClips(which);
    };
    const fade=document.createElement("input");
@@ -2878,7 +2900,8 @@ function renderClips(which){
   const name=document.createElement("span");name.textContent=(layer.kind==="printed"?"🔊 "+layer.name:layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
   const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{
    layer.muted=!layer.muted;
-   if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+    if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
+    if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
    renderClips(which);
   };
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
@@ -3022,17 +3045,22 @@ function stopVoiceFollow(){
  $("voiceFollowStatus").textContent="OFF · model continues independently";
 }
 async function startVoiceMonitor(){
- if(monitoringVoice)return;
- await openAudio();
- // Monitoring is an input/headphone check, independent of the rhythm transport.
- await findDevices();
- const stream=await enableMic();
- // Monitoring is a separate dry/wet path. The recorder still captures clean
+ if(monitoringVoice||monitorPreparing)return;
+ const preparing={};monitorPreparing=preparing;
+ try{
+  await openAudio();
+  if(monitorPreparing!==preparing)return;
+  // Monitoring is an input/headphone check, independent of the rhythm transport.
+  await findDevices();
+  if(monitorPreparing!==preparing)return;
+  const stream=await enableMic();
+  if(monitorPreparing!==preparing)return; // Emergency stop while awaiting hardware.
+  // Monitoring is a separate dry/wet path. The recorder still captures clean
  // pre-effects PCM, so its loop and overdubs are not contaminated by reverb.
  monitorSource=ctx.createMediaStreamSource(stream);
  monitorFilter=ctx.createBiquadFilter();monitorFilter.type="highpass";monitorFilter.frequency.value=90;
  monitorDry=ctx.createGain();monitorSend=ctx.createGain();
- monitorDry.gain.value=Number($("monitorLevel").value)/100;
+ monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);
  monitorSend.gain.value=Number($("monitorReverb").value)/100;
  monitorSource.connect(monitorFilter);
  monitorFilter.connect(monitorDry);monitorFilter.connect(monitorSend);
@@ -3042,6 +3070,9 @@ async function startVoiceMonitor(){
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
  $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent?.replace(/^OUTPUT · /,"")||$("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
  updateVocalState();
+ }finally{
+  if(monitorPreparing===preparing)monitorPreparing=null;
+ }
 }
 function updateVoiceEcho(){
  const mode=$("vocalEchoMode").value;
@@ -3058,6 +3089,7 @@ function updateVoiceEcho(){
  vocalEchoTone.frequency.setTargetAtTime(1700+tone*8200,ctx.currentTime,.03);
 }
 function stopVoiceMonitor(){
+ monitorPreparing=null; // Invalidate any late getUserMedia/findDevices completion.
  for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend]){
   try{n?.disconnect()}catch{}
  }
@@ -3066,6 +3098,61 @@ function stopVoiceMonitor(){
  $("monitorVoice").textContent="🎙 MONITOR VOICE · OFF";
  $("monitorStatus").textContent="MONITOR OFF · mic not routed to headphones";
  updateVocalState();
+}
+// Emergency audio cut. Does not discard previous saved takes, change the
+// native Magenta engine or kill the rest of the browser performance.
+function panicVocalFx(){
+ // Invalidate asynchronous mic preparation before it creates a worklet.
+ vocalArming=null;
+ stopVoiceMonitor();
+ if(recording?.kind==="vocal"){
+  const take=recording;
+  take.finished=true;
+  clearTimeout(take.watchdog);
+  try{take.processor?.port.postMessage({type:"stop"});}catch{}
+  for(const node of [take.source,take.processor,take.silent])
+   try{node?.disconnect()}catch{}
+  recording=null;
+  $("vocal-"+take.scene).textContent="🎙 LOOP VOICE";
+  $("vocalRecord"+(take.scene==="pyramid"?"Pyramid":"Fishes")).textContent="● RECORD "+take.scene.toUpperCase()+" VOICE";
+ }
+ $("vocalEchoMode").value="off";
+ $("vocalEchoLevel").value="0";
+ $("vocalEchoFeedback").value="0";
+ updateVoiceEcho();
+ if(ctx){
+  // Immediate zero beats gradual feedback decay during an emergency.
+  for(const node of [vocalEchoWet,vocalEchoFeedbackNode]){
+   node?.gain.cancelScheduledValues(ctx.currentTime);
+   node?.gain.setValueAtTime(0,ctx.currentTime);
+  }
+ }
+ for(const [which,d] of Object.entries(decks)){
+  for(const layer of d.layers){
+   if(layer.kind!=="vocal")continue;
+   if(ctx){
+    if(layer.echoFx){
+     layer.echoFx.output.gain.setValueAtTime(0,ctx.currentTime);
+     layer.echoFx.feedback.gain.setValueAtTime(0,ctx.currentTime);
+    }
+    if(layer.washFx){
+     layer.washFx.output.gain.setValueAtTime(0,ctx.currentTime);
+     for(const feedback of layer.washFx.feedbacks)
+      feedback.gain.setValueAtTime(0,ctx.currentTime);
+    }
+   }
+   stopLayerEcho(layer);stopLayerWash(layer);
+   layer.muted=true;
+   if(layer.gain&&ctx){
+    layer.gain.gain.cancelScheduledValues(ctx.currentTime);
+    layer.gain.gain.setValueAtTime(0,ctx.currentTime);
+   }
+  }
+  renderClips(which);
+ }
+ updateVocalState();
+ $("monitorStatus").textContent="VOCAL FX KILLED · dry loops preserved and muted · turn monitoring on manually if safe";
+ tell("⛔ VOCAL FX KILLED · mic monitor, echo and reverb holds OFF; saved voice loops MUTED, not deleted. Piano and AI continue.");
 }
 async function toggleVoiceMonitor(){
  if(monitoringVoice)stopVoiceMonitor();
@@ -3099,12 +3186,20 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   return;
  }
  if(recording)return warn(Error("Finish the current recording first"));
+ if(vocalArming)return tell("VOICE INPUT PREPARING · press RECORD once and wait.");
+ const arming={which};vocalArming=arming;
  let source=null,processor=null,silent=null,take=null;
  try{
   await openAudio();
+  if(vocalArming!==arming)return; // Panic while opening audio.
   const stream=await enableMic();
+  if(vocalArming!==arming)return; // Panic while requesting Scarlett.
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
-  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
+  if(!vocalCaptureReady){
+   await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");
+   vocalCaptureReady=true;
+  }
+  if(vocalArming!==arming)return; // Panic during module preparation.
   const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
@@ -3190,6 +3285,8 @@ writeAlignedLoopAudio(clip,[data],take.startAt,
   if(recording===take)recording=null;
   $("vocal-"+which).textContent="🎙 LOOP VOICE";
   warn(e);
+ }finally{
+  if(vocalArming===arming)vocalArming=null;
  }
 }
 
@@ -3418,8 +3515,10 @@ function updateMix(){
   const level=Number($("level-"+k).value)/100;
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
-  decks[k].voiceBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:Number($("voice-"+k).value)/100*side;
-  if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
+  const vocalGain=localKeysOnly||aiSolo||!decks[k].enabled?0:Number($("voice-"+k).value)/100*side;
+   decks[k].voiceBus.gain.value=vocalGain;
+   if(decks[k].voiceFxBus)decks[k].voiceFxBus.gain.value=vocalGain;
+   if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
  }
 }
 async function readAndExport(){
@@ -3600,7 +3699,8 @@ for(const name of ["vocalEchoMode","vocalEchoLevel","vocalEchoFeedback","vocalAi
 $("voiceFollow").onclick=toggleVoiceFollow;
 $("localKeysSolo").onclick=()=>toggleLocalKeysOnly().catch(warn);
 $("monitorVoice").onclick=toggleVoiceMonitor;
-$("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=Number($("monitorLevel").value)/100;};
+$("vocalFxPanic").onclick=panicVocalFx;
+$("monitorLevel").oninput=()=>{if(monitorDry)monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);};
 $("monitorReverb").oninput=()=>{if(monitorSend)monitorSend.gain.value=Number($("monitorReverb").value)/100;};
 $("liveLevel").oninput=()=>{$("liveLevelValue").textContent=$("liveLevel").value+"%";updateOverdubBalance();};
 $("loopLevel").oninput=()=>{$("loopLevelValue").textContent=$("loopLevel").value+"%";updateOverdubBalance();};
