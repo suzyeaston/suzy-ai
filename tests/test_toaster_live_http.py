@@ -230,7 +230,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         code, js = self.call("GET", "/toaster/track-view.js")
         self.assertEqual(code, 200)
         for marker in ('track-loop-label-', 'track-loop-fill-',
-                       '"↻ LOOP "+pass', '"BEAT "+(phase/2+1).toFixed(1)+" / "',
+                       '"↻ LOOPING"', '"● RECORDING · PRESS DONE"',
                        'fill.style.width=((phase/length)*100)+"%"'):
             self.assertIn(marker, js)
 
@@ -352,7 +352,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'nextStepAt=when;',
             'onSeek:locateTimelineBar',
             'startLoopAudio(which,layer,when)',
-            '▶ PLAY FROM BAR 1',
+            '▶ PLAY',
             'Click a bar number or song section on the ruler',
         ):
             self.assertIn(marker, page)

@@ -261,7 +261,7 @@ test("manual hold length is retained by event loops and renders sustained chord 
  run("ctx.currentTime=9.5;scheduler()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>2);
- assert.match(javascript,/Math\.max\(\.12,\(e\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
+ assert.match(javascript,/recordedNoteHoldSeconds\(which,e\)/);
  assert.match(javascript,/Math\.max\(\.12,\(event\.holdSteps\|\|1\)\*tickSeconds\(\)\)/);
 });
 
@@ -726,7 +726,8 @@ test("browser timeline stop and rewind preserve vocal clips while resetting bar 
  assert.equal(run("stageStarted"),false);
  assert.equal(run("stepNumber"),0);
  assert.equal(run("decks.pyramid.layers.length"),1);
- assert.match(get("timelineTransportStatus").textContent,/STOPPED.*BAR 1/);
+ assert.match(get("timelineTransportStatus").textContent,/STOPPED/);
+ assert.doesNotMatch(get("timelineTransportStatus").textContent,/BAR|BEAT/);
  assert.match(get("vocalLoopState").textContent,/1 VOCAL LOOP SAVED/);
  await run("startStop()");
  run("stepNumber=96");
@@ -771,7 +772,7 @@ test("clicking bar ruler locates real cursor while stopped, and Play begins from
  assert.equal(run("stepNumber"),bar*8);
  assert.equal(run("scene"),"fishes");
  assert.match(get("fullPosition").textContent,new RegExp("BAR "+(bar+1)));
- assert.match(get("timelinePlay").textContent,new RegExp("PLAY FROM BAR "+(bar+1)));
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
  assert.equal(run("stageStarted"),false);
  await run("startStop()");
  assert.equal(run("stageStarted"),true);
@@ -807,12 +808,12 @@ test("Stop parks the playhead at its current bar; rewind returns to 1, with real
  assert.equal(run("stageStarted"),false);
  assert.equal(run("parkedBar"),75);
  assert.equal(run("stepNumber"),75*8);
- assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 76/);
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
  assert.equal(run("decks.pyramid.layers.length"),1);
  await run("timelineRewind()");
  assert.equal(run("parkedBar"),0);
  assert.equal(run("stepNumber"),0);
- assert.match(get("timelinePlay").textContent,/PLAY FROM BAR 1/);
+ assert.equal(get("timelinePlay").textContent,"▶ PLAY");
 });
 test("click seeking during an active recording is refused without moving clock",async()=>{
  const {run}=rig();await run("startStop()");
@@ -1080,4 +1081,68 @@ test("pausing and restarting rhythm never resets original recorded loop downbeat
  await run("startStop()");
  assert.equal(run("decks.pyramid.anchorStep"),saved);
  assert.equal(run("decks.pyramid.lengthSteps"),16);
+});
+
+test("local replay sustains a chord held through DONE across next loop attack",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+5;ctx.currentTime=.38');
+ run('beginChord("pyramid",0,"key:sustain")');
+ run('endRecord()');
+ assert.equal(run("decks.pyramid.lengthSteps"),5);
+ assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),true);
+ const original=run("decks.pyramid.layers[0].events[0].holdSteps*tickSeconds()");
+ const loopSeconds=run("songCycleSeconds('pyramid')");
+ const sustained=run("recordedNoteHoldSeconds('pyramid',decks.pyramid.layers[0].events[0])");
+ assert.ok(sustained>loopSeconds,"held chord overlaps the next iteration instead of going silent");
+ assert.ok(sustained>original,"recorded duration is extended solely at the loop seam");
+ const noTie=run("recordedNoteHoldSeconds('pyramid',{holdSteps:1})");
+ assert.ok(noTie<loopSeconds,"released chord still has its original short musical phrasing");
+});
+test("releasing before DONE does not falsely tie a naturally short chord",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=0;recording.endAt=recording.beginAt+6;ctx.currentTime=.4');
+ run('beginChord("pyramid",0,"key:released")');
+ run('ctx.currentTime+=.2;endChord("key:released")');
+ run('endRecord()');
+ assert.equal(run("decks.pyramid.layers[0].events[0].sustainAcrossBoundary"),undefined);
+ assert.ok(run("recordedNoteHoldSeconds('pyramid',decks.pyramid.layers[0].events[0])")<
+  run("songCycleSeconds('pyramid')"));
+});
+test("browser synth no longer forcibly truncates a held note to one loop duration",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.lengthSteps=4;var releaseTimes=[];const releaseOriginal=releaseVoice;releaseVoice=(v,t)=>{releaseTimes.push(t);return releaseOriginal(v,t)}');
+ run('synth("pyramid",0,1,true,3,"pad")');
+ assert.equal(run("releaseTimes.length"),4);
+ assert.ok(run("releaseTimes.every(t=>Math.abs(t-4)<.00001)"),
+  "all chord notes release after the specified three-second hold, not after the 4-tick cycle");
+});
+test("live looper shows simple states, no beat/bar/pass counters, while tempo remains",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ const trackJS=tracksJS;
+ assert.doesNotMatch(trackJS,/track-ruler|track-bar|\\u0022BEAT |\\u0022BAR |LOOP \\u0022\\+pass/);
+ assert.match(trackJS,/LOOPING/);
+ assert.match(file,/id="tempo"/);
+ run("trackView.draw()");
+ assert.doesNotMatch(get("track-loop-label-pyramid").textContent,/BAR|BEAT|LOOP [0-9]/);
+ assert.doesNotMatch(get("timelineTransportStatus").textContent,/BAR|BEAT/);
+ assert.doesNotMatch(get("vocalLoopState").textContent,/BAR [0-9]/);
+ assert.equal(get("tempo").value,"105","tempo input remains available");
+ assert.match(file,/id="tempoValue"/,"tempo display remains present");
+});
+test("stopping a sustained loop fades its active oscillator bus without stopping rhythm",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=5;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"long",kind:"chords",events:[{step:0,index:0,holdSteps:5,sustainAcrossBoundary:true}],muted:false,arrStartBar:0})');
+ run('renderClips("pyramid")');
+ run('toggleLoop("pyramid")');
+ const end=run("decks.pyramid.loopToggleAt");
+ run(`ctx.currentTime=transportEpoch+(${end}+1)*tickSeconds();scheduler()`);
+ assert.equal(run("decks.pyramid.loopEnabled"),false);
+ assert.equal(run("decks.pyramid.loopBus.gain.value"),0,"already playing notes fade out on STOP");
+ assert.equal(run("stageStarted"),true);
+ run('toggleLoop("pyramid")');
+ const resume=run("decks.pyramid.loopToggleAt");
+ run(`ctx.currentTime=transportEpoch+(${resume}+1)*tickSeconds();scheduler()`);
+ assert.ok(run("decks.pyramid.loopBus.gain.value")>0,"audible bus is restored at bar-quantized restart");
 });
