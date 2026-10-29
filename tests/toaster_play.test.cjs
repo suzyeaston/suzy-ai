@@ -1001,7 +1001,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/OVERDUB/);
+ assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1502,4 +1502,78 @@ test("live deck no longer exposes misleading moving playhead while loop clock st
  assert.equal(run("tickSeconds()"),30/105);
  run("updateTimeline()");
  assert.match(get("rhythm").textContent,/PAUSE RHYTHM/);
+});
+
+test("removing the final recorded clip resets both record buttons without a page reload",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=9;decks.pyramid.anchorStep=3;decks.pyramid.layers.push({id:"only",kind:"chords",instrument:"keys",muted:false,events:[{step:0,index:0,instrument:"keys"}]})');
+ run('decks.fishes.locked=true;decks.fishes.layers.push({id:"fishes",kind:"chords",events:[{step:0,index:1}]})');
+ run('renderClips("pyramid")');
+ assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ run('removeSongLayer("pyramid","only")');
+ assert.equal(run("decks.pyramid.layers.length"),0);
+ assert.equal(run("decks.pyramid.locked"),false);
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.anchorStep"),0);
+ assert.equal(run("decks.pyramid.loopEnabled"),true);
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+ assert.match(get("recordHint-pyramid").textContent,/fresh first loop/);
+ assert.equal(get("loopToggle-pyramid").disabled,true);
+ assert.equal(run("decks.fishes.layers.length"),1,"other song untouched");
+ assert.equal(run("stageStarted"),true,"drum clock stays running");
+ run('record("pyramid")');
+ assert.equal(run("recording.first"),true,"same page can begin a brand-new take");
+});
+test("removing one of two clips keeps the add-layer action until the last one is gone",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"one",kind:"chords",events:[{step:0,index:0}],muted:false},{id:"two",kind:"chords",events:[{step:1,index:1}],muted:false})');
+ run('renderClips("pyramid")');
+ run('removeSongLayer("pyramid","one")');
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ run('removeSongLayer("pyramid","two")');
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+});
+test("accidental second local keyboard patch is blocked; a different selected sound can layer",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"piano",kind:"chords",instrument:"keys",events:[{step:0,index:0,instrument:"keys"}],muted:false})');
+ run('renderClips("pyramid")');
+ assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ run('record("pyramid")');
+ assert.equal(run("recording"),null,"duplicate local patch not armed");
+ assert.match(get("warning").textContent,/DIFFERENT NEW LAYER SOUND/);
+ run('setInstrument("pyramid","pad")');
+ run('record("pyramid")');
+ assert.equal(run("recording.first"),false,"new patch is an additional take");
+ assert.equal(run("decks.pyramid.instrument"),"pad");
+ assert.equal(run("decks.pyramid.layers[0].instrument"),"keys","recorded first layer remains piano");
+});
+test("native Magenta preserves MIDI layering while clearly warning it is not a separate sound stem",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.fishes.locked=true;decks.fishes.layers.push({id:"chords",kind:"chords",instrument:"keys",events:[{step:0,index:0,instrument:"keys"}],muted:false})');
+ run('renderClips("fishes")');
+ run('record("fishes")');
+ assert.equal(run("recording.first"),false);
+ assert.match(get("message").textContent,/ONE shared AI sound/);
+ run('recording.active=true;recording.start=0;recording.events=[]');
+ run("endRecord()");
+ assert.match(get("record-fishes").textContent,/ADD INSTRUMENT LAYER/);
+});
+test("empty first take restores Record First Loop instead of stale Overdub",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=1;recording.events=[]');
+ run("endRecord()");
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.layers.length"),0);
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+});
+test("README teaches record reset and native-versus-local layering correctly",()=>{
+ const text=fs.readFileSync(path.join(__dirname,"..","README.md"),"utf8");
+ assert.match(text,/Remove every clip|remove each recorded clip/i);
+ assert.match(text,/RECORD FIRST LOOP/);
+ assert.match(text,/ADD INSTRUMENT LAYER/);
+ assert.match(text,/different NEW LAYER SOUND/i);
+ assert.match(text,/same Google Magenta stream/i);
 });

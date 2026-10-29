@@ -1942,7 +1942,14 @@ function record(which){
   return;
  }
  if(d.locked&&(!d.loopEnabled||d.loopToggleAt!==null))
-  return warn(Error("Restart the saved loop before overdubbing."));
+  return warn(Error("Restart the saved loop before recording another layer."));
+ // Do not accidentally double a recorded local keyboard patch. The first
+ // chord layer stays intact; a genuinely different timbre is a separate layer.
+ if(d.locked&&d.instrumentSource==="local"&&d.layers.some(layer=>
+   layer.kind==="chords"&&(layer.events||[]).some(event=>
+    (event.instrument||layer.instrument||"keys")===d.instrument))){
+  return warn(Error("That LOCAL SYNTH sound is already in this loop. Choose a DIFFERENT NEW LAYER SOUND (pad, pluck or bass) before ADD INSTRUMENT LAYER. Remove every clip to record a new first take."));
+ }
  choose(which);
  // Never require the performer to select a length. One click arms on the next
  // free eighth-note boundary; DONE chooses this first master-loop duration.
@@ -1953,8 +1960,11 @@ function record(which){
  $("record-"+which).textContent="◉ ARMED · NEXT PULSE";
  $("recordHint-"+which).textContent="WAIT · begin on the next pulse, then press DONE";
  trackView?.draw();
- tell(d.locked?"OVERDUB starts on next pulse and uses the original loop length.":
-  "FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
+ tell(d.locked
+  ?(d.instrumentSource==="ai"
+    ?"LAYER ARMED · Native Magenta is ONE shared AI sound; NEW LAYER SOUND changes only LOCAL SYNTH timbre. Recorded MIDI will join the current AI harmony."
+    :"NEW INSTRUMENT LAYER · plays over the saved phrase, using the selected LOCAL SYNTH sound.")
+  :"FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -1992,9 +2002,12 @@ function endRecord(){
   }
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
- $("record-"+r.scene).textContent="● OVERDUB";
  $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · press STOP LOOP to pause":"EMPTY · try recording again";
- if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
+ if(!r.events.length){
+  updateRecordControls(r.scene);
+  trackView?.draw();tell("No keys captured. Press RECORD FIRST LOOP and play a chord after the count-in.");
+  return;
+ }
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
  else {
   // An overdub may begin on any bar. Rephase its events to the original
@@ -2005,18 +2018,38 @@ function endRecord(){
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
  instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor((r.first?r.beginAt:d.anchorStep)/8))});
  renderClips(r.scene);
- tell("↻ LOOPING · repeating your "+r.scene.toUpperCase()+" phrase from its FIRST note, with no empty lead-in. Press OVERDUB or STOP LOOP when ready.");
+ tell("↻ LOOPING · repeating your "+r.scene.toUpperCase()+" phrase from its FIRST note. Choose ADD INSTRUMENT LAYER for a new sound, or STOP LOOP to pause.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  if(layer.source)try{layer.source.stop()}catch{}
+ // A tied native chord from a deleted layer must stop as well.
+ if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
- if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
+ if(!d.layers.length){
+  d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;
+  d.loopToggleAt=null;d.loopToggleTarget=null;
+ }
  renderClips(which);
+ if(!d.layers.length)tell(which.toUpperCase()+" CLEARED · RECORD FIRST LOOP is ready. No refresh needed.");
+}
+function updateRecordControls(which){
+ const d=decks[which],button=$("record-"+which),hint=$("recordHint-"+which);
+ if(recording?.kind==="chords"&&recording.scene===which)return;
+ // Derive the visible recording action from real saved layers, never stale text.
+ // Removing every clip must return to FIRST LOOP without reloading the page.
+ const fresh=!d.locked||!d.layers.length;
+ button.classList.remove("armed");
+ button.textContent=fresh?"● RECORD FIRST LOOP":"＋ ADD INSTRUMENT LAYER";
+ button.title=fresh
+  ?"Start fresh: press RECORD, play, then DONE. Your phrase defines the loop."
+  :"Record a new layer into the existing loop. For LOCAL SYNTH choose a different NEW LAYER SOUND first; native Magenta is one shared AI output.";
+ if(fresh)hint.textContent="READY · fresh first loop · RECORD → DONE";
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
