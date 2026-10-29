@@ -204,7 +204,9 @@ class NativeMagentaHost:
         with self.lock:
             if action not in ACTIONS or not isinstance(data, dict):
                 raise ValueError("unknown AI action")
-            if set(data) != ACTIONS[action] and not (action == "start" and set(data) == {"prompts"}):
+            if (set(data) != ACTIONS[action]
+                    and not (action == "start" and set(data) == {"prompts"})
+                    and not (action == "chord" and set(data) == {"index", "legato"})):
                 raise ValueError("invalid AI action fields")
             if action == "configure-prompts" or (action == "start" and "prompts" in data):
                 strings = data["prompts"]
@@ -226,8 +228,11 @@ class NativeMagentaHost:
                     raise ValueError("value must be 0..1")
             if action in ("mute", "drums") and type(data["value"]) is not bool:
                 raise ValueError("mute must be true or false")
-            if action == "chord" and (type(data["index"]) is not int or not 0 <= data["index"] < 4):
-                raise ValueError("chord must be integer 0..3")
+            if action == "chord":
+                if type(data["index"]) is not int or not 0 <= data["index"] < 4:
+                    raise ValueError("chord must be integer 0..3")
+                if "legato" in data and type(data["legato"]) is not bool:
+                    raise ValueError("legato must be boolean")
             if action == "tempo":
                 bpm = data["bpm"]
                 if type(bpm) not in (int, float) or not 60 <= bpm <= 190:

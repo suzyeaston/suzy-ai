@@ -397,14 +397,17 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'function localInstrumentAudible(which)',
                        'function nativeInstrumentEnabled(which)',
                        'function toggleRhythmAudio()',
-                       'if(native)aiNote(which,index);',
+                       'if(native)h.aiChordToken=aiNote(which,index);',
                        'if(!rhythmCanSound())return;'):
             self.assertIn(marker, page)
         self.assertIn('instrumentSource:"ai"', page)
         self.assertNotIn('midi(which,index);aiNote(which,index);', page)
+        # #116's arrangement routing is preserved, but its release now owns
+        # a specific chord instead of allowing a stale timer to kill a new one.
         self.assertIn('if(nativeInstrumentEnabled(c.scene)){', page)
-        self.assertIn('if(!heldKeys.size&&nativeInstrumentEnabled(c.scene))aiRelease();', page)
-        self.assertNotIn('if(aiNativeReady){\n   aiNote(c.scene,c.chord);', page)
+        self.assertIn('const token=aiNote(c.scene,c.chord,{legato:true});', page)
+        self.assertIn('if(!heldKeys.size)aiRelease(token);', page)
+        self.assertNotIn('if(aiNativeReady){\\n   aiNote(c.scene,c.chord);', page)
         self.assertLess(page.index('id="jazzDrumDeck"'), page.index('id="deck-pyramid"'))
 
     def test_authorized_pads_work_without_physical_input(self):

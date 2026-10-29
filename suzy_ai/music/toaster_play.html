@@ -625,6 +625,8 @@ const NOTE_LAYOUT=Object.freeze({a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:
 let midiQueue=Promise.resolve(),chordMidiScene=null;
 let aiNativeReady=false,aiNativeStarting=false,aiScene="pyramid",aiNoteHeld=false,aiMuted=false,aiSolo=false,aiDrumsAllowed=false;
 let aiCommandQueue=Promise.resolve();
+// A native chord has one owner. Old note-off timers must never cut a newer chord.
+let aiChordToken=0,aiChordOwner=null;
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
  instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
@@ -1102,7 +1104,7 @@ function toggleAISolo(){
  if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
- $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 SOLO NATIVE AI · MUTE RHYTHM";
+ $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
  updateBrowserOutputGain();updateMix();updateRhythmAudio();updateOverdubBalance();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
   "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
@@ -1274,14 +1276,20 @@ function aiMelody(note,on){
   await aiFetch(on?"note":"note-off",{note});
  }).catch(e=>{$("aiHostStatus").textContent="AI MELODY MIDI ERROR · "+e.message});
 }
-function aiNote(which,index){
- if(!aiNativeReady)return;
- // Serialized to guarantee key-up never overtakes a still-pending key-down.
+function aiNote(which,index,{loopEvent=null,legato=false}={}){
+ if(!aiNativeReady)return null;
+ // Chords still held at DONE are TIED, not reattacked every cycle.
+ if(loopEvent?.sustainAcrossBoundary&&aiChordOwner?.loopEvent===loopEvent
+    &&aiChordOwner.which===which)return aiChordOwner.token;
+ const token=++aiChordToken;
+ aiChordOwner={token,which,loopEvent};
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   if(!aiNativeReady)return;
   if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
-  await aiFetch("chord",{index});aiNoteHeld=true;
+  await aiFetch("chord",legato?{index,legato:true}:{index});
+  aiNoteHeld=true;
  }).catch(e=>{$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message});
+ return token;
 }
 async function toggleAITransport(){
  if(!aiNativeReady){tell("Start Magenta first.");return;}
@@ -1315,9 +1323,11 @@ async function toggleAIDrums(){
  }
  tell(aiDrumsAllowed?"Magenta may generate its own percussion AUDIO. The step grid remains independent GM MIDI.":"Magenta's drum filter requested. Editable GM MIDI drums are still available.");
 }
-function aiRelease(){
+function aiRelease(expectedToken=null){
  if(!aiNativeReady)return;
- // Queue note-off even when note-on is still in flight.
+ if(expectedToken!==null&&aiChordOwner?.token!==expectedToken)return;
+ aiChordOwner=null;
+ // Preserve rapid live tap order: old note-on, old release, new note-on.
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   if(!aiNativeReady)return;
   await aiFetch("release");
@@ -1353,7 +1363,7 @@ function beginChord(which,index,key){
   recording.events.push(h.event);
  }
  // A pad must not double-trigger local synth, CoreMIDI/Logic and native AU.
- if(native)aiNote(which,index);
+ if(native)h.aiChordToken=aiNote(which,index);
  for(const el of document.querySelectorAll(".pad")){
   if(el.dataset.scene===which&&Number(el.dataset.chord)===index)el.classList.add("on");
  }
@@ -1376,7 +1386,7 @@ function endChord(key){
    el.classList.toggle("on",[...heldKeys.values()].some(x=>x.which===h.which&&x.index===h.index));
   }
  }
- if(h.native&&![...heldKeys.values()].some(other=>other.native))aiRelease();
+ if(h.native&&![...heldKeys.values()].some(other=>other.native))aiRelease(h.aiChordToken);
  tell(SCENES[h.which].names[h.index]+" · RELEASED (soft decay)");
 }
 function beginNote(midi,key){
@@ -1507,6 +1517,9 @@ function schedule(time,count){
    if(d.loopToggleAt!==null&&count>=d.loopToggleAt){
     d.loopEnabled=d.loopToggleTarget;
     d.loopToggleAt=null;d.loopToggleTarget=null;
+    // STOP also releases native sustained notes instead of leaving a drone.
+    if(!d.loopEnabled&&aiChordOwner?.which===which&&aiChordOwner.loopEvent)
+      aiRelease(aiChordOwner.token);
     if(d.loopBus)d.loopBus.gain.setTargetAtTime(targetLoopGain(which),time,.018);
     updateLoopControls(which);
     trackView?.draw();
@@ -1573,9 +1586,13 @@ function schedule(time,count){
        const wait=Math.max(0,(time-ctx.currentTime)*1000),revision=seekRevision;
        setTimeout(()=>{
         if(!nativeInstrumentEnabled(which)||revision!==seekRevision||heldKeys.size)return;
-        aiNote(which,e.index);
-        setTimeout(()=>{if(revision===seekRevision&&!heldKeys.size)aiRelease();},
-          Math.max(90,(e.holdSteps||1)*tickSeconds()*1000));
+        const token=aiNote(which,e.index,{loopEvent:e,legato:true});
+        // Key held at DONE continues until the next distinct chord/STOP.
+        // A stale note-off is scoped to the chord it actually belongs to.
+        if(token!==null&&!e.sustainAcrossBoundary)
+         setTimeout(()=>{
+          if(revision===seekRevision&&!heldKeys.size)aiRelease(token);
+         },Math.max(90,(e.holdSteps??1)*tickSeconds()*1000));
        },wait);
       }
     }
@@ -1635,7 +1652,7 @@ function locateTimelineBar(rawBar){
  else if(cue)choose(cue.scene);
  if(stageStarted&&ctx){
   releaseAllChords();
-  if(aiNativeReady&&aiNoteHeld)aiRelease();
+  if(aiNativeReady&&(aiNoteHeld||aiChordOwner))aiRelease();
   // Re-anchor the beat clock; never restart native MRT2 or the microphone.
   const when=ctx.currentTime+.10;
   for(const d of Object.values(decks))for(const layer of d.layers){
@@ -1676,7 +1693,9 @@ async function startStop(){
   await openAudio();
   if(stageStarted){
    parkedBar=currentTransportBar();
-   releaseAllChords();stopVoiceFollow();stopVoiceMonitor();stageStarted=false;clearInterval(playTimer);playTimer=null;
+   releaseAllChords();
+   if(aiChordOwner?.loopEvent)aiRelease(aiChordOwner.token);
+   stopVoiceFollow();stopVoiceMonitor();stageStarted=false;clearInterval(playTimer);playTimer=null;
    if(recording?.kind==="vocal"){
     recording.finished=true;clearTimeout(recording.watchdog);
     recording.processor.port.postMessage({type:"stop"});
@@ -2224,8 +2243,8 @@ arranger=new window.SuzyArrangement({
   if(!ctx||recording||heldKeys.size)return;
   synth(c.scene,c.chord,ctx.currentTime+.04,true,Math.min(2,cycleSeconds()/2));
   if(nativeInstrumentEnabled(c.scene)){
-   aiNote(c.scene,c.chord);
-   setTimeout(()=>{if(!heldKeys.size&&nativeInstrumentEnabled(c.scene))aiRelease();},1400);
+   const token=aiNote(c.scene,c.chord,{legato:true});
+   setTimeout(()=>{if(!heldKeys.size)aiRelease(token);},1400);
   }
  }
 });

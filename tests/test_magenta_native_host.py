@@ -144,8 +144,9 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('private func cancelPendingChordRelease()', source)
         self.assertIn('pendingChordRelease?.cancel()', source)
         self.assertIn('case "chord":', source)
-        self.assertLess(source.index('            noteOff()\n            held = notes[i]'),
-                        source.index('            chordStartedAt = ProcessInfo.processInfo.systemUptime'))
+        self.assertIn('            } else {\n                // Manual taps remain articulated', source)
+        self.assertIn('                noteOff()\n                held = next', source)
+        self.assertIn('                chordStartedAt = ProcessInfo.processInfo.systemUptime', source)
         self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
         self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
 
@@ -218,6 +219,29 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('let app = NSApplication.shared', swift)
         # One generator instance in the same host, no second Popen.
         self.assertEqual(swift.count('AVAudioUnit.instantiate(with:'), 1)
+
+    def test_native_loop_chord_legato_is_optional_and_validated(self):
+        from suzy_ai.music.magenta_native_host import ACTIONS
+        self.assertEqual(ACTIONS["chord"], {"index"})
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('if request["legato"] as? Bool == true {', swift)
+        self.assertIn('let previousNotes = Set(held), nextNotes = Set(next)', swift)
+        self.assertIn('!previousNotes.contains(note)', swift)
+        self.assertIn('!nextNotes.contains(note)', swift)
+        self.assertIn('cancelPendingChordRelease()', swift)
+        # Missing native process is expected; a valid payload must pass schema
+        # validation and reach that check instead of raising ValueError.
+        for action in ({"index": 0}, {"index": 1, "legato": True},
+                       {"index": 1, "legato": False}):
+            with self.subTest(action=action), self.assertRaises(RuntimeError):
+                self.host.command("chord", action)
+        for invalid in ({"index": 0, "legato": "yes"},
+                        {"index": 0, "legato": 1},
+                        {"index": 0, "legato": None},
+                        {"index": 0, "legato": True, "extra": 5}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.host.command("chord", invalid)
 
     def test_five_native_au_prompt_slots_and_live_weights(self):
         from suzy_ai.music.magenta_native_host import PROMPTS, ACTIONS
