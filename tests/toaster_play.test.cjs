@@ -1820,7 +1820,7 @@ test("native loop capture must not claim success when host has no AU audio tap",
  assert.equal(calls.screenCaptures,0);
 });
 
-test("Scarlett voice overdub stays on master period even when DONE is pressed early",async()=>{
+test("Scarlett voice overdub can repeat inside the master without changing its timing",async()=>{
  const {run,calls,get}=rig();await run("startStop()");
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=24;decks.pyramid.anchorStep=0');
  await run('voiceLoop("pyramid")');
@@ -1830,11 +1830,12 @@ test("Scarlett voice overdub stays on master period even when DONE is pressed ea
  run("stepNumber="+(startStep+5)+";ctx.currentTime=recording.startAt+5*tickSeconds()");
  await run('voiceLoop("pyramid")');
  assert.equal(run("recording.finishQueued"),true);
- assert.equal(run("recording.actualSteps"),24,"overdub always retains the existing master period");
+ assert.equal(run("recording.actualSteps"),8,"one sung bar divides the three-bar master");
  calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),frames:Math.round(5*30/105*48000),peak:.12,hot:0,missing:0}});
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.layers[0].buffer.length"),frames);
- assert.equal(run("decks.pyramid.layers[0].bars"),3);
+ assert.equal(run("decks.pyramid.layers[0].buffer.length"),Math.round(frames/3));
+ assert.equal(run("decks.pyramid.layers[0].bars"),1);
+ assert.equal(run("decks.pyramid.lengthSteps"),24,"foundation duration unchanged");
  assert.equal(get("voiceClips-pyramid").children.length,1);
 });
 
@@ -2770,4 +2771,54 @@ test("visible chord pads match dedicated shortcuts and never show Pyramid V",()=
  assert.match(file,/data-scene="fishes" data-chord="3"><kbd>,<\/kbd>/);
  assert.doesNotMatch(file,/<kbd>V<\/kbd>/);
  assert.match(file,/PYRAMID: Z X C · WEIRD FISHES: B N M ,/);
+});
+
+test("instrument mixer controls independent native piano, violin and drum PCM",async()=>{
+ const {run,get,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ for(const [scene,role] of [["pyramid","chords"],["pyramid","lead"],["pyramid","textureLow"],
+  ["pyramid","textureHigh"],["drums","drums"],["pyramid","voice"],
+  ["fishes","chords"],["fishes","lead"],["fishes","voice"]]){
+  assert.match(file,new RegExp('id="roleLevel-'+scene+'-'+role+'"'));
+  assert.equal(typeof get("roleLevel-"+scene+"-"+role).oninput,"function");
+ }
+ const calls=[];
+ env.fetch=async(url,opts)=>{if(String(url).endsWith("/loop-volume"))calls.push(JSON.parse(opts.body));return {ok:true,json:async()=>({})};};
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"p",kind:"printed",instrumentRole:"chords",nativeLive:true,nativeLoopID:"piano",level:.8,muted:false},{id:"v",kind:"printed",instrumentRole:"lead",nativeLive:true,nativeLoopID:"violin",level:.8,muted:false})');
+ run('drumDeck.locked=true;drumDeck.layers.push({id:"d",kind:"printed",instrumentRole:"drums",nativeLive:true,nativeLoopID:"drums",level:.8,muted:false})');
+ get("roleLevel-pyramid-chords").value="25";get("roleLevel-pyramid-chords").oninput();
+ assert.equal(get("roleValue-pyramid-chords").textContent,"25%");
+ assert.ok(Math.abs(run("nativeMemoryGain('pyramid',decks.pyramid.layers[0])")-.2)<.001);
+ assert.ok(Math.abs(run("nativeMemoryGain('pyramid',decks.pyramid.layers[1])")-.8)<.001);
+ get("roleLevel-drums-drums").value="0";get("roleLevel-drums-drums").oninput();
+ assert.equal(run("nativeMemoryGain('drums',drumDeck.layers[0])"),0);
+ await run("aiCommandQueue");
+ assert.ok(calls.some(c=>c.id==="piano"&&Math.abs(c.value-.2)<.001));
+ assert.ok(calls.some(c=>c.id==="drums"&&c.value===0));
+});
+test("browser fallback cello and vocal playback follow their own faders",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"cello",kind:"printed",instrumentRole:"textureLow",buffer:ctx.createBuffer(1,48000,48000),level:.8,muted:false},{id:"vocal",kind:"vocal",buffer:ctx.createBuffer(1,48000,48000),level:.6,muted:false})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0]);startLoopAudio("pyramid",decks.pyramid.layers[1])');
+ get("roleLevel-pyramid-textureLow").value="50";get("roleLevel-pyramid-textureLow").oninput();
+ assert.ok(Math.abs(run("decks.pyramid.layers[0].gain.gain.value")-.4)<.001);
+ assert.ok(Math.abs(run("decks.pyramid.layers[1].gain.gain.value")-.6)<.001);
+ get("roleLevel-pyramid-voice").value="0";get("roleLevel-pyramid-voice").oninput();
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),0);
+ assert.equal(run("decks.pyramid.voiceBus.gain.value"),.65);
+});
+test("short vocal DONE repeats on one bar inside an eight-bar piano loop",async()=>{
+ const {run,calls}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=64;decks.pyramid.anchorStep=0');
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.steps"),64);
+ const frames=run("recording.frames");
+ run("ctx.currentTime=recording.startAt+barDuration();stepNumber=recording.firstStep+8");
+ await run('voiceLoop("pyramid")');
+ assert.equal(run("recording.actualSteps"),8);
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.12),
+  frames:calls.workletMessage.frames,peak:.12,hot:0,missing:0}});
+ assert.equal(run("decks.pyramid.lengthSteps"),64);
+ assert.equal(run("decks.pyramid.layers[0].bars"),1);
+ assert.ok(Math.abs(run("decks.pyramid.layers[0].buffer.duration")-run("barDuration()"))<.0001);
+ assert.equal(run("recording"),null);
 });
