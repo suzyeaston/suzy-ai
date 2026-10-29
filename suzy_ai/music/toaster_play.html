@@ -736,6 +736,11 @@ async function startSetRecording(){
   if($("setRecordMic").checked&&monitoringVoice)
    throw Error("Turn OFF browser microphone monitoring first, or the Scarlett vocal would be recorded twice.");
   // No browser mix-only fallback: that would silently omit the native Google AU.
+  // Unlock the capture AudioContext from the original button click *before*
+  // the macOS sharing picker consumes user activation.
+  const CaptureContext=window.AudioContext||window.webkitAudioContext;
+  audioContext=new CaptureContext();
+  await audioContext.resume();
   display=await navigator.mediaDevices.getDisplayMedia({
    video:{frameRate:1},audio:true,systemAudio:"include",selfBrowserSurface:"include"
   });
@@ -743,9 +748,6 @@ async function startSetRecording(){
    throw Error("Chrome shared the screen WITHOUT SYSTEM AUDIO. Try again, choose Entire Screen and enable Share system audio. Nothing was recorded.");
   // Record precisely what is audible at the Mac output, including the separate
   // native Google AU. Never route this capture into speakers (feedback risk).
-  const CaptureContext=window.AudioContext||window.webkitAudioContext;
-  audioContext=new CaptureContext();
-  await audioContext.resume();
   const destination=audioContext.createMediaStreamDestination();
   systemSource=audioContext.createMediaStreamSource(display);
   analyser=audioContext.createAnalyser();
