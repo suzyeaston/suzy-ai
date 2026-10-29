@@ -2530,6 +2530,8 @@ function removeSongLayer(which,id){
  const d=loopDeck(which),layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  stopLayerWash(layer);stopLayerEcho(layer);
+ if(layer.nativeLive&&layer.nativeLoopID)
+  aiFetch("loop-remove",{id:layer.nativeLoopID}).catch(warn);
  if(layer.source)try{layer.source.stop()}catch{}
  try{layer.filterNode?.disconnect()}catch{}
  // Release a tied native chord before removing the original MIDI take.
@@ -3132,6 +3134,7 @@ function renderInstrumentClips(which){
     layer.muted=!layer.muted;
      if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
      if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.75),ctx.currentTime,.02);
+     if(layer.nativeLive)setNativeMemoryGain(which,layer);
     renderClips(which);
    };
    const fade=document.createElement("input");
@@ -3141,6 +3144,7 @@ function renderInstrumentClips(which){
    fade.oninput=()=>{
     layer.level=Number(fade.value)/100;
     if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.02);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    const remove=document.createElement("button");remove.textContent="×";
    remove.title="Remove only this recorded audio pass";
@@ -3162,6 +3166,10 @@ function renderInstrumentClips(which){
    wash.setAttribute("aria-pressed",String(!!layer.washFx));
    wash.title="Hold a diffused feedback reverb tail from this recorded audio, not the live native AU";
    wash.onclick=()=>toggleLayerWash(which,layer);
+   if(layer.nativeLive){
+    filter.disabled=true;echo.disabled=true;wash.disabled=true;
+    filterLabel.title="Direct Mac audio loop: browser-only filter and FX are unavailable.";
+   }
    row.append(name,mute,fade,filterLabel,echo,wash,remove);box.append(row);
   }
  }
@@ -3193,6 +3201,7 @@ function renderClips(which){
    layer.muted=!layer.muted;
     if(layer.muted){stopLayerWash(layer);stopLayerEcho(layer);}
     if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    renderClips(which);
   };
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
@@ -3204,6 +3213,7 @@ function renderClips(which){
    level.oninput=()=>{
     layer.level=Number(level.value)/100;
     if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.024);
+    if(layer.nativeLive)setNativeMemoryGain(which,layer);
    };
    row.append(level);
   }
