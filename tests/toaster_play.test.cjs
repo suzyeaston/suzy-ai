@@ -1869,7 +1869,7 @@ test("the first native violin take can establish the master phrase without a MID
  assert.equal(run("decks.pyramid.locked"),true);
  assert.ok(run("decks.pyramid.lengthSteps")>=12);
  assert.equal(run("decks.pyramid.layers[0].instrumentRole"),"lead");
- assert.match(get("nativeStatus-pyramid-lead").textContent,/NATIVE LEAD RECORDED/);
+ assert.match(get("nativeStatus-pyramid-lead").textContent,/LOOP PLAYING.*REPEATING/);
 });
 
 test("choosing the Fishes voice box leaves the manual DJ mix unchanged",async()=>{
