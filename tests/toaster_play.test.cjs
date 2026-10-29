@@ -658,7 +658,7 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  get("monitorLevel").value="55";get("monitorReverb").value="28";
  await run("toggleVoiceMonitor()");
  assert.equal(run("monitoringVoice"),true);
- assert.equal(run("monitorDry.gain.value"),.55);
+ assert.equal(run("monitorDry.gain.value"),.55,"explicit 55% user gain wins");
  assert.equal(run("monitorSend.gain.value"),.28);
  assert.equal(get("monitorVoice").textContent.includes("ON"),true);
  assert.match(file,/source.connect\(processor\);processor.connect\(silent\);silent.connect\(ctx.destination\)/);
@@ -1006,7 +1006,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/OVERDUB/);
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1576,6 +1576,58 @@ test("stage UI hides optional local fallback and experimental voice follower wit
  const code=file.slice(file.indexOf("<script>"));
  assert.match(code,/function setSongEnabled\(which\)/);
  assert.match(code,/function updateVoiceEcho\(\)/);
+});
+
+test("removing the final recorded clip resets both record buttons without a page reload",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=9;decks.pyramid.anchorStep=3;decks.pyramid.layers.push({id:"only",kind:"chords",instrument:"keys",muted:false,events:[{step:0,index:0,instrument:"keys"}]})');
+ run('decks.fishes.locked=true;decks.fishes.layers.push({id:"fishes",kind:"chords",events:[{step:0,index:1}]})');
+ run('renderClips("pyramid")');
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
+ run('removeSongLayer("pyramid","only")');
+ assert.equal(run("decks.pyramid.layers.length"),0);
+ assert.equal(run("decks.pyramid.locked"),false);
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.anchorStep"),0);
+ assert.equal(run("decks.pyramid.loopEnabled"),true);
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+ assert.match(get("recordHint-pyramid").textContent,/fresh first loop/);
+ assert.equal(get("loopToggle-pyramid").disabled,true);
+ assert.equal(run("decks.fishes.layers.length"),1,"other song untouched");
+ assert.equal(run("stageStarted"),true,"drum clock stays running");
+ run('record("pyramid")');
+ assert.equal(run("recording.first"),true,"same page can begin a brand-new take");
+});
+test("removing one of two clips keeps the add-layer action until the last one is gone",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"one",kind:"chords",events:[{step:0,index:0}],muted:false},{id:"two",kind:"chords",events:[{step:1,index:1}],muted:false})');
+ run('renderClips("pyramid")');
+ run('removeSongLayer("pyramid","one")');
+ assert.equal(run("decks.pyramid.locked"),true);
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
+ run('removeSongLayer("pyramid","two")');
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+});
+test("locked song routes its record pedal to PCM audio rather than duplicate MIDI",()=>{
+ assert.match(javascript,/if\(d\.locked&&!recording\)return startAudioPrint\(which,false\)/);
+});
+
+test("empty first take restores Record First Loop instead of stale Overdub",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('record("pyramid")');
+ run('recording.active=true;recording.start=1;recording.events=[]');
+ run("endRecord()");
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.layers.length"),0);
+ assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
+});
+test("README teaches record reset and PCM audio overdubs",()=>{
+ const text=fs.readFileSync(path.join(__dirname,"..","README.md"),"utf8");
+ assert.match(text,/Remove every clip|remove each recorded clip/i);
+ assert.match(text,/RECORD FIRST LOOP/);
+ assert.match(text,/OVERDUB AUDIO/);
+ assert.match(text,/PRINT MIDI/);
+ assert.match(text,/same Google Magenta stream/i);
 });
 
 

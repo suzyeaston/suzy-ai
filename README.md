@@ -22,7 +22,7 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 ## 🍞 TOASTER PLAY · two-deck rehearsal instrument (October 27, 2026)
 
-**Start here for a fast, human-led rehearsal.** On the 8 GB performance Mac, the new minimal TOASTER is a browser-local synthesizer, rhythm engine, chord-event looper, basic vocal looper and two-song mixer. No physical Keystation or running Magenta model is required to hear TOASTER's **own** instruments.
+**Start here for a fast, human-led rehearsal.** On the 8 GB performance Mac, TOASTER combines a browser rhythm engine, MIDI chord-event looper, vocal capture, two-song mixer and the separate native Google Magenta RealTime 2 Audio Unit. The chord and lead decks currently default to **NATIVE AI INSTRUMENT**; use their explicit **LOCAL SYNTH INSTRUMENT** switch if you want browser-generated sound without Magenta. Your keyboard is optional: use the onscreen pads or computer shortcuts.
 
 ```bash
 cd ~/Projects/suzy-ai
@@ -98,14 +98,23 @@ At the top are **ROOM FX**, **TONE** and **MASTER**. ROOM FX sends browser piano
 
 **If the model is still silent:** check the live AI status/diagnostics in TOASTER, keep the Scarlett as the macOS output and set audio devices to 48 kHz when required. View native errors with `tail -100 .build/toaster-magenta-stderr.log`. Do not run a second full MRT2 model in Collider, Jam or Logic at the same time on the performance Mac.
 
-### First ten minutes
+### 🍞 TOASTER LIVE · record, layer, reset (October 28, 2026)
 
-1. Keep **mic → BOSS VE-22 → Scarlett Solo USB**, as already wired. Connect headphones to the intended audio output. Click **PLAY RHYTHM**. TOASTER's own soft pulse starts and activates browser audio. With supported Chrome audio output switching, the app prefers the Scarlett; otherwise set **macOS Sound Output** to Scarlett. The output status shows when auto-routing is unavailable.
-2. On **TRACK 01 / PYRAMID**, play chords with computer keys **1, 2, 3, 4**. **Press = note-on; hold = sustained chord; release = soft note-off.** The shortcuts keep working even after clicking PLAY RHYTHM, LOOP MY CHORDS or a song button. Chord pads also sustain while pressed and fade when released. Inputs and text fields are excluded so typing never plays accidental notes. No Keystation needed.
-3. Click **LOOP MY CHORDS**. The app arms at the next two-bar boundary, records **chord note-on plus held duration** for the cycle, then repeats the chord with its actual held length and a natural release tail, rather than cutting off an audio capture at the loop boundary. Click again for another chord layer. Each loop has its own **MUTE** and **× remove**.
-4. Click **🎙 LOOP VOICE**. Allow Chrome's microphone permission once. The app looks for a **Scarlett/Focusrite input** automatically (or uses the selected fallback). Sing via the **existing VE-22 → Scarlett** chain. Vocal capture is browser MediaRecorder audio with approximate boundary timing, not a sample-accurate DAW overdub.
-5. Choose **TRACK 02 / WEIRD FISHES** and layer a second part. Use the **SONGS crossfader** to hear track 1, track 2 or a blend. Each deck retains its own clips and level controls.
-6. Open **Sound settings / devices / export** only if needed to change the BPM, reverb, input/output, or **EXPORT WAV MIX**. The two-bar WAV is rendered offline from unmuted chord-event layers plus genuine recorded vocal / imported AI audio. Export before refreshing or closing Chrome: loops otherwise live only in browser memory.
+This is the **current** live-play workflow. Earlier engineering notes below document historical builds, not the controls to follow onstage. The main interface is `http://127.0.0.1:7345/toaster/live`; the legacy full arrangement ruler and the thin per-song moving timelines are hidden so the loop pedal is the focus.
+
+**Record a new chord phrase:**
+
+1. Connect your headphones and, for vocals, **microphone → BOSS VE-22 → Scarlett Solo USB**. Start **PLAY RHYTHM**. Local rhythm audio has its own **HEAR LOCAL RHYTHM** switch; you do not need to solo all AI audio to keep it playing.
+2. Choose **Pyramid** or **Weird Fishes**. The chord shortcuts are **Z, X, C, V**; the separate chromatic melody shortcuts are **A W S E D F T G Y H U J K**. Each deck defaults to **NATIVE AI INSTRUMENT** (Google MRT2) and has an explicit **LOCAL SYNTH INSTRUMENT** alternative.
+3. Press **● RECORD FIRST LOOP**, play your phrase, and press **DONE** near its musical end. Recording arms at the next short eighth-note clock tick; **your first played note defines the loop start**, removing empty lead-in. DONE closes at the next available scheduled tick, so it may not be precisely instantaneous. The phrase automatically repeats without clicking Play again. Its length is **your recorded phrase**, not a preset number of bars.
+4. Once a phrase exists, the button becomes **＋ OVERDUB AUDIO**. Subsequent takes record **PCM waveforms**, not another MIDI layer. Use **◎ PRINT MIDI → AUDIO** to freeze the first MIDI take only after a non-silent capture is confirmed. **STOP LOOP** pauses playback without deleting a take.
+5. **To start completely over:** remove each recorded clip with **×**, including any other remaining keys, vocal or imported audio clips for that deck. Once its last clip is gone, the deck resets and shows **● RECORD FIRST LOOP** again. No page reload required. Removing clips is destructive for this browser session, so export any take you want to keep first. The other song remains independent.
+
+**Audio layering reminder:** LOCAL SYNTH can record isolated browser sound without capturing earlier printed clips again. NATIVE AI uses Google Magenta in a separate macOS Audio Unit, so Chrome **MAC OUTPUT / system audio** is not an isolated stem and may contain other audible Mac apps or existing loops. Verify that the recorded audio is non-silent before muting its source MIDI. The AI drum prompt shares the same Google Magenta stream.
+
+**Record the complete audible performance:** Use **● RECORD FULL SET** above the rhythm strip, not the per-song MIDI chord record button. Chrome needs **Entire Screen + Share system audio** for the separately routed native Magenta output. The optional **Include Scarlett / VE-22 voice** checkbox adds the verified mic *input*, not the Scarlett's physical headphone-output loopback. Press **STOP & SAVE AUDIO** to download the mixed set; listen to a 10-second test take before relying on it for a show. A granted system audio track does not guarantee every app is audible, so use TOASTER's recording status/level indication.
+
+**Timing limitation:** The first chord phrase remains MIDI until explicitly **PRINT MIDI → AUDIO**. Audio layers follow the song phrase clock, but Chrome and the native Magenta process are not sample-perfectly synchronized. Monitor a short take before depending on system-audio capture in performance.
 
 ### ✦ Real Magenta AU prompt engine (experimental, opt-in)
 

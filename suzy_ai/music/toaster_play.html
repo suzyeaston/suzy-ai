@@ -2067,7 +2067,11 @@ function endRecord(){
  recording=null;$("record-"+r.scene).classList.remove("armed");
  $("record-"+r.scene).textContent="＋ OVERDUB AUDIO";
  $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · press STOP LOOP to pause":"EMPTY · try recording again";
- if(!r.events.length){trackView?.draw();tell("No keys captured. Wait for RECORDING, then play chords or melody.");return;}
+ if(!r.events.length){
+  updateRecordControls(r.scene);
+  trackView?.draw();tell("No keys captured. Press RECORD FIRST LOOP and play a chord after the count-in.");
+  return;
+ }
  if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}
  else {
   // An overdub may begin on any bar. Rephase its events to the original
@@ -2084,20 +2088,33 @@ function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  if(layer.source)try{layer.source.stop()}catch{}
+ // Release a tied native chord before removing the original MIDI take.
+ if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
  if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
  renderClips(which);
+ if(!d.layers.length)tell(which.toUpperCase()+" CLEARED · RECORD FIRST LOOP is ready. No refresh needed.");
+}
+function updateRecordControls(which){
+ const d=decks[which],button=$("record-"+which),hint=$("recordHint-"+which);
+ if((recording?.kind==="chords"&&recording.scene===which)||audioPrint?.which===which)return;
+ const fresh=!d.locked||!d.layers.length;
+ button.classList.remove("armed");
+ button.textContent=fresh?"● RECORD FIRST LOOP":"＋ OVERDUB AUDIO";
+ button.title=fresh
+  ?"Press RECORD, play, then DONE. Your first phrase defines the loop."
+  :"Capture a new PCM waveform without adding duplicate MIDI events. Use PRINT MIDI → AUDIO to freeze the foundation.";
+ if(fresh)hint.textContent="READY · fresh first loop · RECORD → DONE";
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
+ updateRecordControls(which);
  updateLoopControls(which);
  updateOverdubBalance();
  $("count-"+which).textContent=d.layers.length+" loop"+(d.layers.length===1?"":"s");
  trackView?.draw();
  fullTimeline?.render();
  updateVocalState();
- if(!recording||recording.scene!==which)
-  $("record-"+which).textContent=d.locked?"＋ OVERDUB AUDIO":"● RECORD FIRST LOOP";
  updateAudioPrintUI();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
@@ -2267,7 +2284,7 @@ async function startVoiceMonitor(){
  monitorDry.connect(mainBus);monitorSend.connect(verb);
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
- $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent||"Chrome audio output")+" · use headphones, raise Scarlett gain if quiet";
+ $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent?.replace(/^OUTPUT · /,"")||$("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
  updateVocalState();
 }
 function updateVoiceEcho(){

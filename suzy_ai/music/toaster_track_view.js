@@ -113,7 +113,7 @@ class Tracks{
    const head=el("div","track-song-playhead");head.id="track-head-"+which;
    lanes.append(head);column.append(lanes);
    const summary=el("div","track-foot",d.locked
-     ?"Overdubs follow your first phrase. Remove every clip to reset the master loop."
+     ?"PCM overdubs follow the first phrase. PRINT MIDI → AUDIO freezes the original. Remove every clip to reset the master loop."
      :"Record the first KEY or VOICE phrase, then press DONE. That defines the loop length, with no bar selection.");
    column.append(summary);
   }
