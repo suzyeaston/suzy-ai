@@ -305,8 +305,14 @@ a{color:var(--mint)}
 .instrument-lane.texture-orbit{border-color:#85baa8;background:#1c2d32}
 .legacy-song-drawer{border:1px solid #65556b;border-radius:12px;padding:10px;margin-top:15px}
 .legacy-song-drawer>summary{cursor:pointer;color:#d1bbc9;font-size:12px;font-weight:800}
+.legacy-mixer{grid-column:1/-1;border:1px solid #65556b;border-radius:10px;padding:8px}
+.legacy-mixer>summary{cursor:pointer;font-size:12px;font-weight:750;color:#cfb8ca}
+.legacy-mixer>.strip{margin-top:10px}
 .legacy-song-drawer #deck-fishes{margin:12px 0 0}
-#voiceLane-fishes{display:none}
+/* Archived voice take controls remain accessible. */
+.legacy-voice-drawer{grid-column:1/-1;border:1px solid #65556b;border-radius:12px;padding:10px}
+.legacy-voice-drawer>summary{font-size:12px;color:#ccb7ca;cursor:pointer}
+.legacy-voice-drawer #voiceLane-fishes{margin:9px 0}
 
 
 
@@ -377,7 +383,8 @@ a{color:var(--mint)}
   <small id="drumMidiStatus" class="subtle" role="status">Editable two-cycle General MIDI groove. Variation is algorithmic, not MRT2-generated MIDI. Export to Logic as .mid.</small>
  </div>
 </div>
-<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · selecting violin or guitar will NOT move the crossfader.</small>
+<details class="legacy-mixer"><summary>↔ ARCHIVED TWO-SONG MIXER · optional</summary>
+<div class="strip"><div class="strip-header"><strong>🎹 LEGACY SONG MIX</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · selecting violin or guitar will NOT move the crossfader.</small>
 <button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button>
 <div class="dj-transition" aria-label="Automatic DJ-style song transitions">
  <label for="transitionBars">FADE LENGTH</label>
@@ -388,7 +395,7 @@ a{color:var(--mint)}
  <button id="transitionFishes" type="button">TO FISHES ⇢</button>
  <button id="transitionCancel" type="button" disabled>■ STOP FADE</button>
  <span class="dj-status" role="status" id="transitionStatus">READY · manual crossfader</span>
-</div></div>
+</div></div></details>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
 <small class="subtle">Applies to browser mix and native AI reverb</small></div>
@@ -677,12 +684,13 @@ a{color:var(--mint)}
   <div class="lane-status">Mic audio stacks with native instruments · no AI voice imitation</div>
   <div class="lane-clips" id="voiceClips-pyramid"></div>
  </section>
- <section class="instrument-lane" id="voiceLane-fishes" aria-label="Fishes Scarlett voice looping">
+ <details class="legacy-voice-drawer"><summary>↳ Archived second-song voice takes (optional)</summary>
+<section class="instrument-lane" id="voiceLane-fishes" aria-label="Archived Fishes Scarlett voice looping">
   <div class="tiny">🎙 SCARLETT / VE-22 · WEIRD FISHES</div><h3>YOUR VOICE</h3>
   <div class="lane-buttons"><button type="button" id="vocalRecordFishes">● LOOP VOICE</button></div>
   <div class="lane-status">Capture every vocal pass separately · mute, fade or remove</div>
   <div class="lane-clips" id="voiceClips-fishes"></div>
- </section>
+ </section></details>
 </div>
 <div class="vocal-fx-settings">
  <label for="vocalEchoMode">TAPE ECHO <select id="vocalEchoMode">
@@ -2389,6 +2397,9 @@ async function selectNativeLane(which,role){
   await aiFetch("scene",{scene:"fishes"});aiScene="fishes";
   await aiFetch("drums",{value:false});
   await aiFetch("drum-mix",{value:0});
+  aiDrumsAllowed=false;
+  $("aiDrums").setAttribute("aria-pressed","false");
+  $("aiDrums").textContent="🥁 ALLOW AI DRUM AUDIO";
   const weight=role==="textureHigh"?1:0;
   await aiFetch("lead-mix",{scene:"fishes",value:weight});
   await aiFetch("mix",{value:1});
