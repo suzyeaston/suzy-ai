@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
-from suzy_ai.music.magenta_native_host import NativeMagentaHost, PROMPTS, ACTIONS
+from suzy_ai.music.magenta_native_host import NativeMagentaHost, PROMPTS, ACTIONS, native_capture_wav
 
 
 class NativeMRT2Tests(unittest.TestCase):
@@ -373,3 +373,41 @@ class NativeMRT2Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class NativeCaptureSecurityTests(unittest.TestCase):
+    def test_native_wav_is_only_served_by_uuid_inside_fixed_capture_folder(self):
+        capture_id = "12345678-1234-1234-abcd-1234567890ab"
+        with tempfile.TemporaryDirectory() as folder:
+            with patch("suzy_ai.music.magenta_native_host.CAPTURE_DIR", Path(folder)):
+                expected = b"RIFF" + bytes(44)
+                (Path(folder) / (capture_id + ".wav")).write_bytes(expected)
+                self.assertEqual(native_capture_wav(capture_id), expected)
+                for bad in ("../../etc/passwd", "a.wav", capture_id + "/../../secret", "not-a-uuid"):
+                    with self.subTest(bad=bad), self.assertRaises(ValueError):
+                        native_capture_wav(bad)
+                with self.assertRaises(FileNotFoundError):
+                    native_capture_wav("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+    def test_native_capture_command_fields_are_validated_before_host_launch(self):
+        host = NativeMagentaHost(binary=Path("/nonexistent/host"))
+        for operation, args in [
+            ("capture-start", {"seconds": False}),
+            ("capture-start", {"seconds": 500}),
+            ("capture-start", {"seconds": 0}),
+            ("capture-start", {"seconds": "8"}),
+            ("capture-status", {"id": "../outside"}),
+            ("capture-stop", {"id": "not-uuid"}),
+            ("capture-start", {"seconds": 8, "path": "/tmp/out"}),
+        ]:
+            with self.subTest(operation=operation, args=args), self.assertRaises(ValueError):
+                host.command(operation, args)
+        self.assertIsNone(host.process)
+
+    def test_native_audio_tap_not_just_boolean_diagnostics(self):
+        root = Path(__file__).resolve().parents[1]
+        swift = (root / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        for marker in ('func collectNativeCapture(', 'private func startNativeCapture(',
+                       'audio.mainMixerNode.installTap(', 'self?.collectNativeCapture(buffer)',
+                       'case "capture-start":', 'case "capture-stop":',
+                       '"native_loop_capture_supported": generator != nil'):
+            self.assertIn(marker, swift)
