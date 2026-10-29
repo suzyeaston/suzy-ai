@@ -333,7 +333,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'function drumPattern(count)',
                        'function setDrumGroove(meter=drumMeter,style=drumStyle)',
                        'const playedMidi=midi+d.leadOctave;',
-                       'const voice=nativeLead?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
+                       'const voice=(nativeLead||aiSolo)?null:makeVoice(scene,playedMidi,start,instrument,.14,true,"lead");',
                        'DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6})'):
             self.assertIn(marker, page)
         # The same 4/4 recording bar lengths remain intentional.
