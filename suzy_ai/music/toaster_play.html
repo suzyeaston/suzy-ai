@@ -2035,6 +2035,7 @@ async function startStop(){
     d.loopToggleAt=null;d.loopToggleTarget=null;updateLoopControls(which);
    }
    for(const d of Object.values(decks))for(const layer of d.layers){
+    stopLayerWash(layer);stopLayerEcho(layer);
     if(layer.source){try{layer.source.stop()}catch{}layer.source=null;}
    }
    $("rhythm").textContent="▶ PLAY RHYTHM";$("rhythm").setAttribute("aria-pressed","false");
@@ -2181,7 +2182,9 @@ function endRecord(){
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
+ stopLayerWash(layer);stopLayerEcho(layer);
  if(layer.source)try{layer.source.stop()}catch{}
+ try{layer.filterNode?.disconnect()}catch{}
  // Release a tied native chord before removing the original MIDI take.
  if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
@@ -2334,6 +2337,108 @@ async function finishNativeInstrumentTake(){
   updateNativeLaneControls();
  }
 }
+// All DJ effects operate on EXISTING browser PCM buffers only. Google AU
+// prompt generation remains on its separate macOS output, and browser drums
+// never enter these sends. Feedback stays below unity to protect headphones.
+function layerOutputBus(which,layer){
+ return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
+}
+function layerPlaybackPhase(which,layer,at){
+ const origin=transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
+ const offset=(Number(layer.sourceOffsetBars)||0)*8*tickSeconds();
+ return ((at-origin+offset)%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
+}
+function layerFilterFrequency(amount){
+ // 0 = rich/dark, 100 = fully open. Log scale feels natural on a fader.
+ return 320*Math.pow(20000/320,Math.max(0,Math.min(100,Number(amount)))/100);
+}
+function setLayerFilter(which,layer,amount){
+ if(!layer?.buffer)return;
+ layer.filterAmount=Math.max(0,Math.min(100,Number(amount)));
+ if(layer.filterNode&&ctx)
+  layer.filterNode.frequency.setTargetAtTime(layerFilterFrequency(layer.filterAmount),ctx.currentTime,.035);
+}
+function stopLayerWash(layer){
+ if(!layer?.washFx)return;
+ const fx=layer.washFx;
+ layer.washFx=null;
+ if(ctx){
+  for(const feedback of fx.feedbacks)feedback.gain.setTargetAtTime(0,ctx.currentTime,.07);
+  fx.output.gain.setTargetAtTime(0,ctx.currentTime,.11);
+ }
+ setTimeout(()=>{for(const node of fx.nodes)try{node.disconnect()}catch{}},1400);
+}
+function stopLayerEcho(layer){
+ if(!layer?.echoFx)return;
+ const fx=layer.echoFx;
+ layer.echoFx=null;
+ if(ctx){
+  fx.feedback.gain.setTargetAtTime(0,ctx.currentTime,.03);
+  fx.output.gain.setTargetAtTime(0,ctx.currentTime,.07);
+ }
+ setTimeout(()=>{for(const node of fx.nodes)try{node.disconnect()}catch{}},700);
+}
+function makeLayerTransitionSource(which,layer,seconds){
+ if(!ctx||!stageStarted||!layer.buffer)return null;
+ const source=ctx.createBufferSource(),input=ctx.createGain(),now=ctx.currentTime+.012;
+ source.buffer=layer.buffer;source.loop=true;
+ input.gain.value=.28*(layer.level??.75);
+ source.connect(input);
+ source.start(now,layerPlaybackPhase(which,layer,now));
+ source.stop(now+seconds);
+ return {source,input,now};
+}
+function echoOutLayer(which,layer){
+ if(!ctx||!stageStarted||!layer.buffer)return warn(Error("Play a recorded audio loop first."));
+ // Feed one short segment into echoes; NEVER feed the continuously cycling
+ // source to the delay or the echo would never end.
+ stopLayerEcho(layer);
+ const sample=makeLayerTransitionSource(which,layer,.28);
+ if(!sample)return;
+ const delay=ctx.createDelay(2),tone=ctx.createBiquadFilter(),
+       feedback=ctx.createGain(),output=ctx.createGain();
+ delay.delayTime.value=Math.max(.2,Math.min(.8,60/bpm*.75));
+ tone.type="lowpass";tone.frequency.value=4200;tone.Q.value=.55;
+ feedback.gain.value=.44;output.gain.value=.6;
+ sample.input.connect(delay);delay.connect(tone);
+ tone.connect(feedback);feedback.connect(delay);
+ tone.connect(output);output.connect(layerOutputBus(which,layer));
+ const fx={feedback,output,nodes:[sample.source,sample.input,delay,tone,feedback,output]};
+ layer.echoFx=fx;
+ layer.muted=true;
+ if(layer.gain)layer.gain.gain.setTargetAtTime(0,ctx.currentTime,.09);
+ setTimeout(()=>{
+  if(layer.echoFx===fx)stopLayerEcho(layer);
+ },5600);
+ renderClips(which);
+ tell("↝ ECHO OUT · "+(layer.name||"VOICE")+" fades to repeating echoes. UNMUTE to bring the original loop back.");
+}
+function toggleLayerWash(which,layer){
+ if(layer.washFx){stopLayerWash(layer);renderClips(which);return;}
+ if(!ctx||!stageStarted||!layer.buffer)return warn(Error("Play an audio loop before holding a reverb tail."));
+ const sample=makeLayerTransitionSource(which,layer,.34);
+ if(!sample)return;
+ // Two lightly diffused feedback combs create a long, soft reverb hold.
+ // This is a reverb-style ambience, not a spectral freeze of the Google AU.
+ const output=ctx.createGain();output.gain.value=.33;
+ const nodes=[sample.source,sample.input,output],feedbacks=[];
+ for(const seconds of [.167,.239]){
+  const delay=ctx.createDelay(1),filter=ctx.createBiquadFilter(),
+        feedback=ctx.createGain(),send=ctx.createGain();
+  delay.delayTime.value=seconds;
+  filter.type="lowpass";filter.frequency.value=3400;filter.Q.value=.45;
+  feedback.gain.value=.88;send.gain.value=.5;
+  sample.input.connect(delay);
+  delay.connect(filter);filter.connect(send);send.connect(output);
+  filter.connect(feedback);feedback.connect(delay);
+  nodes.push(delay,filter,feedback,send);feedbacks.push(feedback);
+ }
+ output.connect(layerOutputBus(which,layer));
+ layer.washFx={nodes,feedbacks,output};
+ renderClips(which);
+ tell("∞ REVERB HOLD · "+(layer.name||"VOICE")+" ambience sustained. Tap HOLD again to release.");
+}
+
 function renderInstrumentClips(which){
  const d=decks[which];
  for(const role of ["chords","lead","voice"]){
@@ -2368,7 +2473,24 @@ function renderInstrumentClips(which){
    const remove=document.createElement("button");remove.textContent="×";
    remove.title="Remove only this recorded audio pass";
    remove.onclick=()=>removeSongLayer(which,layer.id);
-   row.append(name,mute,fade,remove);box.append(row);
+   const filterLabel=document.createElement("label");filterLabel.textContent="FILTER";
+   const filter=document.createElement("input");
+   filter.type="range";filter.min="0";filter.max="100";
+   filter.value=String(layer.filterAmount??100);filter.className="clip-filter";
+   filter.setAttribute("aria-label",(layer.name||"Voice")+" filter sweep");
+   filter.oninput=()=>setLayerFilter(which,layer,filter.value);
+   filterLabel.append(filter);
+   const echo=document.createElement("button");
+   echo.textContent="↝ ECHO OUT";echo.className="clip-fx";
+   echo.title="Fade this loop and let a short sample echo away; original remains available to unmute";
+   echo.onclick=()=>echoOutLayer(which,layer);
+   const wash=document.createElement("button");
+   wash.textContent=layer.washFx?"∞ RELEASE":"∞ REVERB HOLD";
+   wash.className="clip-fx";
+   wash.setAttribute("aria-pressed",String(!!layer.washFx));
+   wash.title="Hold a diffused feedback reverb tail from this recorded audio, not the live native AU";
+   wash.onclick=()=>toggleLayerWash(which,layer);
+   row.append(name,mute,fade,filterLabel,echo,wash,remove);box.append(row);
   }
  }
 }
@@ -2844,18 +2966,18 @@ async function startAudioPrint(which,freeze=false){
 
 function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
- const src=ctx.createBufferSource(),gain=ctx.createGain();
+ const src=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
  src.buffer=l.buffer;src.loop=true;
  gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
- src.connect(gain);gain.connect(l.kind==="printed"?decks[which].printBus:decks[which].voiceBus);
+ filter.type="lowpass";filter.Q.value=.65;
+ filter.frequency.value=layerFilterFrequency(l.filterAmount??100);
+ src.connect(gain);gain.connect(filter);filter.connect(layerOutputBus(which,l));
  const when=startAt??(ctx.currentTime+.025);
- const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds();
- const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
- const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
+ const phase=layerPlaybackPhase(which,l,when);
  if(stageStarted)src.start(when,phase);
- else{l.source=null;l.gain=null;return;}
-
- l.source=src;l.gain=gain;
+ else{src.disconnect();gain.disconnect();filter.disconnect();l.source=null;l.gain=null;return;}
+ try{l.filterNode?.disconnect()}catch{}
+ l.source=src;l.gain=gain;l.filterNode=filter;
 }
 async function importAudio(file){
  if(!file)return;
