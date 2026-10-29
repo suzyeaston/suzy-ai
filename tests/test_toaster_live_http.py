@@ -191,7 +191,7 @@ class LiveToasterHttpTests(unittest.TestCase):
         self.assertIn('if(r.first){d.locked=true;d.lengthSteps=length;d.anchorStep=r.beginAt;d.loopEnabled=true;}', html)
         self.assertIn('d.pedalPeriodSeconds=clip.duration', html)
         self.assertIn('if(!d.layers.length){', html)
-        self.assertIn('d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;', html)
+        self.assertIn('d.pedalPeriodSeconds=null;d.pedalOriginOffsetSeconds=null;', html)
         self.assertIn('updateRecordControls(which);', html)
         self.assertIn('id="loopToggle-pyramid"', html)
         self.assertIn('id="loopToggle-fishes"', html)
