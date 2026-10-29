@@ -2119,7 +2119,7 @@ function updateRecordControls(which){
  button.title=fresh?"Record your first phrase, then DONE.":
   "Record another independent PCM layer on the SAME phrase, even with the same instrument.";
  hint.textContent=fresh?"READY · fresh first loop · RECORD → DONE":
-  "↻ LOOP STACK · press ADD AUDIO LAYER and play · mute, fade, remove any take";
+  "↻ LOOP PLAYING · ADD AUDIO LAYER to stack another take · mute, fade or remove any pass";
 }
 function renderClips(which){
  const d=decks[which],box=$("clips-"+which);box.replaceChildren();
