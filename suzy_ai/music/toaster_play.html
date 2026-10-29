@@ -2402,6 +2402,8 @@ async function selectNativeLane(which,role){
   $("aiDrums").textContent="🥁 ALLOW AI DRUM AUDIO";
   const weight=role==="textureHigh"?1:0;
   await aiFetch("lead-mix",{scene:"fishes",value:weight});
+  $("aiLeadMix-fishes").value=String(weight*100);
+  $("aiLeadMixValue-fishes").textContent=weight?"CHORDS 0% · LEAD 100%":"CHORDS 100% · LEAD 0%";
   await aiFetch("mix",{value:1});
   $("nativeStatus-pyramid-"+role).textContent="SELECTED · "+nativeLaneLabel(which,role)+" · audio records into Pyramid";
   tell("✦ "+nativeLaneLabel(which,role)+" · Pyramid loop continues unchanged. Z/X/C/V retain your Pyramid harmony.");
