@@ -402,6 +402,9 @@ class LiveToasterHttpTests(unittest.TestCase):
             self.assertIn(marker, page)
         self.assertIn('instrumentSource:"ai"', page)
         self.assertNotIn('midi(which,index);aiNote(which,index);', page)
+        self.assertIn('if(nativeInstrumentEnabled(c.scene)){', page)
+        self.assertIn('if(!heldKeys.size&&nativeInstrumentEnabled(c.scene))aiRelease();', page)
+        self.assertNotIn('if(aiNativeReady){\n   aiNote(c.scene,c.chord);', page)
         self.assertLess(page.index('id="jazzDrumDeck"'), page.index('id="deck-pyramid"'))
 
     def test_authorized_pads_work_without_physical_input(self):
