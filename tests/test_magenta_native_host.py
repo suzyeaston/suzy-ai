@@ -406,7 +406,7 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         self.assertIsNone(host.process)
 
     def test_direct_native_memory_loop_commands_validate_real_time_audio_payloads(self):
-        from suzy_ai.music.magenta_native_host import ACTIONS
+        host = NativeMagentaHost(binary=Path("/nonexistent/MRT2"))
         self.assertEqual(ACTIONS["loop-volume"], {"id", "value"})
         self.assertEqual(ACTIONS["loop-remove"], {"id"})
         uuid = "00000000-0000-4000-8000-000000000001"
@@ -420,7 +420,7 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         ]
         for op, args in valid:
             with self.subTest(valid=(op, args)), self.assertRaises(RuntimeError):
-                self.host.command(op, args)
+                host.command(op, args)
         invalid = [
             ("capture-stop", {"id": uuid, "live_loop": "yes", "preroll_seconds": 0,
                               "period_seconds": 2}),
@@ -434,7 +434,7 @@ class NativeCaptureSecurityTests(unittest.TestCase):
         ]
         for op, args in invalid:
             with self.subTest(invalid=(op, args)), self.assertRaises(ValueError):
-                self.host.command(op, args)
+                host.command(op, args)
 
     def test_native_audio_tap_not_just_boolean_diagnostics(self):
         root = Path(__file__).resolve().parents[1]
