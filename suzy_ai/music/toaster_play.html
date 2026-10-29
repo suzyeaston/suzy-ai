@@ -2903,30 +2903,42 @@ async function finishNativeInstrumentTake(){
   if(!result.ready||!result.audio_url||Number(result.frames)<1000)
    throw Error("Native capture is empty or incomplete.");
   if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
-  const response=await fetch(result.audio_url,{
-   headers:{"X-Suzy-Token":token},cache:"no-store"
-  });
-  if(!response.ok)throw Error("Could not read the native host's recorded WAV ("+response.status+").");
-  await openAudio();
-  const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  const liveStarted=result.native_loop_playing===true;
+  if(liveStarted)
+   el.textContent="↻ NATIVE AUDIO LOOP SCHEDULED · "+Math.round(result.native_loop_scheduled_ms||0)+
+    "ms TO NEXT ORIGINAL DOWNBEAT · NO WAV PLAYBACK WAIT";
+  let recorded=null;
+  try{
+   const response=await fetch(result.audio_url,{
+    headers:{"X-Suzy-Token":token},cache:"no-store"
+   });
+   if(!response.ok)throw Error("Could not read native capture WAV ("+response.status+").");
+   await openAudio();
+   recorded=await ctx.decodeAudioData(await response.arrayBuffer());
+  }catch(e){
+   // The native loop is already live. Never lose the only STOP control merely
+   // because the optional waveform/WAV download was delayed or unavailable.
+   if(!liveStarted)throw e;
+   tell("NATIVE LOOP IS PLAYING · optional waveform WAV unavailable; saved live controls stay available.");
+  }
   const d=loopDeck(which);
   // First audio length MUST span whole rhythm bars, not the AU WAV's
    // arbitrary sample count (including capture-start and STOP HTTP jitter).
    const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
     Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
-  const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
-  const inputs=Array.from({length:buffer.numberOfChannels},
-   (_,channel)=>recorded.getChannelData(channel));
+  const buffer=recorded?ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate):null;
+  const inputs=buffer?Array.from({length:buffer.numberOfChannels},
+   (_,channel)=>recorded.getChannelData(channel)):[];
   let shifted=0;
   if(take.first){
     // Capture began before the musician's green beat-one cue; drop pre-roll.
-    writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
+    if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
     d.locked=true;d.lengthSteps=masterSteps;
     d.anchorStep=take.beginStep;d.loopEnabled=true;
-    d.pedalPeriodSeconds=buffer.duration;
+    d.pedalPeriodSeconds=buffer?.duration||periodSeconds;
     d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
    }else{
-   shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
+   if(buffer)shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
   const nativeLive=result.native_loop_playing===true;
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
