@@ -428,7 +428,7 @@ test("app opens with automatic Magenta status, audible browser graph and editabl
  assert.ok(run("mixFilter")!==null);
  assert.ok(run("beatBus")!==null);
  assert.ok(run("wet")!==null);
- assert.equal(run("getPromptStrings().length"),4);
+ assert.equal(run("getPromptStrings().length"),5);
 });
 test("room and tone effect controls work for synth, rhythm, imported loops and native AI",async()=>{
  const {run,get,calls}=rig();await run("startStop()");
@@ -934,7 +934,7 @@ test("next-bar overdub events rephase to existing master anchor instead of drift
 });
 test("repair keeps native four-prompt design and VE-22 microphone controls unchanged",()=>{
  const {get,run}=rig();
- assert.equal(run("getPromptStrings().length"),4);
+ assert.equal(run("getPromptStrings().length"),5);
  assert.ok(file.includes('id="promptViolin"'));
  assert.ok(file.includes('id="promptGuitar"'));
  assert.ok(file.includes('id="testMic"'));
