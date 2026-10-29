@@ -321,7 +321,7 @@ a{color:var(--mint)}
   <small id="drumMidiStatus" class="subtle" role="status">Editable two-cycle General MIDI groove. Variation is algorithmic, not MRT2-generated MIDI. Export to Logic as .mid.</small>
  </div>
 </div>
-<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
+<div class="strip"><div class="strip-header"><strong>🎹 SONGS</strong><span class="stat" id="mixValue">50 / 50</span></div><input id="mix" aria-label="Pyramid and Fishes crossfade" type="range" min="0" max="100" value="0"><small class="subtle">Left: Pyramid / Right: Fishes · playing a chord will not reset this blend</small><button id="mixBoth" type="button" aria-pressed="false">♫ LAYER BOTH SONGS</button></div>
 <div class="strip"><div class="strip-header"><strong>🌫 ROOM FX</strong><span class="stat" id="roomValue">30%</span></div>
 <input id="reverb" aria-label="Room reverb for browser keys, rhythm, vocal loops and Magenta" type="range" min="0" max="85" value="30">
 <small class="subtle">Applies to browser mix and native AI reverb</small></div>
@@ -391,6 +391,7 @@ a{color:var(--mint)}
 <button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>F♯</b></button>
 </div>
 <div class="instrument-source" aria-label="pyramid instrument audio source">
+ <button type="button" id="songEnabled-pyramid" aria-pressed="true">🔊 PYRAMID ON</button>
  <strong>INSTRUMENT AUDIO</strong>
  <button id="instrumentSource-pyramid" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
  <small id="instrumentSourceStatus-pyramid" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
@@ -402,7 +403,7 @@ a{color:var(--mint)}
  <input id="aiLeadMix-pyramid" type="range" min="0" max="100" value="0" aria-label="pyramid Magenta lead prompt weight">
  <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
-<details class="song-lead-panel" aria-label="pyramid optional local fallback instrument">
+<details class="song-lead-panel" aria-label="pyramid optional local fallback instrument" hidden aria-hidden="true">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
  <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>violin</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
@@ -443,6 +444,7 @@ a{color:var(--mint)}
 <button class="pad" data-scene="fishes" data-chord="3"><kbd>V</kbd><b>Gmaj7</b></button>
 </div>
 <div class="instrument-source" aria-label="fishes instrument audio source">
+ <button type="button" id="songEnabled-fishes" aria-pressed="true">🔊 FISHES ON</button>
  <strong>INSTRUMENT AUDIO</strong>
  <button id="instrumentSource-fishes" type="button" aria-pressed="true">✦ NATIVE AI INSTRUMENT</button>
  <small id="instrumentSourceStatus-fishes" class="subtle">Only Google Magenta sounds the keys and melody. Browser rhythm and vocals remain independent.</small>
@@ -454,7 +456,7 @@ a{color:var(--mint)}
  <input id="aiLeadMix-fishes" type="range" min="0" max="100" value="0" aria-label="fishes Magenta lead prompt weight">
  <small>Native MRT2 prompt slots. When NATIVE AI INSTRUMENT is selected, Z X C V and A–K steer Magenta only, while the optional browser drum rhythm and vocals can remain audible. One AI stereo stream, not separate stems.</small>
 </div>
-<details class="song-lead-panel" aria-label="fishes optional local fallback instrument">
+<details class="song-lead-panel" aria-label="fishes optional local fallback instrument" hidden aria-hidden="true">
  <summary>🎹 LOCAL SYNTH FALLBACK · optional, not Google Magenta</summary>
  <div class="lead-head">✧ LOCAL SYNTH FALLBACK · <strong>classical guitar</strong><small>A–K melody keys, independent of the Z X C V chords</small></div>
  <div class="lead-controls">
@@ -490,7 +492,7 @@ a{color:var(--mint)}
 <section class="live-voice-monitor" aria-label="Live lead vocal headphone monitoring">
 <div class="start"><div><div class="tiny">LEAD VOICE · HEADPHONES</div>
 <h2>Hear your voice as you sing</h2>
-<p class="subtle">Optional live dry + reverb monitoring through the selected browser audio output. Recording and looping still work with monitoring off. Use headphones, not speakers. Turn OFF Scarlett direct monitoring to prevent doubling or echo.</p></div></div>
+<p class="subtle">Scarlett mic INPUT is separate from headphone output. The signal meter proves input, not monitoring. MONITOR VOICE lets you hear it through Chrome; recording works with monitoring off. For a very quiet meter, raise VE-22 / Scarlett hardware gain. Turn OFF Scarlett direct monitoring to avoid doubled sound.</p></div></div>
 <div class="monitor-controls">
 <label for="micInput">VOICE INPUT · VE-22 THROUGH SCARLETT
 <select id="micInput" aria-describedby="micStatus"><option value="">Detect Scarlett</option></select></label>
@@ -499,7 +501,7 @@ a{color:var(--mint)}
 <label for="micMeter">LIVE MIC SIGNAL <meter id="micMeter" min="0" max="1" value="0" style="width:130px"></meter></label>
 <span id="micPeakLive" role="status">NO TEST YET · sing into the VE-22</span>
 <button type="button" id="monitorVoice" aria-pressed="false">🎙 MONITOR VOICE · OFF</button>
-<label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="100" value="55"></label>
+<label>LEAD LEVEL <input id="monitorLevel" type="range" min="0" max="200" value="110"></label>
 <label>LIVE REVERB <input id="monitorReverb" type="range" min="0" max="75" value="28"></label>
 <span id="monitorStatus" role="status">MONITOR OFF · not recording</span>
 </div>
@@ -507,7 +509,7 @@ a{color:var(--mint)}
   <strong id="vocalRecordState">○ VOCAL RECORDER · IDLE</strong>
  <button type="button" id="vocalRecordPyramid">● RECORD PYRAMID VOICE</button>
  <button type="button" id="vocalRecordFishes">● RECORD FISHES VOICE</button>
-  <span id="vocalLoopState">No vocal loops yet. Monitoring alone never records or loops.</span>
+  <span id="vocalLoopState">VOICE PEDAL · Record → sing → Done → repeat. No bar selection.</span>
 </div>
 <div class="vocal-fx-settings">
  <label for="vocalEchoMode">TAPE ECHO <select id="vocalEchoMode">
@@ -520,7 +522,7 @@ a{color:var(--mint)}
 </div>
 <p class="vocal-fx-note">Echo applies to live monitoring and recorded vocal loops. Your original microphone recording stays dry. No additional download, model, or CPU-heavy plugin.</p>
 </section>
-<section class="voice-ai-follow" aria-label="Voice controlled AI accompaniment">
+<section class="voice-ai-follow" aria-label="Experimental voice controlled AI accompaniment" hidden aria-hidden="true">
 <div class="start"><div><div class="tiny">VOICE → AI · EXPERIMENTAL</div>
 <h2>Sing to steer Magenta</h2>
 <p class="subtle">TOASTER can follow your sung pitch from the Scarlett and send MIDI notes to the existing *instrumental* MRT2 model. Your microphone stays local. This does not create a synthetic singer or reproduce words; the VE-22 is still your vocal harmony option.</p></div>
