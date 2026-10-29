@@ -8,6 +8,18 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## 🎻 TOASTER performer-first instrument lanes (native AU capture, experimental)
+
+The performance page now groups the real sound sources into independent loop boxes: **Pyramid piano, Pyramid violin, Weird Fishes arpeggios, Weird Fishes classical guitar**, plus **Scarlett / VE-22 microphone voice** for each song. The tempo, browser rhythm, song crossfade and master levels remain at the top. Each recorded waveform has its own MUTE, fader and × remove; the existing browser rhythm is **not** an instrument overdub lane.
+
+- Tap **PLAY VIOLIN** (or another native instrument) to select its **actual Google Magenta prompt**. Five text prompts are configured, but a prompt whose weight is zero is not being generated. Selecting the instrument sets its lead/chord weight and song mix, disables solo modes and silences the AI jazz-drum prompt for a clean instrument capture.
+- Tap **LOOP VIOLIN** and play. The Swift host's **existing AVAudioEngine main-mixer tap** now captures genuine native AU PCM to a bounded temporary WAV, transferred through an authenticated localhost endpoint. This uses **no Chrome screen sharing** and does **not** substitute a local browser synth. On the **first** loop, press DONE to establish the phrase duration; subsequent audio recordings use one fixed pass and stack without changing the established cycle.
+- Repeat to record more violin audio, change to piano or guitar, or add a **SCARLETT VOICE** loop. Every audio pass is an individual looping buffer; deleting or fading one does not destroy the others. Subsequent vocal overdubs are silence-padded to the existing master loop even if DONE is pressed early, preventing a shorter independent voice-loop period.
+- **Important AU limitation:** Google MRT2 currently provides **one native stereo output**, not independently generatable instrument stems. To make distinct tracks, capture the selected prompt in sequence and then replay its saved PCM while selecting the next prompt. Native capture can include reverb and any simultaneously sounding native material; prompt isolation and a true sample-accurate browser ↔ AU clock have not been guaranteed by Google's API. Browser rhythm is separate and never enters this native tap.
+- **Deployment:** Update the repo, rebuild the native host using `bash scripts/build-toaster-magenta.sh`, then restart the local `magenta_stage` server so it launches the new host executable. The browser refuses native capture if its host still reports `native_loop_capture_supported: false`. Capture files are consumed after the localhost download and the playable layers remain in browser memory, so export your important loops before refreshing.
+
+**QA status:** macOS host compilation and automated no-hardware tests are required; the actual 48 kHz Magenta, Scarlett, browser output and loop synchronization must still be verified on the performance Mac. Do not call this validated for a show based on CI alone.
+
 ## 🎚 Sound-on-sound PCM audio looper (October 28, 2026, experimental)
 
 **Goal:** Build a set by capturing the *sound*, not replaying extra MIDI notes. You can progressively accumulate individual audio takes and take them away with per-layer MUTE and independent AUDIO LEVEL faders. Sound is buffered in browser memory; export important takes before reloading. **This feature is not yet validated on the performance Scarlett/Magenta rig.**
