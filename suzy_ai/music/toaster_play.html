@@ -255,6 +255,14 @@ a{color:var(--mint)}
 .instrument-source strong{font-size:11px}
 .instrument-source button{padding:7px 11px;font-size:11px}
 .instrument-source .subtle{font-size:11px}
+.audio-loop-pedal{margin-top:10px;border:1px solid #a8d5c3;background:#17282c;border-radius:12px;padding:10px}
+.audio-loop-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.audio-loop-actions button{padding:8px 10px;font-size:12px}
+.audio-loop-actions label{display:flex;gap:6px;align-items:center;color:#b4e0d7;font:700 11px ui-monospace,monospace}
+.audio-loop-actions select{max-width:300px}
+.audio-loop-pedal small{display:block;font-size:11px;color:#e5c8d1;margin-top:7px}
+.layer-level{width:94px!important;accent-color:#b1f0d0}
+
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
 #fullArrangement[hidden]{display:none!important}
@@ -432,6 +440,18 @@ a{color:var(--mint)}
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
 <div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="audio-loop-pedal" aria-label="pyramid sound-on-sound audio layers">
+ <div class="audio-loop-actions">
+  <button type="button" id="printMidi-pyramid" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
+  <label>NEW AUDIO LAYER SOURCE <select id="printSource-pyramid" aria-label="pyramid new audio layer source">
+   <option value="mac">✦ MAC OUTPUT · native Magenta / AI drums (system audio)</option>
+   <option value="keys">🎹 LIVE LOCAL KEYS · exclude existing loops</option>
+   <option value="rhythm">🥁 BROWSER RHYTHM · clocked groove</option>
+  </select></label>
+  <button type="button" id="overdubAudio-pyramid">＋ RECORD AUDIO LAYER</button>
+ </div>
+ <small id="audioPrintStatus-pyramid" role="status">Printed audio is a waveform, not MIDI. Each layer has independent mute and volume. Mac output capture requires Chrome system-audio sharing and can include other playing Mac apps or loops.</small>
+ </div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -485,6 +505,18 @@ a{color:var(--mint)}
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
 <div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="audio-loop-pedal" aria-label="fishes sound-on-sound audio layers">
+ <div class="audio-loop-actions">
+  <button type="button" id="printMidi-fishes" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
+  <label>NEW AUDIO LAYER SOURCE <select id="printSource-fishes" aria-label="fishes new audio layer source">
+   <option value="mac">✦ MAC OUTPUT · native Magenta / AI drums (system audio)</option>
+   <option value="keys">🎹 LIVE LOCAL KEYS · exclude existing loops</option>
+   <option value="rhythm">🥁 BROWSER RHYTHM · clocked groove</option>
+  </select></label>
+  <button type="button" id="overdubAudio-fishes">＋ RECORD AUDIO LAYER</button>
+ </div>
+ <small id="audioPrintStatus-fishes" role="status">Printed audio is a waveform, not MIDI. Each layer has independent mute and volume. Mac output capture requires Chrome system-audio sharing and can include other playing Mac apps or loops.</small>
+ </div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -639,7 +671,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false;
+let vocalCaptureReady=false,audioPrint=null;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
@@ -662,7 +694,7 @@ let aiCommandQueue=Promise.resolve();
 let aiChordToken=0,aiChordOwner=null;
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,enabled:true,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ printBus:null,instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
@@ -839,6 +871,9 @@ async function openAudio(){
     d.liveBus=ctx.createGain();d.liveBus.connect(d.bus);
      d.leadBus=ctx.createGain();d.leadBus.gain.value=Number($("leadLevel-"+k).value)/100;d.leadBus.connect(d.bus);
     d.loopBus=ctx.createGain();d.loopBus.connect(d.bus);
+    // Printed PCM lives on its own bus. Never feed it back into a MIDI
+    // capture tap or let native-only source selection silence it.
+    d.printBus=ctx.createGain();d.printBus.connect(mainBus);d.printBus.connect(verb);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
   }
   // Shared low-memory voice send. Both live mic and stored vocal loops stay DRY.
@@ -1723,7 +1758,7 @@ function schedule(time,count){
    }
    for(const layer of d.layers){
     if(!layer.buffer||!layer.gain)continue;
-    layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?.65:0,time);
+    layer.gain.gain.setValueAtTime(songLayerAudible(which,layer,count/8)?(layer.level??.65):0,time);
    }
   }
  }
@@ -1899,6 +1934,8 @@ async function startStop(){
     try{recording.source.disconnect();recording.processor.disconnect();recording.silent.disconnect()}catch{}
     $("vocal-"+recording.scene).textContent="🎙 LOOP VOICE";
    }
+   if(audioPrint&&cleanupAudioPrint(audioPrint,true))
+    warn(Error("Rhythm stopped; incomplete sound-on-sound audio take discarded."));
    if(recording)warn(Error("Recording stopped with rhythm; discard incomplete take."));
    recording=null;
    for(const [which,d] of Object.entries(decks)){
@@ -1945,7 +1982,14 @@ async function timelineRewind(){
 }
 function record(which){
  if(!stageStarted)return warn(Error("Start PLAY RHYTHM before recording."));
+ if(audioPrint){
+  if(audioPrint.which===which&&!audioPrint.freeze)return finishAudioPrint();
+  return warn(Error("Finish the active audio print first."));
+ }
  const d=decks[which];
+ // MIDI conditions only the initial phrase. All following recording passes
+ // print REAL waveform audio to a separate, independently fadeable clip.
+ if(d.locked&&!recording)return startAudioPrint(which,false);
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish the current take first."));
   if(recording.finishQueued)return tell("DONE queued · playback starts at the next short clock tick.");
@@ -1971,14 +2015,7 @@ function record(which){
   return;
  }
  if(d.locked&&(!d.loopEnabled||d.loopToggleAt!==null))
-  return warn(Error("Restart the saved loop before recording another layer."));
- // Do not accidentally double a recorded local keyboard patch. The first
- // chord layer stays intact; a genuinely different timbre is a separate layer.
- if(d.locked&&d.instrumentSource==="local"&&d.layers.some(layer=>
-   layer.kind==="chords"&&(layer.events||[]).some(event=>
-    (event.instrument||layer.instrument||"keys")===d.instrument))){
-  return warn(Error("That LOCAL SYNTH sound is already in this loop. Choose a DIFFERENT NEW LAYER SOUND (pad, pluck or bass) before ADD INSTRUMENT LAYER. Remove every clip to record a new first take."));
- }
+  return warn(Error("Restart the saved loop before overdubbing."));
  choose(which);
  // Never require the performer to select a length. One click arms on the next
  // free eighth-note boundary; DONE chooses this first master-loop duration.
@@ -1989,11 +2026,8 @@ function record(which){
  $("record-"+which).textContent="◉ ARMED · NEXT PULSE";
  $("recordHint-"+which).textContent="WAIT · begin on the next pulse, then press DONE";
  trackView?.draw();
- tell(d.locked
-  ?(d.instrumentSource==="ai"
-    ?"LAYER ARMED · Native Magenta is ONE shared AI sound; NEW LAYER SOUND changes only LOCAL SYNTH timbre. Recorded MIDI will join the current AI harmony."
-    :"NEW INSTRUMENT LAYER · plays over the saved phrase, using the selected LOCAL SYNTH sound.")
-  :"FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
+ tell(d.locked?"OVERDUB starts on next pulse and uses the original loop length.":
+  "FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
 }
 function endRecord(){
  if(!recording||recording.kind!=="chords")return;
@@ -2031,6 +2065,7 @@ function endRecord(){
   }
  }
  recording=null;$("record-"+r.scene).classList.remove("armed");
+ $("record-"+r.scene).textContent="＋ OVERDUB AUDIO";
  $("recordHint-"+r.scene).textContent=r.events.length?"↻ LOOP PLAYING · press STOP LOOP to pause":"EMPTY · try recording again";
  if(!r.events.length){
   updateRecordControls(r.scene);
@@ -2047,33 +2082,28 @@ function endRecord(){
  d.layers.push({id:crypto.randomUUID(),kind:"chords",events:r.events,muted:false,bars:length/8,
  instrument:r.events[0]?.instrument||"keys",arrStartBar:Math.max(0,Math.floor((r.first?r.beginAt:d.anchorStep)/8))});
  renderClips(r.scene);
- tell("↻ LOOPING · repeating your "+r.scene.toUpperCase()+" phrase from its FIRST note. Choose ADD INSTRUMENT LAYER for a new sound, or STOP LOOP to pause.");
+ tell("↻ MIDI FOUNDATION LOOPING · PRINT MIDI → AUDIO to freeze its sound; future takes record audio waveforms.");
 }
 function removeSongLayer(which,id){
  const d=decks[which],layer=d.layers.find(l=>l.id===id);
  if(!layer)return;
  if(layer.source)try{layer.source.stop()}catch{}
- // A tied native chord from a deleted layer must stop as well.
+ // Release a tied native chord before removing the original MIDI take.
  if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
- if(!d.layers.length){
-  d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;
-  d.loopToggleAt=null;d.loopToggleTarget=null;
- }
+ if(!d.layers.length){d.locked=false;d.lengthSteps=16;d.anchorStep=0;d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;}
  renderClips(which);
  if(!d.layers.length)tell(which.toUpperCase()+" CLEARED · RECORD FIRST LOOP is ready. No refresh needed.");
 }
 function updateRecordControls(which){
  const d=decks[which],button=$("record-"+which),hint=$("recordHint-"+which);
- if(recording?.kind==="chords"&&recording.scene===which)return;
- // Derive the visible recording action from real saved layers, never stale text.
- // Removing every clip must return to FIRST LOOP without reloading the page.
+ if((recording?.kind==="chords"&&recording.scene===which)||audioPrint?.which===which)return;
  const fresh=!d.locked||!d.layers.length;
  button.classList.remove("armed");
- button.textContent=fresh?"● RECORD FIRST LOOP":"＋ ADD INSTRUMENT LAYER";
+ button.textContent=fresh?"● RECORD FIRST LOOP":"＋ OVERDUB AUDIO";
  button.title=fresh
-  ?"Start fresh: press RECORD, play, then DONE. Your phrase defines the loop."
-  :"Record a new layer into the existing loop. For LOCAL SYNTH choose a different NEW LAYER SOUND first; native Magenta is one shared AI output.";
+  ?"Press RECORD, play, then DONE. Your first phrase defines the loop."
+  :"Capture a new PCM waveform without adding duplicate MIDI events. Use PRINT MIDI → AUDIO to freeze the foundation.";
  if(fresh)hint.textContent="READY · fresh first loop · RECORD → DONE";
 }
 function renderClips(which){
@@ -2085,13 +2115,29 @@ function renderClips(which){
  trackView?.draw();
  fullTimeline?.render();
  updateVocalState();
+ updateAudioPrintUI();
  if(!d.layers.length){const s=document.createElement("span");s.className="subtle";s.textContent="No loops yet";box.append(s);return;}
  d.layers.forEach((layer,i)=>{
   const row=document.createElement("span");row.className="clip"+(layer.muted?" muted":"");
-  const name=document.createElement("span");name.textContent=(layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
-  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{layer.muted=!layer.muted;if(layer.gain)layer.gain.gain.value=songLayerAudible(which,layer,Math.floor(stepNumber/8))?.65:0;renderClips(which);};
+  const name=document.createElement("span");name.textContent=(layer.kind==="printed"?"🔊 "+layer.name:layer.kind==="chords"?"🎹 "+(INSTRUMENTS[layer.instrument]?.name||"Keys"):layer.kind==="vocal"?"🎙 Voice":"✦ AI")+" Loop "+(i+1);
+  const mute=document.createElement("button");mute.textContent=layer.muted?"UNMUTE":"MUTE";mute.onclick=()=>{
+   layer.muted=!layer.muted;
+   if(layer.gain)layer.gain.gain.setTargetAtTime(layer.muted?0:(layer.level??.65),ctx.currentTime,.018);
+   renderClips(which);
+  };
   const remove=document.createElement("button");remove.textContent="×";remove.title="Remove loop";remove.onclick=()=>removeSongLayer(which,layer.id);
-  row.append(name,mute,remove);box.append(row);
+  row.append(name,mute);
+  if(layer.kind==="printed"){
+   const level=document.createElement("input");level.type="range";level.min="0";level.max="100";
+   level.value=String(Math.round((layer.level??1)*100));level.className="layer-level";
+   level.title="Independent PCM audio layer volume";level.setAttribute("aria-label",layer.name+" audio level");
+   level.oninput=()=>{
+    layer.level=Number(level.value)/100;
+    if(layer.gain&&!layer.muted)layer.gain.gain.setTargetAtTime(layer.level,ctx.currentTime,.024);
+   };
+   row.append(level);
+  }
+  row.append(remove);box.append(row);
  });
 }
 function stopMicMeter(){
@@ -2272,6 +2318,7 @@ async function toggleVoiceMonitor(){
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
+ if(audioPrint)return warn(Error("Finish the audio print before recording your voice."));
  if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
   if(take.finishQueued)return tell("DONE queued · vocal loop closing on the next pulse.");
@@ -2372,12 +2419,146 @@ async function voiceLoop(which){
   warn(e);
  }
 }
+
+function updateAudioPrintUI(){
+ for(const which of Object.keys(decks)){
+  const active=audioPrint?.which===which, busy=!!audioPrint;
+  $("printMidi-"+which).disabled=busy||!decks[which].locked||
+    !decks[which].layers.some(l=>l.kind==="chords"&&!l.muted);
+  $("overdubAudio-"+which).disabled=busy&&!active||!decks[which].locked;
+  $("overdubAudio-"+which).textContent=active&&!audioPrint.freeze?
+   (audioPrint.finishQueued?"↻ SAVING AUDIO…":"■ DONE AUDIO → LOOP"):"＋ RECORD AUDIO LAYER";
+  $("printMidi-"+which).textContent=active&&audioPrint.freeze?"● PRINTING ONE CYCLE…":"◎ PRINT MIDI → AUDIO";
+ }
+}
+function cleanupAudioPrint(take,discard=false){
+ if(take.finished)return false;
+ take.finished=true;clearTimeout(take.watchdog);
+ if(discard)try{take.processor.port.postMessage({type:"stop"})}catch{}
+ for(const n of take.sources)try{n.disconnect(take.processor)}catch{}
+ try{take.processor.disconnect();take.silent.disconnect()}catch{}
+ try{take.display?.getTracks().forEach(t=>t.stop())}catch{}
+ if(audioPrint===take)audioPrint=null;
+ updateAudioPrintUI();
+ return true;
+}
+function finishAudioPrint(){
+ const take=audioPrint;
+ if(!take||take.freeze||take.finishQueued)return;
+ if(stepNumber<=take.startStep)return tell("AUDIO ARMED · play at the next pulse.");
+ const end=Math.min(take.steps,Math.max(1,
+  Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds())-take.startStep,stepNumber-take.startStep));
+ take.finishQueued=true;
+ // Worklet fills the uncaptured remainder with silence, not copied loops.
+ take.processor.port.postMessage({type:"finish",frames:Math.round(end*tickSeconds()*ctx.sampleRate)});
+ $("audioPrintStatus-"+take.which).textContent="DONE ✓ · saving audio and preserving the original phrase length.";
+ updateAudioPrintUI();
+}
+function savedAudioPrint(take,result){
+ if(!cleanupAudioPrint(take))return;
+ const {data,peak,missing}=result;
+ if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==take.frames)
+  return warn(Error("PCM capture incomplete. No audio layer saved."));
+ if(Number(peak||0)<.001)
+  return warn(Error("Captured silence. Original MIDI has NOT been muted. Check source and audio level."));
+ const clip=ctx.createBuffer(1,take.frames,ctx.sampleRate),samples=clip.getChannelData(0);
+ samples.set(data);
+ const fade=Math.min(Math.round(ctx.sampleRate*.003),Math.floor(take.frames/4));
+ for(let i=0;i<fade;i++){const g=i/Math.max(1,fade);samples[i]*=g;samples[samples.length-1-i]*=g;}
+ const d=decks[take.which];
+ const name=take.freeze?"PRINTED MIDI":take.mode==="rhythm"?"RHYTHM TAKE":
+  take.mode==="mac"?"MAC / MAGENTA TAKE":"LOCAL KEYS TAKE";
+ const layer={kind:"printed",name,id:crypto.randomUUID(),buffer:clip,level:1,muted:false,
+  loopOriginStep:take.startStep,arrStartBar:Math.floor(take.startStep/8),source:null,gain:null};
+ d.layers.push(layer);
+ if(take.freeze){
+  for(const l of d.layers)if(l.kind==="chords")l.muted=true;
+  if(aiChordOwner?.which===take.which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
+ }
+ if(take.mode==="rhythm"&&!take.freeze){rhythmAudioEnabled=false;updateRhythmAudio();}
+ startLoopAudio(take.which,layer);
+ renderClips(take.which);
+ $("audioPrintStatus-"+take.which).textContent="✓ "+name+
+  " IS PRINTED AUDIO · independently mute/fade each take"+
+  (take.mode==="mac"?" · Mac capture may also contain other apps or previous loops.":".");
+ if(missing>0)warn(Error("Audio capture missed "+missing+" samples."));
+ tell("✓ SAVED "+name+" AS ACTUAL AUDIO · turn it down or mute it without changing MIDI notes.");
+}
+async function startAudioPrint(which,freeze=false){
+ if(audioPrint){
+  if(audioPrint.which===which&&!freeze)return finishAudioPrint();
+  return warn(Error("Finish the active audio take first."));
+ }
+ if(recording||setRecorder)return warn(Error("Finish the other recording first."));
+ const d=decks[which];
+ if(!stageStarted||!d.locked||!d.loopEnabled)
+  return warn(Error("Start the rhythm and record your first phrase before printing audio."));
+ if(freeze&&!d.layers.some(l=>l.kind==="chords"&&!l.muted))
+  return warn(Error("There is no unmuted MIDI layer to print."));
+ const mode=freeze?(d.instrumentSource==="local"?"midi":"mac"):$("printSource-"+which).value;
+ if((mode==="midi"||mode==="keys")&&d.instrumentSource!=="local")
+  return warn(Error("LOCAL KEYS capture needs the LOCAL SYNTH source. Use MAC OUTPUT for native Magenta."));
+ if(mode==="rhythm"&&!rhythmCanSound())
+  return warn(Error("Enable HEAR LOCAL RHYTHM before capturing the beat."));
+ if(mode==="mac"&&!aiNativeReady)
+  return warn(Error("Start native Magenta and select the model before capturing MAC OUTPUT."));
+ let display=null,processor=null,silent=null,sources=[],take=null;
+ try{
+  await openAudio();
+  if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Chrome AudioWorklet needed to print audio.");
+  if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
+  let macSource=null;
+  if(mode==="mac"){
+   if(!navigator.mediaDevices?.getDisplayMedia)throw Error("Chrome system-audio capture is unavailable.");
+   $("audioPrintStatus-"+which).textContent="SHARE ENTIRE SCREEN + SYSTEM AUDIO · other Mac sounds may enter this take";
+   display=await navigator.mediaDevices.getDisplayMedia({
+    video:{frameRate:1},audio:true,systemAudio:"include",selfBrowserSurface:"include"
+   });
+   if(!display.getAudioTracks?.().some(t=>t.readyState==="live"))
+    throw Error("No Mac system audio was shared. Nothing recorded.");
+   macSource=ctx.createMediaStreamSource(display);
+  }
+  const now=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds())+1);
+  const startStep=freeze?nextSongBoundary(which,now):now;
+  const start=transportEpoch+startStep*tickSeconds(),steps=d.lengthSteps;
+  const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
+  if(frames>ctx.sampleRate*120)throw Error("Audio phrase longer than 120-second capture limit.");
+  processor=new AudioWorkletNode(ctx,"suzy-vocal-capture",{
+   numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],
+   processorOptions:{startFrame:Math.round(start*ctx.sampleRate),frames}});
+  silent=ctx.createGain();silent.gain.value=0;
+  processor.connect(silent);silent.connect(ctx.destination);
+  if(mode==="mac"){macSource.connect(processor);sources=[macSource];}
+  else if(mode==="midi"){d.loopBus.connect(processor);sources=[d.loopBus];}
+  else if(mode==="rhythm"){beatBus.connect(processor);sources=[beatBus];}
+  else{d.liveBus.connect(processor);d.leadBus.connect(processor);sources=[d.liveBus,d.leadBus];}
+  take={which,freeze,mode,processor,silent,sources,display,startStep,steps,frames,
+   finished:false,finishQueued:false,watchdog:null};
+  audioPrint=take;
+  processor.port.onmessage=e=>{if(e.data?.type==="complete")savedAudioPrint(take,e.data);};
+  take.watchdog=setTimeout(()=>{
+   if(cleanupAudioPrint(take,true))warn(Error("Audio take timed out; discarded incomplete capture."));
+  },Math.max(0,(start-ctx.currentTime+steps*tickSeconds()+3)*1000));
+  $("audioPrintStatus-"+which).textContent=freeze?
+   "● PRINTING ORIGINAL MIDI · will mute the MIDI only after successfully capturing sound":
+   "● AUDIO RECORD ARMED · play the instrument or rhythm; press DONE. Independent PCM layer.";
+  updateAudioPrintUI();
+ }catch(e){
+  try{processor?.port.postMessage({type:"stop"});processor?.disconnect();silent?.disconnect()}catch{}
+  for(const n of sources)try{n.disconnect(processor)}catch{}
+  try{display?.getTracks().forEach(t=>t.stop())}catch{}
+  if(audioPrint===take)audioPrint=null;
+  updateAudioPrintUI();
+  warn(e);$("audioPrintStatus-"+which).textContent="NOT RECORDING · "+(e?.message||e);
+ }
+}
+
 function startLoopAudio(which,l,startAt=null){
  if(!ctx||!l.buffer)return;
  const src=ctx.createBufferSource(),gain=ctx.createGain();
  src.buffer=l.buffer;src.loop=true;
- gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?.65:0;
- src.connect(gain);gain.connect(decks[which].voiceBus);
+ gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?(l.level??.65):0;
+ src.connect(gain);gain.connect(l.kind==="printed"?decks[which].printBus:decks[which].voiceBus);
  const when=startAt??(ctx.currentTime+.025);
  const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds();
  const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
@@ -2418,6 +2599,7 @@ function updateMix(){
   const side=k==="pyramid"?(1-x):x;
   decks[k].bus.gain.value=localInstrumentAudible(k)?level*side:0;
   decks[k].voiceBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:Number($("voice-"+k).value)/100*side;
+  if(decks[k].printBus)decks[k].printBus.gain.value=localKeysOnly||aiSolo||!decks[k].enabled?0:level*side;
  }
 }
 async function readAndExport(){
@@ -2580,7 +2762,7 @@ trackView=new window.SuzyTrackView({
   const layer=decks[which].layers.find(l=>l.id===id);
   if(!layer)return;
   layer.muted=!layer.muted;
-  if(layer.gain)layer.gain.gain.value=layer.muted?0:.65;
+  if(layer.gain)layer.gain.gain.value=layer.muted?0:(layer.level??.65);
   renderClips(which);
  },
  onRemove:removeSongLayer
@@ -2638,6 +2820,10 @@ for(const which of Object.keys(decks)){
  updateKeyUI(which);
 }
 for(const k of Object.keys(decks)){
+ $("printMidi-"+k).onclick=()=>startAudioPrint(k,true);
+ $("overdubAudio-"+k).onclick=()=>startAudioPrint(k,false);
+ $("printSource-"+k).value=decks[k].instrumentSource==="ai"?"mac":"keys";
+ updateAudioPrintUI();
  $("select-"+k).onclick=()=>choose(k);
  $("record-"+k).onclick=()=>record(k);
  $("loopToggle-"+k).onclick=()=>toggleLoop(k);

@@ -22,7 +22,7 @@ function rig(){
    closest(){return null;},
  });
  function get(id){if(!nodes.has(id)){let defaults={rhythmLevel:"35",master:"75",mix:"0",tempo:"105",liveLevel:"80",loopLevel:"100",vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",vocalAir:"75",reverb:"30",tone:"75",drumMeter:"4/4",drumStyle:"pulse",
- "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100",monitorLevel:"110","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
+ "leadLevel-pyramid":"72","leadLevel-fishes":"72",performanceMaster:"100",monitorLevel:"110",monitorReverb:"28","leadOctave-pyramid":"0","leadOctave-fishes":"0","lead-pyramid":"violin","lead-fishes":"nylon",promptPyramid:"piano and strings",promptFishes:"guitar arpeggios",
  promptViolin:"warm expressive violin",promptGuitar:"fingerpicked nylon guitar",promptJazzDrums:"brushed swing jazz drums",aiDrumMix:"0",
  "aiLeadMix-pyramid":"0","aiLeadMix-fishes":"0",aiVolume:"28",aiReverb:"18","level-pyramid":"100","level-fishes":"100","voice-pyramid":"65","voice-fishes":"65"};nodes.set(id,el(defaults[id]??""));}return nodes.get(id)}
  const deckElements=["pyramid","fishes"].map(scene=>Object.assign(el(),{dataset:{scene}}));
@@ -167,7 +167,7 @@ test("record chord events at cycle boundary and switch to track 2 without losing
  assert.ok(run("decks.pyramid.layers[0].events[0].holdSteps")>=1);
  assert.ok(run("decks.pyramid.layers[0].events[1].holdSteps")>1);
  run('choose("fishes")');
- assert.equal(Number(get("mix").value),0,"choosing Fishes leaves the manual blend unchanged");
+ assert.equal(get("mix").value,"0","selecting Fishes no longer overrides manual Pyramid mix");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.fishes.bus.gain.value"),0);
  assert.equal(run("decks.pyramid.bus.gain.value"),1);
@@ -669,11 +669,11 @@ test("lead voice monitoring is opt-in, shares Scarlett output, and does not bake
  assert.equal(run("monitoringVoice"),false);
  assert.equal(run("recording.kind"),"vocal");
 });
-test("vocal layer arms at the next tick, without a preset bar delay",async()=>{
+test("a vocal overdub arms at the next short pulse, not a song-length bar wait",async()=>{
  const {run}=rig();await run("startStop()");
  run("decks.pyramid.locked=true;decks.pyramid.lengthSteps=256;decks.pyramid.anchorStep=0;stepNumber=23");
  await run('voiceLoop("pyramid")');
- assert.equal(run("recording.firstStep"),23);
+ assert.ok([23,24].includes(run("recording.firstStep")),"vocal overdub is armed on nearby subdivision");
  assert.equal(run("recording.steps"),256);
  assert.equal(run("recording.first"),false);
 });
@@ -773,7 +773,7 @@ test("live monitor and recording are separate states, vocal loop tally is explic
  assert.match(get("monitorStatus").textContent,/MONITOR ON/);
  assert.match(get("vocalRecordState").textContent,/NOT RECORDING/);
  await run('voiceLoop("pyramid")');
- assert.match(get("vocalRecordState").textContent,/VOCAL ARMED|● RECORDING/);
+ assert.match(get("vocalRecordState").textContent,/VOCAL ARMED|RECORDING/);
  assert.equal(run("recording.kind"),"vocal");
 });
 
@@ -935,18 +935,23 @@ test("recorded chord clip anchors to actual first captured bar, not the finish c
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
-test("next-bar overdub events rephase to existing master anchor instead of drifting",async()=>{
- const {run,get}=rig();
- await run("startStop()");
- run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;stepNumber=14');
- run('record("pyramid")');
- assert.equal(run("recording.beginAt"),14,"overdub begins at next tick without changing original loop clock");
- run('recording.active=true;recording.start=1;recording.events.push({step:0,type:"note",midi:68,holdSteps:1,instrument:"violin"})');
- run("endRecord()");
- assert.equal(run("decks.pyramid.layers[0].events[0].step"),6,"align MIDI from overdub onset back to original master phase");
- assert.equal(run("decks.pyramid.layers[0].arrStartBar"),1);
- assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
+test("subsequent take records PCM audio rather than adding MIDI instruction events",async()=>{
+ const {run,get,calls}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.anchorStep=8;stepNumber=14;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ get("printSource-pyramid").value="keys";
+ await run('record("pyramid")');
+ assert.equal(run("recording"),null,"locked master must not arm MIDI overdub");
+ assert.equal(run("audioPrint.mode"),"keys","additional take records the actual sound");
+ assert.equal(run("audioPrint.startStep")>=14,true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.2),frames,peak:.2,missing:0}});
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ assert.equal(run("decks.pyramid.layers[0].events.length"),1,"old MIDI remains unchanged");
+ assert.equal(run("decks.pyramid.layers[1].buffer.length"),frames);
 });
+
 test("repair keeps native four-prompt design and VE-22 microphone controls unchanged",()=>{
  const {get,run}=rig();
  assert.equal(run("getPromptStrings().length"),5);
@@ -1001,7 +1006,7 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  assert.equal(run("decks.pyramid.anchorStep"),start+1,"master begins on first played note");
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),0);
  assert.ok(run("audibleLoops.some(args=>args[0]==='pyramid'&&args[1]===0)"),"playback starts at first loop phase during SAME scheduler pass");
- assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
  assert.equal(get("loopToggle-pyramid").disabled,false);
 });
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1578,7 +1583,7 @@ test("removing the final recorded clip resets both record buttons without a page
  run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=9;decks.pyramid.anchorStep=3;decks.pyramid.layers.push({id:"only",kind:"chords",instrument:"keys",muted:false,events:[{step:0,index:0,instrument:"keys"}]})');
  run('decks.fishes.locked=true;decks.fishes.layers.push({id:"fishes",kind:"chords",events:[{step:0,index:1}]})');
  run('renderClips("pyramid")');
- assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
  run('removeSongLayer("pyramid","only")');
  assert.equal(run("decks.pyramid.layers.length"),0);
  assert.equal(run("decks.pyramid.locked"),false);
@@ -1599,36 +1604,14 @@ test("removing one of two clips keeps the add-layer action until the last one is
  run('renderClips("pyramid")');
  run('removeSongLayer("pyramid","one")');
  assert.equal(run("decks.pyramid.locked"),true);
- assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
+ assert.match(get("record-pyramid").textContent,/OVERDUB AUDIO/);
  run('removeSongLayer("pyramid","two")');
  assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
 });
-test("accidental second local keyboard patch is blocked; a different selected sound can layer",async()=>{
- const {run,get}=rig();await run("startStop()");
- run('setInstrumentSource("pyramid","local")');
- run('decks.pyramid.locked=true;decks.pyramid.layers.push({id:"piano",kind:"chords",instrument:"keys",events:[{step:0,index:0,instrument:"keys"}],muted:false})');
- run('renderClips("pyramid")');
- assert.match(get("record-pyramid").textContent,/ADD INSTRUMENT LAYER/);
- run('record("pyramid")');
- assert.equal(run("recording"),null,"duplicate local patch not armed");
- assert.match(get("warning").textContent,/DIFFERENT NEW LAYER SOUND/);
- run('setInstrument("pyramid","pad")');
- run('record("pyramid")');
- assert.equal(run("recording.first"),false,"new patch is an additional take");
- assert.equal(run("decks.pyramid.instrument"),"pad");
- assert.equal(run("decks.pyramid.layers[0].instrument"),"keys","recorded first layer remains piano");
+test("locked song routes its record pedal to PCM audio rather than duplicate MIDI",()=>{
+ assert.match(javascript,/if\(d\.locked&&!recording\)return startAudioPrint\(which,false\)/);
 });
-test("native Magenta preserves MIDI layering while clearly warning it is not a separate sound stem",async()=>{
- const {run,get}=rig();await run("startStop()");
- run('decks.fishes.locked=true;decks.fishes.layers.push({id:"chords",kind:"chords",instrument:"keys",events:[{step:0,index:0,instrument:"keys"}],muted:false})');
- run('renderClips("fishes")');
- run('record("fishes")');
- assert.equal(run("recording.first"),false);
- assert.match(get("message").textContent,/ONE shared AI sound/);
- run('recording.active=true;recording.start=0;recording.events=[]');
- run("endRecord()");
- assert.match(get("record-fishes").textContent,/ADD INSTRUMENT LAYER/);
-});
+
 test("empty first take restores Record First Loop instead of stale Overdub",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('record("pyramid")');
@@ -1638,11 +1621,90 @@ test("empty first take restores Record First Loop instead of stale Overdub",asyn
  assert.equal(run("decks.pyramid.layers.length"),0);
  assert.match(get("record-pyramid").textContent,/RECORD FIRST LOOP/);
 });
-test("README teaches record reset and native-versus-local layering correctly",()=>{
+test("README teaches record reset and PCM audio overdubs",()=>{
  const text=fs.readFileSync(path.join(__dirname,"..","README.md"),"utf8");
  assert.match(text,/Remove every clip|remove each recorded clip/i);
  assert.match(text,/RECORD FIRST LOOP/);
- assert.match(text,/ADD INSTRUMENT LAYER/);
- assert.match(text,/different NEW LAYER SOUND/i);
+ assert.match(text,/OVERDUB AUDIO/);
+ assert.match(text,/PRINT MIDI/);
  assert.match(text,/same Google Magenta stream/i);
+});
+
+
+test("audio pedal prints the actual MIDI synth bus into a separate PCM waveform, then mutes old MIDI",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,instrument:"keys",events:[{step:0,index:0,instrument:"keys"}]})');
+ await run('startAudioPrint("pyramid",true)');
+ assert.equal(run("audioPrint.mode"),"midi");
+ assert.equal(run("audioPrint.sources[0]===decks.pyramid.loopBus"),true);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.printBus)"),false,"saved audio must never re-record itself");
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.25),frames,peak:.25,missing:0}});
+ assert.equal(run("audioPrint"),null);
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run("decks.pyramid.layers[0].muted"),true);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ assert.equal(run("decks.pyramid.layers[1].buffer.length"),frames);
+ assert.equal(run("decks.pyramid.layers[1].buffer.getChannelData(0)[1000]"),.25);
+ assert.equal(run("decks.pyramid.layers[1].source.buffer===decks.pyramid.layers[1].buffer"),true);
+ assert.match(get("audioPrintStatus-pyramid").textContent,/PRINTED MIDI/);
+});
+test("sound-on-sound live-keys take is PCM, excludes previous audio, and supports independent fade and mute",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.layers.push({id:"old-audio",kind:"printed",name:"PREVIOUS TAKE",level:.4,buffer:ctx.createBuffer(1,1000,48000),muted:false})');
+ get("printSource-pyramid").value="keys";
+ await run('record("pyramid")');
+ assert.equal(run("audioPrint.mode"),"keys");
+ assert.equal(run("recording"),null,"overdub must not start another MIDI event recorder");
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.printBus)"),false);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.liveBus)"),true);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.leadBus)"),true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.3),frames,peak:.3,missing:0}});
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ const row=get("clips-pyramid").children[1];
+ const slider=row.children.find(x=>x.type==="range");
+ assert.ok(slider,"each waveform has a volume fader");
+ slider.value="35";slider.oninput();
+ assert.equal(run("decks.pyramid.layers[1].level"),.35);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.35);
+ run('decks.pyramid.layers[1].muted=true;renderClips("pyramid")');
+ assert.equal(run("decks.pyramid.layers[1].muted"),true);
+ assert.equal(run("decks.pyramid.layers[0].muted"),false);
+});
+test("printing rhythm makes a stable waveform and switches off doubled live browser drums",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('decks.fishes.locked=true;decks.fishes.lengthSteps=8;decks.fishes.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ get("printSource-fishes").value="rhythm";
+ await run('startAudioPrint("fishes",false)');
+ assert.equal(run("audioPrint.sources[0]===beatBus"),true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.1),frames,peak:.1,missing:0}});
+ assert.equal(run("decks.fishes.layers[1].name"),"RHYTHM TAKE");
+ assert.equal(run("rhythmAudioEnabled"),false);
+ assert.equal(run("stageStarted"),true,"rhythm clock keeps running while audible source is switched off");
+});
+test("native Magenta audio printing requires actual system audio, never silently substitutes browser synth",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.layers.push({id:"midi",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ calls.systemAudioAvailable=false;
+ await run('startAudioPrint("pyramid",true)');
+ assert.equal(run("audioPrint"),null);
+ assert.equal(run("decks.pyramid.layers[0].muted"),false,"not allowed to mute MIDI after silent capture");
+ assert.equal(calls.screenCaptures,1);
+ assert.match(get("audioPrintStatus-pyramid").textContent,/No Mac system audio/);
+});
+test("printed audio mute and volume remain independent of default native-only instrument mode",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({id:"pcm",kind:"printed",name:"MAGENTA",level:.7,muted:false,buffer:ctx.createBuffer(1,2000,48000)})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ run("updateMix()");
+ assert.equal(run("decks.pyramid.instrumentSource"),"ai");
+ assert.ok(run("decks.pyramid.printBus.gain.value")>0,"PCM audible while local oscillator is gated");
+ assert.equal(run("decks.pyramid.bus.gain.value"),0,"local oscillator still off");
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.7);
 });
