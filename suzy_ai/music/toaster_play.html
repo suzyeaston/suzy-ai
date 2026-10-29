@@ -3110,7 +3110,7 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
 // Start on the next render quantum, not the next metronome tick or bar.
 // The first audible phrase becomes an exact-sample master period.
 const start=ctx.currentTime+.04;
-const firstStep=Math.floor((start-transportEpoch)/tickSeconds());
+const firstStep=Math.max(0,Math.floor((start-transportEpoch)/tickSeconds()));
 const duration=first?120:(d.pedalPeriodSeconds||steps*tickSeconds());
   const frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
