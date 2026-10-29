@@ -307,7 +307,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'd.voiceBus.connect(vocalEchoInput)',
             'monitorFilter.connect(vocalEchoInput)',
             'songLayerAudible(which,l,bar)',
-            'MONITOR ON · dry vocal + FX · see recorder state below',
+            'MONITOR ON → ',
             'Browser loops only · Native Magenta independent',
         ):
             self.assertIn(implementation, page)
