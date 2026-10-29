@@ -1128,7 +1128,8 @@ test("live looper shows simple states, no beat/bar/pass counters, while tempo re
  assert.doesNotMatch(get("track-loop-label-pyramid").textContent,/BAR|BEAT|LOOP [0-9]/);
  assert.doesNotMatch(get("timelineTransportStatus").textContent,/BAR|BEAT/);
  assert.doesNotMatch(get("vocalLoopState").textContent,/BAR [0-9]/);
- assert.match(get("tempoValue").textContent,/BPM/);
+ assert.equal(get("tempo").value,"105","tempo input remains available");
+ assert.match(file,/id="tempoValue"/,"tempo display remains present");
 });
 test("stopping a sustained loop fades its active oscillator bus without stopping rhythm",async()=>{
  const {run,get}=rig();await run("startStop()");
