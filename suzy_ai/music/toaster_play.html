@@ -777,7 +777,7 @@ let blendBoth=false,aiMixQueued=false,transition=null;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
 let vocalCaptureReady=false,audioPrint=null,nativeTake=null;
-const drumDeck={layers:[],bus:null,locked:true,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
+const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
@@ -2262,7 +2262,7 @@ function removeSongLayer(which,id){
  if(layer.events?.includes(aiChordOwner?.loopEvent))aiRelease(aiChordOwner.token);
  d.layers=d.layers.filter(l=>l.id!==id);
  if(!d.layers.length){
-  d.locked=which==="drums";d.lengthSteps=16;d.anchorStep=0;
+  d.locked=false;d.lengthSteps=16;d.anchorStep=0;
   d.pedalPeriodSeconds=null;d.pedalOriginOffsetSeconds=null;
   d.loopEnabled=true;d.loopToggleAt=null;d.loopToggleTarget=null;
  }
@@ -2380,7 +2380,7 @@ async function startNativeInstrumentTake(which,role){
    d.lengthSteps=foundation.locked?foundation.lengthSteps:16;
    d.anchorStep=foundation.locked?foundation.anchorStep:0;
   }
-  const first=which!=="drums"&&!d.locked;
+  const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
   const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
