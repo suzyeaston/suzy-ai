@@ -2524,6 +2524,20 @@ async function selectNativeLane(which,role){
  activeNativeLane=which+":"+role;
  tell("✦ LIVE MAGENTA "+nativeLaneLabel(which,role)+" · play notes while old PCM layers continue.");
 }
+// One sample-clock period for native instruments, Magenta drums and vocals.
+function inheritPedalPeriod(which){
+ const d=loopDeck(which);
+ if(d.locked)return d;
+ const foundation=which==="drums"?decks[scene]:drumDeck;
+ if(!foundation.locked)return d;
+ d.locked=true;
+ d.lengthSteps=foundation.lengthSteps;
+ d.anchorStep=foundation.anchorStep;
+ d.pedalPeriodSeconds=foundation.pedalPeriodSeconds||foundation.lengthSteps*tickSeconds();
+ d.pedalOriginOffsetSeconds=Number.isFinite(foundation.pedalOriginOffsetSeconds)?
+  foundation.pedalOriginOffsetSeconds:foundation.anchorStep*tickSeconds();
+ return d;
+}
 async function startNativeInstrumentTake(which,role){
  // Native prompt setup/HTTP requests must finish before recording begins.
  // The arming latch prevents rapid taps launching overlapping capture sessions.
@@ -2543,20 +2557,7 @@ async function startNativeInstrumentTake(which,role){
    throw Error("Native AU PCM recording unavailable. Rebuild the TOASTER Magenta host; do not use screen-share substitutes.");
   await selectNativeLane(which,role);
   if(!stageStarted)throw Error("Rhythm paused while preparing native recording. Press Play and try again.");
-  const d=loopDeck(which);
-  // One live loop pedal, not an independent drum clock.
-// The first recording (song or drums) owns the PCM period and phase.
-if(!d.locked){
- const foundation=which==="drums"?decks[scene]:drumDeck;
- if(foundation.locked){
-  d.locked=true;
-  d.lengthSteps=foundation.lengthSteps;
-  d.anchorStep=foundation.anchorStep;
-  d.pedalPeriodSeconds=foundation.pedalPeriodSeconds||foundation.lengthSteps*tickSeconds();
-  d.pedalOriginOffsetSeconds=Number.isFinite(foundation.pedalOriginOffsetSeconds)?
-   foundation.pedalOriginOffsetSeconds:foundation.anchorStep*tickSeconds();
- }
-}
+  const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
   const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
   const requestAt=ctx.currentTime;
@@ -3104,7 +3105,7 @@ take.processor.port.postMessage({type:"finish",frames:take.actualFrames});
   const stream=await enableMic();
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
   if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
-  const d=decks[which];
+  const d=inheritPedalPeriod(which);
   const first=!d.locked;
   const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
 // Start on the next render quantum, not the next metronome tick or bar.
