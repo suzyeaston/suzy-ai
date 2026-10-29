@@ -155,7 +155,7 @@ class LiveToasterHttpTests(unittest.TestCase):
             'id="tracks-pyramid"', 'id="tracks-fishes"',
             '/toaster/track-view.js', 'window.SuzyTrackView',
             'songCycleSteps(which)', 'songCycleSeconds(which)',
-            'const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds()', 'function nextSongBoundary(which,n)',
+            'const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds()', 'function nextSongBoundary(which,n)',
             'r.first', 'recording.endAt', 'firstStep',
             'ctx.sampleRate*120', '"vocal"', 'd.anchorStep=r.beginAt',
             'd.lengthSteps=length', 'Math.min(256',
@@ -275,7 +275,7 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'monitorSource.connect(monitorFilter)',
                        'monitorDry.connect(mainBus)',
                        'monitorSend.connect(verb)',
-                       'const firstStep=Math.ceil((stepNumber+1)/8)*8',
+                       'const firstStep=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()))',
                        'arrStartBar:Math.max(0,Math.floor(take.firstStep/8))',
                        'function toggleLocalKeysOnly()',
                        'onAction:({action,selected,target,clipboard})',
@@ -460,3 +460,25 @@ class LiveToasterHttpTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+    def test_phrase_defined_vocals_song_mutes_and_native_mix_persist(self):
+        status, page = self.call("GET", "/toaster/live")
+        self.assertEqual(status, 200)
+        for literal in (
+            'id="vocalRecordPyramid"', 'id="vocalRecordFishes"',
+            'id="songEnabled-pyramid"', 'id="songEnabled-fishes"',
+            'id="performanceMaster"', 'function effectiveSongMix()',
+            'function setSongEnabled(which)', 'function queueNativeSongMix()',
+            'take.actualSteps=endStep-take.firstStep',
+            'processor.port.postMessage({type:"finish"',
+            'loopOriginStep:take.firstStep', 'await findDevices();',
+        ):
+            self.assertIn(literal, page)
+        self.assertIn('class="song-lead-panel" aria-label="pyramid optional local fallback instrument" hidden', page)
+        self.assertIn('class="voice-ai-follow" aria-label="Experimental voice controlled AI accompaniment" hidden', page)
+        self.assertNotIn('const bars=d.locked?d.lengthSteps/8:d.initialBars;', page)
+        self.assertNotIn('if(scene!==which&&!blendBoth){$("mix").value=', page)
+        status, rack = self.call("GET", "/toaster/track-view.js")
+        self.assertEqual(status, 200)
+        self.assertNotIn('track-first-size', rack)
+        self.assertIn('DONE VOICE → LOOP', rack)
