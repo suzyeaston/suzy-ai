@@ -325,9 +325,6 @@ class NativeMRT2Tests(unittest.TestCase):
                     self.host._register_installed_au(app_paths=[app])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_native_percussion_filter_is_audio_generation_control_not_drum_midi(self):
         swift = (Path(__file__).resolve().parents[1]
                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
@@ -338,3 +335,7 @@ if __name__ == "__main__":
         self.assertIn('"drum_filter_parameter_readback"', swift)
         self.assertIn('aiDrumsAllowed = allowed;configure()', swift)
         self.assertNotIn('rawMIDI([0x99', swift)
+
+
+if __name__ == "__main__":
+    unittest.main()
