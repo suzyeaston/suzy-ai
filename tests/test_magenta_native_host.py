@@ -33,6 +33,9 @@ class NativeMRT2Tests(unittest.TestCase):
             ("tempo", {"bpm": 240}), ("tempo", {"bpm": True}),
             ("note", {"note": -1}), ("note", {"note": 128}),
             ("note-off", {"note": "60"}),
+            ("drum-mix", {"value": -0.1}),
+            ("drum-mix", {"value": 1.1}),
+            ("drum-mix", {"value": "0.3"}),
         ]
         for cmd,data in invalid:
             with self.subTest(action=cmd, data=data), self.assertRaises(ValueError):
@@ -216,24 +219,30 @@ class NativeMRT2Tests(unittest.TestCase):
         # One generator instance in the same host, no second Popen.
         self.assertEqual(swift.count('AVAudioUnit.instantiate(with:'), 1)
 
-    def test_four_native_au_prompt_slots_and_live_weights(self):
+    def test_five_native_au_prompt_slots_and_live_weights(self):
         from suzy_ai.music.magenta_native_host import PROMPTS, ACTIONS
         self.assertEqual(list(PROMPTS), [
-            "pyramid", "fishes", "pyramid_violin", "fishes_guitar",
+            "pyramid", "fishes", "pyramid_violin", "fishes_guitar", "jazz_drums",
         ])
         self.assertEqual(ACTIONS["lead-mix"], {"scene", "value"})
         self.assertIn("violin", PROMPTS["pyramid_violin"])
         self.assertIn("nylon", PROMPTS["fishes_guitar"])
+        self.assertIn("brushed", PROMPTS["jazz_drums"])
+        self.assertEqual(ACTIONS["drum-mix"], {"value"})
         swift = (Path(__file__).resolve().parents[1]
                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
-        self.assertIn('list.count == 4', swift)
-        self.assertIn('state["MGRT_Prompts"] = weighted + (0..<2)', swift)
+        self.assertIn('list.count == 5', swift)
+        self.assertIn('state["MGRT_Prompts"] = weighted + (0..<1)', swift)
         for address in range(10, 16):
             self.assertIn(f'parameter({address},', swift)
         self.assertIn('case "lead-mix":', swift)
         self.assertIn('leadMix[which] = Float(x);configure()', swift)
         self.assertIn('"prompt_slot_count": prompts.count', swift)
-        self.assertIn('"prompt_weights": (10...13).map', swift)
+        self.assertIn('"prompt_weights": (10...14).map', swift)
+        self.assertIn('parameter(14, drumBlend)', swift)
+        self.assertIn('let music = 1.0 - drumBlend', swift)
+        self.assertIn('case "drum-mix":', swift)
+        self.assertIn('drumBlend = Float(x);configure()', swift)
         # Original primary prompt wording is intentionally unchanged.
         self.assertIn(PROMPTS["pyramid"], swift)
         self.assertIn(PROMPTS["fishes"], swift)
@@ -255,6 +264,7 @@ class NativeMRT2Tests(unittest.TestCase):
             {"prompts": ["", "nice"]},
             {"prompts": ["a" * 501, "nice"]},
             {"prompts": ["nice", 12]},
+            {"prompts": ["a", "b", "c", "d"]},
             {"prompts": "nice"},
         ]
         for data in bad:

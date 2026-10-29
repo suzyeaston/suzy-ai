@@ -50,6 +50,7 @@ final class MRT2Host {
     private var level: Float = 0.28
     private var reverbAmount: Float = 0.18
     private var muted = false
+    private var drumBlend: Float = 0 // fifth real text-prompt weight, no second model
     // Google's AU Filter Drums toggles whether its generated AUDIO may have percussion.
     // This is not a hit-level drum MIDI output or a sequencer.
     private var aiDrumsAllowed = false
@@ -74,6 +75,7 @@ final class MRT2Host {
         "Interlocking clean guitar arpeggios, shimmering echoes, hypnotic experimental art rock, flowing bass, understated drums, glassy synthesizers, gradually building ethereal atmosphere, no vocals",
         "Expressive solo bowed violin, rich warm acoustic strings, intimate chamber texture, lyrical sustained legato phrases, delicate vibrato, subtle bow noise, suspended melancholy, no piano, no guitar, no vocals",
         "Expressive nylon-string classical guitar, intricate fingerpicked melodic arpeggios, warm wooden resonance, soft plucked string attacks, interlocking counterpoint, clear intimate acoustic guitar, no piano, no violin, no vocals",
+        "Intimate late-night jazz drum kit, soft brushed snare, warm acoustic kick, delicate ride cymbal, loose human swing, subtle ghost notes, spacious and understated, no piano, no bass, no guitar, no vocals",
     ]
     private let chords: [String: [[UInt8]]] = [
         "pyramid": [[54, 58, 61, 66], [55, 59, 62, 66], [57, 61, 64, 66], [54, 58, 61, 66]],
@@ -107,6 +109,7 @@ final class MRT2Host {
             "reverb": Double(reverbAmount),
             "muted": muted,
             "ai_drums_allowed": aiDrumsAllowed,
+            "drum_prompt_blend": Double(drumBlend),
             "drum_filter_parameter_readback": Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: 39)?.value ?? -1),
             "held_notes": (held + Array(melodyHeld)).map(Int.init),
             "chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000),
@@ -120,7 +123,7 @@ final class MRT2Host {
             "native_loop_capture_supported": false, // Browser's current recorder cannot capture this AU's PCM.
             "text_prompts": prompts,
             "prompt_slot_count": prompts.count,
-            "prompt_weights": (10...13).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
+            "prompt_weights": (10...14).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
             "lead_mix": ["pyramid": Double(leadMix["pyramid"] ?? 0),
                          "fishes": Double(leadMix["fishes"] ?? 0)],
             "au_component": auComponentName,
@@ -146,15 +149,17 @@ final class MRT2Host {
         p.value = AUValue(value)
     }
     private func configure() {
-        // Four REAL AU prompt slots, blended within one shared Small model.
-        // 0=Pyramid chords, 1=Fishes chords, 2=violin, 3=nylon guitar.
+        // Five real text prompts in one Small model. Slots 0..3 keep their
+        // original song/lead relative balance; fifth jazz drum prompt is
+        // crossfaded in without changing the old mix at drumBlend == 0.
         let p = max(0, min(1, leadMix["pyramid"] ?? 0))
         let f = max(0, min(1, leadMix["fishes"] ?? 0))
-        parameter(10, (1.0 - blend) * (1.0 - p))
-        parameter(11, blend * (1.0 - f))
-        parameter(12, (1.0 - blend) * p)
-        parameter(13, blend * f)
-        parameter(14, 0)
+        let music = 1.0 - drumBlend
+        parameter(10, music * (1.0 - blend) * (1.0 - p))
+        parameter(11, music * blend * (1.0 - f))
+        parameter(12, music * (1.0 - blend) * p)
+        parameter(13, music * blend * f)
+        parameter(14, drumBlend)
         parameter(15, 0)
         parameter(39, aiDrumsAllowed ? 0.0 : 1.0) // Google "Filter Drums": 0 allows AI percussion audio, 1 suppresses
         parameter(4, 5.0)  // Note Adherence; human notes have priority.
@@ -403,7 +408,7 @@ final class MRT2Host {
                     let weighted = self.prompts.enumerated().map { (i,text) in
                         ["text": text, "weight": i == 0 ? 1.0 : 0.0] as [String: Any]
                     }
-                    state["MGRT_Prompts"] = weighted + (0..<2).map { _ in
+                    state["MGRT_Prompts"] = weighted + (0..<1).map { _ in
                         ["text":"","weight":0.0] as [String:Any]
                     }
                     if self.selectModelInGoogleUI {
@@ -570,9 +575,9 @@ final class MRT2Host {
             // require a new ENABLE instead of pretending to hot-swap sound.
             guard !active && !loading,
                   let list = request["prompts"] as? [String],
-                  list.count == 4,
+                  list.count == 5,
                   list.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 500 }) else {
-                return ["error":"Stop Magenta before saving four prompts (maximum 500 characters each)"]
+                return ["error":"Stop Magenta before saving five prompts (maximum 500 characters each)"]
             }
             prompts = list
         case "scene":
@@ -592,6 +597,11 @@ final class MRT2Host {
                 return ["error":"blend must be 0..1"]
             }
             blend = Float(x);configure()
+        case "drum-mix":
+            guard let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
+                return ["error":"drum-mix must be 0..1"]
+            }
+            drumBlend = Float(x);configure()
         case "lead-mix":
             guard let which = request["scene"] as? String, chords[which] != nil,
                   let x = request["value"] as? Double, x.isFinite, x >= 0, x <= 1 else {
