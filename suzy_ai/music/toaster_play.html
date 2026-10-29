@@ -255,6 +255,14 @@ a{color:var(--mint)}
 .instrument-source strong{font-size:11px}
 .instrument-source button{padding:7px 11px;font-size:11px}
 .instrument-source .subtle{font-size:11px}
+.audio-loop-pedal{margin-top:10px;border:1px solid #a8d5c3;background:#17282c;border-radius:12px;padding:10px}
+.audio-loop-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.audio-loop-actions button{padding:8px 10px;font-size:12px}
+.audio-loop-actions label{display:flex;gap:6px;align-items:center;color:#b4e0d7;font:700 11px ui-monospace,monospace}
+.audio-loop-actions select{max-width:300px}
+.audio-loop-pedal small{display:block;font-size:11px;color:#e5c8d1;margin-top:7px}
+.layer-level{width:94px!important;accent-color:#b1f0d0}
+
 /* The old 15-minute arrangement editor is intentionally not a live-view panel.
    Its DOM remains for backward-compatible loop/transport code, not display. */
 #fullArrangement[hidden]{display:none!important}
@@ -432,6 +440,18 @@ a{color:var(--mint)}
 <button type="button" id="keyReset-pyramid" aria-label="pyramid restore original key">ORIGINAL</button>
 </div>
 <div class="deck-transport"><button class="rec" id="record-pyramid" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-pyramid" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-pyramid">READY · record then press DONE</span><button id="vocal-pyramid">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-pyramid"></div></div><span class="stat" id="count-pyramid">0 loops</span></div>
+<div class="audio-loop-pedal" aria-label="pyramid sound-on-sound audio layers">
+ <div class="audio-loop-actions">
+  <button type="button" id="printMidi-pyramid" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
+  <label>NEW AUDIO LAYER SOURCE <select id="printSource-pyramid" aria-label="pyramid new audio layer source">
+   <option value="mac">✦ MAC OUTPUT · native Magenta / AI drums (system audio)</option>
+   <option value="keys">🎹 LIVE LOCAL KEYS · exclude existing loops</option>
+   <option value="rhythm">🥁 BROWSER RHYTHM · clocked groove</option>
+  </select></label>
+  <button type="button" id="overdubAudio-pyramid">＋ RECORD AUDIO LAYER</button>
+ </div>
+ <small id="audioPrintStatus-pyramid" role="status">Printed audio is a waveform, not MIDI. Each layer has independent mute and volume. Mac output capture requires Chrome system-audio sharing and can include other playing Mac apps or loops.</small>
+ </div>
 <div class="clips" id="clips-pyramid"><span class="subtle">No loops yet. Your playing starts the first one.</span></div>
 <div class="deck-faders"><div><label for="level-pyramid">Keys + loops <span id="levelNum-pyramid">100%</span></label><input type="range" id="level-pyramid" min="0" max="100" value="100"></div><div><label for="voice-pyramid">Vocal loop <span id="voiceNum-pyramid">65%</span></label><input type="range" id="voice-pyramid" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-pyramid">✦ MRT2 prompt: warm sparse piano / evolving ambience</div>
@@ -485,6 +505,18 @@ a{color:var(--mint)}
 <button type="button" id="keyReset-fishes" aria-label="fishes restore original key">ORIGINAL</button>
 </div>
 <div class="deck-transport"><button class="rec" id="record-fishes" title="Press record, play your phrase, press DONE near its musical end. TOASTER trims empty lead-in and repeats automatically on the next beat subdivision.">● RECORD FIRST LOOP</button><button class="loop-pedal" id="loopToggle-fishes" type="button" disabled>↻ NO LOOP YET</button><span class="record-hint" role="status" id="recordHint-fishes">READY · record then press DONE</span><button id="vocal-fishes">🎙 LOOP VOICE</button><div class="timeline"><div class="playhead" id="head-fishes"></div></div><span class="stat" id="count-fishes">0 loops</span></div>
+<div class="audio-loop-pedal" aria-label="fishes sound-on-sound audio layers">
+ <div class="audio-loop-actions">
+  <button type="button" id="printMidi-fishes" title="Record the existing MIDI phrase to genuine PCM audio and silence the original MIDI events after a successful print">◎ PRINT MIDI → AUDIO</button>
+  <label>NEW AUDIO LAYER SOURCE <select id="printSource-fishes" aria-label="fishes new audio layer source">
+   <option value="mac">✦ MAC OUTPUT · native Magenta / AI drums (system audio)</option>
+   <option value="keys">🎹 LIVE LOCAL KEYS · exclude existing loops</option>
+   <option value="rhythm">🥁 BROWSER RHYTHM · clocked groove</option>
+  </select></label>
+  <button type="button" id="overdubAudio-fishes">＋ RECORD AUDIO LAYER</button>
+ </div>
+ <small id="audioPrintStatus-fishes" role="status">Printed audio is a waveform, not MIDI. Each layer has independent mute and volume. Mac output capture requires Chrome system-audio sharing and can include other playing Mac apps or loops.</small>
+ </div>
 <div class="clips" id="clips-fishes"><span class="subtle">No loops yet. Start with the rhythm above.</span></div>
 <div class="deck-faders"><div><label for="level-fishes">Keys + loops <span id="levelNum-fishes">100%</span></label><input type="range" id="level-fishes" min="0" max="100" value="100"></div><div><label for="voice-fishes">Vocal loop <span id="voiceNum-fishes">65%</span></label><input type="range" id="voice-fishes" min="0" max="100" value="65"></div></div>
 <div class="ai-state" id="ai-fishes">✦ MRT2 prompt: interlocking clean arpeggios / spacious texture</div>
@@ -639,7 +671,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number(x)||0));
 let blendBoth=false,aiMixQueued=false;
 const token="__MAGENTA_TOKEN__";
 let ctx=null,mainBus=null,beatBus=null,wet=null,verb=null,master=null,mixFilter=null,stageStarted=false,playTimer=null;
-let vocalCaptureReady=false;
+let vocalCaptureReady=false,audioPrint=null;
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false;
 let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
@@ -662,7 +694,7 @@ let aiCommandQueue=Promise.resolve();
 let aiChordToken=0,aiChordOwner=null;
 let aiPoll=null,aiLastError="";
 const decks=Object.fromEntries(Object.keys(SCENES).map(k=>[k,{layers:[],voice:[],bus:null,voiceBus:null,auto:false,enabled:true,locked:false,lengthSteps:16,anchorStep:0,initialBars:8,liveBus:null,loopBus:null,
- instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
+ printBus:null,instrument:"keys",instrumentSource:"ai",leadInstrument:k==="pyramid"?"violin":"nylon",leadOctave:0,leadBus:null,
  loopEnabled:true,loopToggleAt:null,loopToggleTarget:null,
  transpose:0,keyHistory:[0],keyHistoryIndex:0}]));
 let trackView=null;
@@ -839,6 +871,9 @@ async function openAudio(){
     d.liveBus=ctx.createGain();d.liveBus.connect(d.bus);
      d.leadBus=ctx.createGain();d.leadBus.gain.value=Number($("leadLevel-"+k).value)/100;d.leadBus.connect(d.bus);
     d.loopBus=ctx.createGain();d.loopBus.connect(d.bus);
+    // Printed PCM lives on its own bus. Never feed it back into a MIDI
+    // capture tap or let native-only source selection silence it.
+    d.printBus=ctx.createGain();d.printBus.connect(mainBus);d.printBus.connect(verb);
     d.voiceBus=ctx.createGain();d.voiceBus.gain.value=.65;d.voiceBus.connect(mainBus);d.voiceBus.connect(verb);
   }
   // Shared low-memory voice send. Both live mic and stored vocal loops stay DRY.
