@@ -2284,6 +2284,40 @@ test("drum pad shortcuts do not hijack typing or existing Pyramid Z/X/C/V key ch
  assert.equal(run('heldKeys.has("key:z")'),false);
  assert.equal(run("drumDeck.layers.length"),0);
 });
+test("native piano arming is visible and a fast second click cannot start an overlapping capture",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ let releaseStatus;
+ const statusGate=new Promise(resolve=>{releaseStatus=resolve});
+ let captureStarts=0;
+ env.fetch=async url=>{
+  const op=String(url).split("/").pop();
+  if(op==="status"){await statusGate;return {ok:true,json:async()=>({native_loop_capture_supported:true})};}
+  if(op==="capture-start"){captureStarts++;return {ok:true,json:async()=>({capture_id:"armed-once"})};}
+  return {ok:true,json:async()=>({})};
+ };
+ const pending=run('startNativeInstrumentTake("pyramid","chords")');
+ assert.equal(run("nativeTakeArming.which"),"pyramid");
+ assert.equal(get("nativeRecord-pyramid-chords").disabled,true);
+ assert.match(get("nativeRecord-pyramid-chords").textContent,/PREPARING NATIVE AUDIO/);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/audio is not recording yet/);
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ assert.equal(captureStarts,0,"no capture-start before Magenta setup acknowledgement");
+ releaseStatus();await pending;
+ assert.equal(captureStarts,1,"one actual native capture after both quick clicks");
+ assert.equal(run("nativeTakeArming"),null);
+ assert.equal(run("nativeTake.role"),"chords");
+ assert.equal(get("nativeRecord-pyramid-chords").disabled,false);
+ assert.match(get("nativeRecord-pyramid-chords").textContent,/DONE → LOOP/);
+});
+test("failed native preparation restores the piano record control for retry",async()=>{
+ const {run,env,get}=rig();await run("startStop()");run("aiNativeReady=true");
+ env.fetch=async()=>({ok:true,json:async()=>({native_loop_capture_supported:false})});
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ assert.equal(run("nativeTakeArming"),null);
+ assert.equal(run("nativeTake"),null);
+ assert.equal(get("nativeRecord-pyramid-chords").disabled,false);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/NOT RECORDING/);
+});
 test("RECORD TAKE still auto-selects the instrument prompt after removing manual select buttons",async()=>{
  const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
  const calls=[];
@@ -2303,4 +2337,5 @@ test("RECORD TAKE still auto-selects the instrument prompt after removing manual
  await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),1);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
+ assert.match(get("nativeStatus-pyramid-chords").textContent,/WAV handoff after DONE/);
 });
