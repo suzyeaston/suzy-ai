@@ -1120,13 +1120,21 @@ async function syncOutput(){
 }
 function setDrumGroove(meter=drumMeter,style=drumStyle){
  if(!DRUM_STEPS[meter]||!DRUM_STYLES[style])return;
+ // Once the first audio loop is saved, changing the measure length would
+ // make new overdubs land on a different beat one from the original piano.
+ if(meter!==drumMeter&&(recording||nativeTake||audioPrint||
+   [...Object.values(decks),drumDeck].some(d=>d.locked&&d.layers.length))){
+  $("drumMeter").value=drumMeter;
+  return warn(Error("METER LOCKED · saved loops share the current "+drumMeter+
+   " beat grid. Choose a new meter before recording your first loop."));
+ }
  drumMeter=meter;drumStyle=style;customDrumHits=null;
  $("drumMeter").value=meter;$("drumStyle").value=style;
  renderDrumMidiGrid();
  $("drumStatus").textContent=meter+" · "+DRUM_STYLES[style]+
-  " · local drum accents. Song loops and arrangement still use the existing 4/4 grid.";
+  " · beat-one accents and NEW loop recordings use the same "+meter+" bar length.";
  tell("DRUM GROOVE · "+meter+" "+DRUM_STYLES[style]+
-  ". Guitar, violin, vocals and Magenta unaffected; loop timeline remains 4/4.");
+  " · all new first loops will lock to this meter and tempo.");
 }
 function drumPattern(count){
  // Each drum meter has its OWN accent-cycle length in eighth-note units.
