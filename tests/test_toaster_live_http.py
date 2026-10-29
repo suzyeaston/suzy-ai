@@ -368,11 +368,11 @@ class LiveToasterHttpTests(unittest.TestCase):
         ):
             self.assertIn(marker, timeline)
 
-    def test_four_actual_magenta_prompts_are_available_with_native_blend_controls(self):
+    def test_five_actual_magenta_prompts_are_available_with_native_blend_controls(self):
         status, page = self.call("GET", "/toaster/live")
         self.assertEqual(status, 200)
         for marker in ('id="promptPyramid"', 'id="promptFishes"',
-                       'id="promptViolin"', 'id="promptGuitar"',
+                       'id="promptViolin"', 'id="promptGuitar"', 'id="promptJazzDrums"', 'id="aiDrumMix"',
                        'id="aiLeadMix-pyramid"', 'id="aiLeadMix-fishes"',
                        'id="aiChords-pyramid"', 'id="aiChords-fishes"',
                        'id="aiLead-pyramid"', 'id="aiLead-fishes"',
@@ -380,10 +380,12 @@ class LiveToasterHttpTests(unittest.TestCase):
                        'await aiFetch("lead-mix",{scene:which,value:value/100})',
                        'const nativeLead=aiNativeReady&&Number($("aiLeadMix-"+scene).value)>0;',
                        'CHORDS 100% · LEAD 0%',
-                       'One MRT2 Small model, four genuine Google AU sound prompts'):
+                       'One MRT2 Small model, five genuine Google AU sound prompts'):
             self.assertIn(marker, page)
-        self.assertIn('["promptPyramid","promptFishes","promptViolin","promptGuitar"]', page)
-        self.assertIn('Enter four AI prompts', page)
+        self.assertIn('["promptPyramid","promptFishes","promptViolin","promptGuitar","promptJazzDrums"]', page)
+        self.assertIn('Enter five AI prompts', page)
+        self.assertIn('await aiFetch("drum-mix",{value:value/100})', page)
+        self.assertIn('JAZZ DRUM AI BLEND', page)
 
     def test_authorized_pads_work_without_physical_input(self):
         self.assertIsNone(self.bridge.source)
