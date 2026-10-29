@@ -2631,6 +2631,82 @@ function nativeTextureScene(which){return which==="pyramid"&&activePyramidTextur
 function nativeTextureMix(){return activePyramidTextureRole?1:effectiveSongMix();}
 
 function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
+// Two chord sets for EVERY instrument, without switching the recorded song
+// or resetting its master clock. Selecting the chord harmony changes MIDI
+// notes, NOT the currently active Magenta sound prompt.
+const laneChordHeld=new Map();
+let activeChordLane=null,laneChordOwner=null;
+function renderNativeChordPads(which,role){
+ const parent=$("nativeChords-"+which+"-"+role);
+ if(!parent)return;
+ parent.replaceChildren();
+ const label=document.createElement("div");
+ label.className="native-harmony-label";
+ label.textContent="4 CHORD PADS PER SONG · select an instrument and play; Z X C V follows the last tapped lane · ESC returns to normal pads";
+ parent.append(label);
+ for(const harmony of ["pyramid","fishes"]){
+  const row=document.createElement("div");row.className="native-harmony-row";
+  const title=document.createElement("strong");
+  title.textContent=harmony==="pyramid"?"PYRAMID":"WEIRD FISHES";
+  row.append(title);
+  for(const [index,chord] of SCENES[harmony].names.entries()){
+   const pad=document.createElement("button");
+   pad.type="button";pad.className="native-harmony-pad";
+   pad.textContent=chord;pad.title=nativeLaneLabel(which,role)+
+    " plays "+harmony+" "+chord+" using the CURRENT prompt (MIDI only)";
+   const pointer="lane:"+which+":"+role+":"+harmony+":"+index;
+   pad.onpointerdown=e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault?.();pad.setPointerCapture?.(e.pointerId);
+    beginLaneHarmony(which,role,harmony,index,pointer,pad);
+   };
+   for(const end of ["onpointerup","onpointercancel","onlostpointercapture"])
+    pad[end]=()=>endLaneHarmony(pointer,pad);
+   pad.onkeydown=e=>{
+    if(e.repeat||!(e.key===" "||e.key==="Enter"))return;
+    e.preventDefault?.();beginLaneHarmony(which,role,harmony,index,pointer,pad);
+   };
+   pad.onkeyup=e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault?.();endLaneHarmony(pointer,pad);}};
+   row.append(pad);
+  }
+  parent.append(row);
+ }
+}
+function beginLaneHarmony(which,role,harmony,index,key,pad=null){
+ if(!ctx||!stageStarted)return warn(Error("Start PLAY RHYTHM before playing chords."));
+ if(!aiNativeReady)return warn(Error("Enable Magenta to hear native instrument chord pads."));
+ if(nativeTake&&(nativeTake.which!==which||nativeTake.role!==role))
+  return warn(Error("Finish the other native take before changing instrument sounds."));
+ if(laneChordHeld.has(key))return;
+ const take={which,role,harmony,index,down:true,started:false};
+ laneChordHeld.set(key,take);laneChordOwner=key;
+ activeChordLane={which,role,harmony};
+ pad?.classList.add("on");
+ (async()=>{
+  if(activeNativeLane!==which+":"+role)await selectNativeLane(which,role);
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(!aiNativeReady)return;
+   // Harmony override prevents a cello/violin PROMPT changing just because
+   // Weird Fishes pitches are used. All chords play the real MRT2 AU.
+   await aiFetch("chord",{index,harmony,legato:true});
+   take.started=true;
+   if(!take.down&&laneChordOwner===key)await aiFetch("release");
+  });
+  await aiCommandQueue;
+ })().catch(warn);
+ tell("✦ "+nativeLaneLabel(which,role)+" · "+harmony.toUpperCase()+" "+SCENES[harmony].names[index]+
+  " · Z X C V now play this lane (ESC to return to song pads).");
+}
+function endLaneHarmony(key,pad=null){
+ const held=laneChordHeld.get(key);if(!held)return;
+ held.down=false;laneChordHeld.delete(key);pad?.classList.remove("on");
+ if(held.started&&laneChordOwner===key){
+  laneChordOwner=null;
+  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
+   if(aiNativeReady)await aiFetch("release");
+  }).catch(warn);
+ }
+}
 function updateNativeLaneControls(){
  for(const which of Object.keys(decks)){
   for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"])){
@@ -3961,6 +4037,9 @@ $("savePyramidLoop").onclick=()=>{
  const before=scene;scene="pyramid";
  Promise.resolve(readAndExport()).finally(()=>{scene=before;});
 };
+for(const which of Object.keys(decks))
+ for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"]))
+  renderNativeChordPads(which,role);
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
@@ -4027,8 +4106,16 @@ document.addEventListener("keydown",e=>{
  if(drumIndex!==undefined){
   e.preventDefault();beginDrumPad(drumIndex,"key-drum:"+e.code);return;
  }
+ if(e.code==="Escape"&&activeChordLane){
+  activeChordLane=null;tell("Z X C V RETURNED TO NORMAL SONG CHORD PADS.");return;
+ }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
- if(chordKey!==null){e.preventDefault();beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);}
+ if(chordKey!==null){
+  e.preventDefault();
+  if(activeChordLane)beginLaneHarmony(activeChordLane.which,activeChordLane.role,
+   activeChordLane.harmony,CHORD_LAYOUT[chordKey],"key-lane:"+e.code);
+  else beginChord(scene,CHORD_LAYOUT[chordKey],"key:"+chordKey);
+ }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();beginNote(NOTE_LAYOUT[e.key.toLowerCase()],"key-note:"+e.key.toLowerCase());
  }
@@ -4040,7 +4127,11 @@ document.addEventListener("keyup",e=>{
   e.preventDefault();endDrumPad("key-drum:"+e.code);return;
  }
  const chordKey=CHORD_CODES[e.code]||(Object.prototype.hasOwnProperty.call(CHORD_LAYOUT,String(e.key).toLowerCase())?String(e.key).toLowerCase():null);
- if(chordKey!==null){e.preventDefault();endChord("key:"+chordKey);}
+ if(chordKey!==null){
+  e.preventDefault();
+  if(laneChordHeld.has("key-lane:"+e.code))endLaneHarmony("key-lane:"+e.code);
+  else endChord("key:"+chordKey);
+ }
  else if(Object.prototype.hasOwnProperty.call(NOTE_LAYOUT,e.key.toLowerCase())){
   e.preventDefault();endNote("key-note:"+e.key.toLowerCase());
  }
