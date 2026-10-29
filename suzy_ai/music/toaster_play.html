@@ -2300,7 +2300,7 @@ function updateNativeLaneControls(){
    const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
    button.disabled=!!nativeTake&&!isRecording;
    button.textContent=isRecording?
-    (nativeTake.finishing?"↻ SAVING REAL AUDIO…":"■ DONE → SAVE"):
+    (nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):
     "● RECORD "+(role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
    updateNativePlaybackButtons();
    if(isRecording)status.textContent=nativeTake.first?
@@ -2311,7 +2311,7 @@ function updateNativeLaneControls(){
  const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
  const active=nativeTake?.which==="drums";
  button.disabled=!!nativeTake&&!active;
- button.textContent=active?(nativeTake.finishing?"↻ SAVING DRUM AUDIO…":"■ DONE → STACK"):"● RECORD AI DRUM TAKE";
+ button.textContent=active?(nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):"● RECORD AI DRUM TAKE";
  if(active)status.textContent="● RECORDING NATIVE JAZZ DRUMS · browser beat is excluded";
  updateNativePlaybackButtons();
 }
@@ -2377,7 +2377,7 @@ async function startNativeInstrumentTake(which,role){
    d.anchorStep=foundation.locked?foundation.anchorStep:0;
   }
   const first=which!=="drums"&&!d.locked;
-  const seconds=first?120:Math.min(120,d.lengthSteps*tickSeconds());
+  const seconds=first?120:Math.min(120,d.pedalPeriodSeconds||d.lengthSteps*tickSeconds());
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
   const responseAt=ctx.currentTime;
@@ -2420,19 +2420,32 @@ async function finishNativeInstrumentTake(){
   await openAudio();
   const recorded=await ctx.decodeAudioData(await response.arrayBuffer());
   const d=loopDeck(which);
-  const steps=take.first?Math.max(1,Math.min(256,Math.round(
-   (take.stopRequestedAt-(transportEpoch+take.beginStep*tickSeconds()))/tickSeconds()))):d.lengthSteps;
-  const frames=Math.round(steps*tickSeconds()*ctx.sampleRate);
+  const elapsed=Math.max(.1,take.stopRequestedAt-take.startedAt);
+  const requestedFrames=Math.max(1,Math.round(
+   (take.first?elapsed:(d.pedalPeriodSeconds||d.lengthSteps*tickSeconds()))*ctx.sampleRate));
+  // Preserve the exact first phrase and never pad it with a bar of dead air.
+  const frames=take.first?Math.min(recorded.length,requestedFrames):requestedFrames;
   const buffer=ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate);
-  if(take.first){
-   d.locked=true;d.lengthSteps=steps;d.anchorStep=take.beginStep;d.loopEnabled=true;
-  }
-  const inputs=Array.from({length:Math.min(2,recorded.numberOfChannels)},
+  const inputs=Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel));
-  const shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
+  let shifted=0;
+  if(take.first){
+   for(let channel=0;channel<buffer.numberOfChannels;channel++)
+    buffer.getChannelData(channel).set(inputs[channel].subarray(0,frames));
+   closeAudioLoopSeam(buffer);
+   d.locked=true;
+   d.lengthSteps=Math.max(1,Math.min(256,Math.round(buffer.duration/tickSeconds())));
+   d.anchorStep=take.beginStep;d.loopEnabled=true;
+   d.pedalPeriodSeconds=buffer.duration;
+   // When DONE commits the first take, the first sample is played immediately.
+   // Future recordings use the same free-running loop origin and duration.
+   d.pedalOriginOffsetSeconds=(ctx.currentTime+.025)-transportEpoch;
+  }else{
+   shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
+  }
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
    name:nativeLaneLabel(which,role)+" · NATIVE TAKE",buffer,level:.8,muted:false,
-   loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
+   pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
   // its MIDI into whatever violin/guitar prompt is selected next.
@@ -2440,10 +2453,12 @@ async function finishNativeInstrumentTake(){
    for(const saved of d.layers)if(saved.kind==="chords")saved.muted=true;
    if(aiChordOwner?.which===which&&aiChordOwner.loopEvent)aiRelease(aiChordOwner.token);
   }
-  startLoopAudio(which,layer);renderClips(which);
-  el.textContent="✓ NATIVE "+role.toUpperCase()+" RECORDED · "+Math.round(buffer.duration*10)/10+
-   "s · "+d.layers.filter(x=>x.instrumentRole===role).length+" AUDIO PASS(ES) · ready to stack again";
-  tell("✓ "+nativeLaneLabel(which,role)+" · seamless audio aligned to master phrase ("+shifted+"-frame offset) · mute/fade/remove independently.");
+  // DONE is the loop pedal's automatic PLAY action, not just a Save button.
+  layer.paused=false;d.loopEnabled=true;
+  startLoopAudio(which,layer);renderClips(which);applyLoopGateNow(which);
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+buffer.duration.toFixed(2)+
+   "s REPEATING · press STOP SAVED to pause, RECORD TAKE to add a pass";
+  tell("↻ "+nativeLaneLabel(which,role)+" PLAYING CONTINUOUSLY · press STOP SAVED to pause. Saved "+shifted+"-frame aligned pass.");
  }catch(e){warn(e);el.textContent="CAPTURE FAILED · "+(e?.message||e);}
  finally {
   if(nativeTake===take)nativeTake=null;
@@ -2491,7 +2506,9 @@ function writeAlignedLoopAudio(buffer,inputs,captureAt,originAt,gain=1){
  return shift;
 }
 function loopMasterOrigin(which){
- return transportEpoch+(loopDeck(which).anchorStep||0)*tickSeconds();
+ const d=loopDeck(which);
+ return transportEpoch+(Number.isFinite(d.pedalOriginOffsetSeconds)?
+  d.pedalOriginOffsetSeconds:(d.anchorStep||0)*tickSeconds());
 }
 
 function layerOutputBus(which,layer){
@@ -2499,7 +2516,8 @@ function layerOutputBus(which,layer){
  return layer.kind==="vocal"?decks[which].voiceBus:decks[which].printBus;
 }
 function layerPlaybackPhase(which,layer,at){
- const origin=transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
+ const origin=layer.pedalAligned?loopMasterOrigin(which):
+  transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
  const offset=(Number(layer.sourceOffsetBars)||0)*8*tickSeconds();
  return ((at-origin+offset)%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
 }
