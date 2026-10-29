@@ -2638,15 +2638,21 @@ async function voiceLoop(which){
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
    const actualSteps=take.actualSteps||take.steps;
-   const clipFrames=Math.round(actualSteps*tickSeconds()*ctx.sampleRate);
-   if(clipFrames>receivedFrames)return warn(Error("Vocal capture ended short of the requested bar boundary"));
+   // First vocal take defines a phrase. Later takes ALWAYS loop for the
+   // established master length, even when DONE is pressed early: the worklet
+   // already leaves the rest of its full-size buffer silent. Otherwise every
+   // vocal overdub creates a different independent playback period and drifts.
+   const clipSteps=take.first?actualSteps:take.steps;
+   const clipFrames=Math.round(clipSteps*tickSeconds()*ctx.sampleRate);
+   if(take.first&&clipFrames>receivedFrames)
+    return warn(Error("First vocal capture ended short of its requested phrase"));
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate),dst=clip.getChannelData(0);
    const headroom=Number($("vocalHeadroom").value)/100;
    for(let n=0;n<clipFrames;n++)dst[n]=data[n]*headroom;
    const fade=Math.min(Math.round(ctx.sampleRate*.004),Math.floor(clipFrames/3));
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
-   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
+   const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:clipSteps/8,
      loopOriginStep:take.firstStep,
      arrStartBar:Math.max(0,Math.floor(take.firstStep/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
