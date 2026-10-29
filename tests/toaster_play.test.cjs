@@ -1758,7 +1758,8 @@ test("performer cards have piano, native violin, native guitar and separate Scar
  assert.match(file,/id="vocalRecordFishes"/);
  assert.match(file,/id="mix"/);
  assert.match(file,/id="performanceMaster"/);
- assert.match(file,/#jazzDrumDeck\{display:none\}/);
+ assert.match(file,/#jazzDrumDeck\{display:block\}/,"real native jazz drum instrument is visible");
+ assert.match(file,/id="nativeRecord-drums-drums"/,"native drums have an independent audio pedal");
  assert.match(javascript,/function startNativeInstrumentTake\(which,role\)/);
  assert.doesNotMatch(file,/<option value="rhythm" selected>/);
 });
