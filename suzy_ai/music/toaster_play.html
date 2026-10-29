@@ -1597,7 +1597,7 @@ function queueNativeSongMix(){
  aiMixQueued=true;
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   aiMixQueued=false;
-  if(aiNativeReady)await aiFetch("mix",{value:effectiveSongMix()});
+  if(aiNativeReady)await aiFetch("mix",{value:nativeTextureMix()});
  }).catch(e=>warn(e));
 }
 function setSongEnabled(which){
@@ -1615,7 +1615,7 @@ function setSongEnabled(which){
 async function syncAIMix(){
  if(!aiNativeReady)return;
  try{
-  await aiFetch("mix",{value:effectiveSongMix()});
+  await aiFetch("mix",{value:nativeTextureMix()});
   for(const which of ["pyramid","fishes"])
    await aiFetch("lead-mix",{scene:which,value:Number($("aiLeadMix-"+which).value)/100});
   await aiFetch("volume",{value:Number($("aiVolume").value)/100*(Number($("performanceMaster").value)/100)});
@@ -1664,8 +1664,19 @@ function aiNote(which,index,{loopEvent=null,legato=false}={}){
  aiChordOwner={token,which,loopEvent};
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   if(!aiNativeReady)return;
-  if(aiScene!==which){await aiFetch("scene",{scene:which});aiScene=which;}
-  await aiFetch("chord",legato?{index,legato:true}:{index});
+  const targetScene=nativeTextureScene(which);
+  if(aiScene!==targetScene){await aiFetch("scene",{scene:targetScene});aiScene=targetScene;}
+  if(which==="pyramid"&&activePyramidTextureRole){
+   // Send exact Pyramid pitches as native MIDI notes. Never use the old
+   // scene-fishes chord presets, even though its two prompt slots are reused.
+   for(const note of textureHeldNotes)await aiFetch("note-off",{note});
+   textureHeldNotes=[...SCENES.pyramid.notes[index]];
+   for(const note of textureHeldNotes)await aiFetch("note",{note});
+  }else{
+   for(const note of textureHeldNotes)await aiFetch("note-off",{note});
+   textureHeldNotes=[];
+   await aiFetch("chord",legato?{index,legato:true}:{index});
+  }
   aiNoteHeld=true;
  }).catch(e=>{$("aiHostStatus").textContent="AI CHORD ERROR · "+e.message});
  return token;
@@ -1706,9 +1717,11 @@ function aiRelease(expectedToken=null){
  if(!aiNativeReady)return;
  if(expectedToken!==null&&aiChordOwner?.token!==expectedToken)return;
  aiChordOwner=null;
- // Preserve rapid live tap order: old note-on, old release, new note-on.
+ const notes=textureHeldNotes.splice(0);
+ // Release only this chord's notes, including native glass/cello MIDI.
  aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
   if(!aiNativeReady)return;
+  for(const note of notes)await aiFetch("note-off",{note});
   await aiFetch("release");
   aiNoteHeld=false;
  }).catch(e=>{$("aiHostStatus").textContent="AI NOTE-OFF ERROR · "+e.message});
@@ -1717,9 +1730,10 @@ function choose(which){
  // Selecting a MIDI scene only changes what the pads PLAY. It must not move
  // the user's manual song crossfader or reset Google's native prompt weights.
  scene=which;updateMix();
- if(aiNativeReady&&aiScene!==which){
+ const targetScene=nativeTextureScene(which);
+ if(aiNativeReady&&aiScene!==targetScene){
   aiCommandQueue=aiCommandQueue.catch(()=>{}).then(async()=>{
-   if(aiNativeReady){await aiFetch("scene",{scene:which});aiScene=which;}
+   if(aiNativeReady){await aiFetch("scene",{scene:targetScene});aiScene=targetScene;}
   }).catch(e=>warn(e));
  }
  document.querySelectorAll(".deck").forEach(n=>n.classList.toggle("selected",n.dataset.scene===which));
@@ -1854,7 +1868,7 @@ function nativeSavedLayers(which,role){
 }
 function updateNativePlaybackButtons(){
  const pairs=[...Object.keys(decks).flatMap(which=>[["chords",which],["lead",which]]),
-  ["drums","drums"]];
+  ["textureLow","pyramid"],["textureHigh","pyramid"],["drums","drums"]];
  for(const [role,which] of pairs){
   const button=$("nativeResume-"+which+"-"+role),layers=nativeSavedLayers(which,role);
   if(!button)continue;
@@ -2327,20 +2341,28 @@ function updateRecordControls(which){
 
 const NATIVE_LANE_LABELS={
  "pyramid:chords":"PYRAMID PIANO","pyramid:lead":"PYRAMID VIOLIN",
- "fishes:chords":"FISHES ARPEGGIOS","fishes:lead":"FISHES CLASSICAL GUITAR",
+ "pyramid:textureLow":"PYRAMID LOW CELLO / HARMONIUM",
+ "pyramid:textureHigh":"PYRAMID GLASS BELLS / HARP",
+ "fishes:chords":"ARCHIVED ARPEGGIOS","fishes:lead":"ARCHIVED CLASSICAL GUITAR",
  "drums:drums":"AI JAZZ DRUMS"
 };
+let activePyramidTextureRole=null;
+let textureHeldNotes=[];
+function nativeTextureScene(which){return which==="pyramid"&&activePyramidTextureRole?"fishes":which;}
+function nativeTextureMix(){return activePyramidTextureRole?1:effectiveSongMix();}
+
 function nativeLaneLabel(which,role){return NATIVE_LANE_LABELS[which+":"+role]||which.toUpperCase();}
 function updateNativeLaneControls(){
  for(const which of Object.keys(decks)){
-  for(const role of ["chords","lead"]){
+  for(const role of (which==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"])){
    const button=$("nativeRecord-"+which+"-"+role),status=$("nativeStatus-"+which+"-"+role);
    if(!button||!status)continue;
    const isRecording=nativeTake?.which===which&&nativeTake?.role===role;
    button.disabled=!!nativeTake&&!isRecording;
    button.textContent=isRecording?
     (nativeTake.finishing?"↻ SAVING → AUTO LOOP…":"■ DONE → LOOP"):
-    "● RECORD "+(role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
+    "● RECORD "+(role==="textureLow"?"CELLO":role==="textureHigh"?"GLASS":
+    role==="lead"?(which==="pyramid"?"VIOLIN":"CLASSICAL GUITAR"):(which==="pyramid"?"PIANO":"ARPEGGIOS"))+" TAKE";
    updateNativePlaybackButtons();
    if(isRecording)status.textContent=nativeTake.first?
     "● NATIVE AU RECORDING · play the phrase, then DONE to set its length":
@@ -2356,6 +2378,25 @@ function updateNativeLaneControls(){
 }
 async function selectNativeLane(which,role){
  if(!aiNativeReady)throw Error("Enable Magenta and load mrt2_small first.");
+ if(which==="pyramid"&&(role==="textureLow"||role==="textureHigh")){
+  if(aiSolo)toggleAISolo();
+  if(localKeysOnly)await toggleLocalKeysOnly();
+  // Reuse two existing prompt slots, but save their genuine PCM to Pyramid.
+  // Never touch the existing first-deck loop state or its faders.
+  if(aiChordOwner)aiRelease(aiChordOwner.token);
+  await aiCommandQueue.catch(()=>{});
+  activePyramidTextureRole=role;
+  await aiFetch("scene",{scene:"fishes"});aiScene="fishes";
+  await aiFetch("drums",{value:false});
+  await aiFetch("drum-mix",{value:0});
+  const weight=role==="textureHigh"?1:0;
+  await aiFetch("lead-mix",{scene:"fishes",value:weight});
+  await aiFetch("mix",{value:1});
+  $("nativeStatus-pyramid-"+role).textContent="SELECTED · "+nativeLaneLabel(which,role)+" · audio records into Pyramid";
+  tell("✦ "+nativeLaneLabel(which,role)+" · Pyramid loop continues unchanged. Z/X/C/V retain your Pyramid harmony.");
+  return;
+ }
+ activePyramidTextureRole=null;
  if(which==="drums"&&role==="drums"){
   // Isolate prompt five on the ONE native AU stereo stream. The existing
   // browser rhythm is on a different Web Audio bus and is not captured.
@@ -2653,7 +2694,8 @@ function toggleLayerWash(which,layer){
 
 function renderInstrumentClips(which){
  const d=loopDeck(which);
- for(const role of (which==="drums"?["drums"]:["chords","lead","voice"])){
+ for(const role of (which==="drums"?["drums"]:
+  which==="pyramid"?["chords","lead","textureLow","textureHigh","voice"]:["chords","lead","voice"])){
   const box=role==="drums"?$("nativeDrumClips"):role==="voice"?$("voiceClips-"+which):$("nativeClips-"+which+"-"+role);
   if(!box)continue;
   box.replaceChildren();
@@ -3500,7 +3542,7 @@ $("nativePlay-drums-drums").onclick=()=>selectNativeLane("drums","drums").catch(
 $("nativeRecord-drums-drums").onclick=()=>startNativeInstrumentTake("drums","drums").catch(warn);
 $("nativeResume-drums-drums").onclick=()=>toggleNativeSavedLoop("drums","drums").catch(warn);
 for(const k of Object.keys(decks)){
- for(const role of ["chords","lead"]){
+ for(const role of (k==="pyramid"?["chords","lead","textureLow","textureHigh"]:["chords","lead"])){
   $("nativePlay-"+k+"-"+role).onclick=()=>selectNativeLane(k,role).catch(warn);
   $("nativeRecord-"+k+"-"+role).onclick=()=>startNativeInstrumentTake(k,role).catch(warn);
   $("nativeResume-"+k+"-"+role).onclick=()=>toggleNativeSavedLoop(k,role).catch(warn);
