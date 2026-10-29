@@ -1102,7 +1102,7 @@ function toggleAISolo(){
  if(localKeysOnly){tell("Turn off SOLO LOCAL KEYS before using AI SOLO.");return;}
  aiSolo=!aiSolo;
  $("aiSolo").setAttribute("aria-pressed",String(aiSolo));
- $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 HEAR AI ONLY";
+ $("aiSolo").textContent=aiSolo?"🎹 RESTORE BROWSER MIX":"🎧 SOLO NATIVE AI · MUTE RHYTHM";
  updateBrowserOutputGain();updateMix();updateRhythmAudio();updateOverdubBalance();
  tell(aiSolo?(aiNativeReady&&!aiMuted?
   "TRUE AI ONLY · browser audio MUTED, including drums, vocals and loops. Z X C V steer native MRT2.":
@@ -2223,9 +2223,9 @@ arranger=new window.SuzyArrangement({
  onChord:c=>{
   if(!ctx||recording||heldKeys.size)return;
   synth(c.scene,c.chord,ctx.currentTime+.04,true,Math.min(2,cycleSeconds()/2));
-  if(aiNativeReady){
+  if(nativeInstrumentEnabled(c.scene)){
    aiNote(c.scene,c.chord);
-   setTimeout(()=>{if(!heldKeys.size)aiRelease();},1400);
+   setTimeout(()=>{if(!heldKeys.size&&nativeInstrumentEnabled(c.scene))aiRelease();},1400);
   }
  }
 });
