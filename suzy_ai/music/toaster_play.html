@@ -2187,8 +2187,9 @@ function stopVoiceFollow(){
 }
 async function startVoiceMonitor(){
  if(monitoringVoice)return;
- if(!stageStarted)throw Error("Start PLAY RHYTHM and choose headphones before enabling lead monitoring.");
  await openAudio();
+ // Monitoring is an input/headphone check, independent of the rhythm transport.
+ await findDevices();
  const stream=await enableMic();
  // Monitoring is a separate dry/wet path. The recorder still captures clean
  // pre-effects PCM, so its loop and overdubs are not contaminated by reverb.
@@ -2203,7 +2204,7 @@ async function startVoiceMonitor(){
  monitorDry.connect(mainBus);monitorSend.connect(verb);
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
- $("monitorStatus").textContent="MONITOR ON · dry vocal + FX · see recorder state below";
+ $("monitorStatus").textContent="MONITOR ON → "+($("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
  updateVocalState();
 }
 function updateVoiceEcho(){
@@ -2237,18 +2238,22 @@ async function toggleVoiceMonitor(){
 async function voiceLoop(which){
  choose(which);
  if(!stageStarted)return warn(Error("Start the rhythm first"));
- if(recording?.kind==="vocal"&&recording.scene===which&&recording.first){
+ if(recording?.kind==="vocal"&&recording.scene===which){
   const take=recording;
-  if(take.finishQueued)return tell("Vocal finish is already queued for a bar boundary.");
-  const nextBar=Math.ceil((stepNumber+1)/8)*8;
-  const endStep=Math.min(take.firstStep+take.steps,Math.max(take.firstStep+16,nextBar));
+  if(take.finishQueued)return tell("DONE queued · vocal loop closing on the next pulse.");
+  if(stepNumber<take.firstStep)return tell("VOICE ARMED · sing at the next pulse, then press DONE.");
+  // Like chord looping, DONE defines the actual sung length; the scheduler
+  // has pre-scheduled 140 ms, so close on the next available eighth-note.
+  const requested=Math.max(take.firstStep+1,
+   Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()),stepNumber);
+  const endStep=Math.min(take.firstStep+take.steps,requested);
   take.actualSteps=endStep-take.firstStep;
   take.finishQueued=true;
   take.processor.port.postMessage({type:"finish",frames:Math.round(take.actualSteps*tickSeconds()*ctx.sampleRate)});
-  $("vocal-"+which).textContent="🎙 FINISH QUEUED";
-  trackView?.draw();
-  updateVocalState();
-  tell("Vocal take will finish after "+(take.actualSteps/8)+" bars. Loop length follows your singing.");
+  $("vocal-"+which).textContent="↻ VOICE LOOP STARTING…";
+  $("vocalRecord"+(which==="pyramid"?"Pyramid":"Fishes")).textContent="↻ VOICE LOOP STARTING…";
+  trackView?.draw();updateVocalState();
+  tell("VOICE DONE ✓ · your phrase repeats automatically, no preset bars.");
   return;
  }
  if(recording)return warn(Error("Finish the current recording first"));
@@ -2259,10 +2264,11 @@ async function voiceLoop(which){
   if(!ctx.audioWorklet||!window.AudioWorkletNode)throw Error("Vocal AudioWorklet is unavailable; please use Chrome on localhost.");
   if(!vocalCaptureReady){await ctx.audioWorklet.addModule("/toaster/vocal-capture.js");vocalCaptureReady=true;}
   const d=decks[which];
-  const bars=d.locked?d.lengthSteps/8:d.initialBars;
-  const steps=bars*8;
-  // Arm at next bar, not after a potentially long full song cycle.
-  const firstStep=Math.ceil((stepNumber+1)/8)*8;
+  const first=!d.locked;
+  const steps=first?Math.min(256,Math.floor(120/tickSeconds())):d.lengthSteps;
+  // First voice uses the same next-eighth-note arming as keys, with a
+  // safety maximum of 120 s. Existing phrase length stays unchanged.
+  const firstStep=Math.max(stepNumber,Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds()));
   const start=transportEpoch+firstStep*tickSeconds();
   const duration=steps*tickSeconds(),frames=Math.round(duration*ctx.sampleRate);
   if(frames>ctx.sampleRate*120)throw Error("Vocal loop too long (120 seconds maximum)");
@@ -2274,11 +2280,12 @@ async function voiceLoop(which){
   silent=ctx.createGain();silent.gain.value=0;
   source.connect(processor);processor.connect(silent);silent.connect(ctx.destination);
   take={kind:"vocal",scene:which,processor,source,silent,finished:false,watchdog:null,
-        first:!d.locked,firstStep,steps,actualSteps:null,finishQueued:false};
+        first,firstStep,steps,actualSteps:null,finishQueued:false};
   recording=take;
   updateVocalState();
   trackView?.draw();
-  $("vocal-"+which).textContent=take.first?"🎙 FINISH FIRST VOICE":"🎙 ARMED · "+bars+" BARS";
+  $("vocal-"+which).textContent="■ DONE VOICE → LOOP";
+  $("vocalRecord"+(which==="pyramid"?"Pyramid":"Fishes")).textContent="■ DONE VOICE → LOOP";
   const cleanup=()=>{
    if(take.finished)return false;
    take.finished=true;clearTimeout(take.watchdog);
@@ -2287,6 +2294,7 @@ async function voiceLoop(which){
    updateVocalState();
    trackView?.draw();
    $("vocal-"+which).textContent="🎙 LOOP VOICE";
+   $("vocalRecord"+(which==="pyramid"?"Pyramid":"Fishes")).textContent="● RECORD "+which.toUpperCase()+" VOICE";
    return true;
   };
   processor.port.onmessage=e=>{
@@ -2296,7 +2304,7 @@ async function voiceLoop(which){
    if(!ArrayBuffer.isView(data)||data.BYTES_PER_ELEMENT!==4||data.length!==frames||
       !Number.isInteger(receivedFrames)||receivedFrames<1||receivedFrames>frames)
      return warn(Error("Vocal capture returned incomplete PCM"));
-   const actualSteps=take.first?(take.actualSteps||Math.round(receivedFrames/(ctx.sampleRate*tickSeconds()))):take.steps;
+   const actualSteps=take.actualSteps||take.steps;
    const clipFrames=Math.round(actualSteps*tickSeconds()*ctx.sampleRate);
    if(clipFrames>receivedFrames)return warn(Error("Vocal capture ended short of the requested bar boundary"));
    const clip=ctx.createBuffer(1,clipFrames,ctx.sampleRate),dst=clip.getChannelData(0);
@@ -2306,6 +2314,7 @@ async function voiceLoop(which){
    for(let n=0;n<fade;n++){dst[n]*=n/fade;dst[clipFrames-n-1]*=n/fade;}
    if(take.first){d.locked=true;d.lengthSteps=actualSteps;d.anchorStep=take.firstStep;}
    const layer={id:crypto.randomUUID(),kind:"vocal",buffer:clip,muted:false,source:null,gain:null,bars:actualSteps/8,
+     loopOriginStep:take.firstStep,
      arrStartBar:Math.max(0,Math.floor(take.firstStep/8))};
    decks[which].layers.push(layer);startLoopAudio(which,layer);renderClips(which);
    updateVocalState();
@@ -2318,8 +2327,9 @@ async function voiceLoop(which){
   take.watchdog=setTimeout(()=>{
    if(cleanup())warn(Error("Vocal capture timed out without complete PCM. No partial take was saved."));
   },Math.max(0,(start-ctx.currentTime+duration+3)*1000));
-  tell(take.first?"First voice armed. Sing your phrase, then press FINISH FIRST VOICE after at least 2 bars. Max "+bars+" bars.":
-   "Vocal overdub armed for the NEXT BAR, recording "+bars+" bars on the existing song clock.");
+  tell(take.first?
+   "FIRST VOICE ARMED · sing your phrase, press DONE when it ends. The maximum safety capture is 120 seconds.":
+   "VOICE LAYER ARMED · sing over the existing loop, then press DONE. Earlier loops stay intact.");
  }catch(e){
   if(take){take.finished=true;clearTimeout(take.watchdog);}
   try{source?.disconnect();processor?.disconnect();silent?.disconnect()}catch{}
@@ -2335,7 +2345,7 @@ function startLoopAudio(which,l,startAt=null){
  gain.gain.value=songLayerAudible(which,l,Math.floor(stepNumber/8))?.65:0;
  src.connect(gain);gain.connect(decks[which].voiceBus);
  const when=startAt??(ctx.currentTime+.025);
- const clipOrigin=transportEpoch+(l.arrStartBar??0)*8*tickSeconds();
+ const clipOrigin=transportEpoch+(l.loopOriginStep??((l.arrStartBar??0)*8))*tickSeconds();
  const offsetSeconds=(Number(l.sourceOffsetBars)||0)*8*tickSeconds();
  const phase=((when-clipOrigin+offsetSeconds)%l.buffer.duration+l.buffer.duration)%l.buffer.duration;
  if(stageStarted)src.start(when,phase);
