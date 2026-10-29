@@ -1572,3 +1572,82 @@ test("stage UI hides optional local fallback and experimental voice follower wit
  assert.match(code,/function setSongEnabled\(which\)/);
  assert.match(code,/function updateVoiceEcho\(\)/);
 });
+
+
+test("audio pedal prints the actual MIDI synth bus into a separate PCM waveform, then mutes old MIDI",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.anchorStep=0;decks.pyramid.layers.push({id:"original",kind:"chords",muted:false,instrument:"keys",events:[{step:0,index:0,instrument:"keys"}]})');
+ await run('startAudioPrint("pyramid",true)');
+ assert.equal(run("audioPrint.mode"),"midi");
+ assert.equal(run("audioPrint.sources[0]===decks.pyramid.loopBus"),true);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.printBus)"),false,"saved audio must never re-record itself");
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.25),frames,peak:.25,missing:0}});
+ assert.equal(run("audioPrint"),null);
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run("decks.pyramid.layers[0].muted"),true);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ assert.equal(run("decks.pyramid.layers[1].buffer.length"),frames);
+ assert.equal(run("decks.pyramid.layers[1].buffer.getChannelData(0)[1000]"),.25);
+ assert.equal(run("decks.pyramid.layers[1].source.buffer===decks.pyramid.layers[1].buffer"),true);
+ assert.match(get("audioPrintStatus-pyramid").textContent,/PRINTED MIDI/);
+});
+test("sound-on-sound live-keys take is PCM, excludes previous audio, and supports independent fade and mute",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=16;decks.pyramid.layers.push({id:"old-audio",kind:"printed",name:"PREVIOUS TAKE",level:.4,buffer:ctx.createBuffer(1,1000,48000),muted:false})');
+ get("printSource-pyramid").value="keys";
+ await run('record("pyramid")');
+ assert.equal(run("audioPrint.mode"),"keys");
+ assert.equal(run("recording"),null,"overdub must not start another MIDI event recorder");
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.printBus)"),false);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.liveBus)"),true);
+ assert.equal(run("audioPrint.sources.includes(decks.pyramid.leadBus)"),true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.3),frames,peak:.3,missing:0}});
+ assert.equal(run("decks.pyramid.layers.length"),2);
+ assert.equal(run('decks.pyramid.layers[1].kind'),"printed");
+ const row=get("clips-pyramid").children[1];
+ const slider=row.children.find(x=>x.type==="range");
+ assert.ok(slider,"each waveform has a volume fader");
+ slider.value="35";slider.oninput();
+ assert.equal(run("decks.pyramid.layers[1].level"),.35);
+ assert.equal(run("decks.pyramid.layers[1].gain.gain.value"),.35);
+ run('decks.pyramid.layers[1].muted=true;renderClips("pyramid")');
+ assert.equal(run("decks.pyramid.layers[1].muted"),true);
+ assert.equal(run("decks.pyramid.layers[0].muted"),false);
+});
+test("printing rhythm makes a stable waveform and switches off doubled live browser drums",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run('decks.fishes.locked=true;decks.fishes.lengthSteps=8;decks.fishes.layers.push({id:"original",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ get("printSource-fishes").value="rhythm";
+ await run('startAudioPrint("fishes",false)');
+ assert.equal(run("audioPrint.sources[0]===beatBus"),true);
+ const frames=run("audioPrint.frames");
+ calls.worklet.port.onmessage({data:{type:"complete",data:new Float32Array(frames).fill(.1),frames,peak:.1,missing:0}});
+ assert.equal(run("decks.fishes.layers[1].name"),"RHYTHM TAKE");
+ assert.equal(run("rhythmAudioEnabled"),false);
+ assert.equal(run("stageStarted"),true,"rhythm clock keeps running while audible source is switched off");
+});
+test("native Magenta audio printing requires actual system audio, never silently substitutes browser synth",async()=>{
+ const {run,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=8;decks.pyramid.layers.push({id:"midi",kind:"chords",muted:false,events:[{step:0,index:0}]})');
+ calls.systemAudioAvailable=false;
+ await run('startAudioPrint("pyramid",true)');
+ assert.equal(run("audioPrint"),null);
+ assert.equal(run("decks.pyramid.layers[0].muted"),false,"not allowed to mute MIDI after silent capture");
+ assert.equal(calls.screenCaptures,1);
+ assert.match(get("audioPrintStatus-pyramid").textContent,/No Mac system audio/);
+});
+test("printed audio mute and volume remain independent of default native-only instrument mode",async()=>{
+ const {run}=rig();await run("startStop()");
+ run('decks.pyramid.layers.push({id:"pcm",kind:"printed",name:"MAGENTA",level:.7,muted:false,buffer:ctx.createBuffer(1,2000,48000)})');
+ run('startLoopAudio("pyramid",decks.pyramid.layers[0])');
+ run("updateMix()");
+ assert.equal(run("decks.pyramid.instrumentSource"),"ai");
+ assert.ok(run("decks.pyramid.printBus.gain.value")>0,"PCM audible while local oscillator is gated");
+ assert.equal(run("decks.pyramid.bus.gain.value"),0,"local oscillator still off");
+ assert.equal(run("decks.pyramid.layers[0].gain.gain.value"),.7);
+});
