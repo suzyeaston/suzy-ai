@@ -2828,7 +2828,9 @@ async function selectNativeLane(which,role){
  // doesn't unintentionally record a percussion texture.
  await aiFetch("scene",{scene:which});
  aiScene=which;
- await aiFetch("mix",{value:effectiveSongMix()});
+ // The source being recorded must use its own Magenta prompt, independent
+ // of the browser DJ crossfade used to mix already-recorded tracks.
+ await aiFetch("mix",{value:which==="fishes"?1:0});
  await aiFetch("drum-mix",{value:0});
  await aiFetch("drums",{value:false});
  aiDrumsAllowed=false;
@@ -2937,6 +2939,14 @@ async function finishNativeInstrumentTake(){
    throw Error("Native capture is empty or incomplete.");
   if(Number(result.peak)<0.001)throw Error("Native Magenta returned silence; nothing was added.");
   const liveStarted=result.native_loop_playing===true;
+  if(liveStarted){
+   // Avoid an audible burst from the wrong deck during WAV waveform fetch.
+   const fade=Number($("mix").value)/100;
+   const side=which==="drums"?1:which==="pyramid"?1-fade:fade;
+   await aiFetch("loop-volume",{id:result.native_loop_id||take.id,
+    value:clamp(.8*side*(which==="drums"?1:Number($("level-"+which).value)/100)*
+     Number($("performanceMaster").value)/100,0,1)}).catch(warn);
+  }
   if(liveStarted)
    el.textContent="↻ NATIVE AUDIO LOOP SCHEDULED · "+Math.round(result.native_loop_scheduled_ms||0)+
     "ms TO NEXT ORIGINAL DOWNBEAT · NO WAV PLAYBACK WAIT";
