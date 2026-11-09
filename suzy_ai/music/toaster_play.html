@@ -2068,7 +2068,7 @@ function updatePedalClock(){
   else recordCue(t.startAt,"VOICE","SING");
  }else if(recording?.kind==="chords"){
   const t=recording;
-  if(t.finishQueued)show("DONE","CHORD LOOP CLOSES ON NEXT BEAT 1","ready");
+  if(t.finishQueued)show("DONE","FIRST LOOP CLOSES AT NEXT SHORT TICK · RHYTHM UNCHANGED","ready");
   else recordCue(transportEpoch+t.beginAt*tickSeconds(),"CHORDS");
  }else if(audioPrint){
   const t=audioPrint;
@@ -2559,26 +2559,28 @@ function record(which){
  if(d.locked&&!recording)return startAudioPrint(which,false);
  if(recording){
   if(recording.kind!=="chords"||recording.scene!==which)return warn(Error("Finish the current take first."));
-  if(recording.finishQueued)return tell("DONE queued · playback starts at the next short clock tick.");
+  if(recording.finishQueued)return tell("DONE already queued · the first loop closes at the next short tick.");
   if(!recording.active||ctx.currentTime<recording.start){
    $("recordHint-"+which).textContent="ARMED · wait for the next beat subdivision";
    tell("Start playing at the next pulse; press DONE when your phrase is complete.");
    return;
   }
-  // The scheduler pre-schedules 140ms of audio, so close no earlier than
-  // the next *unscheduled* eighth-note tick to avoid dropped initial notes.
+  // The first live-loop period is set by DONE, on the next unscheduled
+  // eighth-note tick, not the next measure. The rhythm's 4/4 clock and
+  // green beat-one cue do NOT move. A musician may choose an odd-length
+  // phrase; repeated notes then intentionally phase across the drum bars.
+  // Keep the 140ms scheduler lookahead so first replay isn't missed.
   const nowStep=Math.ceil((ctx.currentTime-transportEpoch)/tickSeconds());
   const requested=Math.max(recording.beginAt+1,nowStep,stepNumber);
-   const bars=Math.max(1,Math.ceil((requested-recording.beginAt)/rhythmBarSteps()));
-   recording.endAt=recording.first?
-    Math.min(recording.beginAt+256,recording.beginAt+bars*rhythmBarSteps()):
+  recording.endAt=recording.first?
+    Math.min(recording.beginAt+256,requested):
     Math.min(recording.endAt,requested);
   recording.finishQueued=true;
   $("record-"+which).textContent="↻ "+(recording.first?"LOOP STARTING":"OVERDUB FINISHING")+"…";
   $("recordHint-"+which).textContent=recording.first?
    "DONE ✓ · auto-replay on next pulse":"DONE ✓ · original loop continues";
   tell(recording.first?
-   "DONE ✓ · closing on the next available pulse, then auto-repeating from your FIRST note. No extra PLAY click.":
+   "DONE ✓ · next eighth-note tick closes the phrase and begins replay. The drum metre continues.":
    "OVERDUB DONE · the original pattern keeps repeating.");
   return;
  }
@@ -2593,7 +2595,7 @@ function record(which){
             first:!d.locked,endAt:beginAt+(d.locked?d.lengthSteps:256),finishQueued:false};
  $("record-"+which).classList.add("armed");
  $("record-"+which).textContent="◉ ARMED · NEXT BEAT 1";
- $("recordHint-"+which).textContent="WAIT · PLAY ON GREEN BEAT 1, DONE NEAR BEAT 1";
+ $("recordHint-"+which).textContent="WAIT · PLAY ON GREEN BEAT 1, DONE WHEN THE PHRASE ENDS";
  trackView?.draw();
  tell(d.locked?"OVERDUB starts on next pulse and uses the original loop length.":
   "FIRST LOOP: play your phrase, press DONE. That defines the repeating master length.");
@@ -2876,7 +2878,7 @@ function updateNativeLaneControls(){
    else if(isRecording)status.textContent=nativeTake.first?
      (ctx.currentTime<nativeTake.gridStartAt?
       "● ARMED · WAIT FOR GREEN BEAT 1 · then play your phrase":
-      "● NATIVE AU RECORDING · DONE NEAR GREEN BEAT 1 · whole-bar loop"):
+      "● NATIVE AU RECORDING · PRESS DONE TO LOOP · RHYTHM CONTINUES"):
      "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
   }
  }
@@ -2888,7 +2890,7 @@ function updateNativeLaneControls(){
  if(isArming)status.textContent="PREPARING MAGENTA CAPTURE · wait for DONE → LOOP before playing";
  else if(active)status.textContent=nativeTake.first&&ctx.currentTime<nativeTake.gridStartAt?
    "● DRUMS ARMED · PLAY ON GREEN BEAT 1":
-   "● RECORDING NATIVE JAZZ DRUMS · DONE NEAR GREEN BEAT 1 · browser beat excluded";
+   "● RECORDING NATIVE JAZZ DRUMS · DONE TO LOOP · browser beat excluded";
  updateNativePlaybackButtons();
 }
 async function selectNativeLane(which,role){
@@ -3022,7 +3024,7 @@ async function startNativeInstrumentTake(which,role){
   updateNativeLaneControls();
   const statusEl=$("nativeStatus-"+which+"-"+role);
   statusEl.textContent=first?
-     "● ARMED · WAIT FOR THE GREEN BEAT 1 · THEN PLAY · DONE NEAR BEAT 1":
+     "● ARMED · WAIT FOR GREEN BEAT 1 · PLAY · DONE TO LOOP":
      "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
    updatePedalClock();
   if(!first)take.timer=setTimeout(()=>{
@@ -3049,7 +3051,12 @@ async function finishNativeInstrumentTake(){
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const targetDeck=loopDeck(which);
-  const masterSteps=take.first?phraseGridSteps(take.gridStartAt,take.stopRequestedAt):targetDeck.lengthSteps;
+  // The first Magenta phrase follows DONE to the nearest NEXT eighth note.
+  // Never truncate an actual attack at the end of the performed phrase.
+  // Saved drum metre and green beat-one timing remain unchanged.
+  const masterSteps=take.first?
+    Math.max(2,Math.min(256,Math.ceil((take.stopRequestedAt-take.gridStartAt)/tickSeconds()))):
+    targetDeck.lengthSteps;
   const periodSeconds=take.first?masterSteps*tickSeconds():
    (targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds());
   const result=await aiFetch("capture-stop",{
@@ -3070,8 +3077,8 @@ async function finishNativeInstrumentTake(){
      Number($("performanceMaster").value)/100,0,1)}).catch(warn);
   }
   if(liveStarted)
-   el.textContent="↻ NATIVE AUDIO LOOP SCHEDULED · "+Math.round(result.native_loop_scheduled_ms||0)+
-    "ms TO NEXT ORIGINAL DOWNBEAT · NO WAV PLAYBACK WAIT";
+   el.textContent="↻ NATIVE LOOP STARTING · "+Math.round(result.native_loop_scheduled_ms||0)+
+    "ms TO PHASE-LOCKED REPLAY · NO EXTRA MEASURE WAIT";
   let recorded=null;
   try{
    const response=await fetch(result.audio_url,{
@@ -3124,7 +3131,7 @@ async function finishNativeInstrumentTake(){
   if(!nativeLive)startLoopAudio(which,layer);
   renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
-  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+d.lengthSteps/rhythmBarSteps()+
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+Number((d.lengthSteps/rhythmBarSteps()).toFixed(2))+
     " BARS @ "+bpm+" BPM · "+(nativeLive?
     "NATIVE MEMORY REPLAY · NO WAV PLAYBACK HANDOFF":
     handoffMs+"ms WAV HANDOFF (FALLBACK)")+" · STOP SAVED pauses playback";
