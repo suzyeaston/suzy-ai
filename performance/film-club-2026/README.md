@@ -1,113 +1,121 @@
-# SOFT RESET / Make Art Not War / SUZY//AI
+# PYRAMID / SOFT RESET · BC + AI Film Club
 
-**An original one-minute audiovisual composition by Suzy Easton.**
-For the November 12, 2026 BC + AI Film Club screening.
+**Same hands-on SUZY//TOAST instrument, new composition-specific sound prompts.**
+A musical continuation of Suzy Easton's October 29 Futureproof Pyramid Orbit
+performance for the Film Club's *Make Art Not War* music video, with Gastown
+Simulator as the visual world.
 
-## Why this lives here
+The creative direction is **a continuation of the Pyramid theme**, not a
+new automatically composed one-minute song. The F♯ → Gmaj7 → A6 harmonic
+space is the anchor. Build the film's tension with layered takes and a musical
+accelerando, then resolve with the performer, voice and violin. Grimes'
+accelerando is a conceptual reference to acceleration and density, **not**
+a request to imitate recordings or reproduce another composition.
 
-This is a **new song** inside `suzy-ai`, not a replacement for the Futureproof
-`PYRAMID ORBIT` looping performance. Its browser interface preserves the
-performer-led, overlapping loop idea, with a switchable **Pyramid Orbit chord
-palette**. It does **not** bundle Radiohead audio, reproduce the original
-performance recording, or overwrite its saved clips.
+## Open the actual looping instrument
 
-The sound engine is deterministic Web Audio. It creates actual stereo audio
-with oscillator and noise instruments, not a pretend player. Genuine Google
-Magenta RT2 audio is available **only if you render/record it separately and
-import the file**. Imported voice, guitar, or Logic takes work the same way.
-The app neither starts the AI model nor claims symbolic notes are AI audio.
+This is the important URL after updating your local checkout:
 
-## Run and audition on your Mac
+**http://127.0.0.1:7345/film-club/soft-reset/**
 
-From your `suzy-ai` checkout:
+The more descriptive alias **http://127.0.0.1:7345/film-club/pyramid/**
+does exactly the same thing. The Film Club page is rendered from the
+**unchanged existing** `suzy_ai/music/toaster_play.html` performance
+instrument. It is not a second loop engine or a static synth sequencer.
 
 ```bash
-git pull --ff-only
-python3 -m http.server 8787 --bind 127.0.0.1
+cd ~/Projects/suzy-ai
+git switch main
+git pull --ff-only origin main
+.venv-mac/bin/python -m suzy_ai.music.magenta_stage
 ```
 
-Open **http://127.0.0.1:8787/performance/film-club-2026/** in Chrome.
-Headphones recommended. Click **PLAY FILM SCORE** to unlock browser audio.
+If that Python environment does not exist, use the Mac setup described in
+`docs/mac-setup.md`. A locally installed `python3` environment with the
+required MIDI bindings may also run `python3 -m suzy_ai.music.magenta_stage`.
+Open Chrome after the local stage announces port 7345. Do **not** launch a
+second copy of MRT2; the existing stage owns one native AU host.
 
-Alternatively, when the existing native Magenta stage is running from this
-checkout, open **http://127.0.0.1:7345/film-club/soft-reset/**. Your
-**original** Pyramid environment stays at
-**http://127.0.0.1:7345/toaster/live**.
+The earlier `http://127.0.0.1:8787/performance/film-club-2026/` is still
+available as an **archived 60-second synthetic score sketch**, with an
+explicit link at the top to the new performance view. It is no longer the
+primary Film Club instrument.
 
-If you are auditing the feature branch before merging, check out
-`feat/film-club-soft-reset-v01` first; `git pull` on `main` does not
-include unmerged changes.
+## What is reused unchanged from Futureproof
 
-### First musician test
+- Floating 1–4 beat clock; record on the highlighted green beat 1.
+- One **RECORD FIRST LOOP → DONE → automatically repeating PLAY** workflow.
+- Add real audio layers, adjust/mute/solo/hold/silence clips, and keep the
+  original first-track bar alignment.
+- Piano, violin, cello/harmonium, glass/harp, native drums and voice lanes
+  with their genuine separate PCM record/loop pedals.
+- Scarlett / VE-22 microphone inputs; browser key pads; browser synth
+  fallback; Magenta RealTime 2 optional native AU; per-lane levels and FX.
+- `SAVE PYRAMID WAV`, full-set audio recording, safety controls and
+  unchanged keyboard shortcuts.
+- Existing on-screen Pyramid harmony, not a prepared recording of Radiohead.
 
-1. Play once at **low volume**. Listen for the harbour pulse (0–10s),
-   accelerating percussion (10–24s), metallic dissonance (24–38s), expressive
-   human entry (38–48s), and soft reset (48–60s).
-2. Click each of five scene blocks. Transport jumps to the corresponding
-   exact second. Try `SOFT RESET` and `PYRAMID ORBIT` harmonic palettes.
-3. Balance the lanes, then mute the metal track. The song should become less
-   threatening without changing tempo.
-4. Click **ARM OVERDUB**, press **A S D F G** during playback, then disarm.
-   Notes are quantized to the nearest eighth-beat and return at the same
-   places on the **next** 60-second cycle.
-5. Optionally import **your own** actual Magenta, Logic, guitar or vocal
-   render. It will loop for the film duration. The browser does not upload it.
-6. Export `soft-reset-60s-master.wav`, then audition the file outside the
-   browser (quickly inspect its first seconds and full ending). Export
-   `soft-reset-gastown-cues.json` for timed visual editing.
+No previously recorded browser loop is bundled into GitHub. These loops
+live in the **running browser memory**, and native AU memory loops live in
+the process. Before changing versions or prompting a native restart,
+**export what you care about**. Opening the new route does not migrate
+an in-memory take from another tab.
 
-All clips and overdubs are **memory-only in v0.1**. Export the WAV and cue
-JSON before closing the tab. The app does not record your microphone in this
-iteration; a vocal recording must be imported. No network, cloud account,
-Logic, or neural model is needed for the included sound.
+## Five Film Club prompts
 
-## Compositional map
+| Original native slot | New instrument direction |
+| --- | --- |
+| 01 · Pyramid piano | Close felt piano, suspended harmony and human rubato |
+| 02 · Cello/harmonium | Bowed cello, warm sub shadow, slowly changing texture |
+| 03 · Violin | Fragile expressive strings, tremolo into lyrical legato |
+| 04 · Glass/harp | Rain-reflection glass, celesta and irregular metallic decays |
+| 05 · Drums | Brush and tom pulse into syncopated accelerating movement |
 
-| Film time | Composition | Gastown visual treatment |
+These are **alternative text inputs on the Film Club page only**.
+`/toaster/live` continues to display the original five Futureproof
+prompts. The original Python prompt constants and audio host code remain
+untouched.
+
+**Important limitation:** both pages control the **same** native
+Magenta Audio Unit when connected to the same stage. Editing Film Club
+prompts in the browser does nothing to the model until you deliberately
+press **APPLY PROMPTS** (or start a stopped host from the film page).
+That restart can silence/clear unsaved **native memory loops**. The Film
+Club page asks for confirmation before APPLY. It cannot promise concurrent
+independent model configurations. To return to the Futureproof sound, open
+`/toaster/live` and reapply its original prompts, once your takes are safe.
+
+## Gastown film edit guide (not a second clock)
+
+| Proposed cut | Performance arc | Visual idea |
 | --- | --- | --- |
-| 0–10s | Harbour sub, glass, suspended strings, very restrained pulse | Grounded Waterfront/Gastown ambience |
-| 10–24s | Gradual BPM rise, repeating notes, hats, tightening bass | Traffic and lights accelerating |
-| 24–38s | Industrial percussion, metallic dissonance and density | Machine conflict, abstraction, unstable image |
-| 38–48s | Abrupt slowdown, human melodic intervention | Performance interrupts machinery |
-| 48–60s | Harmony opens, groove returns without violence | City becomes an instrument: MAKE ART NOT WAR |
+| 00–10s | Piano, held breath | Gastown as it is |
+| 10–24s | Glass and cello enter | Reflections repeat |
+| 24–38s | Rhythmic density and tremolo | Technology accelerates |
+| 38–48s | Drop to voice and violin | The human interrupts |
+| 48–60s | Harmonic return | Make art not war |
 
-The song is an *original* response to the idea of cultural accelerando, not
-a Grimes cover or sound-alike request. The previous conversation's
-**"SOFT RESET"** story arc is the narrative source.
+The Film Club page has a **SAVE GASTOWN 60s CUES JSON** control. The file
+supplies suggested editorial cue times to align with screen captures. The
+loop engine's native transport remains freely performed; this **does not**
+claim sample-accurate automatic syncing of the game and music. Record/export
+your audio first, then line up the film edit to the soundtrack.
 
-## Gastown Simulator handoff
-
-The cue JSON uses `suzy-film-cues/v1`. Each cue includes `time_sec`,
-`end_sec`, `scene`, `visual_event`, `intensity`, `treatment`, and
-`harmony_hint`. All cue times are in **absolute soundtrack seconds**.
-It also includes tempo snapshots, overdub timing and whether imported audio
-was present. Imported audio bytes are **not** embedded in JSON.
-
-This is an **edit handoff**, not an automatic simulator control protocol yet.
-Line up screen recordings or rendered clips with the 60-second WAV in your
-video editor. The original source of truth for film timing is 60.000 seconds.
-No direct game-world state or simulator source files are changed.
-
-## Test
+## Verification
 
 ```bash
-node --test tests/film_club_soft_reset.test.cjs
-python3 -m unittest tests.test_soft_reset_stage
+python3 -m unittest tests.test_film_club_pyramid tests.test_soft_reset_stage
+node --test tests/toaster_play.test.cjs
 ```
 
-These cover score determinism and time windows, accelerando, sample PCM
-encoding, Web Audio graph construction, module contracts, fixed localhost
-routes, and preservation of the Pyramid route. CI additionally runs
-`bash scripts/test-film-club-browser.sh` on Ubuntu Chrome to verify that
-the real 60-second OfflineAudioContext render contains audible (non-silent)
-PCM in every editorial scene without full-scale clipping. CI still does not
-prove that the mix *sounds good* or that screen capture records system audio.
-Human listening and a local exported-WAV check are still needed.
+Tests check that the film view contains the complete original controls
+and scripts, that the source page is unmodified, that exactly five
+view-specific prompts replace the text fields, and that local query
+parameters and song assets route correctly. Existing original TOASTER
+unit tests continue to protect capture, playback and safety logic.
+A Mac headphones/audio-device rehearsal remains necessary to verify the
+real Magenta AU and microphone takes.
 
-## v0.2 candidates after listening
-
-A microphone capture lane with correctly aligned audio overdubs; a playable
-guitar/piano MIDI input; live Magenta AU input routed as real captured PCM;
-scene-controlled harmonic and rhythmic changes; and a versioned
-Gastown-Simulator cue importer for synchronization. Do not make the
-simulator and browser transports both pretend to be the master clock.
+The earlier `score.js`, `audio.js`, `app.js` and WAV-render tests remain
+in the repo as an archive of the standalone sketch, not the live Film Club
+composition.
