@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import platform
 import secrets
+from urllib.parse import urlsplit
 
 from .magenta_midi import MagentaMidiBridge
 from .toaster_performance import ToasterPerformance
@@ -59,6 +60,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def do_GET(self):
+        requested_path = urlsplit(self.path).path
         if self.path == "/":
             page = PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
@@ -66,7 +68,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         # first loop, vocal, native Magenta and PCM pedal implementations.
         # Only the visible prompt text and film cue strip are specialized.
         # No prompt is automatically applied to the shared native host.
-        if self.path in ("/film-club/soft-reset", "/film-club/soft-reset/",
+        if requested_path in ("/film-club/soft-reset", "/film-club/soft-reset/",
                          "/film-club/pyramid", "/film-club/pyramid/"):
             page = render_film_club_page(PLAY_PAGE.read_text(encoding="utf8"), self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
@@ -78,8 +80,8 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             "/film-club/soft-reset/style.css": ("style.css", "text/css; charset=utf-8"),
             "/film-club/soft-reset/film-club.js": ("film-club.js", "text/javascript; charset=utf-8"),
         }
-        if self.path in film_files:
-            name, media_type = film_files[self.path]
+        if requested_path in film_files:
+            name, media_type = film_files[requested_path]
             file = FILM_CLUB_DIR / name
             if not file.is_file():
                 return self.reply(404, {"error": "Film Club source not installed"})
