@@ -52,6 +52,16 @@ class FilmClubStageTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b"PYRAMID", original)
 
+    def test_local_stage_csp_allows_same_origin_song_stylesheet(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        conn.request("GET", "/film-club/soft-reset/")
+        response = conn.getresponse()
+        policy = response.getheader("Content-Security-Policy")
+        response.read()
+        conn.close()
+        self.assertIn("script-src 'self'", policy)
+        self.assertIn("style-src 'self'", policy)
+
     def test_exact_asset_allowlist_blocks_path_traversal(self):
         for path in ["/film-club/soft-reset/../../README.md",
                      "/film-club/soft-reset/config.json",
