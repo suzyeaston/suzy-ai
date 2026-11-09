@@ -162,7 +162,7 @@
     try{
       await ensureAudio();
       const ev={t:0,track:"human",kind:"human",note:pad.note,dur:.85,velocity:.73};
-      audio.play(ctx,mix.channels.human,ev,ctx.currentTime+.008);
+      activeSources.push(...audio.play(ctx,mix.channels.human,ev,ctx.currentTime+.008));
       if(armed&&playing){
         if(humanTakes.length>=256){notify("256-gesture limit reached. Export before clearing.",true);return;}
         const t=quantize(currentPosition());
