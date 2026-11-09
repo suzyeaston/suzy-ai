@@ -39,7 +39,7 @@ class FilmClubStageTests(unittest.TestCase):
         for path, mime, marker in [
             ("/film-club/soft-reset/", "text/html", b"SOFT RESET"),
             ("/film-club/soft-reset/score.js", "text/javascript", b"buildScore"),
-            ("/film-club/soft-reset/audio.js", "text/javascript", b"Offline"),
+            ("/film-club/soft-reset/audio.js", "text/javascript", b"schedulePrint"),
             ("/film-club/soft-reset/app.js", "text/javascript", b"humanTakes"),
             ("/film-club/soft-reset/style.css", "text/css", b".transport"),
         ]:
