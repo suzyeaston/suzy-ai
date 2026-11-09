@@ -7,7 +7,7 @@ const os=require("node:os");
 const path=require("node:path");
 
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const failAfter=(ms,label)=>new Promise((_,reject)=>setTimeout(()=>reject(Error(label+" timed out after "+ms+"ms")),ms));
+const failAfter=(ms,label)=>new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error(label+" timed out after "+ms+"ms")),ms);t.unref?.();});
 const chromeBin=process.argv[2]||process.env.CHROME||"google-chrome";
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),"suzy-film-chrome-"));
 const httpPort=18863,devtoolsPort=18864;
