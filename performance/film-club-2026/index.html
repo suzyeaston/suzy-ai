@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17141f">
+<title>SOFT RESET // SUZY//AI Film Club instrument</title>
+<link rel="stylesheet" href="./style.css">
+<script src="./score.js" defer></script>
+<script src="./audio.js" defer></script>
+<script src="./app.js" defer></script>
+</head>
+<body>
+<main>
+  <header class="mast">
+    <div>
+      <div class="eyebrow">SUZY//AI · FILM CLUB 2026 · LOCAL INSTRUMENT 0.1</div>
+      <h1>SOFT <span>RESET</span><sup>✳</sup></h1>
+      <p class="lead">One minute. One city. A machine discovers what else it can become.</p>
+    </div>
+    <div class="reference">
+      <span class="eyebrow">FUTUREPROOF DNA</span>
+      <strong>PYRAMID ORBIT lives on.</strong>
+      <a href="http://127.0.0.1:7345/toaster/live" target="_blank" rel="noopener noreferrer">Open the original performance instrument ↗</a>
+      <small>Requires your existing local Magenta stage on port 7345.</small>
+    </div>
+  </header>
+
+  <section class="transport" aria-label="Transport">
+    <div class="transport-top">
+      <div><div class="eyebrow">01 / MASTER TRANSPORT</div><div class="time" id="timecode" aria-live="off">00:00 <span>/ 01:00</span></div></div>
+      <div class="controls">
+        <button id="play" class="primary" type="button">▶ PLAY FILM SCORE</button>
+        <button id="stop" type="button">■ STOP</button>
+        <button id="loop" class="on" aria-pressed="true" type="button">∞ LOOP ON</button>
+      </div>
+    </div>
+    <div id="ruler" class="ruler" role="progressbar" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0" aria-label="Song position"><div id="progress"></div></div>
+    <div class="transport-bottom">
+      <div id="nowScene" class="stage-name">CITY BREATHES</div>
+      <div id="bpm" class="mono">72 BPM</div>
+      <label class="vol">MASTER <input id="master" type="range" min="0" max="100" value="72"><output id="masterRead">72%</output></label>
+    </div>
+  </section>
+
+  <section class="split">
+    <div class="panel">
+      <div class="eyebrow">02 / CONDUCT THE IMAGE</div>
+      <h2>A 60-second argument with the future</h2>
+      <p class="caption">Click a scene to jump there. Tempo accelerates with the narrative, then the human melody breaks the machine's logic.</p>
+      <div id="scenes" class="scenes"></div>
+      <div class="scene-readout">
+        <div id="cueIndex" class="eyebrow">0–10 SEC</div>
+        <h3 id="cueTitle">CITY BREATHES</h3>
+        <p id="cueDescription">Waterfront footfall.</p>
+      </div>
+      <div class="palette">
+        <label for="palette">HARMONIC PALETTE</label>
+        <select id="palette">
+          <option value="soft-reset">SOFT RESET · original Em / C / G / B</option>
+          <option value="pyramid-orbit">PYRAMID ORBIT · F♯ / Gmaj7 / A6 / F♯</option>
+        </select>
+        <small>Pyramid Orbit is a chord-palette reference to your Futureproof setup, not a recording, arrangement or playback of Radiohead's song.</small>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">03 / ORCHESTRATION</div>
+      <h2>Six small orchestras</h2>
+      <p class="caption">Each lane is real, local browser synthesis. Mute or rebalance while the soundtrack runs. The seventh lane accepts your own audio.</p>
+      <div id="tracks" class="tracks"></div>
+    </div>
+  </section>
+
+  <section class="split lower">
+    <div class="panel">
+      <div class="eyebrow">04 / THE HUMAN GETS A VOTE</div>
+      <h2>Play against the algorithm</h2>
+      <p class="caption">Keys <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> play the human voice. Arm overdub to record your notes against the running 60-second clock. They return on the next loop and appear in WAV exports.</p>
+      <div id="pads" class="pads"></div>
+      <div class="action-row">
+        <button id="overdub" type="button" aria-pressed="false">● ARM OVERDUB</button>
+        <button id="clearOverdub" type="button">CLEAR HUMAN TAKES</button>
+        <span id="takeCount" class="mono">0 notes saved</span>
+      </div>
+      <p class="caption">First iteration: note-based overdubs, not microphone recording. Use the audio print lane below to place a vocal take.</p>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">05 / ORIGINAL AI OR VOCAL PRINT</div>
+      <h2>Bring in your own sound</h2>
+      <p class="caption">Import a WAV or supported audio file from Magenta RealTime 2, a Scarlett/VE-22 vocal, or Logic. It loops within the film score and is included in the rendered WAV. The app does not claim to generate AI audio.</p>
+      <label class="upload" for="audioFile">IMPORT AUDIO PRINT <input id="audioFile" type="file" accept="audio/*,.wav,.aif,.aiff,.m4a,.mp3"></label>
+      <div class="print-state"><span id="fileName">Nothing loaded</span><button id="clearAudio" type="button">REMOVE PRINT</button></div>
+      <hr>
+      <div class="eyebrow">06 / DELIVER TO THE FILM</div>
+      <h2>Take the soundtrack into Gastown</h2>
+      <div class="action-row"><button id="exportWav" class="primary" type="button">↓ RENDER 60s WAV</button><button id="exportCues" type="button">↓ EXPORT VISUAL CUES JSON</button></div>
+      <p class="caption">Cues carry exact start/end times, visual treatments, and intensity values for Gastown Simulator. They do not yet control the simulator automatically. For now, line up the WAV and visual captures in your video editor.</p>
+    </div>
+  </section>
+  <div id="status" class="status" role="status" aria-live="polite">READY · Headphones recommended. Click PLAY to enable browser audio.</div>
+  <footer>SUZY EASTON / MAKE ART NOT WAR · Original score, no samples shipped, no cloud service, no changes to the Futureproof Pyramid session. This is a compositional prototype, not a finished mix.</footer>
+</main>
+</body>
+</html>

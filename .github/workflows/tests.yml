@@ -21,6 +21,14 @@ jobs:
       - run: bash scripts/test.sh
       - run: node --test tests/toaster_loop_rack.test.cjs
       - run: node --test tests/toaster_play.test.cjs
+      - run: node --test tests/film_club_soft_reset.test.cjs
+      - uses: actions/setup-node@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        with:
+          node-version: '22'
+      - name: Render original film score in real headless Chrome
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: bash scripts/test-film-club-browser.sh
       - run: bash -n scripts/setup-mac.sh scripts/start-mac.sh
   mac-companion:
     runs-on: macos-latest

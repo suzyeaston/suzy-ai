@@ -28,6 +28,7 @@ TRACK_VIEW_SCRIPT = Path(__file__).with_name("toaster_track_view.js")
 VOCAL_CAPTURE_SCRIPT = Path(__file__).with_name("toaster_vocal_capture.js")
 PERFORMANCE_TIMELINE_SCRIPT = Path(__file__).with_name("toaster_performance_timeline.js")
 VOICE_FOLLOW_SCRIPT = Path(__file__).with_name("toaster_voice_follow.js")
+FILM_CLUB_DIR = Path(__file__).resolve().parents[2] / "performance" / "film-club-2026"
 
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
@@ -49,7 +50,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             ("X-Frame-Options", "DENY"),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
-            ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; "
+            ("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; "
              "script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"),
         ]:
             self.send_header(k, v)
@@ -60,6 +61,22 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         if self.path == "/":
             page = PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
+        # Film Club is a separate original song, not a modification of Pyramid Orbit.
+        # Only serve this fixed allowlist; no arbitrary file path is accepted.
+        film_files = {
+            "/film-club/soft-reset": ("index.html", "text/html; charset=utf-8"),
+            "/film-club/soft-reset/": ("index.html", "text/html; charset=utf-8"),
+            "/film-club/soft-reset/score.js": ("score.js", "text/javascript; charset=utf-8"),
+            "/film-club/soft-reset/audio.js": ("audio.js", "text/javascript; charset=utf-8"),
+            "/film-club/soft-reset/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            "/film-club/soft-reset/style.css": ("style.css", "text/css; charset=utf-8"),
+        }
+        if self.path in film_files:
+            name, media_type = film_files[self.path]
+            file = FILM_CLUB_DIR / name
+            if not file.is_file():
+                return self.reply(404, {"error": "Film Club sources not installed; use the repository checkout"})
+            return self.reply(200, file.read_bytes(), media_type)
         if self.path == "/toaster":
             page = TOASTER_PAGE.read_text(encoding="utf8").replace("__MAGENTA_TOKEN__", self.token)
             return self.reply(200, page.encode("utf8"), "text/html; charset=utf-8")
