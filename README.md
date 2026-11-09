@@ -8,6 +8,12 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+## ✳ SOFT RESET · Film Club 60-second composition (new, separate from Futureproof)
+
+The first original musical sketch for **Make Art Not War** uses **Gastown Simulator** visuals and a local Web Audio instrument. Six editable layers, five timed scenes, tempo accelerando, live computer-keyboard melody/overdubs, optional imported Magenta/voice audio, a **60-second WAV export**, and aligned **visual cue JSON** live under [`performance/film-club-2026/`](performance/film-club-2026/README.md). The original **PYRAMID ORBIT** performance remains unchanged; the new instrument offers its chord palette as an optional harmonic setting, not a copyrighted recording.
+
+From a repo checkout, run `python3 -m http.server 8787` and open `http://127.0.0.1:8787/performance/film-club-2026/`. Or use `http://127.0.0.1:7345/film-club/soft-reset/` when your existing local Magenta stage is running. Only the imported audio print is AI if you supply genuine generated audio; the built-in composition is deterministic browser synthesis.
+
 ## 🥁 Playable native jazz drum pads and automatic preset sounds
 
 The fifth Magenta instrument now has four large performance pads, playable with **keys 1, 2, 3, 4** (and numeric keypad) or pointer/touch: kick, snare, closed hat, and ride. These issue MIDI note-on/off **36, 38, 42, 51** to the original **Google MRT2 AU** with the jazz drum prompt selected automatically on first hit. The prompt is a generative musical conditioning signal, **not a deterministic General MIDI drum sample bank**, so audition the actual response before performing. Release a pad/key to release the MIDI note; switching focus, losing the browser window, and tab visibility changes also release held pads.
