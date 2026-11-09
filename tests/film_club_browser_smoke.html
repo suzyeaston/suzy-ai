@@ -1,0 +1,40 @@
+<!doctype html><html lang="en">
+<head><meta charset="utf-8"><title>SOFT RESET / browser offline PCM smoke</title>
+<script src="../performance/film-club-2026/score.js"></script>
+<script src="../performance/film-club-2026/audio.js"></script>
+</head>
+<body data-result="PENDING">Rendering browser PCM...</body>
+<script>
+(async function(){
+  try{
+    const score=window.SoftResetScore, audio=window.SoftResetAudio;
+    if(!score||!audio||!window.OfflineAudioContext)throw Error("Required browser Web Audio API missing");
+    const sampleRate=22050,duration=score.DURATION;
+    const ctx=new OfflineAudioContext(2,sampleRate*duration,sampleRate);
+    const levels=Object.fromEntries(score.TRACKS.map(t=>[t.id,t.level]));levels.print=.55;
+    const mix=audio.createMix(ctx,levels,.72);
+    audio.schedule(ctx,mix,score.buildScore("soft-reset"),0,0);
+    const pcm=await ctx.startRendering();
+    if(pcm.length!==sampleRate*60||pcm.numberOfChannels!==2)throw Error("Wrong render size");
+    const data=pcm.getChannelData(0);
+    function rms(a,b){
+      let sum=0,count=0,peak=0;
+      for(let i=Math.floor(a*sampleRate);i<Math.floor(b*sampleRate);i+=16){
+        const s=data[i];sum+=s*s;count++;peak=Math.max(peak,Math.abs(s));
+      }
+      return {rms:Math.sqrt(sum/count),peak};
+    }
+    const sections=[[2,8],[12,23],[26,36],[39,47],[50,59]].map(s=>rms(...s));
+    if(sections.some(x=>!Number.isFinite(x.rms)||x.rms<.0003))throw Error("Silent or NaN scene: "+JSON.stringify(sections));
+    if(sections.some(x=>x.peak>=.9999))throw Error("PCM clipping in scene: "+JSON.stringify(sections));
+    const blob=audio.wav(pcm),dv=new DataView(await blob.arrayBuffer());
+    if(dv.getUint32(24,true)!==sampleRate || dv.getUint32(40,true)!==pcm.length*2*2)
+      throw Error("Offline PCM export header incorrect");
+    document.body.dataset.result="PASS";
+    document.body.textContent="PASS: "+JSON.stringify(sections);
+  }catch(err){
+    document.body.dataset.result="FAIL";
+    document.body.textContent="FAIL: "+(err.stack||err.message||err);
+  }
+})();
+</script></html>
