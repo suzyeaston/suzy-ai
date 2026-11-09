@@ -38,6 +38,9 @@ class FilmClubStageTests(unittest.TestCase):
     def test_song_and_local_assets_available_without_touching_pyramid(self):
         for path, mime, marker in [
             ("/film-club/soft-reset/", "text/html", b"SOFT RESET"),
+            ("/film-club/pyramid/?utm_source=chatgpt.com", "text/html", b"filmClubCues"),
+            ("/film-club/soft-reset/?utm_source=chatgpt.com", "text/html", b"FILM CLUB"),
+            ("/film-club/soft-reset/film-club.js", "text/javascript", b"filmExportCues"),
             ("/film-club/soft-reset/score.js", "text/javascript", b"buildScore"),
             ("/film-club/soft-reset/audio.js", "text/javascript", b"schedulePrint"),
             ("/film-club/soft-reset/app.js", "text/javascript", b"humanTakes"),
@@ -51,6 +54,14 @@ class FilmClubStageTests(unittest.TestCase):
         status, _, original = self.get("/toaster/live")
         self.assertEqual(status, 200)
         self.assertIn(b"PYRAMID", original)
+        status, _, film = self.get("/film-club/soft-reset/")
+        self.assertEqual(status, 200)
+        self.assertIn(b"RECORD FIRST LOOP", film)
+        self.assertIn(b"RECORD VIOLIN TAKE", film)
+        self.assertIn(b"RECORD", film)
+        self.assertIn(b"test-token", film)
+        self.assertNotIn(b"filmClubCues", original)
+        self.assertIn(b"filmClubCues", film)
 
     def test_local_stage_csp_allows_same_origin_song_stylesheet(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)

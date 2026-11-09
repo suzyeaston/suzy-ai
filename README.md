@@ -8,11 +8,26 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
-## ✳ SOFT RESET · Film Club 60-second composition (new, separate from Futureproof)
+## ✳ PYRAMID / SOFT RESET · Film Club continuation
 
-The first original musical sketch for **Make Art Not War** uses **Gastown Simulator** visuals and a local Web Audio instrument. Six editable layers, five timed scenes, tempo accelerando, live computer-keyboard melody/overdubs, optional imported Magenta/voice audio, a **60-second WAV export**, and aligned **visual cue JSON** live under [`performance/film-club-2026/`](performance/film-club-2026/README.md). The original **PYRAMID ORBIT** performance remains unchanged; the new instrument offers its chord palette as an optional harmonic setting, not a copyrighted recording.
+For BC + AI Film Club's **Make Art Not War** music video with Gastown
+Simulator visuals, the current composition **continues the Futureproof
+Pyramid Orbit harmonic theme** rather than replacing it with a new
+automatic 60-second score. The Film Club route renders the **same complete
+live TOASTER loop instrument**: record-first-loop, independent Magenta PCM
+piano/violin/cello/glass/drum pedals, vocal looping, effect controls and
+full-set recording. The original `/toaster/live` source and sound presets
+remain intact. The Film Club version displays its own five editable
+instrument prompts, applied to the shared native AU **only by an explicit
+performer action**.
 
-From a repo checkout, run `python3 -m http.server 8787` and open `http://127.0.0.1:8787/performance/film-club-2026/`. Or use `http://127.0.0.1:7345/film-club/soft-reset/` when your existing local Magenta stage is running. Only the imported audio print is AI if you supply genuine generated audio; the built-in composition is deterministic browser synthesis.
+Run the local stage and open
+**http://127.0.0.1:7345/film-club/soft-reset/** or
+**http://127.0.0.1:7345/film-club/pyramid/**. The former standalone
+synth sequencer remains as an archived sketch on port 8787, not the live
+Film Club instrument. See [the Film Club rehearsal and Gastown cue guide](performance/film-club-2026/README.md)
+for prompt isolation caveats, auditioning, WAV recording, and the 60-second
+film edit storyboard.
 
 ## 🥁 Playable native jazz drum pads and automatic preset sounds
 
