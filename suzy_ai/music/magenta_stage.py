@@ -50,7 +50,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             ("X-Frame-Options", "DENY"),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
-            ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; "
+            ("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; "
              "script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"),
         ]:
             self.send_header(k, v)
