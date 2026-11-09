@@ -1006,14 +1006,38 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  run(`ctx.currentTime=transportEpoch+(${begin}+4.25)*tickSeconds()`);
  run('record("pyramid")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,8,"DONE completes the current rhythm bar");
+ assert.equal(finish-begin,5,"DONE closes at the next eighth-note tick, not the end of the bar");
  assert.match(get("recordHint-pyramid").textContent,/DONE/);
  run(`ctx.currentTime=transportEpoch+(${finish}+3)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.lengthSteps"),8);
+ assert.equal(run("decks.pyramid.lengthSteps"),5);
  assert.equal(run("decks.pyramid.anchorStep"),begin);
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),1,"opening rest is part of musical timing");
  assert.equal(get("loopToggle-pyramid").disabled,false);
+});
+
+test("first MIDI piano loop replays on the very next free tick, without waiting for green one",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('record("pyramid")');
+ const begin=run("recording.beginAt");
+ run(`ctx.currentTime=transportEpoch+(${begin}+0.1)*tickSeconds();scheduler()`);
+ run('beginChord("pyramid",0,"key:first");endChord("key:first")');
+ // DONE right after a previous measure marker must not round up an entire bar.
+ run(`ctx.currentTime=transportEpoch+(${begin}+8.1)*tickSeconds()`);
+ run('record("pyramid")');
+ const end=run("recording.endAt");
+ assert.equal(end-begin,9,"one eighth tick from DONE, never an extra seven");
+ const originalBpm=run("bpm");
+ const originalMeter=get("drumMeter").value;
+ run(`ctx.currentTime=transportEpoch+(${end}+.25)*tickSeconds();scheduler()`);
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),9);
+ assert.equal(run("decks.pyramid.anchorStep"),begin);
+ assert.equal(run("bpm"),originalBpm);
+ assert.equal(get("drumMeter").value,originalMeter);
+ assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
+ assert.match(get("pedalClockCue").textContent,/LOOP|BAR|BEAT|READY/);
 });
 
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1025,9 +1049,9 @@ test("DONE after a different phrase duration locks that custom length and not an
  run(`ctx.currentTime=transportEpoch+(${begin}+11.25)*tickSeconds()`);
  run('record("fishes")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,16,"DONE is resolved on the next full rhythm bar");
+ assert.equal(finish-begin,12,"DONE resolves at the next unscheduled eighth tick");
  run(`ctx.currentTime=transportEpoch+(${finish}+2)*tickSeconds();scheduler()`);
- assert.equal(run("decks.fishes.lengthSteps"),16);
+ assert.equal(run("decks.fishes.lengthSteps"),12);
  assert.equal(run("decks.fishes.anchorStep"),begin,"leading beat rest must not be cropped");
  assert.equal(run("decks.fishes.layers[0].events[0].step"),1);
  assert.match(get("recordHint-fishes").textContent,/LOOP PLAYING/);
@@ -1477,11 +1501,11 @@ test("first-loop pedal trims dead air before first played chord and replays at D
  run(`ctx.currentTime=transportEpoch+(${begin}+10.45)*tickSeconds()`);
  run('record("pyramid")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,16,"whole-bar closing preserves rhythm");
+ assert.equal(finish-begin,11,"short-tick handoff avoids nearly a measure of silence");
  run(`ctx.currentTime=transportEpoch+(${finish}+1)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null);
  assert.equal(run("decks.pyramid.anchorStep"),begin,"piano rests remain at the first three beat positions");
- assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.lengthSteps"),11);
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),3);
  assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
