@@ -1,0 +1,159 @@
+"""Film Club continuation of Pyramid Orbit using the existing TOASTER loop UI.
+
+No second copy of the 270 KB performance page and no changes to its loop
+engine. Film sound prompts live only in this view until the musician explicitly
+chooses APPLY or starts a stopped Magenta host.
+"""
+from __future__ import annotations
+
+from html import escape
+import re
+
+from .magenta_native_host import PROMPTS
+
+
+TITLE = "PYRAMID / SOFT RESET · Film Club"
+FILM_PROMPTS = (
+    # Native slots 01 through 05 keep their original instrument routing.
+    "Intimate close-miked felt piano, sustained F sharp minor tonal gravity, "
+    "suspended G major seventh and A sixth color, delicate asymmetric "
+    "phrasing, subtle tape warmth, human rubato, spare and spacious, "
+    "no bass guitar, no drum kit, no vocals",
+    "Deep expressive bowed cello and harmonium with a slow shifting analog "
+    "sub-bass shadow, gently increasing tremolo and grain, F sharp tonal center "
+    "with G major seventh and A sixth harmonic color, dark but tender, "
+    "quiet rests, no bright leads, no drums, no vocals",
+    "Expressive solo bowed violin, fragile long phrases evolving toward "
+    "faster articulated tremolo then opening into warm legato melody, "
+    "intimate string texture, slight bow noise, emotionally restrained, "
+    "no rhythm section, no vocals",
+    "Glassy celesta, resonant harp harmonics and irregular soft metallic "
+    "overtones, reflective rainlit texture, gradually tighter repeating "
+    "attacks dissolving into spacious bell decay, F sharp suspended harmony, "
+    "no guitar riffs, no drums, no vocals",
+    "Organic brushed drums and low resonant toms, gentle human heartbeat "
+    "growing into syncopated skittering hats, irregular accents and a "
+    "detailed accelerating pulse, release into generous silence, warm live "
+    "percussion rather than militaristic marching, no melody, no vocals",
+)
+PROMPT_IDS = (
+    "promptPyramid", "promptFishes", "promptViolin",
+    "promptGuitar", "promptJazzDrums",
+)
+ORIGINAL_PROMPTS = tuple(PROMPTS[key] for key in (
+    "pyramid", "fishes", "pyramid_violin", "fishes_guitar", "jazz_drums"
+))
+assert len(FILM_PROMPTS) == len(PROMPT_IDS) == 5
+assert all(0 < len(prompt) <= 500 for prompt in FILM_PROMPTS)
+
+
+def render_film_club_page(original: str, token: str) -> str:
+    """Return Film Club variant without editing the source Futureproof page.
+
+    Expects the same ids, scripts and PCM loop controls as /toaster/live.
+    Fail closed if an upstream HTML change removes a prompt/anchor.
+    """
+    if not original.startswith("<!doctype html>"):
+        raise ValueError("Expected the original TOASTER HTML document")
+    page = original.replace("__MAGENTA_TOKEN__", token)
+    if page == original and "__MAGENTA_TOKEN__" in original:
+        raise ValueError("Could not substitute stage token")
+
+    labels = {
+        "FUTUREPROOF · THE APPLIANCE LATENT SPACE":
+            "FILM CLUB · PYRAMID / SOFT RESET · MAKE ART NOT WAR",
+        "PYRAMID · THE LIVING LOOP":
+            "PYRAMID · THE LIVING LOOP / FILM CLUB",
+        "Your original piano, violin and voice stay exactly where they are":
+            "The Futureproof harmony continues. Record NEW Film Club takes on this page.",
+        "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
+            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: felt piano, cello/sub shadow, expressive violin, glass/harp, and evolving percussion.",
+        "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
+            "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
+        "01 · PYRAMID · intimate piano":
+            "01 · PYRAMID AFTERIMAGE · felt piano",
+        "02 · PYRAMID ORBIT · low cello / harmonium drone":
+            "02 · UNDERCURRENT · cello / harmonium / sub",
+        "03 · PYRAMID · MAGENTA VIOLIN LEAD":
+            "03 · THE HUMAN VOICE · expressive violin",
+        "04 · PYRAMID ORBIT · glass harmonics / harp":
+            "04 · CITY GLASS · celesta / harp / metallic",
+        "DRUM SOUND PROMPT · EDITABLE":
+            "05 · FILM CLUB PULSE · evolving organic percussion",
+    }
+    for old, new in labels.items():
+        if old not in page:
+            raise ValueError("TOASTER view anchor changed: " + old[:60])
+        page = page.replace(old, new, 1)
+
+    for key, prompt in zip(PROMPT_IDS, FILM_PROMPTS):
+        pattern = re.compile(
+            r'(<textarea\s+id="' + re.escape(key) +
+            r'"\s+maxlength="500">)(.*?)(</textarea>)',
+            re.DOTALL
+        )
+        page, count = pattern.subn(
+            lambda match: match.group(1) + escape(prompt, quote=False) + match.group(3),
+            page, count=1
+        )
+        if count != 1:
+            raise ValueError("Film Club could not locate prompt: " + key)
+
+    if "</style>" not in page or "</header>" not in page or "</body>" not in page:
+        raise ValueError("Missing required TOASTER page anchors")
+    style = """
+/* Film Club colorway, added on top of the unchanged performance UX */
+.film-cue-rail{border:1px solid #d39fae;border-radius:16px;margin:15px 0 18px;
+  padding:18px;background:linear-gradient(125deg,#4c283e,#253b3d);color:#fff0e9}
+.film-cue-rail h2{margin:6px 0 8px;font-size:clamp(21px,3vw,30px)}
+.film-cue-rail p{font-size:13px;line-height:1.55;max-width:850px}
+.film-cue-rail .film-tag{font:900 11px ui-monospace,monospace;
+  letter-spacing:.13em;color:#c1ffe2}
+.film-cue-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0}
+.film-cue-item{border:1px solid #ffffff40;border-radius:9px;padding:10px;
+  font:800 11px/1.4 ui-monospace,monospace;background:#201a27}
+.film-cue-item strong{display:block;color:#bdf3d9;font-size:12px}
+.film-cue-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.film-cue-actions button{padding:10px 14px;font-size:12px}
+.film-warning{padding:9px 12px;border-left:3px solid #f4d0aa;
+  background:#291a24;border-radius:5px;font:12px/1.5 system-ui}
+@media(max-width:700px){.film-cue-grid{grid-template-columns:repeat(2,1fr)}}
+"""
+    page = page.replace("</style>", style + "</style>", 1)
+    banner = """
+<section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
+  <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
+  <h2>Same loop station. A new chapter of the same song.</h2>
+  <p>F♯ → Gmaj7 → A6 is still home. Use the familiar green beat-one,
+  record-first-loop, DONE → LOOP, layered cello/violin/glass/drums, microphone,
+  and native PCM pedals. The film's acceleration comes from what you play and
+  layer, not an automatic replacement beat. Gastown Simulator supplies the film.</p>
+  <div class="film-cue-grid" aria-label="Suggested edit storyboard">
+    <div class="film-cue-item"><strong>0–10s</strong> FLOAT / harbour</div>
+    <div class="film-cue-item"><strong>10–24s</strong> AWAKEN / glass</div>
+    <div class="film-cue-item"><strong>24–38s</strong> TENSION / percussion</div>
+    <div class="film-cue-item"><strong>38–48s</strong> HUMAN / violin & voice</div>
+    <div class="film-cue-item"><strong>48–60s</strong> RELEASE / soft reset</div>
+  </div>
+  <div class="film-cue-actions">
+    <button id="filmExportCues" type="button">↓ SAVE GASTOWN 60s CUES JSON</button>
+    <a href="/toaster/live">Return to Futureproof interface</a>
+    <span class="film-tag" id="filmPromptStatus" role="status">FIVE FILM PROMPTS LOADED IN THIS PAGE</span>
+  </div>
+  <p class="film-warning"><strong>Separate composition, shared Mac model:</strong>
+  Film prompt text does not replace the Futureproof source presets.
+  The native MRT2 host is shared by both browser pages. APPLY PROMPTS restarts
+  that host and can stop native-memory audio loops. Finish/export any important
+  takes first; avoid running both performance pages at once. The browser
+  never restores unsaved recordings after a reload.</p>
+</section>
+"""
+    page = page.replace("</header>", "</header>" + banner, 1)
+    page = page.replace(
+        "</body>",
+        '<script src="/film-club/soft-reset/film-club.js" defer></script></body>',
+        1
+    )
+    if page.count('id="filmClubCues"') != 1:
+        raise ValueError("Film Club cue surface not installed")
+    return page
