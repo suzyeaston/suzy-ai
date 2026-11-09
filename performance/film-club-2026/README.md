@@ -96,10 +96,13 @@ python3 -m unittest tests.test_soft_reset_stage
 ```
 
 These cover score determinism and time windows, accelerando, sample PCM
-encoding, actual Web Audio graph construction through stubs, module contracts,
-fixed localhost routes, and preservation of the Pyramid route. CI does not
-prove that the browser output *sounds good* or that screen capture records
-system audio. Human listening and a local exported-WAV check are still needed.
+encoding, Web Audio graph construction, module contracts, fixed localhost
+routes, and preservation of the Pyramid route. CI additionally runs
+`bash scripts/test-film-club-browser.sh` on Ubuntu Chrome to verify that
+the real 60-second OfflineAudioContext render contains audible (non-silent)
+PCM in every editorial scene without full-scale clipping. CI still does not
+prove that the mix *sounds good* or that screen capture records system audio.
+Human listening and a local exported-WAV check are still needed.
 
 ## v0.2 candidates after listening
 
