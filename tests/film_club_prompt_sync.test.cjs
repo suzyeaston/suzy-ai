@@ -52,7 +52,7 @@ function harness({active=defaults(),auActive,confirm=true,applied=true,applyAu=t
       if(action!=="start")throw Error("Unexpected native operation "+action);
       calls++;
       if(startFails)throw Error("MRT2 model could not initialize");
-      if(applied){bank=data.prompts.slice();if(applyAu)actual=bank.slice();}
+      if(applied){bank=Array.from(data.prompts);if(applyAu)actual=bank.slice();}
       return {phase, audio_engine_running:phase==="host-running"};
     },
     aiDisplay:()=>{},syncAIMix:async()=>{},
