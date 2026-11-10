@@ -2337,6 +2337,49 @@ test("cello and glass prompt recordings become two independently removable Pyram
  assert.equal(run('decks.pyramid.layers.filter(l=>l.instrumentRole==="textureHigh").length'),1);
  assert.equal(run("decks.pyramid.layers[0].buffer"),originalBuffer);
 });
+test("Film Club low cello/harmonium uses bass-octave F-sharp without shifting original piano",async()=>{
+ const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
+ const commands=[];
+ env.fetch=async(url,opts)=>{
+   if(opts?.body)commands.push({op:String(url).split("/").pop(),args:JSON.parse(opts.body)});
+   return {ok:true,json:async()=>({})};
+ };
+ // Futureproof stays on the original voicing unless the Film-only script opts in.
+ await run('selectNativeLane("pyramid","textureLow")');
+ run('beginChord("pyramid",0,"key:futureproof")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(commands.filter(x=>x.op==="note").map(x=>x.args.note).slice(-4),
+   [54,58,61,66]);
+ run('endChord("key:futureproof")');
+ await run("aiCommandQueue");
+
+ // The Film view opts in, lowering cello by a full octave for live/PCM takes.
+ run("window.suzyFilmClubLowCello=true");
+ commands.length=0;
+ run('beginChord("pyramid",0,"key:film-cello")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(commands.filter(x=>x.op==="note").map(x=>x.args.note).slice(-4),
+   [42,46,49,54],"same harmonic intervals rooted at F sharp 2");
+ run('endChord("key:film-cello")');await run("aiCommandQueue");
+ assert.ok(commands.filter(x=>x.op==="note-off").some(x=>x.args.note===42));
+
+ // Chord pads and keyboard use the same low-register option in Film Club.
+ commands.length=0;
+ run('beginLaneHarmony("pyramid","textureLow","pyramid",0,"pad:cello")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ const low=commands.filter(x=>x.op==="chord").at(-1);
+ assert.equal(low.args.octave,-12);
+ assert.equal(low.args.harmony,"pyramid");
+ run('endLaneHarmony("pad:cello")');await run("aiCommandQueue");
+ await run('selectNativeLane("pyramid","chords")');
+ commands.length=0;
+ run('beginLaneHarmony("pyramid","chords","pyramid",0,"pad:piano")');
+ for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ const piano=commands.filter(x=>x.op==="chord").at(-1);
+ assert.equal(piano.args.octave,undefined,"piano register must remain unchanged");
+ run('endLaneHarmony("pad:piano")');await run("aiCommandQueue");
+});
+
 test("Pyramid pads steer selected cello and glass prompts with exact F-sharp, Gmaj7, A6 MIDI notes",async()=>{
  const {run,env}=rig();await run("startStop()");run("aiNativeReady=true");
  const commands=[];
