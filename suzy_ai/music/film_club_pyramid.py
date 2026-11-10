@@ -260,7 +260,8 @@ changes the host or Google's window.</small></section>"""
     page = page.replace("</header>", "</header>" + banner, 1)
     page = page.replace(
         "</body>",
-        '<script src="/film-club/soft-reset/film-club.js" defer></script></body>',
+        '<script src="/film-club/soft-reset/film-club.js" defer></script>'
+        '<script src="/film-club/soft-reset/audition.js" defer></script></body>',
         1
     )
     if page.count('id="filmClubCues"') != 1:
