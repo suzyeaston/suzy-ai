@@ -1386,8 +1386,11 @@ function pulse(time,count){
  // chord loop timing, native Magenta generation, or editable MIDI grid.
  // They are synthesized browser percussion, not claimed traditional samples.
  if(kinetic&&!customDrumHits&&drumEnergy>.05){
+  // Film Club's HOUSE intensity now changes subdivision DENSITY,
+  // not tempo. At low energy the kick/snare/hat pattern has space;
+  // at the climax two new ghost strokes land within each eighth.
   const steps=drumStyle==="frame"?[.33,.66]:
-    drumStyle==="house"?[.50]:[.50];
+    drumStyle==="house"?(drumEnergy<.35?[]:drumEnergy<.68?[.50]:[.33,.66]):[.50];
   for(const fraction of steps){
    const at=time+tickSeconds()*fraction;
    const o=ctx.createOscillator(),g=ctx.createGain();
