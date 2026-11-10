@@ -116,6 +116,44 @@ pass, as before. Keep in mind the Swift host requires a little
 capture-stop processing before the replay becomes audible. It no longer
 adds an avoidable full-period delay.
 
+## Important: the native Google UI can retain the ORIGINAL prompt bank
+
+A prior version of this app incorrectly treated the **Swift host's own
+`text_prompts`** as proof that the five Film Club prompts were active
+inside Google's Audio Unit. That claim was wrong. This code now reads
+`MGRT_Prompts` from the instantiated **Google AU's own `fullState`**
+and shows it separately from the host's requested strings.
+
+Even a matching AU `fullState` does **not** prove the model is using
+the new text embeddings, or that Google's window reflects them. In
+Google's upstream AUv3 source, bookmark autoload and the built-in model
+selector take different paths. The selector's `loadModelAtPath` does
+not reapply `set_text_prompts` after loading a model from the UI.
+See `examples/mrt2/auv3/MagentaRT_AudioUnit.mm` in
+`magenta/magenta-realtime`. We cannot safely patch Google's installed
+extension or claim to have remotely edited its proprietary runtime.
+
+### Reliable path with the official Google window
+
+1. Export any important native in-memory audio loops first.
+2. Open Film Club and, if necessary, use **APPLY FILM CLUB SOUNDS TO MRT2**
+   to request the saved bank, confirming the native restart.
+3. Look at the new status: a host match is not a Google AU match.
+   If the Swift binary is old, run `bash scripts/build-toaster-magenta.sh`
+   from the repo checkout and relaunch the stage.
+4. Open the native Google model window. If its five prompt rows still display
+   old strings, use **COPY 01 / 02 / 03 / 04 / 05** in the new
+   **When Google's window still shows the old sounds** panel.
+   For each matching Google prompt row, select the old text and paste
+   the copied Film Club text (Cmd+V), confirming the edit inside Google.
+5. Listen after each prompt switch. This uses Google's own supported UI
+   event path, which calls its running engine's `set_text_prompts`.
+   The Google popup is the source of truth for prompt edits; the
+   in-app status cannot attest to auditory correctness.
+
+Copying text never restarts or changes anything automatically, so you can
+work through these rows deliberately and avoid needlessly wiping loops.
+
 ## Why the Google MRT2 popup still showed the original prompts
 
 The Film Club HTML rendered five new text boxes, but Google's separate
