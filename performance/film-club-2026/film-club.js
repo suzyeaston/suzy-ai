@@ -8,6 +8,23 @@
   const status = document.getElementById("filmPromptStatus");
   if (!button || !status) return;
 
+  // Film Club is a new page, with its own browser loop memory. Choose a
+  // denser original local groove without modifying Futureproof defaults or
+  // restarting the shared native Magenta model. The drum metre stays 4/4.
+  if(typeof setDrumGroove==="function" && typeof stageStarted!=="undefined" && !stageStarted){
+    setDrumGroove("4/4","drive");
+  }
+  const energy = document.getElementById("filmGrooveEnergy");
+  const energyReadout = document.getElementById("filmGrooveReadout");
+  if(energy&&energyReadout){
+    const update=()=>{
+      if(typeof drumEnergy!=="undefined")drumEnergy=Number(energy.value)/100;
+      energyReadout.textContent=energy.value+"%";
+    };
+    energy.addEventListener("input",update);
+    update();
+  }
+
   const scenes = Object.freeze([
     {id:"float",start:0,end:10,hint:"Harbour and reflective pavement. Begin with the Pyramid piano loop and space.",visual_event:"gastown_harbour",instruments:["piano","glass"]},
     {id:"awaken",start:10,end:24,hint:"Accumulate cello, glass and bow motion; movement grows without a compulsory tempo change.",visual_event:"city_awakes",instruments:["piano","cello","glass"]},
