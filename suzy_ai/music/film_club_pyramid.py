@@ -281,8 +281,6 @@ serialized prompt text, but only listening can verify generated audio.</small></
     <output id="filmCounterReadout" for="filmCounterRhythm">62%</output>
   </label>
   <span style="font-size:11px">Two interlocking grooves, one 4/4 clock.</span>
-  <button type="button" id="filmAIOutputCheck">🎧 CHECK REAL MRT2 AUDIO · HOLD Z</button>
-  <output id="filmAIOutputStatus" role="status" aria-live="polite">Audio Unit output not yet checked.</output>
 </div>
 <details class="film-tools" id="filmInstrumentTools">
   <summary>✦ INSTRUMENT AUDITION · FIVE NATIVE SOUNDS / NOTE SUSTAIN</summary>
