@@ -14,20 +14,23 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Five independent timbral colours, never five full arrangements.
-    # Notes ring while an independent 100 BPM pulse builds in the browser.
-    "Warm, resonant acoustic jazz grand piano. Deep, voiced F sharp "
-    "suspended chords, G major seventh and A sixth extensions with ninths, "
-    "soft rubato and a loping swung 4/4 feel at 100 BPM. Hold each chord for "
-    "several seconds so the woody overtones bloom and overlap; gentle "
-    "uneven accents and long natural decay, spacious dark room ambience, "
-    "no repeated staccato riff, no drums or bright synth",
-    "Deep acoustic cello and upright-bass resonance, lyrical sustained "
-    "arco strokes and warm vibrato, occasional plucked low F sharp to "
-    "answer the piano. Long expressive notes with bowed harmonics, slow "
-    "chromatic jazz passing tones and a pulsing electronic sub beneath "
-    "the decay. Spacious 100 BPM swung four-four; no clipped spiccato, "
-    "no drums and no synthetic lead",
+    # Preserve the original Pyramid sound: a recognisable acoustic piano
+    # over a much lower, warm cello + harmonium foundation. Keep the
+    # single MRT2 generator's five roles distinct.
+    "Natural acoustic jazz grand piano, recognisable felt hammers, piano "
+    "strings and warm wooden soundboard. Clear real-piano attack followed "
+    "by long natural decay. Deep mid-register F sharp suspended chords, "
+    "G major seventh and A sixth with gentle ninths; spacious, human "
+    "rubato floating over a 100 BPM swung 4/4 pulse. Hold each chord for "
+    "several seconds; intimate room resonance, no synthesizer, organ, "
+    "celesta, electric piano, strings or drums",
+    "Deep warm low bowed cello doubled by a soft pump harmonium reed-organ "
+    "bass drone, like the original Pyramid foundation. Low F sharp "
+    "fundamental with a rich round wooden bass body, warm breathing reeds "
+    "and slow sustained arco bow motion. Long expressive connected notes "
+    "and gentle vibrato, occasional dark low octave movement; harmonium "
+    "fills the spaces beneath the cello. 100 BPM 4/4, suspended Gmaj7 "
+    "and A6 colours, no bright synth, staccato plucks or drums",
     "Intimate lyrical jazz violin, singing bowed legato phrases with "
     "imperfect vibrato, portamento and long held notes floating over "
     "suspended F sharp and G major seventh harmony. Slowly growing "
@@ -76,13 +79,13 @@ def render_film_club_page(original: str, token: str) -> str:
         "Your original piano, violin and voice stay exactly where they are":
             "The Futureproof harmony continues. Record NEW Film Club takes on this page.",
         "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
-            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: felt piano, cello/sub shadow, expressive violin, glass/harp, and evolving percussion.",
+            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: acoustic grand piano, deep cello/harmonium bass, expressive violin, glass/harp, and evolving percussion.",
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
             "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
         "01 · PYRAMID · intimate piano":
             "01 · PYRAMID JAZZ · sustained resonant piano",
         "02 · PYRAMID ORBIT · low cello / harmonium drone":
-            "02 · UNDERCURRENT · long bowed cello / bass",
+            "02 · UNDERCURRENT · warm cello + harmonium bass",
         "03 · PYRAMID · MAGENTA VIOLIN LEAD":
             "03 · HUMAN INTERRUPTION · legato jazz violin",
         "04 · PYRAMID ORBIT · glass harmonics / harp":
@@ -230,7 +233,7 @@ changes the host or Google's window.</small></section>"""
     </div>
     <div class="film-audition-grid">
       <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
-      <button type="button" data-film-audition="cello">02 · HEAR CELLO</button>
+      <button type="button" data-film-audition="cello">02 · HEAR CELLO + HARMONIUM</button>
       <button type="button" data-film-audition="violin">03 · HEAR VIOLIN</button>
       <button type="button" data-film-audition="glass">04 · HEAR GLASS</button>
       <button type="button" data-film-audition="drums">05 · HEAR DRUMS</button>
