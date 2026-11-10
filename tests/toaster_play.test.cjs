@@ -626,7 +626,7 @@ test("house intensity adds true subdivisions without speeding the unchanged 4/4 
    };
    return [one(.24),one(.49),one(.88)];
  })()`);
- assert.deepEqual(counts,[1,2,3],
+ assert.deepEqual(Array.from(counts),[1,2,3],
    "sparse, medium and dense 100 BPM ghost subdivisions are musically distinct");
  assert.equal(run("bpm"),bpm);
  assert.equal(get("drumMeter").value,meter);
