@@ -2364,7 +2364,7 @@ test("RECORD TAKE still auto-selects the instrument prompt after removing manual
  assert.match(get("nativeStatus-pyramid-chords").textContent,/WAV HANDOFF \(FALLBACK\)/);
 });
 
-test("real native WAV frame duration wins over an inaccurate browser DONE timestamp",async()=>{
+test("native first loop uses next performed tick, not WAV duration or stop latency",async()=>{
  const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
  calls.decodedFrames=7*48000;
  env.fetch=async(url)=>{
@@ -2379,11 +2379,12 @@ test("real native WAV frame duration wins over an inaccurate browser DONE timest
  const start=run("nativeTake.gridStartAt");
  run("ctx.currentTime=nativeTake.gridStartAt+barDuration()+.12");
  await run("finishNativeInstrumentTake()");
- assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("barDuration()"))<1/48000,
-  "WAV length and STOP network offset cannot change the musical period");
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("9*tickSeconds()"))<1/48000,
+  "an eighth tick after DONE sets the period, not native WAV duration or network completion");
+ assert.equal(run("decks.pyramid.lengthSteps"),9,"do not delay to another full bar");
  assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  const l=run("decks.pyramid.layers[0]");
- assert.ok(l.source.startOffset>=0&&l.source.startOffset<run("barDuration()"));
+ assert.ok(l.source.startOffset>=0&&l.source.startOffset<run("9*tickSeconds()"));
 });
 
 test("drum take inherits piano's exact 3.7s pedal period and phase rather than starting a second loop clock",async()=>{
