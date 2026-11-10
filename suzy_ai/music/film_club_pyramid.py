@@ -122,6 +122,10 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-cue-item{border:1px solid #ffffff40;border-radius:9px;padding:10px;
   font:800 11px/1.4 ui-monospace,monospace;background:#201a27}
 .film-cue-item strong{display:block;color:#bdf3d9;font-size:12px}
+.film-cue-item{color:#f5e8ee;text-align:left;cursor:pointer}
+.film-cue-item[aria-pressed="true"]{border-color:#bdf3d9;background:#244b43}
+.film-cue-item:focus-visible{outline:2px solid #bdf3d9;outline-offset:3px}
+
 .film-audition{margin:16px 0;padding:16px;border:1px solid #abdcc3;border-radius:12px;background:#1e2630}
 .film-audition h3{margin:3px 0 8px;font-size:20px}
 .film-audition p{max-width:940px;line-height:1.5}
@@ -225,25 +229,29 @@ changes the host or Google's window.</small></section>"""
     instrument. Don't switch native roles while a take is recording.</small>
   </section>
   <div class="film-cue-grid" aria-label="Suggested edit storyboard">
-    <div class="film-cue-item"><strong>0–10s</strong> SUSPEND / piano and city</div>
-    <div class="film-cue-item"><strong>10–24s</strong> COMPOUND / cello and glass</div>
-    <div class="film-cue-item"><strong>24–38s</strong> ACCELERATE / density and sub</div>
-    <div class="film-cue-item"><strong>38–48s</strong> INTERRUPT / violin and voice</div>
-    <div class="film-cue-item"><strong>48–60s</strong> RELEASE / unresolved light</div>
+    <button type="button" class="film-cue-item" data-film-density="float"><strong>0–10s</strong> SUSPEND / piano and city</button>
+    <button type="button" class="film-cue-item" data-film-density="awaken"><strong>10–24s</strong> COMPOUND / cello and glass</button>
+    <button type="button" class="film-cue-item" data-film-density="tension"><strong>24–38s</strong> ACCELERATE / density and sub</button>
+    <button type="button" class="film-cue-item" data-film-density="human"><strong>38–48s</strong> INTERRUPT / violin and voice</button>
+    <button type="button" class="film-cue-item" data-film-density="release"><strong>48–60s</strong> RELEASE / unresolved light</button>
   </div>
+  <output id="filmDensityStatus" aria-live="polite" class="film-tag">LIVE DENSITY CUES · CLICK TO BUILD / DROP RHYTHM, BPM STAYS 100</output>
   <div class="film-cue-actions" style="margin:15px 0;gap:15px">
     <label for="filmGrooveEnergy" class="film-tag">ELECTRONIC GROOVE ENERGY</label>
-    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="84"
+    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="24"
       aria-label="Film Club sub-eighth rhythmic energy"
       style="max-width:260px;flex:1;accent-color:#bdf3d9">
-    <output id="filmGrooveReadout" for="filmGrooveEnergy" class="film-tag">84%</output>
+    <output id="filmGrooveReadout" for="filmGrooveEnergy" class="film-tag">24%</output>
     <span class="film-tag">FILM CLUB: 4/4 ELECTRO HOUSE · 100 BPM</span>
   </div>
   <p>Choose <strong>Electro house · four-on-the-floor</strong> or
   <strong>Frame-drum electro / syncopated</strong> under DRUM STYLE.
-  Both add local synthesized off-grid ornaments without moving the original
-  4/4 piano loop. Extra subdivisions are browser audio, not imported
-  percussion recordings or part of the three-lane MIDI export.</p>
+  The five time cards above are LIVE intensity gestures: sparse pulse,
+  syncopation, increasingly dense subdivisions, dramatic half-time-feeling
+  drop, and release. They adjust browser rhythm energy/level only, never
+  restart Google, move the 100 BPM clock or overwrite recorded audio.
+  Extra subdivisions are synthesized browser audio, not imported samples
+  or notes in the three-lane MIDI export.</p>
   <div class="film-cue-actions">
     <button id="filmExportCues" type="button">↓ SAVE GASTOWN 60s CUES JSON</button>
     <a href="/toaster/live">Return to Futureproof interface</a>
