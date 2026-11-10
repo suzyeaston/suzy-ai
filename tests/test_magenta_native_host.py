@@ -75,6 +75,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertEqual(ACTIONS["note"], {"note"})
 
         self.assertEqual(ACTIONS["configure-prompts"], {"prompts"})
+        self.assertEqual(ACTIONS["reload-prompts"], {"prompts"})
 
     def test_app_launch_starts_one_worker_and_reports_progress(self):
         with patch("suzy_ai.music.magenta_native_host.Thread") as thread:
@@ -256,13 +257,49 @@ class NativeMRT2Tests(unittest.TestCase):
         safe_start = source.index('case "show-au-ui-safe":')
         safe_end = source.index('case "transport-play":', safe_start)
         safe_action = source[safe_start:safe_end]
-        self.assertIn('guard selectModelInGoogleUI, active, !loading else', safe_action)
+        self.assertIn('guard (selectModelInGoogleUI || googleGrantedModelBookmark != nil), active, !loading else', safe_action)
         self.assertIn('showGoogleAUInterface()', safe_action)
         self.assertNotIn('stop()', safe_action)
         self.assertNotIn('start()', safe_action)
         self.assertIn('app.run()', source)
         self.assertIn('"native_model_selection_required"', source)
         self.assertIn('"native_au_ui_visible"', source)
+
+    def test_google_bookmark_reload_preflights_before_stopping_active_au(self):
+        # Google-created bookmarks belong to the extension identity;
+        # rebuilding a selected model with Swift's bookmark loses audio.
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('case "reload-prompts":', swift)
+        self.assertIn('googleGrantedModelBookmark', swift)
+        self.assertIn('"google_model_bookmark_available": hasPluginBookmark', swift)
+        self.assertIn('state["MGRT_ModelBookmark"] = googleBookmark', swift)
+        self.assertIn('state["MGRT_Prompts"] = weighted', swift)
+        block = swift[swift.index('case "reload-prompts":'):
+                      swift.index('case "configure-prompts":')]
+        self.assertIn('currentState["MGRT_ModelBookmark"] as? Data', block)
+        self.assertIn('nativeLoopPlayers.isEmpty', block)
+        self.assertIn('nativeCaptureArmed.load(ordering: .relaxed)', block)
+        self.assertIn('guard let granted', block)
+        self.assertLess(block.index('guard let granted'), block.index('stop()'))
+        self.assertLess(block.index('googleGrantedModelBookmark = granted'), block.index('stop()'))
+        self.assertLess(block.index('prompts = list'), block.index('stop()'))
+        self.assertIn('start()', block)
+        self.assertEqual(block.count('stop()'), 1)
+        self.assertEqual(block.count('start()'), 1)
+        self.assertIn('showGoogleAUInterface()', swift)
+        self.assertNotIn('filmSynthKeys', swift)
+        self.assertIn('self.promptReloadPhase = "model-requested-awaiting-audio"', swift)
+
+    def test_google_bookmark_reload_rejects_invalid_prompts_without_process(self):
+        valid = ['glassy FM synth', 'analog sub bass', 'supersaw',
+                 'granular sparkle', 'glitch club']
+        invalid = [[], ['only one'], [''] * 5, ['x'*501] * 5,
+                   [True] * 5, valid + ['extra']]
+        for value in invalid:
+            with self.subTest(prompts=value), self.assertRaises(ValueError):
+                self.host.command('reload-prompts', {'prompts': value})
+        self.assertIsNone(self.host.process)
 
     def test_google_picker_action_requires_existing_native_process(self):
         with self.assertRaisesRegex(RuntimeError, "not running"):
@@ -279,7 +316,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('self.auUIError = "Google MRT2 AU did not return', swift)
         self.assertIn('private var selectModelInGoogleUI =', swift)
         self.assertIn('private var showGoogleUIAfterRestart = false', swift)
-        self.assertIn('if !selectModelInGoogleUI {', swift)
+        self.assertIn('if !selectModelInGoogleUI && googleGrantedModelBookmark == nil {', swift)
         self.assertIn('selectModelInGoogleUI = true', swift)
         self.assertIn('showGoogleUIAfterRestart = true', swift)
         self.assertIn('self.showGoogleAUInterface()', swift)
