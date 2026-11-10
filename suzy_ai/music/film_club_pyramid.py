@@ -18,7 +18,7 @@ FILM_PROMPTS = (
     # Notes ring while an independent 100 BPM pulse builds in the browser.
     "Warm, resonant acoustic jazz grand piano. Deep, voiced F sharp "
     "suspended chords, G major seventh and A sixth extensions with ninths, "
-    "soft rubato and a loping swung four-four feel. Hold each chord for "
+    "soft rubato and a loping swung 4/4 feel at 100 BPM. Hold each chord for "
     "several seconds so the woody overtones bloom and overlap; gentle "
     "uneven accents and long natural decay, spacious dark room ambience, "
     "no repeated staccato riff, no drums or bright synth",
