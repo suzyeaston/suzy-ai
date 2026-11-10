@@ -167,20 +167,25 @@
   }
   function explainState(state, bank=textBank()) {
     if(state?.phase==="starting" || state?.phase==="initializing")
-      return "NATIVE MRT2 HOST IS STARTING · WAIT FOR MODEL INITIALIZATION, THEN CHECK PROMPTS AGAIN.";
+      return "GOOGLE MRT2 STARTING · KEEP THE MODEL WINDOW OPEN; CHECK AGAIN AFTER INITIALIZATION.";
+    // Google's actual AU fullState matters more than the Swift host's
+    // desired strings. Manual edits in Google's window may legitimately
+    // make AU state match while the host-side strings remain older.
+    if(matchesAU(state,bank))
+      return matchesHost(state,bank)?
+        "GOOGLE AU SAVED TEXT MATCHES FILM CLUB. MODEL EMBEDDINGS AND AUDIBLE SOUND STILL REQUIRE LISTENING.":
+        "GOOGLE AU SAVED TEXT MATCHES FILM CLUB · HOST LABEL IS OLDER, BUT NO RESTART IS NECESSARY. LISTEN TO VERIFY.";
+    // NEVER suggest restarting a currently audible AU just to change
+    // prompts. The Google model picker resets on a host stop/start.
+    if(state?.phase==="host-running" || state?.audio_engine_running===true)
+      return "MRT2 IS RUNNING WITH DIFFERENT PROMPTS · USE THE SAFE COPY 01–05 WORKFLOW IN GOOGLE; KEEP THE AUDIO UNIT RUNNING.";
     if(!matchesHost(state,bank))
-      return "HOST STILL HAS OLDER PROMPTS · CLICK APPLY FILM CLUB SOUNDS TO SEND THIS PAGE'S FIVE PROMPTS.";
-    // The Swift subprocess has its own desired strings. We only regard the
-    // AU's fullState MGRT_Prompts readback as evidence of serialized state.
-    // Even matching AU fullState cannot prove the actual model was embedded:
-    // Google's UI-model load path skips reapplying cached text embeddings.
-    if(!Object.prototype.hasOwnProperty.call(state,"au_prompt_readback_available"))
-      return "OLD SWIFT HOST BINARY · REBUILD NATIVE HOST, THEN RESTART STAGE. GOOGLE UI UNVERIFIED.";
+      return "HOST DOES NOT HAVE FILM CLUB PROMPTS · SAFE UPDATE CAN START AN IDLE HOST ONLY.";
+    if(!Object.prototype.hasOwnProperty.call(state||{},"au_prompt_readback_available"))
+      return "OLD SWIFT HOST BINARY · REBUILD NATIVE HOST TO CHECK GOOGLE PROMPTS; NO AUTOMATIC RESTART.";
     if(state.au_prompt_readback_available!==true)
-      return "SUZY HOST HAS FILM TEXT BUT GOOGLE AU READBACK IS UNAVAILABLE · USE COPY BUTTONS.";
-    if(!matchesAU(state,bank))
-      return "SUZY HOST HAS FILM TEXT BUT GOOGLE AU STILL REPORTS OLD TEXT · USE COPY BUTTONS.";
-    return "AU SERIALIZED PROMPTS MATCH. THIS DOES NOT PROVE GOOGLE'S MODEL OR UI UPDATED. IF YOU SEE OLD TEXT, COPY THE FIVE PROMPTS INTO GOOGLE'S WINDOW.";
+      return "HOST HAS FILM TEXT · GOOGLE AU READBACK UNAVAILABLE; COPY INTO GOOGLE'S EXISTING PROMPT ROWS.";
+    return "GOOGLE AU REPORTS DIFFERENT SAVED TEXT · USE COPY 01–05; SOUND NOT VERIFIED.";
   }
   // Manual bridge edits Google's own prompt rows. No app-to-AU automation
   // is claimed, and nothing is transmitted or restarted when copying text.
@@ -219,6 +224,40 @@
       reportNative("CANNOT VERIFY MRT2 BANK · "+(err?.message||err),false);
     }
   }
+  const manualBridge=document.getElementById("filmManualBridge");
+  function showSafeManualGuide(message) {
+    reportNative(message,false);
+    if(copyState)copyState.textContent=
+      "KEEP MRT2 PLAYING · COPY 01–05, PASTE INTO GOOGLE'S PROMPT ROWS AND PRESS ENTER.";
+    manualBridge?.scrollIntoView?.({behavior:"smooth",block:"start"});
+  }
+
+  // This new native action only opens the CURRENT Google AU editor.
+  // Unlike the original "show-au-ui" command it refuses to switch modes
+  // (which stops the generator and closes its prompt window).
+  const safeGoogleEditor=document.getElementById("filmOpenGooglePrompts");
+  const safeGoogleStatus=document.getElementById("filmGoogleEditorStatus");
+  safeGoogleEditor?.addEventListener("click",async()=>{
+    try{
+      const current=await getNativeState();
+      if(current?.phase!=="host-running" ||
+         current?.audio_engine_running!==true ||
+         current?.native_model_selection_required!==true){
+        if(safeGoogleStatus)safeGoogleStatus.textContent=
+          "NO SAFE EDITOR OPEN · THE CURRENT AU IS NOT IN GOOGLE PICKER MODE. DO NOT RESTART A PLAYING SESSION.";
+        return;
+      }
+      if(typeof aiFetch!=="function")throw Error("Native host control unavailable");
+      const result=await aiFetch("show-au-ui-safe");
+      if(result?.error)throw Error(result.error);
+      if(safeGoogleStatus)safeGoogleStatus.textContent=
+        "EXISTING GOOGLE WINDOW REQUESTED · PASTE EACH COPIED PROMPT INTO ITS ROW. NO RESTART.";
+    }catch(error){
+      if(safeGoogleStatus)safeGoogleStatus.textContent=
+        "SAFE WINDOW UNAVAILABLE · "+(error?.message||error)+" · NO RESTART ATTEMPTED.";
+    }
+  });
+
   nativeApply?.addEventListener("click",async()=>{
     if(syncing)return;
     const desired=textBank();
@@ -226,49 +265,56 @@
       reportNative("ALL FIVE SOUND PROMPTS MUST BE NONEMPTY AND UNDER 500 CHARACTERS.",false);
       return;
     }
-    let old;
-    try{old=await getNativeState();lastState=old;}catch{old=null;}
-    if(old?.phase==="host-running"&&matchesAU(old,desired)){
-      reportNative("AU SERIALIZED PROMPTS ALREADY MATCH · NO RESTART. GOOGLE'S VISIBLE SOUND BANK MAY STILL BE OLD; USE THE FIVE COPY BUTTONS.",true);
-      return;
-    }
-    const loopCount=Number(old?.native_memory_loop_count||0);
-    const safety=loopCount>0?
-      "The shared native host reports "+loopCount+" active in-memory loop(s). This restart can stop them. EXPORT your recordings first.\n\n":
-      "This can stop native in-memory audio loops. EXPORT important takes first.\n\n";
-    if(!window.confirm(safety+
-      "Apply all FIVE Film Club prompts to the shared Google MRT2 Audio Unit now?")){
-      reportNative("APPLY CANCELLED · NATIVE MODEL LEFT UNCHANGED.",false);
-      return;
-    }
-    syncing=true;nativeApply.disabled=true;
-    reportNative("RESTARTING SHARED MRT2 AND SENDING FIVE FILM PROMPTS…",false);
+    // Fail closed if current native state is unknown. A previous version
+    // sent STOP before learning whether its restart would work.
+    let current;
     try{
-      // Film-only strict apply: the shared TOASTER applyPrompts() catches
-      // exceptions internally, so awaiting it can appear successful even
-      // when the native POST failed. Call the same original transport
-      // directly, and propagate errors to THIS status panel.
-      if(typeof aiFetch!=="function")throw Error("Native TOASTER control unavailable");
-      await aiFetch("stop");
-      const started=await aiFetch("start",{prompts:desired});
-      if(typeof aiDisplay==="function")aiDisplay(started);
-      if(typeof aiNativeReady!=="undefined" && aiNativeReady &&
-         typeof syncAIMix==="function")await syncAIMix();
-      let result=null;
-      for(let attempt=0;attempt<15;attempt++){
-        result=await getNativeState();
-        lastState=result;
-        if(matchesAU(result,desired) ||
-           (result.phase==="host-running" && matchesHost(result,desired) &&
-             result.au_prompt_readback_available===false))break;
-        await new Promise(resolve=>window.setTimeout(resolve,400));
-      }
-      if(result)reportNative(explainState(result,desired),matchesAU(result,desired));
-      else reportNative("NO NATIVE RESPONSE · GOOGLE BANK NOT VERIFIED. USE COPY BUTTONS.",false);
+      current=await getNativeState();
+      lastState=current;
     }catch(error){
-      reportNative("PROMPT SYNC FAILED · "+(error?.message||error),false);
+      showSafeManualGuide("CANNOT CHECK GOOGLE HOST · NO STOP OR RESTART ATTEMPTED. "+(error?.message||error));
+      return;
+    }
+    if(matchesAU(current,desired)){
+      reportNative("GOOGLE AU SAVED PROMPTS ALREADY MATCH · NO RESTART. LISTEN TO VERIFY THE ACTUAL SOUND.",true);
+      return;
+    }
+    // Most importantly: a running Google AU may already have a selected
+    // mrt2_small model. Its selected model does not survive blindly
+    // stopping/restarting in native model-picker mode. Keep playback,
+    // captured native loops, and the Google prompt editor intact.
+    if(current?.phase==="host-running" ||
+       current?.audio_engine_running===true){
+      showSafeManualGuide("MRT2 STILL PLAYING · NO RESTART. COPY 01–05 INTO THE CURRENT GOOGLE WINDOW; PRESS ENTER IN EACH ROW.");
+      return;
+    }
+    if(current?.phase==="starting" || current?.phase==="initializing"){
+      reportNative("MRT2 IS ALREADY INITIALIZING · NO SECOND START. CHECK AGAIN WHEN THE HOST SETTLES.",false);
+      return;
+    }
+    if(!["inactive","failed","not-running"].includes(current?.phase)){
+      showSafeManualGuide("NATIVE STATUS IS UNKNOWN · NO START/STOP ATTEMPTED. KEEP YOUR CURRENT AUDIO.");
+      return;
+    }
+    if(Number(current?.native_memory_loop_count||0)>0){
+      showSafeManualGuide("NATIVE LOOPS STILL REPORTED · NO AUTOMATIC RECONFIGURATION. EXPORT FIRST.");
+      return;
+    }
+    // Only an IDLE host may be started with new Film prompts. There is no
+    // destructive stop call anywhere in this Film-only path.
+    syncing=true;
+    nativeApply.disabled=true;
+    reportNative("STARTING AN IDLE MRT2 HOST WITH FIVE FILM PROMPTS · NEVER STOPPING ACTIVE AUDIO…",false);
+    try{
+      if(typeof aiFetch!=="function")throw Error("Native TOASTER control unavailable");
+      const result=await aiFetch("start",{prompts:desired});
+      if(typeof aiDisplay==="function")aiDisplay(result);
+      reportNative("IDLE HOST START REQUESTED · WAIT FOR GOOGLE MODEL INITIALIZATION, THEN VERIFY ITS PROMPT ROWS. AUDIO UNVERIFIED.",false);
+    }catch(error){
+      reportNative("SAFE START FAILED · "+(error?.message||error)+" · NO ACTIVE AUDIO WAS STOPPED.",false);
     }finally{
-      syncing=false;nativeApply.disabled=false;
+      syncing=false;
+      nativeApply.disabled=false;
     }
   });
   for(const id of promptIds){
@@ -281,23 +327,17 @@
   void refreshPromptState();
   window.setInterval?.(()=>void refreshPromptState(),5000);
 
-  // Applying Film Club text needs the existing native host stop/start, which
-  // can erase its in-RAM AU loops. Require explicit approval every time.
-  // Browser loops are not moved to this Film Club tab from a previous tab.
-  const warnBeforeApply = event => {
-    if (!window.confirm(
-      "Changing these five Film Club Magenta prompts will restart the shared native AU and may stop unsaved native audio loops. Export important takes first. Continue?"
-    )) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      status.textContent="PROMPT APPLY CANCELLED · native host left unchanged";
-      return;
-    }
-    status.textContent="APPLYING TO SHARED MAGENTA HOST · original source presets remain in Futureproof page";
+  // The original full-size TOASTER prompt buttons are still present in the
+  // shared DOM. In Film Club they must follow the same non-destructive path,
+  // not invoke their old stop() / start() listener behind the new button.
+  // Capture-phase interception keeps Futureproof /toaster/live unchanged.
+  const routeLegacyApplySafely = event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    nativeApply?.click();
   };
   for(const id of ["applyPrompts","applyJazzDrumsPrompt"]){
-    const target=document.getElementById(id);
-    if(target)target.addEventListener("click",warnBeforeApply,true);
+    document.getElementById(id)?.addEventListener("click",routeLegacyApplySafely,true);
   }
   // Do not call any AI or MIDI route from this script. Native sounds are
   // changed only through the musician's existing TOASTER button workflows.
