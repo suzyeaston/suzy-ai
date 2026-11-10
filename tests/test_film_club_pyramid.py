@@ -108,30 +108,33 @@ class FilmClubPyramidTests(unittest.TestCase):
             'value="frame">Frame-drum electro / syncopated',
         ):
             self.assertIn(option, self.film)
-        piano, cello, violin, glass, drums = FILM_PROMPTS
-        self.assertIn("acoustic jazz grand piano", piano)
-        self.assertIn("felt-hammer", piano)
-        self.assertIn("bouncing eighth-note ostinatos", piano)
-        self.assertIn("offbeat eighths", cello)
-        self.assertIn("two-bar 3+3+2 cello ostinato", cello)
-        self.assertIn("sixteenth-note replies", violin)
-        self.assertIn("syncopated ostinatos", glass)
-        self.assertIn("Bouncy urgency", drums)
+        piano, bass, lead, glass, drums = FILM_PROMPTS
+        self.assertIn("futuristic synth piano", piano)
+        self.assertIn("FM electric keys", piano)
+        self.assertIn("detuned saw layers", piano)
+        self.assertNotIn("grand piano", piano.lower().replace("no grand piano", ""))
+        self.assertIn("analog synth bass", bass)
+        self.assertIn("sidechain pump", bass)
+        self.assertIn("supersaw", lead)
+        self.assertIn("synthetic lead", lead)
+        self.assertIn("granular droplets", glass)
+        self.assertIn("glitch-club", drums)
+        self.assertIn("100 BPM", drums)
+        self.assertIn('id="filmSynthKeys"', self.film)
+        self.assertIn('NEON SYNTH PIANO', self.film)
+        self.assertIn('id="filmNativeAdvanced"', self.film)
         self.assertIn('value="58" aria-label="Main electro pulse density"', self.film)
         self.assertIn('for="filmGrooveEnergy">58%</output>', self.film)
         self.assertIn('value="62" aria-label="Layered syncopated counter-rhythm volume"', self.film)
         self.assertIn('for="filmCounterRhythm">62%</output>', self.film)
-        self.assertIn("BRIGHTER GROOVE:", self.film)
-        self.assertIn("Em, E7, Am, E", piano)
+        self.assertIn("NEON GROOVE:", self.film)
+        self.assertIn("Em E7 Am E", piano)
         self.assertIn("100 BPM", piano)
-        self.assertIn("cello", cello)
-        self.assertIn("harmonium", cello)
-        self.assertIn("warm E2 and A2", cello)
+        self.assertIn("3+3+2", bass)
         self.assertIn("3+3+2", drums)
         self.assertIn("100 BPM", drums)
         self.assertIn("half-time", drums)
-        self.assertIn("long legato", violin)
-        self.assertIn("granular", glass)
+        self.assertIn("spectral delay", glass)
         self.assertIn('id="filmCounterRhythm"', self.film)
         self.assertIn('id="filmCounterReadout"', self.film)
         self.assertIn('id="filmGrooveEnergy"', self.film)
@@ -190,6 +193,10 @@ class FilmClubPyramidTests(unittest.TestCase):
             self.film.count('<script src="/film-club/soft-reset/audition.js" defer>'), 1
         )
         self.assertIn('id="filmExportCues"', self.film)
+        self.assertEqual(
+            self.film.count('<script src="/film-club/soft-reset/neon-synth.js" defer>'), 1
+        )
+        self.assertNotIn('neon-synth.js', self.source)
 
     def test_missing_anchor_fails_closed_instead_of_weak_partial_view(self):
         with self.assertRaisesRegex(ValueError, "prompt"):
