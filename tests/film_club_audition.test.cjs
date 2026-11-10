@@ -36,8 +36,9 @@ function harness({ready=true,recording=false,weights=[1,0,0,0,0]}={}){
           (1-drum)*mix*leadF,
           drum];
  };
+ const window={};
  const sandbox={
-   document,console,Promise,
+   document,window,console,Promise,
    aiNativeReady:ready,
    nativeTake:recording?{role:"chords"}:null,
    nativeTakeArming:null,
@@ -97,6 +98,10 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
    .map(x=>x.payload.harmony),Array(5).fill("pyramid"));
  assert.match(h.output.textContent,/AUDITION CHORD SENT/);
  assert.equal(h.elements.get("filmNoteHoldValue").textContent,"2.4 seconds");
+ assert.equal(h.changes.filter(x=>x.action==="chord")[1].payload.octave,-12,
+   "the cello hears the same F sharp harmony one octave below piano");
+ assert.equal("octave" in h.changes.filter(x=>x.action==="chord")[0].payload,false,
+   "piano stays in its normal acoustic chord register");
 });
 test("Blend All Five submits one-AU weighted mix and verifies all weights nonzero",async()=>{
  const h=harness();await h.settle();await h.blend.click();
