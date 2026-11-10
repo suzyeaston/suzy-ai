@@ -14,43 +14,45 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Film Club-only original composition. Harmonic colour comes from the
-    # four-chord rehearsal adaptation; no samples, melodies or copied vocals.
-    "Real acoustic jazz grand piano, unmistakable felt-hammer attack, "
-    "warm wooden body and very long overlapping sustain. Em, E7, Am, E: "
-    "G-natural shifts to G-sharp and D-natural on E7. Spacious swung "
-    "suspended ninths, irregular voicings that float against a driving "
-    "100 BPM 4/4 pulse. Intimate fragile notes widen into dramatic "
-    "low-register strikes, then soften for the bridge. No synth piano, "
-    "bell or percussion",
-    "Deep bowed cello plus breathing pump harmonium reed-organ bass, "
-    "massive warm E2 and A2 fundamentals, softly distorted sub under "
-    "long woody arco legato. Em to E7 to Am to E, with subtle modal "
-    "F-natural passing tension. Slow swells below two interlocking "
-    "100 BPM electronic grooves, increasing weight without losing "
-    "the original human cello. Rich, rounded and sustained, no bright "
-    "synth, snare or staccato plucks",
-    "Close lyrical bowed violin, vulnerable long legato, portamento, "
-    "imperfect vibrato and sustained jazz melody over Em E7 Am E. "
-    "Gradual transformation into urgent tremolo and ghostly granular "
-    "digital harmonics, then a sudden intimate half-time breath. "
-    "Dark modal F-natural over an underlying 100 BPM pulse, emotional "
-    "not robotic, no drum pattern or pop-synth lead",
-    "Sustained bowed glass vibraphone, distant bell harmonics, "
-    "metallic echoes and evolving icy granular synth texture. "
-    "E minor to E7 to A minor to E major with Phrygian-dominant "
-    "F-natural colour. Slow, fragile resonances gather into a dense "
-    "shimmering pattern against the other rhythmic layer, then "
-    "dissolve into silence. Dark futuristic jazz electronica, "
-    "no acoustic piano, no busy lead or drums",
-    "Bass-heavy kinetic electro-jazz rhythm at 100 BPM in 4/4. "
-    "A grounded house kick pulses steadily under an interlocking "
-    "3+3+2 two-bar counter-rhythm: shuffled low toms, displaced "
-    "clacks and granular metallic hats. Huge dark bass pressure, "
-    "gentle distorted tension, escalating subdivisions, abrupt "
-    "half-time breakdown and airy release. Organic swing and "
-    "sinister futuristic atmosphere, not a copy of any recording, "
-    "no sampled voices or lead melody",
+    # Film Club-only original arrangement: rhythmic buoyancy without
+    # copying melodies, stems or vocal phrasing from any source recording.
+    "Bright, buoyant real acoustic jazz grand piano with felt-hammer "
+    "attack and warm wood resonance. Em, E7, Am, E in 100 BPM 4/4: "
+    "bouncing eighth-note ostinatos, syncopated chord stabs on the "
+    "offbeats, quick sixteenth-note upward arpeggio pickups and octave "
+    "answers. Accented G-natural to G-sharp lift; sustained ninths "
+    "underneath short dancing notes. Build from playful pulse to urgent "
+    "sparkling drive, then an intimate half-time bridge. Human timing, no "
+    "synth piano, bells or drums.",
+    "Deep bowed cello and breathing pump harmonium bass, warm E2 and A2 "
+    "roots below Em, E7, Am, E. Buoyant pizzicato and spiccato offbeat "
+    "eighths trade with long low arco notes; a two-bar 3+3+2 cello "
+    "ostinato pushes against the steady 100 BPM 4/4 kick, with octave "
+    "pickups and reed-organ bellows pulsing between notes. Elastic, "
+    "physical, uplifting drive with dark warm fundamentals, then a held "
+    "half-time breath. Never generic bright synth bass, snare or "
+    "percussion.",
+    "Close lyrical bowed violin with warm vibrato over Em E7 Am E. Skip "
+    "between clipped syncopated offbeat bow strokes, nimble ascending "
+    "eighth- and sixteenth-note replies to piano, and a soaring long "
+    "legato phrase. Human portamento and quick tremolo create an "
+    "exuberant double-time feel above a 100 BPM 4/4 groove; a sudden "
+    "quiet half-time bridge gives the voice space. Intimate, slightly "
+    "uncanny, not a pop synth lead or drums.",
+    "Shimmering bowed glass and vibraphone with icy granular harmonics, "
+    "not the piano role. Bright high-register syncopated ostinatos and "
+    "little sixteenth-note droplets answer the acoustic piano; "
+    "polyrhythmic echoes dance over Em E7 Am E and a grounded 100 BPM "
+    "pulse. Offbeat metallic glints stack as energy rises, then evaporate "
+    "into a sparse half-time atmospheric bridge. Airy luminous texture "
+    "with human space, no drums, lead vocal or huge wash of hiss.",
+    "Bass-heavy propulsive electro-jazz rhythm at 100 BPM in 4/4. Clean "
+    "four-on-the-floor kick and snappy 2-and-4 clap anchor an "
+    "interlocking 3+3+2 two-bar shadow rhythm: syncopated low toms, sharp "
+    "rim clicks, swinging open and closed hats, rising sixteenth-note "
+    "ghost hits. Bouncy urgency and dark futuristic momentum; dynamic "
+    "build, abrupt half-time bridge, ecstatic return. Keep the kick "
+    "clear, no harsh noise wash, sampled voice or lead melody.",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -267,12 +269,12 @@ changes the host or Google's window.</small></section>"""
 <div class="film-control-bar" id="filmControlBar" role="group" aria-label="Accelerando performance controls">
   <strong>ACCELERANDO · Em → E7 → Am → E · 100 BPM</strong>
   <label for="filmGrooveEnergy">PULSE
-    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="45" aria-label="Main electro pulse density">
-    <output id="filmGrooveReadout" for="filmGrooveEnergy">45%</output>
+    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="58" aria-label="Main electro pulse density">
+    <output id="filmGrooveReadout" for="filmGrooveEnergy">58%</output>
   </label>
   <label for="filmCounterRhythm">SHADOW BEAT
-    <input id="filmCounterRhythm" type="range" min="0" max="100" value="54" aria-label="Layered syncopated counter-rhythm volume">
-    <output id="filmCounterReadout" for="filmCounterRhythm">54%</output>
+    <input id="filmCounterRhythm" type="range" min="0" max="100" value="62" aria-label="Layered syncopated counter-rhythm volume">
+    <output id="filmCounterReadout" for="filmCounterRhythm">62%</output>
   </label>
   <span style="font-size:11px">Two interlocking grooves, one 4/4 clock.</span>
 </div>
@@ -280,6 +282,10 @@ changes the host or Google's window.</small></section>"""
   <summary>✦ INSTRUMENT AUDITION · FIVE NATIVE SOUNDS / NOTE SUSTAIN</summary>
   <p style="font-size:12px">One MRT2 generator: audition a sound, then
   record a separate PCM layer with the existing pedals below.</p>
+  <p style="font-size:12px">BRIGHTER GROOVE: use short Z/X/C/V piano chord
+  pickups, then record an offbeat cello answer and a faster glass or violin
+  phrase. The held low notes can stay underneath. This changes phrasing,
+  not the 100 BPM loop clock.</p>
   <div class="film-sustain">
     <label for="filmNoteHold">MIDI HOLD <span id="filmNoteHoldValue">2.4 seconds</span></label>
     <input type="range" id="filmNoteHold" min="400" max="4800" step="200" value="2400">
