@@ -82,6 +82,40 @@ the process. Before changing versions or prompting a native restart,
 **export what you care about**. Opening the new route does not migrate
 an in-memory take from another tab.
 
+## v0.7: restore the Pyramid low cello + harmonium foundation
+
+The original Futureproof piece got its warmth from **low bowed cello
+and a softly breathing harmonium drone**, with suspended piano above it.
+This Film Club variation now brings that specific foundation back instead
+of asking a generic cello/upright-bass prompt to cover the whole low end.
+
+- **Prompt 01:** recognisable *acoustic grand piano* with wooden
+  soundboard, felt-hammer attack, piano strings, suspended F♯ / Gmaj7 /
+  A6 extensions and long decay. Explicitly excludes synth, organ and
+  electric-piano timbres from the piano role.
+- **Prompt 02:** low expressive bowed cello *doubled by warm reed-organ
+  harmonium*, a continuous F♯ bass drone, slow moving low octave,
+  woody resonance and connected expressive arco notes.
+- **Real lower MIDI register:** only on this Film Club page, the cello
+  **HEAR** audition, its visible chord pads and Z/X/C performance chords
+  are sent an octave lower. F♯3 becomes F♯2, Gmaj7 and A6 keep their
+  voicings shifted by -12 semitones. The standard piano, strings,
+  glass and original Futureproof page all retain their normal voicings.
+- **Loop playback:** recorded cello texture MIDI events also apply the
+  Film Club low octave; independent existing PCM clips are left alone.
+
+There is still one native generative MRT2 Audio Unit with five weighted
+prompts, so this does not magically split harmonium and cello into
+separate simultaneous generators. It steers the same cello/harmonium
+timbre through a truly low, warm harmonic register, then lets you
+record that sustained sound as its own PCM loop. For additional bass in
+the final arrangement, use the existing **CELLO** saved-loop channel
+fader, rather than boosting the entire master including kick.
+
+The revised prompt text needs applying to Google's actual AU bank.
+Save any valuable takes before a prompt restart; changing the prompt
+does not rewrite recordings already captured.
+
 ## v0.6: long jazz chords + sustained native note audition
 
 This version corrects two practical problems with the Film Club sound:
