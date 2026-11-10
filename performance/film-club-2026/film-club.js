@@ -11,8 +11,20 @@
   // Film Club is a new page, with its own browser loop memory. Choose a
   // denser original local groove without modifying Futureproof defaults or
   // restarting the shared native Magenta model. The drum metre stays 4/4.
-  if(typeof setDrumGroove==="function" && typeof stageStarted!=="undefined" && !stageStarted){
-    setDrumGroove("4/4","drive");
+  if(typeof stageStarted!=="undefined" && !stageStarted){
+    // Film-only preset: the original Futureproof page still opens at 105 BPM.
+    // Set these BEFORE the first recording; changing an existing PCM loop
+    // would shift its pitch and the shared looper correctly blocks that.
+    const tempo=document.getElementById("tempo");
+    if(tempo)tempo.value="100";
+    if(typeof changeTempo==="function")changeTempo(100);
+    if(typeof setDrumGroove==="function")setDrumGroove("4/4","house");
+    const rhythmLevel=document.getElementById("rhythmLevel");
+    if(rhythmLevel){
+      rhythmLevel.value="52";
+      const readout=document.getElementById("rhythmLevelNumber");
+      if(readout)readout.textContent="52%";
+    }
   }
   const energy = document.getElementById("filmGrooveEnergy");
   const energyReadout = document.getElementById("filmGrooveReadout");
