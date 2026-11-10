@@ -103,13 +103,43 @@
     }
   };
 
+  const patchButtons=[...document.querySelectorAll("[data-film-local-patch]")];
+  const validPatches=new Set(["keys","bass","pad","pluck","violin"]);
+  function highlightPatch(){
+    const current=decks.pyramid.instrument;
+    for(const patchButton of patchButtons)
+      patchButton.setAttribute("aria-pressed",
+        String(decks.pyramid.instrumentSource==="local" &&
+          patchButton.dataset.filmLocalPatch===current));
+  }
+  for(const patchButton of patchButtons){
+    patchButton.addEventListener("click",async()=>{
+      const choice=patchButton.dataset.filmLocalPatch;
+      if(!validPatches.has(choice))return;
+      try{
+        if(typeof openAudio==="function")await openAudio();
+        setInstrumentSource("pyramid","local");
+        if(typeof setInstrument==="function")setInstrument("pyramid",choice);
+        else decks.pyramid.instrument=choice;
+        const selector=document.getElementById("instrument-pyramid");
+        if(selector)selector.value=choice;
+        readout();
+        status.textContent=INSTRUMENTS[choice].name+
+          " · LOCAL ELECTRONIC AUDIO · RECORD OR PLAY Z/X/C/V";
+      }catch(error){
+        status.textContent="SYNTH PATCH FAILED · "+(error?.message||error);
+      }
+    });
+  }
   function readout(){
     const active=decks?.pyramid?.instrumentSource==="local";
     button.setAttribute("aria-pressed",String(active));
     button.textContent=active?"✦ NEON SYNTH PIANO · ON":"✦ ENABLE NEON SYNTH PIANO";
     status.textContent=active?
-      "LIVE FM SYNTH + SIXTEENTH ARPS · NO GOOGLE PROMPTS REQUIRED":
+      "LIVE ELECTRONIC SYNTH · "+INSTRUMENTS[decks.pyramid.instrument].name+
+        " · NO GOOGLE PROMPTS REQUIRED":
       "GOOGLE MRT2 SELECTED · NATIVE SOUND BANK MAY DIFFER";
+    highlightPatch();
   }
 
   // Film Club alone defaults to playable local synth keys. This prevents
