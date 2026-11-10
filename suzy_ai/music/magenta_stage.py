@@ -80,6 +80,7 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
             "/film-club/soft-reset/style.css": ("style.css", "text/css; charset=utf-8"),
             "/film-club/soft-reset/film-club.js": ("film-club.js", "text/javascript; charset=utf-8"),
             "/film-club/soft-reset/audition.js": ("audition.js", "text/javascript; charset=utf-8"),
+            "/film-club/soft-reset/neon-synth.js": ("neon-synth.js", "text/javascript; charset=utf-8"),
         }
         if requested_path in film_files:
             name, media_type = film_files[requested_path]
