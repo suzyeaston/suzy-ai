@@ -87,6 +87,16 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("Gmaj7", self.film)
         self.assertIn("A6", self.film)
 
+    def test_native_google_prompt_bank_not_claimed_loaded_without_apply(self):
+        # An HTML textarea is NOT the Google AU prompt bank. Show an
+        # explicit control and honest verification status on the Film page.
+        self.assertIn('id="filmSyncNativePrompts"', self.film)
+        self.assertIn('id="filmNativePromptStatus"', self.film)
+        self.assertIn('APPLY FILM CLUB SOUNDS TO MRT2', self.film)
+        self.assertIn('NATIVE PROMPT BANK NOT YET VERIFIED', self.film)
+        self.assertIn('shared Magenta generator', self.film)
+        self.assertNotIn('id="filmSyncNativePrompts"', self.source)
+
     def test_tokens_and_csp_sensitive_local_scripts(self):
         self.assertNotIn("__MAGENTA_TOKEN__", self.film)
         self.assertIn('const token="test-stage-token"', self.film)
