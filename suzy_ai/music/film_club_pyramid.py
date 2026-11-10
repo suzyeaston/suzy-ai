@@ -14,45 +14,42 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Film Club-only original arrangement: rhythmic buoyancy without
-    # copying melodies, stems or vocal phrasing from any source recording.
-    "Bright, buoyant real acoustic jazz grand piano with felt-hammer "
-    "attack and warm wood resonance. Em, E7, Am, E in 100 BPM 4/4: "
-    "bouncing eighth-note ostinatos, syncopated chord stabs on the "
-    "offbeats, quick sixteenth-note upward arpeggio pickups and octave "
-    "answers. Accented G-natural to G-sharp lift; sustained ninths "
-    "underneath short dancing notes. Build from playful pulse to urgent "
-    "sparkling drive, then an intimate half-time bridge. Human timing, no "
-    "synth piano, bells or drums.",
-    "Deep bowed cello and breathing pump harmonium bass, warm E2 and A2 "
-    "roots below Em, E7, Am, E. Buoyant pizzicato and spiccato offbeat "
-    "eighths trade with long low arco notes; a two-bar 3+3+2 cello "
-    "ostinato pushes against the steady 100 BPM 4/4 kick, with octave "
-    "pickups and reed-organ bellows pulsing between notes. Elastic, "
-    "physical, uplifting drive with dark warm fundamentals, then a held "
-    "half-time breath. Never generic bright synth bass, snare or "
-    "percussion.",
-    "Close lyrical bowed violin with warm vibrato over Em E7 Am E. Skip "
-    "between clipped syncopated offbeat bow strokes, nimble ascending "
-    "eighth- and sixteenth-note replies to piano, and a soaring long "
-    "legato phrase. Human portamento and quick tremolo create an "
-    "exuberant double-time feel above a 100 BPM 4/4 groove; a sudden "
-    "quiet half-time bridge gives the voice space. Intimate, slightly "
-    "uncanny, not a pop synth lead or drums.",
-    "Shimmering bowed glass and vibraphone with icy granular harmonics, "
-    "not the piano role. Bright high-register syncopated ostinatos and "
-    "little sixteenth-note droplets answer the acoustic piano; "
-    "polyrhythmic echoes dance over Em E7 Am E and a grounded 100 BPM "
-    "pulse. Offbeat metallic glints stack as energy rises, then evaporate "
-    "into a sparse half-time atmospheric bridge. Airy luminous texture "
-    "with human space, no drums, lead vocal or huge wash of hiss.",
-    "Bass-heavy propulsive electro-jazz rhythm at 100 BPM in 4/4. Clean "
-    "four-on-the-floor kick and snappy 2-and-4 clap anchor an "
-    "interlocking 3+3+2 two-bar shadow rhythm: syncopated low toms, sharp "
-    "rim clicks, swinging open and closed hats, rising sixteenth-note "
-    "ghost hits. Bouncy urgency and dark futuristic momentum; dynamic "
-    "build, abrupt half-time bridge, ecstatic return. Keep the kick "
-    "clear, no harsh noise wash, sampled voice or lead melody.",
+    # Film-only original sound design. Synth-led, high-energy and no
+    # artist recording, copied melody, stems, or voice identity.
+    "Glittering futuristic synth piano, not acoustic piano. Glassy FM "
+    "electric keys, detuned saw layers, short rubbery pluck attacks, "
+    "shimmering stereo chorus and sequenced sixteenth-note arpeggios. "
+    "Minor-key synth-pop over Em E7 Am E, 100 BPM four-four with double-time "
+    "bounce, bright offbeat stabs and huge sparkling release. Tight gated "
+    "delay, glossy icy highs, elastic electro pulse, dramatic filter sweeps. "
+    "No grand piano, jazz, orchestra or vocals.",
+    "Dark analog synth bass with saturated sub and sidechain pump. Detuned "
+    "pulse-wave midbass, warm E2 and A2, syncopated octave jumps, 3+3+2 "
+    "rubbery bass riff answering a straight four-on-floor kick. Acidic "
+    "resonant filter slides, brief metallic clicks and distorted tape edges, "
+    "ominous then euphoric. Em E7 Am E at 100 BPM, perceived double-time "
+    "momentum. No bowed cello, harmonium, acoustic bass or vocals.",
+    "High soaring synthetic lead, icy formant-free synth voice texture, "
+    "supersaw harmonies and crystalline portamento. Nimble arpeggiated "
+    "sixteenths alternate with huge sustained minor-key melody notes over Em "
+    "E7 Am E. Subtle pitch glide, metallic FM sparkle, high stereo shimmer "
+    "and tight gated reverb. Surreal neon dream-pop energy, urgent "
+    "double-time feel on 100 BPM clock. No acoustic violin, string quartet "
+    "or sampled singer.",
+    "Alien glass synth and digital fairy-dust percussion: bright FM bells, "
+    "pixelated granular droplets, ring-modulated chimes, glitchy offbeat "
+    "plucks and spectral delay trails. Tiny syncopated sixteenth-note loops "
+    "climb over Em E7 Am E. Translucent high-end shimmer above deep "
+    "electronic bass, rhythmic and luminous, with a sudden spacious "
+    "half-time break. No vibraphone, harp, guitar, acoustic mallets or "
+    "vocals.",
+    "Hyperkinetic electronic club drums at 100 BPM four-four: huge tight sub "
+    "kick, crunchy clap on 2 and 4, shimmering metallic closed hats, fast "
+    "sixteenth glitches, syncopated rim and distorted tom fills. Second "
+    "interlocking 3+3+2 percussion rhythm against the straight kick; "
+    "pumping, ecstatic double-time sensation and dramatic half-time dropout. "
+    "Neon electro-pop with a dark futuristic edge. Dry controlled "
+    "transients, no acoustic jazz drums, piano or vocals.",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -85,19 +82,19 @@ def render_film_club_page(original: str, token: str) -> str:
         "Your original piano, violin and voice stay exactly where they are":
             "Em → E7 → Am → E · Film Club-only harmonies, original live-loop engine.",
         "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
-            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: acoustic grand piano, deep cello/harmonium bass, expressive violin, glass/harp, and evolving percussion.",
+            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: neon FM synth keys, sidechained analog bass, supersaw lead, granular glass, and glitch-club drums.",
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
             "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
         "01 · PYRAMID · intimate piano":
-            "01 · PYRAMID JAZZ · sustained resonant piano",
+            "01 · NEON FM · glassy synth piano",
         "02 · PYRAMID ORBIT · low cello / harmonium drone":
-            "02 · UNDERCURRENT · warm cello + harmonium bass",
+            "02 · SUB ENGINE · pumping analog bass",
         "03 · PYRAMID · MAGENTA VIOLIN LEAD":
-            "03 · HUMAN INTERRUPTION · legato jazz violin",
+            "03 · SUPERSAW · soaring synth lead",
         "04 · PYRAMID ORBIT · glass harmonics / harp":
-            "04 · CITY GLASS · ringing vibraphone / harmonics",
+            "04 · PIXEL DUST · glitchy FM chimes",
         "DRUM SOUND PROMPT · EDITABLE":
-            "05 · PULSE · brushed jazz electronica / sub",
+            "05 · ELECTRO PULSE · club drums / sub",
     }
     for old, new in labels.items():
         if old not in page:
@@ -271,6 +268,8 @@ A matching saved prompt bank does not prove audible model embedding.</small></se
     banner = """
 <div class="film-control-bar" id="filmControlBar" role="group" aria-label="Accelerando performance controls">
   <strong>ACCELERANDO · Em → E7 → Am → E · 100 BPM</strong>
+  <button type="button" id="filmSynthKeys" aria-pressed="true">✦ NEON SYNTH PIANO · ON</button>
+  <output id="filmSynthKeysStatus" role="status">LOCAL FM SYNTH · PLAYS WITHOUT GOOGLE PROMPT RESTART</output>
   <label for="filmGrooveEnergy">PULSE
     <input id="filmGrooveEnergy" type="range" min="0" max="100" value="58" aria-label="Main electro pulse density">
     <output id="filmGrooveReadout" for="filmGrooveEnergy">58%</output>
@@ -284,9 +283,9 @@ A matching saved prompt bank does not prove audible model embedding.</small></se
 <details class="film-tools" id="filmInstrumentTools">
   <summary>✦ INSTRUMENT AUDITION · FIVE NATIVE SOUNDS / NOTE SUSTAIN</summary>
   <p style="font-size:12px">One MRT2 generator: audition a sound, then
-  record a separate PCM layer with the existing pedals below.</p>
-  <p style="font-size:12px">BRIGHTER GROOVE: use short Z/X/C/V piano chord
-  pickups, then record an offbeat cello answer and a faster glass or violin
+  record a separate PCM layer with the existing pedals below. The NEON local piano does not depend on native Google prompt synchronization.</p>
+  <p style="font-size:12px">NEON GROOVE: use short Z/X/C/V synth chord
+  pickups, then record an offbeat bass answer and faster glitchy synth
   phrase. The held low notes can stay underneath. This changes phrasing,
   not the 100 BPM loop clock.</p>
   <div class="film-sustain">
