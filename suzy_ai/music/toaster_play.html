@@ -1357,6 +1357,42 @@ function toggleRhythmAudio(){
  updateRhythmAudio();
  tell(rhythmAudioEnabled?"Local rhythm monitor ON · native instruments unaffected.":"Local rhythm monitor OFF · drum clock and MIDI pattern keep running.");
 }
+// A second, non-duplicating 3+3+2 counter-groove across TWO 4/4 bars.
+// It shares the master eighth-note clock, not a new scheduler or BPM.
+// The original Futureproof page leaves the Film-only mix at zero.
+function filmCounterPattern(count){
+ const step=((count%16)+16)%16;
+ return {step,
+  tom:[0,3,6,8,11,14].includes(step),
+  rim:[2,5,10,13].includes(step),
+  shimmer:[1,4,7,9,12,15].includes(step)};
+}
+function filmCounterPulse(time,count){
+ const value=Number(window.suzyFilmCounterRhythm||0);
+ if(!ctx||!beatBus||!rhythmCanSound()||drumMeter!=="4/4"||
+    !Number.isFinite(value)||value<=0)return;
+ const mix=Math.min(1,Math.max(0,value));
+ const pattern=filmCounterPattern(count);
+ const strengths={tom:.13,rim:.074,shimmer:.026};
+ for(const lane of ["tom","rim","shimmer"]){
+  if(!pattern[lane])continue;
+  const at=time+(lane==="rim"?.024:lane==="shimmer"?.012:0);
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  const isTom=lane==="tom",isRim=lane==="rim";
+  const duration=isTom?.19:isRim?.065:.04;
+  o.type=isTom?"sine":"triangle";
+  const start=isTom?115:isRim?780:2300;
+  const end=isTom?58:isRim?260:920;
+  o.frequency.setValueAtTime(start,at);
+  o.frequency.exponentialRampToValueAtTime(end,at+duration*.85);
+  // Bounded FX-free synth levels; no independent kick-on-kick doubling.
+  const peak=strengths[lane]*mix*(pattern.step===0?.75:1);
+  g.gain.setValueAtTime(.0001,at);
+  g.gain.exponentialRampToValueAtTime(Math.max(.0005,peak),at+.006);
+  g.gain.exponentialRampToValueAtTime(.0001,at+duration);
+  o.connect(g);g.connect(beatBus);o.start(at);o.stop(at+duration+.015);
+ }
+}
 function pulse(time,count){
  if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
@@ -1403,6 +1439,11 @@ function pulse(time,count){
    o.connect(g);g.connect(beatBus);o.start(at);o.stop(at+.048);
   }
  }
+ // The Film Club rhythm is two *interlocking* patterns on one timeline:
+ // 4-on-the-floor main drum loop plus a 3+3+2/2-bar shadow rhythm.
+ // No extra transport, doubled master kick, changes to native MRT2,
+ // or false claim that this extra synth lane is in the GM-MIDI export.
+ filmCounterPulse(time,count);
 }
 // Looped chords are timed synth events; live chords are held until key-up.
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
