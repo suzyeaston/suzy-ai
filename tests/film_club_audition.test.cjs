@@ -87,7 +87,7 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
    assert.ok(h.weights[i]>.8);
    assert.equal(h.buttons[i].getAttribute("aria-pressed"),"true");
    assert.match(h.output.textContent,new RegExp("AUDITION CHORD SENT · "+name.toUpperCase()));
-   assert.match(h.output.textContent,/NOW PLAY Z\/X\/C/);
+   assert.match(h.output.textContent,/HOLD Z\/X\/C FOR LONG LEGATO NOTES/);
  }
  const actions=h.changes.map(x=>x.action);
  assert.equal(actions.filter(a=>a==="chord-hold").length,5);
