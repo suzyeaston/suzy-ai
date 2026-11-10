@@ -29,7 +29,7 @@ final class MRT2Host {
     // Native chord notes should outlive a click; a new chord still wins instantly.
     private var chordStartedAt: TimeInterval = 0
     private var pendingChordRelease: DispatchWorkItem?
-    private let minimumChordHoldSeconds: TimeInterval = {
+    private var minimumChordHoldSeconds: TimeInterval = {
         let value = Double(ProcessInfo.processInfo.environment["SUZY_MRT2_CHORD_HOLD_MS"] ?? "") ?? 480
         return max(200, min(1200, value)) / 1000.0
     }()
@@ -982,6 +982,15 @@ final class MRT2Host {
                 melodyHeld.remove(midiNote)
                 if !held.contains(midiNote) { rawMIDI([0x80, midiNote, 0]) }
             }
+        case "chord-hold":
+            // Explicit performer-controlled minimum MIDI chord sustain.
+            // Preserve the existing 480ms Futureproof default until a
+            // Film Club user deliberately chooses a longer held-note sound.
+            guard let seconds = request["seconds"] as? Double,
+                  seconds.isFinite, seconds >= 0.2, seconds <= 4.8 else {
+                return ["error":"chord-hold requires finite seconds between 0.2 and 4.8"]
+            }
+            minimumChordHoldSeconds = seconds
         case "chord":
             guard active, let i = request["index"] as? Int,
                   let notes = chords[scene], (0..<4).contains(i) else {
