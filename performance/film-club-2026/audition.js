@@ -22,7 +22,9 @@
   const sustainValue=document.getElementById("filmNoteHoldValue");
   function sustainSeconds(){
     const ms=Number(sustainInput?.value||2400);
-    return Math.max(.4,Math.min(4.8,Math.round(ms/200)*.2));
+    // Keep integer milliseconds until conversion to seconds; 3.8 stays
+    // exactly the requested JSON number instead of 3.8000000000000003.
+    return Math.max(400,Math.min(4800,Math.round(ms/200)*200))/1000;
   }
   function showSustain(){
     if(sustainValue)sustainValue.textContent=sustainSeconds().toFixed(1)+" seconds";
