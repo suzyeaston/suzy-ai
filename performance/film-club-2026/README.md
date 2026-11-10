@@ -24,17 +24,62 @@ Sources:
 - https://www.mazmazika.com/chordanalyzer/grimes-vadakin-songs/accelerando-chords
 - https://www.hooktheory.com/theorytab/view/grimes/accelerando-ft-vadakin
 
+## v0.9: interlocking beats, cleaner ethereal vocals, smaller interface
+
+The three large Film Club panels in the rehearsal screenshots have been
+removed from the visible surface: the big **Record the performance** box,
+the oversized **Pyramid Afterimage** composition/audition box, and the
+five large **0–60s storyboard / energy** cards. The original recording
+engine and controls are **not deleted**: expand the compact
+**RECORD SYSTEM AUDIO · LOGIC / OPTIONAL SCARLETT** item beneath the
+header. The five actual MRT2 HEAR audition buttons and 2.4-second
+native sustain slider are preserved in **INSTRUMENT AUDITION**,
+collapsed by default. Gastown cue JSON remains in a small **ADVANCED**
+drawer, and the real Film Club instrument/loop pedals remain below.
+
+**Two actual interlocking rhythms share one 100 BPM, 4/4 clock.**
+The main rhythm is a four-on-the-floor kick/backbeat and offbeat hats.
+The second is a softer 3+3+2-inspired two-bar shadow pattern of synthesized
+low tom, offbeat rim and metallic shimmer strokes. Adjust the two compact
+faders marked **PULSE** and **SHADOW BEAT** independently. Neither starts
+a second MIDI transport or doubles the kick; existing PCM recordings,
+the native MRT2 generator, and the original Futureproof route stay on
+their original timing. Shadow percussion is browser-only audio and is
+**not** falsely claimed to be included in the original three-lane
+drum-MIDI export. For Logic, capture the mixed system audio (or remake
+the shadow layer as a separate percussion stem).
+
+The Film Club **vocal texture** now defaults to a moderately wet
+dotted-eighth echo (15%), low feedback (15%), darker airy tone (44%),
+and lower live reverb (20%). Live Scarlett voice has a *wet-only* adaptive
+gate (soft hysteresis, 200ms hold), 120 Hz input highpass, filtered
+delay rumble rejection at 170 Hz, and a very quiet modulated doubling
+chorus. This stops quiet mic/room noise from endlessly exciting
+reverb/echo while allowing the **dry** headphone feed to retain natural
+dynamic expression. Recorded vocal PCM stays dry and can be treated
+non-destructively later in Logic. This is a broad shimmering
+jazz-electronica sound design idea, not an imitation of a specific
+artist's recording or vocal identity.
+
+For monitoring: use closed-back headphones, turn off **Scarlett
+direct monitoring** if Chrome is monitoring too, and avoid running
+the VE-22's wet output *plus* heavy browser effects at the same time.
+If the room/interface noise is stronger than your voice, lower physical
+gain rather than increasing feedback; you can also turn TAPE ECHO OFF
+and keep just the gated reverb/chorus. The original Emergency KILL VOCAL
+FX button still works and does not remove saved audio clips.
+
 ## Recording the whole performance for Logic Pro
 
-The Film Club UX now places the **original TOASTER full-set recorder**
-directly under the top header, **expanded by default**, above the
-Accelerando instrument, prompt and looping controls. This is the **same
+The Film Club UX retains the **original TOASTER full-set recorder**
+directly below the top header, now in a **compact collapsed control**,
+rather than the previous oversized always-open panel. This is the **same
 existing full-set capture engine**, not a second recording engine or a
 button that records only the browser drum bus.
 
 In Chrome on macOS:
 
-1. Under **🔴 FILM CLUB RECORDING · SCREEN AUDIO + VOCALS → LOGIC**,
+1. Expand **● RECORD SYSTEM AUDIO · LOGIC / OPTIONAL SCARLETT**,
    optionally check **Include Scarlett / VE-22 voice**.
 2. Click **● RECORD FULL SET**. This user-initiated click is what makes
    Chrome ask for screen-sharing permission. Nothing should ask for
