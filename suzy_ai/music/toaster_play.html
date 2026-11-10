@@ -428,6 +428,8 @@ body{padding-top:86px}
  <select id="drumStyle" aria-label="Local drum style">
   <option value="pulse" selected>Soft pulse</option><option value="brush">Brushed / ghost</option>
   <option value="trip">Downtempo trip-hop</option><option value="broken">Broken / experimental</option>
+  <option value="drive">Propulsive electronica / breaks</option>
+  <option value="frame">Frame-drum electro / syncopated</option>
  </select>
  <small id="drumStatus" class="subtle">4/4 · Soft pulse · independent drum accents. Recorded clips still use the 4/4 song grid.</small>
  <div class="drum-sequencer">
@@ -926,9 +928,10 @@ let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
 let activeMicDeviceId=null,micMeterSource=null,micMeterAnalyser=null,micMeterTimer=null;
-let drumMeter="4/4",drumStyle="pulse",customDrumHits=null,drumVariationNumber=0;
+let drumMeter="4/4",drumStyle="pulse",customDrumHits=null,drumVariationNumber=0,drumEnergy=.62;
 const DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6});
-const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental"});
+const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental",
+ drive:"Propulsive electronica / breaks",frame:"Frame-drum electro / syncopated"});
 let parkedBar=0,seekRevision=0;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -1214,6 +1217,18 @@ function drumPattern(count){
  }else if(drumStyle==="trip"){
   kick=down||beat===(len>=8?len-3:len-2);
   snare=secondary&&!kick;hat=beat%2===1&&!kick&&!snare;
+ }else if(drumStyle==="drive"){
+  // Offbeat kicks, two backbeat snare hits and moving hats. The rhythm
+  // scheduler still advances one eighth-note per step at the same BPM.
+  kick=down||beat===Math.max(1,len-5)||beat===Math.floor(len/2)||beat===len-1;
+  snare=beat===Math.floor(len/4)||beat===Math.floor(3*len/4);
+  hat=beat%2===1||beat===Math.floor(len/2)+1;
+ }else if(drumStyle==="frame"){
+  // A synthesized dum/tek-inspired syncopation, not a traditional sample:
+  // it adds momentum while remaining independently editable as GM MIDI.
+  kick=down||beat===Math.floor(len/2)||beat===len-1;
+  snare=beat===Math.max(1,Math.floor(len/4))||beat===len-2;
+  hat=beat%2===1||beat===Math.floor(len/2)+1;
  }else{
   kick=down||beat===Math.max(1,len-3);
   snare=beat===Math.max(1,Math.floor(len/2)-1)&&!kick;
@@ -1329,21 +1344,43 @@ function toggleRhythmAudio(){
 function pulse(time,count){
  if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
- const amount=drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:.69;
+ const kinetic=drumStyle==="drive"||drumStyle==="frame";
+ const amount=(drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:kinetic?.76:.69)*
+    (kinetic?.55+.65*drumEnergy:1);
  // Three independent hits allow a custom MIDI groove to layer kick/snare/hat.
  for(const [lane,on] of [["kick",kick],["snare",snare],["hat",hat]]){
   if(!on)continue;
   const o=ctx.createOscillator(),g=ctx.createGain();
-  const pitch=lane==="hat"?720:lane==="snare"?214:128;
+  const pitch=lane==="hat"?(drumStyle==="frame"?890:720):
+    lane==="snare"?(drumStyle==="frame"?286:214):
+    drumStyle==="frame"?105:128;
   const duration=lane==="hat"?.035:lane==="snare"?.085:.12;
-  o.type=lane==="snare"?"triangle":"sine";
+  o.type=lane==="snare"?"triangle":lane==="hat"&&kinetic?"square":"sine";
   o.frequency.setValueAtTime(pitch,time);
   o.frequency.exponentialRampToValueAtTime(lane==="hat"?470:lane==="snare"?120:55,time+duration*.64);
-  const level=(lane==="kick"?.24:lane==="snare"?.11:.036)*amount*(down?1:secondary?.77:.65);
+  const level=(lane==="kick"?.24:lane==="snare"?.11:.036)*amount*(down?1:secondary?.77:.65)*
+    (drumStyle==="frame"&&lane==="snare"?.75:1);
   g.gain.setValueAtTime(.0001,time);
   g.gain.exponentialRampToValueAtTime(Math.max(.002,level),time+.004);
   g.gain.exponentialRampToValueAtTime(.0001,time+duration);
   o.connect(g);g.connect(beatBus);o.start(time);o.stop(time+duration+.02);
+ }
+ // Sub-eighth ghost ticks create motion WITHOUT changing the meter, BPM,
+ // chord loop timing, native Magenta generation, or editable MIDI grid.
+ // They are synthesized browser percussion, not claimed traditional samples.
+ if(kinetic&&!customDrumHits&&drumEnergy>.05){
+  const steps=drumStyle==="frame"?[.33,.66]:[.50];
+  for(const fraction of steps){
+   const at=time+tickSeconds()*fraction;
+   const o=ctx.createOscillator(),g=ctx.createGain();
+   o.type="triangle";o.frequency.setValueAtTime(drumStyle==="frame"?1180:920,at);
+   o.frequency.exponentialRampToValueAtTime(420,at+.038);
+   const weight=(drumStyle==="frame"?.024:.035)*drumEnergy*(down?.65:1);
+   g.gain.setValueAtTime(.0001,at);
+   g.gain.exponentialRampToValueAtTime(Math.max(.001,weight),at+.003);
+   g.gain.exponentialRampToValueAtTime(.0001,at+.042);
+   o.connect(g);g.connect(beatBus);o.start(at);o.stop(at+.048);
+  }
  }
 }
 // Looped chords are timed synth events; live chords are held until key-up.
@@ -2879,7 +2916,7 @@ function updateNativeLaneControls(){
      (ctx.currentTime<nativeTake.gridStartAt?
       "● ARMED · WAIT FOR GREEN BEAT 1 · then play your phrase":
       "● NATIVE AU RECORDING · PRESS DONE TO LOOP · RHYTHM CONTINUES"):
-     "● RECORDING ONE PASS · existing audio keeps looping · automatic save";
+     "● RECORDING · DONE STARTS A SHORT LOOP · AUTO-SAVE AT FULL PASS";
   }
  }
  const button=$("nativeRecord-drums-drums"),status=$("nativeStatus-drums-drums");
@@ -3004,7 +3041,8 @@ async function startNativeInstrumentTake(which,role){
   const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
   const period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
-  // Overdub must include the wait until existing beat one plus a full pass.
+  // Subsequent instruments may start on the next visible green beat one.
+  // They no longer wait for an entire piano master loop to start recording.
   const seconds=first?120:Math.min(120,period*2+1);
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
@@ -3015,20 +3053,22 @@ async function startNativeInstrumentTake(which,role){
   const capturedAt=(requestAt+responseAt)*.5;
    // Arm the native capture BEFORE the next true bar one. Only samples
    // recorded after the visible beat-one cue become part of the loop.
-   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):
-    loopMasterOrigin(which)+Math.ceil(Math.max(0,responseAt+.15-loopMasterOrigin(which))/period)*period;
+   const gridStartAt=gridTimeAt(responseAt,6*tickSeconds());
    const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
    take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
-         beginStep,seconds,finishing:false,timer:null};
+         beginStep,seconds,finishing:false,autoComplete:false,timer:null};
   nativeTake=take;
   updateNativeLaneControls();
   const statusEl=$("nativeStatus-"+which+"-"+role);
   statusEl.textContent=first?
      "● ARMED · WAIT FOR GREEN BEAT 1 · PLAY · DONE TO LOOP":
-     "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
+     "● RECORDING ON SHARED BEAT · DONE WHEN YOUR INSTRUMENT PHRASE ENDS";
    updatePedalClock();
   if(!first)take.timer=setTimeout(()=>{
-   if(nativeTake===take)finishNativeInstrumentTake().catch(warn);
+   if(nativeTake===take){
+    take.autoComplete=true; // preserve full-pass behaviour when DONE isn't pressed
+    finishNativeInstrumentTake().catch(warn);
+   }
   },Math.max(50,Math.ceil((gridStartAt+period-ctx.currentTime)*1000)));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
@@ -3043,22 +3083,27 @@ async function startNativeInstrumentTake(which,role){
 async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
- if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
-  return tell("WAIT FOR GO! · play at least one beat before DONE.");
+ if(ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+  return tell("WAIT FOR GO! · play at least one beat before DONE for any instrument.");
  take.finishing=true;clearTimeout(take.timer);
   take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
   updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const targetDeck=loopDeck(which);
-  // The first Magenta phrase follows DONE to the nearest NEXT eighth note.
-  // Never truncate an actual attack at the end of the performed phrase.
-  // Saved drum metre and green beat-one timing remain unchanged.
-  const masterSteps=take.first?
-    Math.max(2,Math.min(256,Math.ceil((take.stopRequestedAt-take.gridStartAt)/tickSeconds()))):
-    targetDeck.lengthSteps;
-  const periodSeconds=take.first?masterSteps*tickSeconds():
-   (targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds());
+  // Piano, violin, cello, glass and drums now share pedal semantics:
+  // manual DONE defines THIS instrument's short repeat period. The piano
+  // master duration, its original anchor, and the rhythm remain untouched.
+  // Automatic end after a full master pass preserves legacy full-pass takes.
+  const masterSeconds=targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds();
+  const elapsed=Math.max(0,take.stopRequestedAt-take.gridStartAt);
+  const performedSteps=Math.max(2,Math.min(256,Math.ceil(elapsed/tickSeconds())));
+  const layerSteps=take.first?performedSteps:
+    take.autoComplete?targetDeck.lengthSteps:
+    Math.min(targetDeck.lengthSteps,performedSteps);
+  const periodSeconds=!take.first&&take.autoComplete?masterSeconds:
+    layerSteps*tickSeconds();
+  const masterSteps=take.first?layerSteps:targetDeck.lengthSteps;
   const result=await aiFetch("capture-stop",{
    id:take.id,live_loop:preferNativeMemoryLoop(),
    preroll_seconds:Math.max(0,take.gridStartAt-take.startedAt),
@@ -3094,30 +3139,31 @@ async function finishNativeInstrumentTake(){
    tell("NATIVE LOOP IS PLAYING · optional waveform WAV unavailable; saved live controls stay available.");
   }
   const d=loopDeck(which);
-  // First audio length MUST span whole rhythm bars, not the AU WAV's
-   // arbitrary sample count (including capture-start and STOP HTTP jitter).
-   const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
-    Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
+  // PCM length follows this particular performance, not silent padding to
+  // the old master. HTTP/decoder delay must not change the phrase duration.
+  const frames=Math.max(1,Math.round(periodSeconds*ctx.sampleRate));
   const buffer=recorded?ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate):null;
   const inputs=buffer?Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel)):[];
   let shifted=0;
+  // Every native instrument keeps its own phrase-zero and trims pre-roll.
+  // Short violin / glass / cello overdubs no longer contain an inherited
+  // padded silence before each replay.
+  if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
   if(take.first){
-    // Capture began before the musician's green beat-one cue; drop pre-roll.
-    if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
     d.locked=true;d.lengthSteps=masterSteps;
     d.anchorStep=take.beginStep;d.loopEnabled=true;
     d.pedalPeriodSeconds=buffer?.duration||periodSeconds;
     d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
-   }else{
-   if(buffer)shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
   const nativeLive=result.native_loop_playing===true;
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
    name:nativeLaneLabel(which,role)+(nativeLive?" · NATIVE MEMORY":" · BROWSER WAV FALLBACK"),
    nativeLive,nativeLoopID:nativeLive?(result.native_loop_id||take.id):null,
    buffer,level:.8,muted:false,
-   pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
+   pedalAligned:true,pedalOriginOffsetSeconds:take.gridStartAt-transportEpoch,
+   pedalPeriodSeconds:periodSeconds,loopOriginStep:take.beginStep,
+   arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
   // its MIDI into whatever violin/guitar prompt is selected next.
@@ -3131,7 +3177,7 @@ async function finishNativeInstrumentTake(){
   if(!nativeLive)startLoopAudio(which,layer);
   renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
-  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+Number((d.lengthSteps/rhythmBarSteps()).toFixed(2))+
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+Number((periodSeconds/barDuration()).toFixed(2))+
     " BARS @ "+bpm+" BPM · "+(nativeLive?
     "NATIVE MEMORY REPLAY · NO WAV PLAYBACK HANDOFF":
     handoffMs+"ms WAV HANDOFF (FALLBACK)")+" · STOP SAVED pauses playback";
@@ -3199,8 +3245,12 @@ function layerFxReturnBus(which,layer){
   decks[which].voiceFxBus:layerOutputBus(which,layer);
 }
 function layerPlaybackPhase(which,layer,at){
- const origin=layer.pedalAligned?loopMasterOrigin(which):
-  transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
+ // Each printed instrument can loop on its own period from its own bar-one
+ // cue without restarting the piano master, drum metre or song transport.
+ const origin=layer.pedalAligned?
+   (Number.isFinite(layer.pedalOriginOffsetSeconds)?
+     transportEpoch+layer.pedalOriginOffsetSeconds:loopMasterOrigin(which)):
+   transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
  const offset=(Number(layer.sourceOffsetBars)||0)*8*tickSeconds();
  return ((at-origin+offset)%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
 }

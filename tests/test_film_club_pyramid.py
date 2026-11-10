@@ -62,6 +62,31 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("shared Mac model", self.film)
         self.assertIn("restart", self.film.lower())
 
+    def test_livelier_film_prompts_and_groove_control_preserve_pyramid_harmony(self):
+        self.assertIn('id="filmGrooveEnergy"', self.film)
+        self.assertIn('id="filmGrooveReadout"', self.film)
+        for option in (
+            'value="drive">Propulsive electronica / breaks',
+            'value="frame">Frame-drum electro / syncopated',
+        ):
+            self.assertIn(option, self.film)
+        piano, cello, violin, glass, drums = FILM_PROMPTS
+        self.assertIn("syncopated", piano)
+        self.assertIn("arpeggios", piano)
+        self.assertIn("offbeat", cello)
+        self.assertIn("modal", violin)
+        self.assertIn("16th-note", glass)
+        self.assertIn("breakbeat", drums)
+        self.assertIn("hand-drum", drums)
+        self.assertEqual(len(set(FILM_PROMPTS)), 5)
+        # Don't ship song audio or change the original five prompt defaults.
+        self.assertNotIn("<audio", self.film)
+        for original in ORIGINAL_PROMPTS:
+            self.assertNotIn(f">{original}</textarea>", self.film)
+        self.assertIn("F♯", self.film)
+        self.assertIn("Gmaj7", self.film)
+        self.assertIn("A6", self.film)
+
     def test_tokens_and_csp_sensitive_local_scripts(self):
         self.assertNotIn("__MAGENTA_TOKEN__", self.film)
         self.assertIn('const token="test-stage-token"', self.film)

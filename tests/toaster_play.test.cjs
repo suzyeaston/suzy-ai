@@ -526,7 +526,7 @@ test("per-song lead register and volume do not transpose chord pads or change pr
  assert.equal(run("decks.fishes.leadInstrument"),"nylon");
  assert.equal(get("leadLevelValue-pyramid").textContent,"40%");
 });
-test("four drum styles really differ and 3/4, 6/8, 5/4 have distinct accent groupings",async()=>{
+test("rhythm styles and 3/4, 6/8, 5/4 retain distinct accent groupings",async()=>{
  const {run,get}=rig();await run("startStop()");
  run('setDrumGroove("3/4","brush")');
  assert.equal(run("drumPattern(0).kick"),true);
@@ -549,6 +549,41 @@ test("four drum styles really differ and 3/4, 6/8, 5/4 have distinct accent grou
  // Changing percussion meter does NOT lie about the 4/4 recorded clip grid.
  assert.equal(run("songCycleSteps('pyramid')"),16);
 });
+test("driving electronic and hand-drum inspired styles add real offbeat hits without shifting the rhythm grid",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ const bpm=run("bpm"),meter=get("drumMeter").value,clock=run("stepNumber");
+ run('setDrumGroove("4/4","drive")');
+ assert.equal(run("drumPattern(0).kick"),true);
+ assert.equal(run("drumPattern(2).snare"),true);
+ assert.equal(run("drumPattern(6).snare"),true);
+ assert.equal(run("drumPattern(7).kick"),true);
+ assert.equal(run("drumPattern(7).hat"),true);
+ const times=run(`(()=>{
+   const ticks=[];
+   const original=ctx.createOscillator.bind(ctx);
+   ctx.createOscillator=()=>{
+      const node=original(),play=node.start.bind(node);
+      node.start=(at)=>{ticks.push(at);play(at);};return node;
+   };
+   drumEnergy=.84;
+   pulse(ctx.currentTime+.2,3);
+   return ticks;
+ })()`);
+ assert.ok(times.length>=3,"multiple real synth hits per eighth-note");
+ assert.ok(times.some(t=>t>.2 && t<.2+run("tickSeconds()")),
+   "ghost subdivisions are scheduled INSIDE an eighth-note");
+ run('setDrumGroove("4/4","frame")');
+ assert.equal(run("drumPattern(0).kick"),true);
+ assert.equal(run("drumPattern(2).snare"),true);
+ assert.equal(run("drumPattern(7).kick"),true);
+ assert.equal(get("drumMeter").value,meter);
+ assert.equal(run("bpm"),bpm);
+ assert.equal(run("stepNumber"),clock);
+ assert.equal(run("loopSteps"),16);
+ assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.ok(get("drumStatus").textContent.includes("4/4 grid"));
+});
+
 test("overdubs preserve instruments and live/loop levels are independent",async()=>{
  const {get,run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('setInstrument("pyramid","pad")');
@@ -1791,6 +1826,50 @@ test("performer cards have piano, native violin, native guitar and separate Scar
  assert.match(javascript,/function startNativeInstrumentTake\(which,role\)/);
  assert.doesNotMatch(file,/<option value="rhythm" selected>/);
 });
+test("violin cello glass and native drum overdubs loop short phrases immediately, retaining the piano master",async()=>{
+ const {run,env,calls,get}=rig();await run("startStop()");
+ run("aiNativeReady=true");
+ run('decks.pyramid.locked=true;decks.pyramid.lengthSteps=32;decks.pyramid.anchorStep=8;decks.pyramid.pedalPeriodSeconds=32*tickSeconds();decks.pyramid.pedalOriginOffsetSeconds=8*tickSeconds()');
+ const oldOrigin=run('loopMasterOrigin("pyramid")');
+ const sent=[];
+ calls.decodedFrames=18*48000;
+ env.fetch=async(url,opts)=>{
+   const u=String(url),op=u.split("/").pop();
+   if(opts?.body)sent.push({op,...JSON.parse(opts.body)});
+   if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+   if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"short-"+sent.length})};
+   if(op==="capture-stop")return {ok:true,json:async()=>({
+      ready:true,frames:18*48000,peak:.2,audio_url:"/api/ai/capture/short",
+      native_loop_playing:true,native_loop_id:"short-live",native_loop_scheduled_ms:75
+   })};
+   if(u==="/api/ai/capture/short")return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+   return {ok:true,json:async()=>({})};
+ };
+ for(const [which,role] of [["pyramid","lead"],["pyramid","textureLow"],
+   ["pyramid","textureHigh"],["drums","drums"]]){
+   await run('startNativeInstrumentTake('+JSON.stringify(which)+','+JSON.stringify(role)+')');
+   assert.equal(run("nativeTake.first"),false);
+   const start=run("nativeTake.gridStartAt");
+   assert.equal(run("nativeTake.beginStep%rhythmBarSteps()"),0,
+      role+" count-in is shared bar one, never a long piano-phrase wait");
+   run("ctx.currentTime=nativeTake.gridStartAt+3.2*tickSeconds()");
+   await run("finishNativeInstrumentTake()");
+   const stopped=sent.filter(x=>x.op==="capture-stop").at(-1);
+   assert.ok(Math.abs(stopped.period_seconds-run("4*tickSeconds()"))<.001,
+      role+" loops immediately on its own phrase, not 32 silent eighth-notes");
+   const layer=run(which==="drums"?"drumDeck.layers.at(-1)":"decks.pyramid.layers.at(-1)");
+   assert.equal(layer.instrumentRole,role);
+   assert.ok(Math.abs(layer.pedalPeriodSeconds-run("4*tickSeconds()"))<.001);
+   assert.equal(layer.nativeLive,true);
+   assert.equal(layer.source,null,"native PCM is not double-played by browser");
+   assert.equal(run("decks.pyramid.lengthSteps"),32);
+   assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-oldOrigin)<.001);
+   assert.ok(Math.abs(layer.pedalOriginOffsetSeconds-(start-run("transportEpoch")))<.001);
+ }
+ assert.equal(get("drumMeter").value,"4/4");
+ assert.equal(run("bpm"),105);
+});
+
 test("real Magenta violin audio is captured through host, repeated twice, then independently removed",async()=>{
  const {run,env,get,calls}=rig(); await run("startStop()");
  run("aiNativeReady=true");
@@ -1816,6 +1895,7 @@ test("real Magenta violin audio is captured through host, repeated twice, then i
   await run('startNativeInstrumentTake("pyramid","lead")');
   assert.equal(run("nativeTake.role"),"lead");
   assert.equal(run("nativeTake.first"),false);
+  run("ctx.currentTime=nativeTake.gridStartAt+3.1*tickSeconds()");
   await run("finishNativeInstrumentTake()");
   assert.equal(run("nativeTake"),null);
   assert.equal(run('decks.pyramid.layers.length'),i+1);
@@ -2104,7 +2184,7 @@ test("BOSS pedal: DONE plays piano sample zero indefinitely without another tap"
  assert.equal(host.filter(x=>x.op==="capture-start").length,1);
 });
 
-test("overdub inherits first piano duration, remains audible alongside it",async()=>{
+test("a full-length overdub can still match first piano duration and stay audible",async()=>{
  const {run,env,calls,get}=rig();await run("startStop()");
  run("aiNativeReady=true");calls.decodedFrames=8*48000;
  let number=0;const lengths=[];
@@ -2123,7 +2203,7 @@ test("overdub inherits first piano duration, remains audible alongside it",async
  run("ctx.currentTime+=.3");await run('startNativeInstrumentTake("pyramid","lead")');
  assert.ok(lengths[1]>=period*2,
   "native overdub capture includes full period after waiting for the existing downbeat");
- run("ctx.currentTime+=decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
+ run("ctx.currentTime=nativeTake.gridStartAt+decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),2);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
  assert.equal(run("decks.pyramid.layers[1].source.loop"),true);
@@ -2183,6 +2263,7 @@ test("cello and glass prompt recordings become two independently removable Pyram
   assert.equal(run("nativeTake.which"),"pyramid");
   assert.equal(run("nativeTake.role"),role);
   assert.equal(run("nativeTake.first"),false);
+  run("ctx.currentTime=nativeTake.gridStartAt+3.1*tickSeconds()");
   await run("finishNativeInstrumentTake()");
   assert.equal(run("nativeTake"),null);
   assert.equal(run("decks.pyramid.layers.at(-1).instrumentRole"),role);
