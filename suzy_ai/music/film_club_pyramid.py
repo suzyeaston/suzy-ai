@@ -126,6 +126,15 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-native-sync button{background:#b8edcf;color:#18352b;border:1px solid #b8edcf;padding:11px 15px;max-width:420px;border-radius:9px;font-weight:800;cursor:pointer}
 .film-native-sync button:disabled{opacity:.65;cursor:progress}
 .film-native-sync output{font:800 12px/1.5 ui-monospace,monospace;color:#fff4e6}
+.film-manual-bridge{margin:12px 0 18px;border:1px solid #e1b6c4;border-radius:13px;padding:16px;background:#271e2d;color:#fff4e8}
+.film-manual-bridge h3{font-size:19px;margin:3px 0 6px}
+.film-manual-bridge p{font-size:13px;line-height:1.55;margin:4px 0 12px}
+.film-manual-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.film-copy-slot{padding:9px 4px;background:#efd3bb;color:#291c30;font-weight:800;font-size:11px;cursor:pointer;border:0;border-radius:8px}
+.film-copy-slot:focus-visible{outline:2px solid #9ce1c2;outline-offset:2px}
+.film-manual-bridge small{display:block;margin-top:9px;font-size:11px;color:#ead8d1}
+@media(max-width:700px){.film-manual-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .film-native-sync small{font-size:11px;color:#f6e1d4}
 .film-warning{padding:9px 12px;border-left:3px solid #f4d0aa;
   background:#291a24;border-radius:5px;font:12px/1.5 system-ui}
@@ -136,6 +145,30 @@ def render_film_club_page(original: str, token: str) -> str:
     # changed textarea text automatically changes the running model.
     # Give the performer a prominent, deliberate, verifiable sync action
     # immediately beside the original prompt editor.
+    # The official Google AU model-selector UI is not a browser DOM we can
+    # automate or attest to from TOASTER. Offer an honest, reliable
+    # clipboard-assisted route if its own window still shows old prompts.
+    bridge = """<section class="film-manual-bridge" id="filmManualBridge"
+ aria-label="Copy Film Club prompts into Google's native Audio Unit window">
+<div class="film-tag">WHEN GOOGLE'S WINDOW STILL SHOWS THE OLD SOUNDS</div>
+<h3>Use the native plugin's five prompt rows</h3>
+<p>Google MRT2 can display or continue generating from an older sound bank
+even when the SUZY host accepted updated text. Select each matching prompt
+row in Google's own window, replace its text, and press Enter/confirm.
+Use these copy buttons to transfer the exact Film Club prompts.
+They copy text only; they do not restart or secretly modify the model.</p>
+<div class="film-manual-list">
+<button type="button" class="film-copy-slot" data-prompt-copy="promptPyramid">COPY 01 · PIANO</button>
+<button type="button" class="film-copy-slot" data-prompt-copy="promptFishes">COPY 02 · CELLO</button>
+<button type="button" class="film-copy-slot" data-prompt-copy="promptViolin">COPY 03 · VIOLIN</button>
+<button type="button" class="film-copy-slot" data-prompt-copy="promptGuitar">COPY 04 · GLASS</button>
+<button type="button" class="film-copy-slot" data-prompt-copy="promptJazzDrums">COPY 05 · DRUMS</button>
+</div>
+<output role="status" aria-live="polite" id="filmCopyStatus">READY TO COPY · NO MODEL RESTART</output>
+<small>Do not confuse the Bank 1–3 memory slots with these sound-prompt rows.
+Google's own prompt edits are the final authority for what the popup shows.
+If you're currently recording a take, finish and export it first.</small>
+</section>"""
     editor = '<details class="prompt-editor" id="promptEditor">'
     sync_panel = """<section class="film-native-sync" aria-label="Native MRT2 prompt synchronization">
 <div class="film-tag">GOOGLE MRT2 · ACTIVE SOUND BANK</div>
@@ -149,7 +182,7 @@ in-memory loops. Export important takes first. Opening this page alone never
 changes the host or Google's window.</small></section>"""
     if editor not in page:
         raise ValueError("Original TOASTER prompt editor anchor changed")
-    page = page.replace(editor, sync_panel + editor, 1)
+    page = page.replace(editor, sync_panel + bridge + editor, 1)
     banner = """
 <section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
   <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
