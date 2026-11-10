@@ -47,6 +47,13 @@ The harmonic guide remains the current Pyramid chord pads **F♯ → Gmaj7 → A
 
 The Pyramid piano prompt, violin prompt, drums and audio-loop engine are deliberately retained. Text prompt changes need the existing five-prompt update/native restart workflow to affect an already loaded Magenta AU. **Do not interrupt your current rehearsal to reload unsaved loops.**
 
+**First-loop pedal timing:** Press DONE when your phrase ends. A fresh
+Pyramid MIDI/AI loop now closes at the next eighth-note subdivision and native
+Magenta PCM replay starts at the corresponding musical phase without waiting
+another entire bar/cycle. The shared metronome remains unchanged; ending
+off the bar can yield an intentional cross-rhythm. See
+[Film Club rehearsal notes](performance/film-club-2026/README.md).
+
 ## ♾ TOASTER loop-station pedal: RECORD → DONE → automatic endless PLAY
 
 The native piano, violin, classical guitar, arpeggio, AI jazz drum and Scarlett vocal lanes use the **loop-station** performance model: press **RECORD TAKE**, play, press **DONE → LOOP**, then hear the saved waveform **repeat automatically until you select STOP SAVED** (or the song-wide STOP LOOP for vocals). There is no separate Play Saved click after recording. Add more layers whenever you like; each take has its own fader, mute and remove controls. The browser rhythm remains an independent backing clock, not a captured drum layer.
