@@ -21,6 +21,14 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club NEON synth v1.1:** The original acoustic-first prompt bank
+has been replaced by five sharper electronic sound prompts. Crucially,
+the Film Club piano now defaults to a *real local* detuned FM synth
+with rapid sixteenth-note arpeggios, rather than waiting for Google's
+unreliable AUv3 prompt reload. Native Magenta stays optional and never
+needs a destructive prompt restart just to play the piano. The original
+Futureproof page is unchanged.
+
 **Film Club upbeat instrumental v1.0:** The Film-only Google MRT2
 prompts now emphasize buoyant acoustic-piano eighth-note figures, active
 cello/harmonium offbeats, nimble violin and sparkling glass replies over
