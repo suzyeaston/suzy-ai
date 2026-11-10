@@ -23,6 +23,8 @@ jobs:
       - run: node --test tests/toaster_play.test.cjs
       - run: node --test tests/film_club_soft_reset.test.cjs
       - run: node --test tests/film_club_prompt_sync.test.cjs
+      - run: node --test tests/film_club_audition.test.cjs
+      - run: node --test tests/film_club_density.test.cjs
       - uses: actions/setup-node@v4
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         with:

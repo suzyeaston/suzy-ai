@@ -21,6 +21,16 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club audition/accelerando correction:** The MRT2 Audio Unit is
+ONE blended generator, not five live stems. Its initial native weights
+often leave only piano audible. The Film Club view now has five explicit
+HEAR selectors, a BLEND ALL FIVE (single-texture) audition, weight
+readback, and interactive density cues which add electronic subdivisions
+without changing 100 BPM. Independently looping piano/cello/violin/glass/
+drum parts still require recording each PCM take separately. The five
+prompts use sparse suspended harmony and a growing dark pulse, not
+generic electro-house parts. [Rehearsal notes](performance/film-club-2026/README.md).
+
 ## ✳ PYRAMID / SOFT RESET · Film Club continuation
 
 For BC + AI Film Club's **Make Art Not War** music video with Gastown

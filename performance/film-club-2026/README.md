@@ -82,12 +82,79 @@ the process. Before changing versions or prompting a native restart,
 **export what you care about**. Opening the new route does not migrate
 an in-memory take from another tab.
 
+## v0.5: actually audition the five native sounds + perform the accelerando
+
+**Why only piano?** Google's official MRT2 is one AU generating **one
+blended audio stream** from five text prompts. In the native Swift mixer the
+usual startup weights are **piano 100%, all other prompt slots 0%**
+(`configure()`, AUParameter addresses 10 through 14). Loading five
+different prompt strings does **not** make five separate instrument
+channels appear. A slider weight of zero makes that prompt inaudible.
+
+The Film Club screen now displays a visible **Hear a voice** board:
+**HEAR PIANO / CELLO / VIOLIN / GLASS / DRUMS** and
+**BLEND ALL FIVE · ONE GENERATOR**. These call the original tested
+`selectNativeLane()` routing function, not a duplicate music engine;
+the board reads back the Audio Unit's real five `prompt_weights`
+and reports the selected weight. Click **HEAR CELLO**, then play
+Z/X/C or the existing chords: you should hear cello-conditioned audio
+instead of the first piano prompt. Repeat for other roles.
+
+**BLEND ALL FIVE** intentionally sets five nonzero native weights
+(roughly 31/20/19/16/15%). This creates *one combined model texture*.
+To actually have five **independent looping instruments**, keep using
+the separate existing **RECORD AI [INSTRUMENT] TAKE → DONE → LOOP**
+pedals. Capture one role, then audition/capture the next. Previously
+recorded native-memory PCM remains a separate loop until deleted or the
+native generator is restarted. These audition buttons never change
+the five prompt texts or restart MRT2, and they refuse to switch while
+a take is being captured. Press PLAY RHYTHM and audition keys as
+usual: the selector itself does not generate notes.
+
+### What ACCELERANDO contributed to this original arrangement
+
+Research on the October 2026 Grimes/VADAKIN track identifies a
+large bass-driven electronic rhythm, timbral abrasion, contrasting
+slower middle section, and subsequent renewed drive. Rather than
+copying its specific sounds, lyrics, melody, or vocal arrangement,
+this Film Club score borrows **the dramatic shape**. Radiohead's
+*Pyramid Song* is actually grounded in 4/4 but its piano chords
+float/swing across the pulse. Philip Selway described responding to
+the inflection of the piano rather than counting mechanically.
+We retain the F♯ / Gmaj7 / A6 suspended colour and human looseness,
+then gradually layer original electronic movement around it.
+
+Sources for musicians to explore:
+- https://pitchfork.com/reviews/tracks/grimes-vadakin-accelerando/
+- https://www.spinmagazine.com/2023/01/radiohead-philip-selway-interview/
+- https://mtosmt.org/issues/mto.13.19.1/mto.13.19.1.hesselink.html
+
+The five Film Club **time cards are now live density gestures**. They
+change only the browser percussion energy and its per-beat subdivision
+count (plus local rhythm level), **never 100 BPM, song meter, native
+MRT2 settings, or saved PCM loop period**:
+
+| Card | Local gesture | Listen for |
+| --- | --- | --- |
+| 0–10 | Low-energy beat, no ghost subdivisions | Weighted piano resonance and Gastown |
+| 10–24 | More percussion subdivision | Cello counter-pulse and sparkling glass |
+| 24–38 | Dense subdivided strokes, stronger level | Machine pressure and distortion in layers |
+| 38–48 | Near-silent rhythm, half-time *feel* | Violin/voice as human interruption |
+| 48–60 | Partial return | More open, unresolved harmonic end |
+
+The cues are artist-operated, not automatically synchronized to Gastown
+Simulator or the music transport. Start with solo piano and bass, record
+them as independent takes, build through layers, and only then use the
+BLEND option if you want to audition a composite native texture.
+The sound prompts are per-instrument and avoid demanding a whole
+dance arrangement from every slot.
+
 ## v0.3: a livelier Pyramid, with an independent pedal per instrument
 
 The Film Club view now defaults to **4/4, 100 BPM Electro house ·
 four-on-the-floor**. It has actual local quarter-note kicks on beats 1,
 2, 3, 4; snare/clap accents on 2 and 4; offbeat hats; plus a
-**GROOVE ENERGY** slider (84% at startup). The alternative
+**GROOVE ENERGY** slider (24% at startup; raise it with the live cues). The alternative
 **Frame-drum electro / syncopated** and **Propulsive electronica / breaks**
 rhythms remain available. These are original browser-synth sounds, not
 samples from artists or editable notes for the extra ghost subdivisions
@@ -97,11 +164,11 @@ the Film Club script sets the actual transport to 100 BPM. Never
 change the tempo under an existing PCM loop; the live engine blocks it.
 
 The sound prompt directions apply to **all five native Magenta slots**:
-piano gets firm staccato chord strikes and rhythmic rests, cello receives
-pizzicato/spiccato bass ostinati with short decays rather than long pads;
-violin remains expressive with modal turns; glass/harp gets bright
-plucked ostinati; drums supply a 100 BPM kick-clap-offbeat-hat house feel
-with occasional synthetic hand-drum accents. The original Pyramid chords
+piano gets weighted irregular suspended chord attacks, cello plays
+a woody pizzicato pulse with occasional bowed slides, violin stays
+expressive with urgent tremolo and long releases, glass is resonant
+and granular, and the 100 BPM drum prompt becomes a dark, shifting
+break/house hybrid rather than five generic repetitive house parts. The original Pyramid chords
 **F♯ → Gmaj7 → A6** remain. These are *conditioning prompts*, not
 guarantees that MRT2 will output a particular drum beat. Audition each
 sound and steer it with the keys before capturing.
