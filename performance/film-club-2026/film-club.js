@@ -334,7 +334,7 @@
   const routeLegacyApplySafely = event => {
     event.preventDefault();
     event.stopImmediatePropagation();
-    nativeApply?.click();
+    return nativeApply?.click();
   };
   for(const id of ["applyPrompts","applyJazzDrumsPrompt"]){
     document.getElementById(id)?.addEventListener("click",routeLegacyApplySafely,true);
