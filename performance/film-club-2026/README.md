@@ -116,6 +116,41 @@ pass, as before. Keep in mind the Swift host requires a little
 capture-stop processing before the replay becomes audible. It no longer
 adds an avoidable full-period delay.
 
+## Why the Google MRT2 popup still showed the original prompts
+
+The Film Club HTML rendered five new text boxes, but Google's separate
+**native AU popup** still showed the original Futureproof sound bank.
+Changing the page or refreshing Chrome does **not** automatically reconfigure
+a running Audio Unit. The stage starts its native model with the normal
+default bank, and we intentionally do not overwrite it just by navigating.
+
+The Film Club view now has a prominent **APPLY FILM CLUB SOUNDS TO MRT2**
+button next to the prompt editor. Above that button the app reads
+`/api/ai/status` (without modifying the model) and compares all **five
+actual native-host `text_prompts` values** with the five visible Film Club
+textarea values. It shows an explicit mismatch instead of merely claiming
+the page has loaded a new sound.
+
+When you click APPLY:
+1. Export native in-memory audio takes you want to keep, then confirm the
+   restart. The app reports the active native loop count if available.
+2. The existing TOASTER action stops the shared native generator, configures
+   five Film Club text prompts, then starts the **same** Audio Unit.
+3. The Film Club panel reads back the host's text bank and reports either
+   **host verified**, **still starting**, or **NOT VERIFIED**. It never
+   claims the new sound is proven audible merely from a status response.
+4. If the Google AU popup is still showing a stale page after the host
+   reports the new text, **close and reopen that native window** and
+   select the local `mrt2_small` model again if it asks. This interface
+   belongs to Google, not the browser.
+
+The underlying `/toaster/live` source continues to display the
+Futureproof text presets. Both pages control the **same running Audio
+Unit**, so the actual active prompt bank can be either version depending
+on which one was most recently applied. To switch back, visit
+`/toaster/live` and apply its prompts deliberately. Never rely on a
+browser refresh to restore the native host.
+
 ## Five Film Club prompts
 
 | Original native slot | New instrument direction |
