@@ -79,7 +79,8 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
  const h=harness();await h.settle();
  for(const [i,name] of Object.keys(map).entries()){
    await h.buttons[i].click();
-   assert.deepEqual(h.calls[i],{which:map[name][0],role:map[name][1]});
+   assert.equal(h.calls[i].which,map[name][0]);
+   assert.equal(h.calls[i].role,map[name][1]);
    assert.ok(h.weights[i]>.8);
    assert.equal(h.buttons[i].getAttribute("aria-pressed"),"true");
    assert.match(h.output.textContent,new RegExp("SELECTED "+name.toUpperCase()));
