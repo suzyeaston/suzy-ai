@@ -2629,6 +2629,39 @@ test("MIDI first take never arms on beat two just because next tick was pre-sche
  assert.equal(get("pedalCueBig").textContent,"GO!");
 });
 
+test("native first piano DONE midway through a bar closes a short live-loop phrase",async()=>{
+ const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=12*48000;
+ const sent=[];
+ env.fetch=async(url,opts)=>{
+  const op=String(url).split("/").pop();
+  if(opts?.body)sent.push({op,...JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"piano-immediate"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({
+   ready:true,frames:12*48000,peak:.4,audio_url:"/api/ai/capture/piano-immediate",
+   native_loop_playing:true,native_loop_scheduled_ms:70,
+   native_loop_id:"piano-immediate",native_loop_start_mode:"immediate_phase_locked"
+  })};
+  if(String(url)==="/api/ai/capture/piano-immediate")
+   return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ const start=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+4.1*tickSeconds()");
+ await run("finishNativeInstrumentTake()");
+ const stop=sent.find(x=>x.op==="capture-stop");
+ assert.ok(stop,"native capture-stop must be invoked");
+ assert.equal(run("decks.pyramid.lengthSteps"),5,"first piano loop must NOT pad to eight ticks");
+ assert.ok(Math.abs(stop.period_seconds-run("5*tickSeconds()"))<.001);
+ assert.equal(run("decks.pyramid.layers[0].nativeLive"),true);
+ assert.equal(run("decks.pyramid.layers[0].source"),null,"do not double-play captured native PCM");
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001,
+  "retain original downbeat origin for future overdubs");
+ assert.equal(run("drumMeter"),"4/4","shared drum metre unchanged");
+});
+
 test("real Swift memory looping starts native take without duplicate browser AudioBuffer playback",async()=>{
  const {run,env,calls,get}=rig();await run("startStop()");run("aiNativeReady=true");
  calls.decodedFrames=8*48000;
