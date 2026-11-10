@@ -172,6 +172,21 @@ def render_film_club_page(original: str, token: str) -> str:
         raise ValueError("Missing required TOASTER page anchors")
     style = """
 /* Film Club colorway, added on top of the unchanged performance UX */
+.film-recorder-spotlight{border:2px solid #e3afc7;border-radius:16px;
+  background:linear-gradient(110deg,#332337,#263844);padding:14px 16px;
+  margin:16px 0 18px;box-shadow:0 0 0 1px #e9b8d120}
+.film-recorder-spotlight>summary{cursor:pointer;display:block;font-size:15px;
+  font-weight:900;letter-spacing:.015em;color:#ffdbdd;padding:5px 0 13px;
+  list-style:none}
+.film-recorder-spotlight>summary::-webkit-details-marker{display:none}
+.film-recorder-spotlight:not([open])>summary{padding-bottom:5px}
+.film-recorder-spotlight .set-recorder{background:#291d2d;border-color:#e9bacd}
+.film-recorder-spotlight #setRecordStart{font-size:14px;min-height:46px}
+.film-recorder-guide{font-size:13px;line-height:1.5;color:#f4e4e5;
+  margin:0 0 12px}
+.film-recorder-guide strong{color:#c3f8dc}
+.film-record-logic{color:#f8cfcf;font:800 11px ui-monospace,monospace;
+  letter-spacing:.08em}
 .film-cue-rail{border:1px solid #d39fae;border-radius:16px;margin:15px 0 18px;
   padding:18px;background:linear-gradient(125deg,#4c283e,#253b3d);color:#fff0e9}
 .film-cue-rail h2{margin:6px 0 8px;font-size:clamp(21px,3vw,30px)}
@@ -341,7 +356,56 @@ changes the host or Google's window.</small></section>"""
   never restores unsaved recordings after a reload.</p>
 </section>
 """
-    page = page.replace("</header>", "</header>" + banner, 1)
+    # The original TOASTER recorder works, but its closed ADVANCED
+    # details panel was pushed far below the long Film Club instrument
+    # banner. Reuse that SAME recorder DOM and callbacks (not a second
+    # capture engine) and move it directly beneath the top header, OPEN
+    # by default only for the Film Club view.
+    record_start = (
+        '<details class="advanced-session"><summary>'
+        '▸ ADVANCED · Record the entire performance</summary>'
+    )
+    record_end = '</section></details>'
+    if page.count(record_start) != 1:
+        raise ValueError("Expected exactly one original full-set recorder")
+    record_begin = page.index(record_start)
+    record_finish = page.find(record_end, record_begin)
+    if record_finish < 0:
+        raise ValueError("Could not find original recorder closing tags")
+    record_finish += len(record_end)
+    recorder = page[record_begin:record_finish]
+    for required_id in (
+        'setRecordStart', 'setRecordStop', 'setRecordMic',
+        'setRecordStatus'
+    ):
+        if recorder.count('id="' + required_id + '"') != 1:
+            raise ValueError("Recorder controls missing: " + required_id)
+    page = page[:record_begin] + page[record_finish:]
+    recorder = recorder.replace(
+        record_start,
+        '<details class="advanced-session film-recorder-spotlight" '
+        'id="filmRecordStudio" open><summary>'
+        '🔴 FILM CLUB RECORDING · SCREEN AUDIO + VOCALS → LOGIC</summary>',
+        1
+    )
+    recorder = recorder.replace(
+        '<section class="set-recorder" aria-label="Record entire live set as audio">',
+        '<p class="film-record-logic">FULL STEREO PERFORMANCE CAPTURE</p>'
+        '<p class="film-recorder-guide">Click <strong>RECORD FULL SET</strong>'
+        ' to open Chrome’s screen-sharing picker. Choose '
+        '<strong>Entire Screen + Share system audio</strong> to capture '
+        'Google MRT2, the rhythm and existing loops. Optional Scarlett / '
+        'VE-22 microphone is mixed into the same recording. Then '
+        '<strong>STOP &amp; SAVE AUDIO</strong> to download for Logic Pro.</p>'
+        '<section class="set-recorder" aria-label="Record entire live set as audio">',
+        1
+    )
+    page = page.replace("</header>", "</header>" + recorder + banner, 1)
+    if page.count('id="filmRecordStudio"') != 1:
+        raise ValueError("Film Club recording panel was not mounted")
+    if page.count('id="setRecordStart"') != 1:
+        raise ValueError("Film Club recording UI has duplicated controls")
+
     page = page.replace(
         "</body>",
         '<script src="/film-club/soft-reset/film-club.js" defer></script>'
