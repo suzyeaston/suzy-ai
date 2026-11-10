@@ -21,6 +21,14 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club warm low-end v0.7:** Bring back the original Pyramid's
+low bowed cello and breathy pump harmonium/reed-organ bass, with
+cello's Film-only MIDI chord voicings one octave below the piano.
+Prompt 01 is unmistakably acoustic grand piano, with felt-hammer attack
+and natural soundboard decay. Original Futureproof chords are unaffected;
+the five-prompt MRT2 AU still generates one stream, so record separate
+PCM loops for the instrumental arrangement.
+
 **Film Club sustain v0.6:** Native piano/cello/violin/glass audition
 buttons now actually trigger a sustained F♯ chord, using a performer
 adjustable 0.4–4.8 s MIDI hold (2.4 s initially) rather than merely
