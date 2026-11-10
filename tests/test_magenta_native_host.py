@@ -178,6 +178,17 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
         self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
 
+    def test_accelerando_four_chord_bank_is_isolated_from_original_pyramid(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('"accelerando": [[52, 55, 59, 64], [52, 56, 59, 62], [57, 60, 64, 69], [52, 56, 59, 64]]', source)
+        self.assertIn('"pyramid": [[54, 58, 61, 66]', source)
+        self.assertIn('data["harmony"] not in ("pyramid", "fishes", "accelerando")',
+                      (Path(__file__).resolve().parents[1]
+                       / "suzy_ai/music/magenta_native_host.py").read_text())
+        self.assertIn('harmony must be pyramid, fishes or accelerando', source)
+        self.assertEqual(ACTIONS["chord"], {"index"})
+
     def test_film_low_cello_chord_option_requires_exact_octave(self):
         source = (Path(__file__).resolve().parents[1]
                   / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
