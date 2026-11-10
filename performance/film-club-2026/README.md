@@ -82,6 +82,40 @@ the process. Before changing versions or prompting a native restart,
 **export what you care about**. Opening the new route does not migrate
 an in-memory take from another tab.
 
+## v0.3: a livelier Pyramid, with an independent pedal per instrument
+
+The Film Club view now defaults to **4/4 Propulsive electronica / breaks**
+at the familiar **105 BPM**, without changing the Futureproof route's
+default Soft Pulse. There's a **GROOVE ENERGY** slider and a second
+**Frame-drum electro / syncopated** rhythm to try. Both are original
+local synth patterns with moving kick/snare/hat and extra short percussive
+subdivisions. The subdivision sounds are **browser synthesis**, not a
+recording of traditional percussion or editable notes in the exported
+three-lane GM MIDI. The meter/tempo and performance clock do not change.
+
+The sound prompt directions apply to **all five native Magenta slots**:
+piano gets repeating arpeggios and rhythmic chord attacks; cello supplies
+a syncopated low counterline; violin adds expressive modal turns; glass/harp
+gets rippling plucked ostinati; drums bring a driving breakbeat with
+synthetic hand-drum-inspired accents. The original Pyramid chords
+**F♯ → Gmaj7 → A6** remain. These are *conditioning prompts*, not
+guarantees that MRT2 will output a particular drum beat. Audition each
+sound and steer it with the keys before capturing.
+
+**Violin/cello/glass/drums now share piano's immediate DONE behaviour.**
+For any new native instrument take, wait for the familiar green beat one,
+perform, and press **DONE → LOOP**. The first layer establishes the master
+period. Later instrument layers can repeat at their own shorter
+eighth-note-quantized durations instead of padding silence out to the
+master's entire bar count. The piano foundation and other layers continue
+unchanged; a short period that doesn't divide the master period may create
+an intentional polyrhythm.
+
+If you *don't* press DONE, the auto-finish still completes a full master
+pass, as before. Keep in mind the Swift host requires a little
+capture-stop processing before the replay becomes audible. It no longer
+adds an avoidable full-period delay.
+
 ## Five Film Club prompts
 
 | Original native slot | New instrument direction |
