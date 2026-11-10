@@ -24,6 +24,37 @@ Sources:
 - https://www.mazmazika.com/chordanalyzer/grimes-vadakin-songs/accelerando-chords
 - https://www.hooktheory.com/theorytab/view/grimes/accelerando-ft-vadakin
 
+## Recording the whole performance for Logic Pro
+
+The Film Club UX now places the **original TOASTER full-set recorder**
+directly under the top header, **expanded by default**, above the
+Accelerando instrument, prompt and looping controls. This is the **same
+existing full-set capture engine**, not a second recording engine or a
+button that records only the browser drum bus.
+
+In Chrome on macOS:
+
+1. Under **🔴 FILM CLUB RECORDING · SCREEN AUDIO + VOCALS → LOGIC**,
+   optionally check **Include Scarlett / VE-22 voice**.
+2. Click **● RECORD FULL SET**. This user-initiated click is what makes
+   Chrome ask for screen-sharing permission. Nothing should ask for
+   screen access merely from opening the page.
+3. In Chrome's picker choose **Entire Screen** and **Share system audio**.
+   The browser refuses to start recording if it cannot access a system
+   audio track; this protects against misleading files without Google MRT2.
+4. Make a sound and check the level/status: **MAC AUDIO VERIFIED**.
+5. Perform your music, then select **■ STOP & SAVE AUDIO**. The stereo
+   recording downloads as M4A when supported, or WebM otherwise.
+6. Drag the M4A into a **100 BPM / 4⁄4** Logic Pro project, or convert
+   WebM to WAV first. For true individual mix stems, record your
+   instrument lanes separately; this is a stereo system-mix recording.
+
+The recorder's buttons retain their original `setRecordStart`,
+`setRecordStop`, `setRecordMic` and `setRecordStatus` IDs and
+behaviour. Its device and permission errors remain handled by the
+original source. The Futureproof `/toaster/live` UX still defaults
+to the collapsed ADVANCED recorder.
+
 ## Open the actual looping instrument
 
 This is the important URL after updating your local checkout:
