@@ -11,7 +11,7 @@ test("Film Club compact dual rhythms share 100 BPM clock; voice FX default is fi
    setAttribute(){},click(){return this.handlers.click?.()},
  });
  const defaults={
-   filmGrooveEnergy:"45",filmCounterRhythm:"54",tempo:"105",
+   filmGrooveEnergy:"58",filmCounterRhythm:"62",tempo:"105",
    vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",
    vocalAir:"75",monitorReverb:"28",rhythmLevel:"35"
  };
@@ -46,9 +46,9 @@ test("Film Club compact dual rhythms share 100 BPM clock; voice FX default is fi
  assert.equal(groove[0].style,"house");
  assert.equal(window.suzyFilmClubVocalClean,true);
  assert.equal(window.suzyFilmClubLowCello,true);
- assert.equal(window.suzyFilmCounterRhythm,.54);
- assert.equal(energy,.45);
- assert.equal(elements.get("filmCounterReadout").textContent,"54%");
+ assert.equal(window.suzyFilmCounterRhythm,.62);
+ assert.equal(energy,.58);
+ assert.equal(elements.get("filmCounterReadout").textContent,"62%");
  assert.equal(elements.get("vocalEchoMode").value,"dotted");
  assert.equal(elements.get("vocalEchoLevel").value,"15");
  assert.equal(elements.get("vocalEchoFeedback").value,"15");
@@ -59,7 +59,7 @@ test("Film Club compact dual rhythms share 100 BPM clock; voice FX default is fi
  elements.get("filmCounterRhythm").value="75";
  elements.get("filmCounterRhythm").handlers.input();
  assert.equal(window.suzyFilmCounterRhythm,.75);
- assert.equal(energy,.45);
+ assert.equal(energy,.58);
  elements.get("filmGrooveEnergy").value="22";
  elements.get("filmGrooveEnergy").handlers.input();
  assert.equal(energy,.22);
