@@ -8,6 +8,33 @@
   const status = document.getElementById("filmPromptStatus");
   if (!button || !status) return;
 
+  // Film-only orchestration and vocal processing. A second 3+3+2 pattern
+  // runs inside the original eighth-note scheduler; no second clock.
+  // Original Futureproof behavior is unchanged when this page isn't open.
+  window.suzyFilmClubLowCello=true;
+  window.suzyFilmClubVocalClean=true;
+  const shadow=document.getElementById("filmCounterRhythm");
+  const shadowLabel=document.getElementById("filmCounterReadout");
+  if(shadow){
+    const setShadow=()=>{
+      window.suzyFilmCounterRhythm=Math.max(0,Math.min(1,Number(shadow.value)/100));
+      if(shadowLabel)shadowLabel.textContent=shadow.value+"%";
+    };
+    shadow.addEventListener("input",setShadow);
+    setShadow();
+  }
+  // Noise-safe airy vocal starting point: modest wet-only delay, gentle
+  // feedback and lowpass, rather than an amplified constant noise wash.
+  // The source mic and recorded PCM remain completely dry.
+  for(const [id,value] of [
+    ["vocalEchoMode","dotted"],["vocalEchoLevel","15"],
+    ["vocalEchoFeedback","15"],["vocalAir","44"],
+    ["monitorReverb","20"]]){
+    const field=document.getElementById(id);
+    if(field)field.value=value;
+  }
+  if(typeof updateVoiceEcho==="function")updateVoiceEcho();
+
   // Film Club is a new page, with its own browser loop memory. Choose a
   // denser original local groove without modifying Futureproof defaults or
   // restarting the shared native Magenta model. The drum metre stays 4/4.
