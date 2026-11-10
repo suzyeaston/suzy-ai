@@ -924,7 +924,10 @@ const preferNativeMemoryLoop=()=>$("nativeMemoryLoop")?.checked!==false;
 const drumDeck={layers:[],bus:null,locked:false,lengthSteps:16,anchorStep:0,loopEnabled:true}; // independent of both song crossfaders
 
 let monitorSource=null,monitorFilter=null,monitorDry=null,monitorSend=null,monitoringVoice=false,monitorPreparing=null;
-let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null;
+let monitorFxGate=null,monitorGateAnalyser=null,monitorGateTimer=null;
+let monitorChorusDelay=null,monitorChorusWet=null,monitorChorusLFO=null,monitorChorusDepth=null;
+let monitorGateIsOpen=false,monitorGateHoldUntil=0;
+let vocalEchoInput=null,vocalEchoDelay=null,vocalEchoFeedbackNode=null,vocalEchoTone=null,vocalEchoWet=null,vocalEchoPreFilter=null;
 let localKeysOnly=false,preKeysSoloMuted=null,rhythmAudioEnabled=true;
 let followMicNode=null,followMicSource=null,followMicSilent=null,followedMidi=null,followModuleReady=false;
 let stepNumber=0,nextStepAt=0,transportEpoch=0,pendingBpm=null,scene="pyramid",bpm=105,loopSteps=16,recording=null,micStream=null,solo=false;
@@ -1150,7 +1153,12 @@ async function openAudio(){
   vocalEchoInput=ctx.createGain();vocalEchoDelay=ctx.createDelay(2.0);
   vocalEchoTone=ctx.createBiquadFilter();vocalEchoTone.type="lowpass";
   vocalEchoFeedbackNode=ctx.createGain();vocalEchoWet=ctx.createGain();
-  vocalEchoInput.connect(vocalEchoDelay);vocalEchoDelay.connect(vocalEchoTone);
+  // No room rumble below the intelligible voice band should circulate
+  // through the delay feedback network. Film Club uses a stronger cut.
+  vocalEchoPreFilter=ctx.createBiquadFilter();vocalEchoPreFilter.type="highpass";
+  vocalEchoPreFilter.frequency.value=window.suzyFilmClubVocalClean===true?170:65;
+  vocalEchoInput.connect(vocalEchoPreFilter);
+  vocalEchoPreFilter.connect(vocalEchoDelay);vocalEchoDelay.connect(vocalEchoTone);
   vocalEchoTone.connect(vocalEchoWet);vocalEchoWet.connect(mainBus);
   vocalEchoTone.connect(vocalEchoFeedbackNode);vocalEchoFeedbackNode.connect(vocalEchoDelay);
   for(const d of Object.values(decks))d.voiceBus.connect(vocalEchoInput);
@@ -1357,6 +1365,42 @@ function toggleRhythmAudio(){
  updateRhythmAudio();
  tell(rhythmAudioEnabled?"Local rhythm monitor ON · native instruments unaffected.":"Local rhythm monitor OFF · drum clock and MIDI pattern keep running.");
 }
+// A second, non-duplicating 3+3+2 counter-groove across TWO 4/4 bars.
+// It shares the master eighth-note clock, not a new scheduler or BPM.
+// The original Futureproof page leaves the Film-only mix at zero.
+function filmCounterPattern(count){
+ const step=((count%16)+16)%16;
+ return {step,
+  tom:[0,3,6,8,11,14].includes(step),
+  rim:[2,5,10,13].includes(step),
+  shimmer:[1,4,7,9,12,15].includes(step)};
+}
+function filmCounterPulse(time,count){
+ const value=Number(window.suzyFilmCounterRhythm||0);
+ if(!ctx||!beatBus||!rhythmCanSound()||drumMeter!=="4/4"||
+    !Number.isFinite(value)||value<=0)return;
+ const mix=Math.min(1,Math.max(0,value));
+ const pattern=filmCounterPattern(count);
+ const strengths={tom:.13,rim:.074,shimmer:.026};
+ for(const lane of ["tom","rim","shimmer"]){
+  if(!pattern[lane])continue;
+  const at=time+(lane==="rim"?.024:lane==="shimmer"?.012:0);
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  const isTom=lane==="tom",isRim=lane==="rim";
+  const duration=isTom?.19:isRim?.065:.04;
+  o.type=isTom?"sine":"triangle";
+  const start=isTom?115:isRim?780:2300;
+  const end=isTom?58:isRim?260:920;
+  o.frequency.setValueAtTime(start,at);
+  o.frequency.exponentialRampToValueAtTime(end,at+duration*.85);
+  // Bounded FX-free synth levels; no independent kick-on-kick doubling.
+  const peak=strengths[lane]*mix*(pattern.step===0?.75:1);
+  g.gain.setValueAtTime(.0001,at);
+  g.gain.exponentialRampToValueAtTime(Math.max(.0005,peak),at+.006);
+  g.gain.exponentialRampToValueAtTime(.0001,at+duration);
+  o.connect(g);g.connect(beatBus);o.start(at);o.stop(at+duration+.015);
+ }
+}
 function pulse(time,count){
  if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
@@ -1403,6 +1447,11 @@ function pulse(time,count){
    o.connect(g);g.connect(beatBus);o.start(at);o.stop(at+.048);
   }
  }
+ // The Film Club rhythm is two *interlocking* patterns on one timeline:
+ // 4-on-the-floor main drum loop plus a 3+3+2/2-bar shadow rhythm.
+ // No extra transport, doubled master kick, changes to native MRT2,
+ // or false claim that this extra synth lane is in the GM-MIDI export.
+ filmCounterPulse(time,count);
 }
 // Looped chords are timed synth events; live chords are held until key-up.
 // Browser timbres only. The real Google MRT2 audio path is unchanged.
@@ -3621,14 +3670,44 @@ async function startVoiceMonitor(){
   // Monitoring is a separate dry/wet path. The recorder still captures clean
  // pre-effects PCM, so its loop and overdubs are not contaminated by reverb.
  monitorSource=ctx.createMediaStreamSource(stream);
- monitorFilter=ctx.createBiquadFilter();monitorFilter.type="highpass";monitorFilter.frequency.value=90;
+ monitorFilter=ctx.createBiquadFilter();monitorFilter.type="highpass";
+ monitorFilter.frequency.value=window.suzyFilmClubVocalClean===true?120:90;
  monitorDry=ctx.createGain();monitorSend=ctx.createGain();
  monitorDry.gain.value=clamp(Number($("monitorLevel").value)/100,0,1);
  monitorSend.gain.value=Number($("monitorReverb").value)/100;
  monitorSource.connect(monitorFilter);
- monitorFilter.connect(monitorDry);monitorFilter.connect(monitorSend);
- if(vocalEchoInput)monitorFilter.connect(vocalEchoInput);
+ monitorFilter.connect(monitorDry);
  monitorDry.connect(mainBus);monitorSend.connect(verb);
+ if(window.suzyFilmClubVocalClean===true){
+  // Gate *wet sends only*. The unprocessed mic remains direct and dynamic;
+  // live voice recordings still capture the original pre-FX PCM.
+  monitorFxGate=ctx.createGain();monitorFxGate.gain.value=.008;
+  monitorGateAnalyser=ctx.createAnalyser();monitorGateAnalyser.fftSize=512;
+  monitorGateIsOpen=false;monitorGateHoldUntil=0;
+  monitorFilter.connect(monitorGateAnalyser);
+  monitorFilter.connect(monitorFxGate);
+  monitorFxGate.connect(monitorSend);
+  if(vocalEchoInput)monitorFxGate.connect(vocalEchoInput);
+  // Gated subtle chorus/doubling for an ethereal halo, never a loud
+  // unfiltered second dry-mic path or a feedback loop.
+  monitorChorusDelay=ctx.createDelay(.08);monitorChorusDelay.delayTime.value=.027;
+  monitorChorusWet=ctx.createGain();monitorChorusWet.gain.value=.10;
+  monitorChorusLFO=ctx.createOscillator();monitorChorusLFO.frequency.value=.23;
+  monitorChorusDepth=ctx.createGain();monitorChorusDepth.gain.value=.004;
+  monitorChorusLFO.connect(monitorChorusDepth);
+  monitorChorusDepth.connect(monitorChorusDelay.delayTime);
+  monitorFxGate.connect(monitorChorusDelay);
+  monitorChorusDelay.connect(monitorChorusWet);monitorChorusWet.connect(mainBus);
+  monitorChorusLFO.start();
+  // Analyse small frames without connecting the analyser to output.
+  // Hysteresis + hold avoids chattering on breathy consonants and
+  // smoothly closes ambient noise between phrases.
+  monitorGateTimer=setInterval(updateLiveVocalGate,50);
+  updateLiveVocalGate();
+ }else{
+  monitorFilter.connect(monitorSend);
+  if(vocalEchoInput)monitorFilter.connect(vocalEchoInput);
+ }
  monitoringVoice=true;$("monitorVoice").setAttribute("aria-pressed","true");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · ON";
  $("monitorStatus").textContent="MONITOR ON → "+($("outputStatus").textContent?.replace(/^OUTPUT · /,"")||$("audioOutput").selectedOptions?.[0]?.textContent||"Chrome output")+" · use headphones, raise Scarlett gain if quiet";
@@ -3636,6 +3715,19 @@ async function startVoiceMonitor(){
  }finally{
   if(monitorPreparing===preparing)monitorPreparing=null;
  }
+}
+function updateLiveVocalGate(){
+ if(!ctx||!monitorFxGate||!monitorGateAnalyser)return;
+ const samples=new Float32Array(monitorGateAnalyser.fftSize||512);
+ monitorGateAnalyser.getFloatTimeDomainData(samples);
+ let sum=0;
+ for(const sample of samples)sum+=sample*sample;
+ const rms=Math.sqrt(sum/Math.max(1,samples.length));
+ if(rms>.008){monitorGateIsOpen=true;monitorGateHoldUntil=Date.now()+200;}
+ else if(rms<.004&&Date.now()>monitorGateHoldUntil)monitorGateIsOpen=false;
+ // AudioParam smoothing avoids sharp gating clicks in the wet signal.
+ monitorFxGate.gain.setTargetAtTime(monitorGateIsOpen?1:.008,
+   ctx.currentTime,monitorGateIsOpen?.025:.14);
 }
 function updateVoiceEcho(){
  const mode=$("vocalEchoMode").value;
@@ -3649,14 +3741,24 @@ function updateVoiceEcho(){
  vocalEchoDelay.delayTime.setTargetAtTime(delayMs/1000,ctx.currentTime,.035);
  vocalEchoWet.gain.setTargetAtTime(mode==="off"?0:mix,ctx.currentTime,.025);
  vocalEchoFeedbackNode.gain.setTargetAtTime(mode==="off"?0:Math.min(.48,feedback),ctx.currentTime,.025);
- vocalEchoTone.frequency.setTargetAtTime(1700+tone*8200,ctx.currentTime,.03);
+ vocalEchoTone.frequency.setTargetAtTime(
+  window.suzyFilmClubVocalClean===true?2600+tone*5600:1700+tone*8200,
+  ctx.currentTime,.03);
 }
 function stopVoiceMonitor(){
  monitorPreparing=null; // Invalidate any late getUserMedia/findDevices completion.
- for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend]){
+ if(monitorGateTimer!==null)clearInterval(monitorGateTimer);
+ monitorGateTimer=null;
+ try{monitorChorusLFO?.stop()}catch{}
+ for(const n of [monitorSource,monitorFilter,monitorDry,monitorSend,monitorFxGate,
+   monitorGateAnalyser,monitorChorusDelay,monitorChorusWet,
+   monitorChorusLFO,monitorChorusDepth]){
   try{n?.disconnect()}catch{}
  }
  monitorSource=null;monitorFilter=null;monitorDry=null;monitorSend=null;
+ monitorFxGate=null;monitorGateAnalyser=null;monitorChorusDelay=null;
+ monitorChorusWet=null;monitorChorusLFO=null;monitorChorusDepth=null;
+ monitorGateIsOpen=false;monitorGateHoldUntil=0;
  monitoringVoice=false;$("monitorVoice").setAttribute("aria-pressed","false");
  $("monitorVoice").textContent="🎙 MONITOR VOICE · OFF";
  $("monitorStatus").textContent="MONITOR OFF · mic not routed to headphones";

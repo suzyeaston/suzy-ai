@@ -3,56 +3,68 @@ const test=require("node:test"),assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path"),vm=require("node:vm");
 const file=fs.readFileSync(path.join(__dirname,"..","performance","film-club-2026","film-club.js"),"utf8");
 
-test("live five-cue accelerando changes percussion density, never tempo or recorded PCM",async()=>{
- let bpm=105,started=false,energy=.62,groove=[],updates=0,apiCalls=0;
- const el=(id,value="")=>({
-   id,value,textContent:"",callbacks:{},attrs:{},dataset:{},
-   addEventListener(type,cb){this.callbacks[type]=cb},
-   setAttribute(k,v){this.attrs[k]=v},
-   async click(){return this.callbacks.click?.()},
+test("Film Club compact dual rhythms share 100 BPM clock; voice FX default is filtered and moderate",async()=>{
+ let bpm=105,energy=.62,groove=[],statusReads=0,fxUpdated=0;
+ const node=(id,value="")=>({
+   id,value,textContent:"",handlers:{},
+   addEventListener(name,fn){this.handlers[name]=fn},
+   setAttribute(){},click(){return this.handlers.click?.()},
  });
+ const defaults={
+   filmGrooveEnergy:"58",filmCounterRhythm:"62",tempo:"105",
+   vocalEchoMode:"quarter",vocalEchoLevel:"0",vocalEchoFeedback:"22",
+   vocalAir:"75",monitorReverb:"28",rhythmLevel:"35"
+ };
  const ids=["filmExportCues","filmPromptStatus","filmGrooveEnergy",
-            "filmGrooveReadout","filmDensityStatus","tempo",
-            "rhythmLevel","rhythmLevelNumber","filmNativePromptStatus"];
- const items=new Map(ids.map(id=>[id,el(id,id==="filmGrooveEnergy"?"24":"")]));
- const cues=["float","awaken","tension","human","release"].map(id=>{
-   const b=el("cue-"+id);b.dataset.filmDensity=id;return b;
- });
+   "filmGrooveReadout","filmCounterRhythm","filmCounterReadout","tempo",
+   "rhythmLevel","rhythmLevelNumber","filmNativePromptStatus",
+   "vocalEchoMode","vocalEchoLevel","vocalEchoFeedback","vocalAir","monitorReverb"];
+ const elements=new Map(ids.map(id=>[id,node(id,defaults[id]||"")]));
  const document={
-   getElementById:id=>items.get(id)||null,
-   querySelectorAll:selector=>
-     selector==="[data-film-density]"?cues:[],
+   getElementById:id=>elements.get(id)||null,
+   querySelectorAll:()=>[],
    body:{appendChild(){}}
  };
- const window={setInterval:()=>0,setTimeout:()=>0};
+ const window={setInterval:()=>1,setTimeout:()=>1};
  const sandbox={
    document,window,console,Promise,URL,Blob,
    get drumEnergy(){return energy},
    set drumEnergy(v){energy=v},
-   stageStarted:started,
+   stageStarted:false,
    changeTempo(n){bpm=n},
    setDrumGroove(meter,style){groove.push({meter,style})},
-   updateRhythmAudio(){updates++},
-   fetch:async()=>{apiCalls++;return {ok:true,json:async()=>({
+   updateVoiceEcho(){fxUpdated++},
+   fetch:async()=>{statusReads++;return {ok:true,json:async()=>({
      phase:"host-running",text_prompts:[],au_prompt_readback_available:false
    })}}
  };
  vm.runInNewContext(file,sandbox,{filename:"film-club.js"});
  await new Promise(resolve=>setImmediate(resolve));
- assert.equal(bpm,100,"Film Club starts at 100, not old 105");
+ assert.equal(bpm,100,"Film Club clock must remain at 100 BPM");
+ assert.equal(groove.length,1,"only one master scheduler is configured");
  assert.equal(groove[0].meter,"4/4");
  assert.equal(groove[0].style,"house");
- const expected=[[24,34],[49,39],[88,52],[8,20],[45,35]];
- for(let i=0;i<cues.length;i++){
-   await cues[i].click();
-   assert.equal(Math.round(energy*100),expected[i][0]);
-   assert.equal(Number(items.get("filmGrooveEnergy").value),expected[i][0]);
-   assert.equal(Number(items.get("rhythmLevel").value),expected[i][1]);
-   assert.equal(cues[i].attrs["aria-pressed"],"true");
-   assert.match(items.get("filmDensityStatus").textContent,/BPM UNCHANGED/);
-   assert.equal(bpm,100,"live density must never alter the clock");
- }
- assert.equal(updates,5,"update existing browser rhythm bus, no new engine");
- assert.ok(apiCalls>=1,"the existing read-only native status still runs");
- assert.equal(groove.length,1,"live cue never resets meter or groove");
+ assert.equal(window.suzyFilmClubVocalClean,true);
+ assert.equal(window.suzyFilmClubLowCello,true);
+ assert.equal(window.suzyFilmCounterRhythm,.62);
+ assert.equal(energy,.58);
+ assert.equal(elements.get("filmCounterReadout").textContent,"62%");
+ assert.equal(elements.get("vocalEchoMode").value,"dotted");
+ assert.equal(elements.get("vocalEchoLevel").value,"15");
+ assert.equal(elements.get("vocalEchoFeedback").value,"15");
+ assert.equal(elements.get("vocalAir").value,"44");
+ assert.equal(elements.get("monitorReverb").value,"20");
+ assert.equal(fxUpdated,1);
+ // The two intensity faders are independent, not two competing clocks.
+ elements.get("filmCounterRhythm").value="75";
+ elements.get("filmCounterRhythm").handlers.input();
+ assert.equal(window.suzyFilmCounterRhythm,.75);
+ assert.equal(energy,.58);
+ elements.get("filmGrooveEnergy").value="22";
+ elements.get("filmGrooveEnergy").handlers.input();
+ assert.equal(energy,.22);
+ assert.equal(window.suzyFilmCounterRhythm,.75);
+ assert.equal(bpm,100);
+ assert.equal(groove.length,1);
+ assert.ok(statusReads>=1);
 });

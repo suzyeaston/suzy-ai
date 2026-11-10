@@ -14,38 +14,45 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Four-chord Film Club adaptation; the original Futureproof F-sharp bank
-    # remains unchanged. Instrument roles are independent timbral prompts.
-    "Natural acoustic jazz grand piano: felt hammer attacks, real resonant "
-    "piano strings, warm wooden soundboard, long overlapping chord decay. "
-    "Play the four sustained harmonies E minor, E dominant seventh, A minor "
-    "and E major, with gentle ninth extensions and slightly swung rubato. "
-    "Let G-natural resolve to G-sharp in E7. Dark spacious piano at "
-    "100 BPM 4/4, no electric piano, organ, bell synthesizer or drums",
-    "Low warm bowed cello doubled by a softly breathing pump harmonium "
-    "reed-organ bass drone. The bass moves E2 to E2 to A2 to E2 beneath "
-    "E minor, E dominant seventh, A minor, E major harmony. Deep woody "
-    "resonance and round low-frequency fundamentals, long legato arco "
-    "strokes, subtle vibrato and slow warm reed swells; modal F-natural "
-    "passing colour for tension. 100 BPM 4/4, no bright synth or drums",
-    "Expressive lyrical jazz violin in long bowed legato tones, gliding "
-    "portamento and human imperfect vibrato over E minor to E dominant "
-    "seventh, A minor and E major. Dark minor phrasing contrasts with "
-    "G-sharp dominant tension and occasional F-natural Phrygian colour. "
-    "Gradually increase tremolo and granular electronic resonance, then "
-    "return to a fragile long release; 100 BPM 4/4, no drums",
-    "Sustained glass harmonica, bowed vibraphone and harp harmonics. "
-    "Long ringing overtones and spacious granular delays surround "
-    "E minor, E7, A minor and E major chords; occasional F-natural "
-    "Phrygian colour, shifting major-minor tension and open jazz ninths. "
-    "Sparse spectral textures bloom into motion, then disappear. "
-    "100 BPM cinematic electronica, no piano, voice or drums",
-    "Organic 100 BPM four-four jazz-electronica rhythm: rounded electronic "
-    "kick, brushed backbeat and ghost snare, shuffling cymbal shimmer, "
-    "low toms and sub-bass pressure beneath E minor, E7, A minor, E major. "
-    "Darker modal F-natural ornaments, increasing rhythmic density and "
-    "distortion with an abrupt half-time feeling in the bridge, no lead "
-    "melody, sampled vocals or continuous aggressive house fills",
+    # Film Club-only original arrangement: rhythmic buoyancy without
+    # copying melodies, stems or vocal phrasing from any source recording.
+    "Bright, buoyant real acoustic jazz grand piano with felt-hammer "
+    "attack and warm wood resonance. Em, E7, Am, E in 100 BPM 4/4: "
+    "bouncing eighth-note ostinatos, syncopated chord stabs on the "
+    "offbeats, quick sixteenth-note upward arpeggio pickups and octave "
+    "answers. Accented G-natural to G-sharp lift; sustained ninths "
+    "underneath short dancing notes. Build from playful pulse to urgent "
+    "sparkling drive, then an intimate half-time bridge. Human timing, no "
+    "synth piano, bells or drums.",
+    "Deep bowed cello and breathing pump harmonium bass, warm E2 and A2 "
+    "roots below Em, E7, Am, E. Buoyant pizzicato and spiccato offbeat "
+    "eighths trade with long low arco notes; a two-bar 3+3+2 cello "
+    "ostinato pushes against the steady 100 BPM 4/4 kick, with octave "
+    "pickups and reed-organ bellows pulsing between notes. Elastic, "
+    "physical, uplifting drive with dark warm fundamentals, then a held "
+    "half-time breath. Never generic bright synth bass, snare or "
+    "percussion.",
+    "Close lyrical bowed violin with warm vibrato over Em E7 Am E. Skip "
+    "between clipped syncopated offbeat bow strokes, nimble ascending "
+    "eighth- and sixteenth-note replies to piano, and a soaring long "
+    "legato phrase. Human portamento and quick tremolo create an "
+    "exuberant double-time feel above a 100 BPM 4/4 groove; a sudden "
+    "quiet half-time bridge gives the voice space. Intimate, slightly "
+    "uncanny, not a pop synth lead or drums.",
+    "Shimmering bowed glass and vibraphone with icy granular harmonics, "
+    "not the piano role. Bright high-register syncopated ostinatos and "
+    "little sixteenth-note droplets answer the acoustic piano; "
+    "polyrhythmic echoes dance over Em E7 Am E and a grounded 100 BPM "
+    "pulse. Offbeat metallic glints stack as energy rises, then evaporate "
+    "into a sparse half-time atmospheric bridge. Airy luminous texture "
+    "with human space, no drums, lead vocal or huge wash of hiss.",
+    "Bass-heavy propulsive electro-jazz rhythm at 100 BPM in 4/4. Clean "
+    "four-on-the-floor kick and snappy 2-and-4 clap anchor an "
+    "interlocking 3+3+2 two-bar shadow rhythm: syncopated low toms, sharp "
+    "rim clicks, swinging open and closed hats, rising sixteenth-note "
+    "ghost hits. Bouncy urgency and dark futuristic momentum; dynamic "
+    "build, abrupt half-time bridge, ecstatic return. Keep the kick "
+    "clear, no harsh noise wash, sampled voice or lead melody.",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -171,69 +178,46 @@ def render_film_club_page(original: str, token: str) -> str:
     if "</style>" not in page or "</header>" not in page or "</body>" not in page:
         raise ValueError("Missing required TOASTER page anchors")
     style = """
-/* Film Club colorway, added on top of the unchanged performance UX */
-.film-recorder-spotlight{border:2px solid #e3afc7;border-radius:16px;
-  background:linear-gradient(110deg,#332337,#263844);padding:14px 16px;
-  margin:16px 0 18px;box-shadow:0 0 0 1px #e9b8d120}
-.film-recorder-spotlight>summary{cursor:pointer;display:block;font-size:15px;
-  font-weight:900;letter-spacing:.015em;color:#ffdbdd;padding:5px 0 13px;
-  list-style:none}
-.film-recorder-spotlight>summary::-webkit-details-marker{display:none}
-.film-recorder-spotlight:not([open])>summary{padding-bottom:5px}
-.film-recorder-spotlight .set-recorder{background:#291d2d;border-color:#e9bacd}
-.film-recorder-spotlight #setRecordStart{font-size:14px;min-height:46px}
-.film-recorder-guide{font-size:13px;line-height:1.5;color:#f4e4e5;
-  margin:0 0 12px}
-.film-recorder-guide strong{color:#c3f8dc}
-.film-record-logic{color:#f8cfcf;font:800 11px ui-monospace,monospace;
-  letter-spacing:.08em}
-.film-cue-rail{border:1px solid #d39fae;border-radius:16px;margin:15px 0 18px;
-  padding:18px;background:linear-gradient(125deg,#4c283e,#253b3d);color:#fff0e9}
-.film-cue-rail h2{margin:6px 0 8px;font-size:clamp(21px,3vw,30px)}
-.film-cue-rail p{font-size:13px;line-height:1.55;max-width:850px}
-.film-cue-rail .film-tag{font:900 11px ui-monospace,monospace;
-  letter-spacing:.13em;color:#c1ffe2}
-.film-cue-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0}
-.film-cue-item{border:1px solid #ffffff40;border-radius:9px;padding:10px;
-  font:800 11px/1.4 ui-monospace,monospace;background:#201a27}
-.film-cue-item strong{display:block;color:#bdf3d9;font-size:12px}
-.film-cue-item{color:#f5e8ee;text-align:left;cursor:pointer}
-.film-cue-item[aria-pressed="true"]{border-color:#bdf3d9;background:#244b43}
-.film-cue-item:focus-visible{outline:2px solid #bdf3d9;outline-offset:3px}
-
-.film-audition{margin:16px 0;padding:16px;border:1px solid #abdcc3;border-radius:12px;background:#1e2630}
-.film-audition h3{margin:3px 0 8px;font-size:20px}
-.film-audition p{max-width:940px;line-height:1.5}
-.film-audition-grid{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-.film-audition-grid button{background:#e6d1ee;color:#27192e;border:1px solid #efddef;border-radius:9px;padding:10px 12px;font-weight:800;font-size:12px;cursor:pointer}
-.film-audition-grid button[aria-pressed="true"]{background:#b2f0cd;color:#182f2b;border-color:#b2f0cd}
-.film-audition-grid button:disabled{opacity:.6;cursor:progress}
-.film-audition output{display:block;font:700 12px/1.5 ui-monospace,monospace;color:#b6f0d3;padding:7px 0;min-height:20px}
-.film-sustain{display:grid;gap:7px;margin:12px 0;color:#f9e9ec}
-.film-sustain label{font:800 12px ui-monospace,monospace}
-.film-sustain input{width:min(100%,430px);accent-color:#b9edda}
-.film-sustain small{font-size:11px;line-height:1.5;color:#ead9e7}
-
-.film-cue-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.film-cue-actions button{padding:10px 14px;font-size:12px}
-.film-native-sync{border:1px solid #b5f1d6;background:#233c38;border-radius:12px;padding:15px;margin:15px 0;display:grid;gap:8px}
+/* Film-only compact controls. Original TOASTER content and capture remain. */
+.film-control-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:11px 13px;margin:9px 0 11px;border:1px solid #8d837f;
+  border-radius:11px;background:#292735;color:#f9eced}
+.film-control-bar strong{font:900 12px ui-monospace,monospace;color:#b9f1d6}
+.film-control-bar label{display:flex;align-items:center;gap:8px;
+  font:750 11px ui-monospace,monospace}
+.film-control-bar input[type=range]{width:110px;accent-color:#b9efda}
+.film-control-bar output{font:800 11px ui-monospace,monospace;color:#d0f5df}
+.film-record-small{border:1px solid #786477;border-radius:10px;
+  background:#25212d;padding:10px 12px;margin:8px 0 14px}
+.film-record-small>summary{font-size:12px;color:#e9d5df;font-weight:800}
+.film-tools{margin:9px 0;border:1px solid #665772;border-radius:9px;
+  padding:10px 12px;background:#231e2d}
+.film-tools>summary{cursor:pointer;font:850 12px ui-monospace,monospace;color:#c6f1dd}
+.film-tools .film-audition-grid{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.film-tools .film-audition-grid button{padding:7px 9px;font-size:11px;background:#d8c5e3;color:#30243a}
+.film-tools .film-audition-grid button[aria-pressed=true]{background:#aee2c7;color:#1c3329}
+.film-tools output{display:block;font:750 11px/1.5 ui-monospace,monospace;color:#b6eed3;margin-top:8px}
+.film-sustain{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0}
+.film-sustain label{font:800 11px ui-monospace,monospace}
+.film-sustain input{max-width:240px;accent-color:#c3efdc}
+.film-native-sync{border:1px solid #b5f1d6;background:#233c38;
+  border-radius:12px;padding:15px;margin:15px 0;display:grid;gap:8px}
 .film-native-sync p{font-size:13px;line-height:1.5;margin:0;color:#f8f0ec}
-.film-native-sync button{background:#b8edcf;color:#18352b;border:1px solid #b8edcf;padding:11px 15px;max-width:420px;border-radius:9px;font-weight:800;cursor:pointer}
+.film-native-sync button{background:#b8edcf;color:#18352b;border:1px solid #b8edcf;
+  padding:11px 15px;max-width:420px;border-radius:9px;font-weight:800;cursor:pointer}
 .film-native-sync button:disabled{opacity:.65;cursor:progress}
 .film-native-sync output{font:800 12px/1.5 ui-monospace,monospace;color:#fff4e6}
-.film-manual-bridge{margin:12px 0 18px;border:1px solid #e1b6c4;border-radius:13px;padding:16px;background:#271e2d;color:#fff4e8}
+.film-native-sync small{font-size:11px;color:#f6e1d4}
+.film-manual-bridge{margin:12px 0 18px;border:1px solid #e1b6c4;border-radius:13px;
+  padding:16px;background:#271e2d;color:#fff4e8}
 .film-manual-bridge h3{font-size:19px;margin:3px 0 6px}
 .film-manual-bridge p{font-size:13px;line-height:1.55;margin:4px 0 12px}
 .film-manual-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
-.film-copy-slot{padding:9px 4px;background:#efd3bb;color:#291c30;font-weight:800;font-size:11px;cursor:pointer;border:0;border-radius:8px}
+.film-copy-slot{padding:9px 4px;background:#efd3bb;color:#291c30;
+  font-weight:800;font-size:11px;cursor:pointer;border:0;border-radius:8px}
 .film-copy-slot:focus-visible{outline:2px solid #9ce1c2;outline-offset:2px}
 .film-manual-bridge small{display:block;margin-top:9px;font-size:11px;color:#ead8d1}
 @media(max-width:700px){.film-manual-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
-.film-native-sync small{font-size:11px;color:#f6e1d4}
-.film-warning{padding:9px 12px;border-left:3px solid #f4d0aa;
-  background:#291a24;border-radius:5px;font:12px/1.5 system-ui}
-@media(max-width:700px){.film-cue-grid{grid-template-columns:repeat(2,1fr)}}
 """
     page = page.replace("</style>", style + "</style>", 1)
     # The native Google AU is a different process/UI. Do not imply that
@@ -278,83 +262,50 @@ changes the host or Google's window.</small></section>"""
     if editor not in page:
         raise ValueError("Original TOASTER prompt editor anchor changed")
     page = page.replace(editor, sync_panel + bridge + editor, 1)
+    # Remove the photographed full-size recording, soundtrack audition
+    # and 60s-storyboard surfaces. Keep the REAL native selectors and
+    # recorder inside short collapsed tools, not by deleting their engines.
     banner = """
-<section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
-  <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
-  <h2>PYRAMID AFTERIMAGE · an accelerating city, a human interruption.</h2>
-  <p><strong>ACCELERANDO HARMONIC REHEARSAL: Em → E7 → Am → E</strong>.
-  The <strong>E7</strong> brings G♯ and D-natural against the opening
-  E-minor G-natural. Hooktheory describes E Phrygian Dominant colour
-  with an E-minor bridge. We adapt that tension to the warm acoustic piano,
-  bowed cello and harmonium at <strong>100 BPM / 4⁄4</strong>. Press
-  <strong>Z · X · C · V</strong> for the four real chords. Build rhythmic
-  density, then interrupt with human violin and voice. The original
-  RECORD FIRST LOOP → DONE → LOOP pedals still drive the music.</p>
-  <section class="film-audition" id="filmAuditionPanel" aria-label="Audition the five actual native MRT2 sound roles">
-    <div class="film-tag">WHY ONLY PIANO? THE OTHER PROMPT WEIGHTS DEFAULT TO ZERO</div>
-    <h3>Hear a sustained voice · then record its own loop</h3>
-    <p>Google MRT2 is one blended generator, not five audio tracks. Select
-    a sound below to send a sustained audition chord automatically, or
-    hold Z / X / C / V as long as you like. Press its regular
-    RECORD TAKE → DONE → LOOP pedal to capture a
-    real, independently repeating PCM layer. The original loop clock,
-    recordings and prompts are not reset by these selectors.</p>
-    <div class="film-sustain">
-      <label for="filmNoteHold">NATIVE CHORD SUSTAIN · <strong id="filmNoteHoldValue">2.4 seconds</strong></label>
-      <input type="range" id="filmNoteHold" min="400" max="4800" step="200" value="2400" aria-label="Minimum native MRT2 chord hold in milliseconds">
-      <small>Film-only sustained audition: even a quick click rings for at least
-      this long, while a physically held key stays active until released.
-      Releasing an old chord never cuts off a new one.</small>
-    </div>
-    <div class="film-audition-grid">
-      <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
-      <button type="button" data-film-audition="cello">02 · HEAR CELLO + HARMONIUM</button>
-      <button type="button" data-film-audition="violin">03 · HEAR VIOLIN</button>
-      <button type="button" data-film-audition="glass">04 · HEAR GLASS</button>
-      <button type="button" data-film-audition="drums">05 · HEAR DRUMS</button>
-      <button type="button" id="filmAuditionBlend" aria-pressed="false">♫ BLEND ALL FIVE · ONE GENERATOR</button>
-    </div>
-    <output id="filmAuditionStatus" aria-live="polite">READING MRT2 PROMPT WEIGHTS…</output>
-    <small>Blending prompts produces one texture, not separate stems. For
-    a true five-instrument orchestration, record one native PCM take per
-    instrument. Don't switch native roles while a take is recording.</small>
-  </section>
-  <div class="film-cue-grid" aria-label="Suggested edit storyboard">
-    <button type="button" class="film-cue-item" data-film-density="float"><strong>0–10s</strong> SUSPEND / piano and city</button>
-    <button type="button" class="film-cue-item" data-film-density="awaken"><strong>10–24s</strong> COMPOUND / cello and glass</button>
-    <button type="button" class="film-cue-item" data-film-density="tension"><strong>24–38s</strong> ACCELERATE / density and sub</button>
-    <button type="button" class="film-cue-item" data-film-density="human"><strong>38–48s</strong> INTERRUPT / violin and voice</button>
-    <button type="button" class="film-cue-item" data-film-density="release"><strong>48–60s</strong> RELEASE / unresolved light</button>
+<div class="film-control-bar" id="filmControlBar" role="group" aria-label="Accelerando performance controls">
+  <strong>ACCELERANDO · Em → E7 → Am → E · 100 BPM</strong>
+  <label for="filmGrooveEnergy">PULSE
+    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="58" aria-label="Main electro pulse density">
+    <output id="filmGrooveReadout" for="filmGrooveEnergy">58%</output>
+  </label>
+  <label for="filmCounterRhythm">SHADOW BEAT
+    <input id="filmCounterRhythm" type="range" min="0" max="100" value="62" aria-label="Layered syncopated counter-rhythm volume">
+    <output id="filmCounterReadout" for="filmCounterRhythm">62%</output>
+  </label>
+  <span style="font-size:11px">Two interlocking grooves, one 4/4 clock.</span>
+</div>
+<details class="film-tools" id="filmInstrumentTools">
+  <summary>✦ INSTRUMENT AUDITION · FIVE NATIVE SOUNDS / NOTE SUSTAIN</summary>
+  <p style="font-size:12px">One MRT2 generator: audition a sound, then
+  record a separate PCM layer with the existing pedals below.</p>
+  <p style="font-size:12px">BRIGHTER GROOVE: use short Z/X/C/V piano chord
+  pickups, then record an offbeat cello answer and a faster glass or violin
+  phrase. The held low notes can stay underneath. This changes phrasing,
+  not the 100 BPM loop clock.</p>
+  <div class="film-sustain">
+    <label for="filmNoteHold">MIDI HOLD <span id="filmNoteHoldValue">2.4 seconds</span></label>
+    <input type="range" id="filmNoteHold" min="400" max="4800" step="200" value="2400">
   </div>
-  <output id="filmDensityStatus" aria-live="polite" class="film-tag">LIVE DENSITY CUES · CLICK TO BUILD / DROP RHYTHM, BPM STAYS 100</output>
-  <div class="film-cue-actions" style="margin:15px 0;gap:15px">
-    <label for="filmGrooveEnergy" class="film-tag">ELECTRONIC GROOVE ENERGY</label>
-    <input id="filmGrooveEnergy" type="range" min="0" max="100" value="24"
-      aria-label="Film Club sub-eighth rhythmic energy"
-      style="max-width:260px;flex:1;accent-color:#bdf3d9">
-    <output id="filmGrooveReadout" for="filmGrooveEnergy" class="film-tag">24%</output>
-    <span class="film-tag">FILM CLUB: 4/4 ELECTRO HOUSE · 100 BPM</span>
+  <div class="film-audition-grid">
+    <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
+    <button type="button" data-film-audition="cello">02 · HEAR CELLO + HARMONIUM</button>
+    <button type="button" data-film-audition="violin">03 · HEAR VIOLIN</button>
+    <button type="button" data-film-audition="glass">04 · HEAR GLASS</button>
+    <button type="button" data-film-audition="drums">05 · HEAR DRUMS</button>
+    <button type="button" id="filmAuditionBlend" aria-pressed="false">BLEND FIVE · ONE GENERATOR</button>
   </div>
-  <p>Choose <strong>Electro house · four-on-the-floor</strong> or
-  <strong>Frame-drum electro / syncopated</strong> under DRUM STYLE.
-  The five time cards above are LIVE intensity gestures: sparse pulse,
-  syncopation, increasingly dense subdivisions, dramatic half-time-feeling
-  drop, and release. They adjust browser rhythm energy/level only, never
-  restart Google, move the 100 BPM clock or overwrite recorded audio.
-  Extra subdivisions are synthesized browser audio, not imported samples
-  or notes in the three-lane MIDI export.</p>
-  <div class="film-cue-actions">
-    <button id="filmExportCues" type="button">↓ SAVE GASTOWN 60s CUES JSON</button>
-    <a href="/toaster/live">Return to Futureproof interface</a>
-    <span class="film-tag" id="filmPromptStatus" role="status">FILM TEXT READY · NATIVE PROMPT BANK NOT YET VERIFIED</span>
-  </div>
-  <p class="film-warning"><strong>Separate composition, shared Mac model:</strong>
-  Film prompt text does not replace the Futureproof source presets.
-  The native MRT2 host is shared by both browser pages. APPLY PROMPTS restarts
-  that host and can stop native-memory audio loops. Finish/export any important
-  takes first; avoid running both performance pages at once. The browser
-  never restores unsaved recordings after a reload.</p>
-</section>
+  <output id="filmAuditionStatus" role="status" aria-live="polite">READING MRT2 WEIGHTS…</output>
+</details>
+<details class="film-tools" id="filmCueTools">
+  <summary>↳ ADVANCED · GASTOWN EDIT CUES / PROMPT STATUS</summary>
+  <button type="button" id="filmExportCues">↓ EXPORT 60S CUE JSON</button>
+  <output id="filmPromptStatus" role="status">FILM PROMPTS READY · NATIVE BANK UNVERIFIED</output>
+</details>
+
 """
     # The original TOASTER recorder works, but its closed ADVANCED
     # details panel was pushed far below the long Film Club instrument
@@ -383,24 +334,12 @@ changes the host or Google's window.</small></section>"""
     page = page[:record_begin] + page[record_finish:]
     recorder = recorder.replace(
         record_start,
-        '<details class="advanced-session film-recorder-spotlight" '
-        'id="filmRecordStudio" open><summary>'
-        '🔴 FILM CLUB RECORDING · SCREEN AUDIO + VOCALS → LOGIC</summary>',
+        '<details class="advanced-session film-record-small" '
+        'id="filmRecordStudio"><summary>'
+        '● RECORD SYSTEM AUDIO · LOGIC / OPTIONAL SCARLETT</summary>',
         1
     )
-    recorder = recorder.replace(
-        '<section class="set-recorder" aria-label="Record entire live set as audio">',
-        '<p class="film-record-logic">FULL STEREO PERFORMANCE CAPTURE</p>'
-        '<p class="film-recorder-guide">Click <strong>RECORD FULL SET</strong>'
-        ' to open Chrome’s screen-sharing picker. Choose '
-        '<strong>Entire Screen + Share system audio</strong> to capture '
-        'Google MRT2, the rhythm and existing loops. Optional Scarlett / '
-        'VE-22 microphone is mixed into the same recording. Then '
-        '<strong>STOP &amp; SAVE AUDIO</strong> to download for Logic Pro.</p>'
-        '<section class="set-recorder" aria-label="Record entire live set as audio">',
-        1
-    )
-    page = page.replace("</header>", "</header>" + recorder + banner, 1)
+    page = page.replace("</header>", "</header>" + banner + recorder, 1)
     if page.count('id="filmRecordStudio"') != 1:
         raise ValueError("Film Club recording panel was not mounted")
     if page.count('id="setRecordStart"') != 1:
@@ -412,6 +351,8 @@ changes the host or Google's window.</small></section>"""
         '<script src="/film-club/soft-reset/audition.js" defer></script></body>',
         1
     )
-    if page.count('id="filmClubCues"') != 1:
-        raise ValueError("Film Club cue surface not installed")
+    if page.count('id="filmControlBar"') != 1:
+        raise ValueError("Compact Film Club controls were not installed")
+    if 'id="filmClubCues"' in page or 'id="filmAuditionPanel"' in page:
+        raise ValueError("Legacy oversized film panels must not render")
     return page

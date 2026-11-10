@@ -38,44 +38,39 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("function startAudioPrint", self.film)
         self.assertIn("function voiceLoop", self.film)
         self.assertIn("function emergencySilenceAllLoops", self.film)
-        self.assertIn('id="filmClubCues"', self.film)
+        self.assertIn('id="filmControlBar"', self.film)
         self.assertEqual(
             PLAY_PAGE.read_text(encoding="utf8"), self.source,
             "Original Futureproof page must never be modified by rendering"
         )
 
-    def test_full_set_recorder_is_prominent_and_reuses_original_capture_controls(self):
-        # Accelerando has a long scene/audition banner. The original
-        # collapsible recorder was hidden far below it, leading users to
-        # believe system-audio capture was missing.
-        self.assertIn('id="filmRecordStudio" open', self.film)
-        self.assertIn('🔴 FILM CLUB RECORDING', self.film)
-        self.assertIn('Entire Screen + Share system audio', self.film)
-        self.assertIn('STOP &amp; SAVE AUDIO', self.film)
-        self.assertIn('Google MRT2', self.film)
-        self.assertIn('Logic Pro', self.film)
-        self.assertNotIn('id="filmRecordStudio"', self.source)
+    def test_oversized_screenshot_sections_are_gone_but_audio_stays_available(self):
+        # No giant composition, audition, cue-card or expanded recording
+        # surface. The original recorder is still accessible on demand.
+        self.assertIn('id="filmControlBar"', self.film)
+        self.assertIn('id="filmInstrumentTools"', self.film)
+        self.assertIn('id="filmCueTools"', self.film)
+        self.assertIn('id="filmRecordStudio"', self.film)
+        self.assertNotIn('id="filmRecordStudio" open', self.film)
+        self.assertNotIn('id="filmClubCues"', self.film)
+        self.assertNotIn('id="filmAuditionPanel"', self.film)
+        self.assertNotIn('class="film-cue-grid"', self.film)
+        self.assertNotIn('class="film-recorder-spotlight"', self.film)
+        self.assertNotIn('FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE', self.film)
+        self.assertNotIn('🔴 FILM CLUB RECORDING', self.film)
         for id_ in ('setRecordStart', 'setRecordStop', 'setRecordMic',
                     'setRecordStatus'):
             self.assertEqual(self.film.count(f'id="{id_}"'), 1)
             self.assertEqual(self.source.count(f'id="{id_}"'), 1)
         self.assertLess(self.film.index('</header>'),
-                        self.film.index('id="filmRecordStudio"'))
+                        self.film.index('id="filmControlBar"'))
         self.assertLess(self.film.index('id="filmRecordStudio"'),
-                        self.film.index('id="filmClubCues"'))
-        self.assertLess(self.film.index('id="setRecordStop"'),
                         self.film.index('id="rhythm"'))
         self.assertIn('async function startSetRecording()', self.film)
         self.assertIn('function stopSetRecording()', self.film)
-        # The original Futureproof view stays collapsed by default.
         self.assertIn('<details class="advanced-session"><summary>',
                       self.source)
-        self.assertIn('▸ ADVANCED · Record the entire performance',
-                      self.source)
-        self.assertNotIn(
-            '<details class="advanced-session"><summary>',
-            self.film
-        )
+        self.assertNotIn('id="filmRecordStudio"', self.source)
 
     def test_five_different_prompts_are_only_in_film_view(self):
         self.assertEqual(len(PROMPT_IDS), 5)
@@ -102,7 +97,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('names:["F♯","Gmaj7","A6","F♯"]', self.source)
         self.assertNotIn('KeyV:"v"', self.source)
         self.assertIn("FILM CLUB · PYRAMID / SOFT RESET", self.film)
-        self.assertIn("shared Mac model", self.film)
+        self.assertIn("shared Magenta generator", self.film)
         self.assertIn("restart", self.film.lower())
 
     def test_livelier_film_prompts_and_groove_control_preserve_pyramid_harmony(self):
@@ -114,43 +109,41 @@ class FilmClubPyramidTests(unittest.TestCase):
         ):
             self.assertIn(option, self.film)
         piano, cello, violin, glass, drums = FILM_PROMPTS
+        self.assertIn("acoustic jazz grand piano", piano)
+        self.assertIn("felt-hammer", piano)
+        self.assertIn("bouncing eighth-note ostinatos", piano)
+        self.assertIn("offbeat eighths", cello)
+        self.assertIn("two-bar 3+3+2 cello ostinato", cello)
+        self.assertIn("sixteenth-note replies", violin)
+        self.assertIn("syncopated ostinatos", glass)
+        self.assertIn("Bouncy urgency", drums)
+        self.assertIn('value="58" aria-label="Main electro pulse density"', self.film)
+        self.assertIn('for="filmGrooveEnergy">58%</output>', self.film)
+        self.assertIn('value="62" aria-label="Layered syncopated counter-rhythm volume"', self.film)
+        self.assertIn('for="filmCounterRhythm">62%</output>', self.film)
+        self.assertIn("BRIGHTER GROOVE:", self.film)
+        self.assertIn("Em, E7, Am, E", piano)
         self.assertIn("100 BPM", piano)
-        self.assertIn("jazz grand piano", piano)
-        self.assertIn("long overlapping chord decay", piano)
-        self.assertIn("felt hammer attacks", piano)
-        self.assertIn("piano strings", piano)
-        self.assertIn("no electric piano", piano)
-        self.assertIn("E dominant seventh", piano)
-        self.assertIn("G-sharp", piano)
-        self.assertIn("100 BPM", cello)
-        self.assertIn("harmonium reed-organ", cello)
-        self.assertIn("E2 to E2 to A2 to E2", cello)
-        self.assertIn("long legato", cello)
-        self.assertIn("modal F-natural", cello)
-        self.assertIn("legato", violin)
-        self.assertIn("E major", violin)
-        self.assertIn("long ringing overtones", glass.lower())
-        self.assertIn("E7", glass)
+        self.assertIn("cello", cello)
+        self.assertIn("harmonium", cello)
+        self.assertIn("warm E2 and A2", cello)
+        self.assertIn("3+3+2", drums)
         self.assertIn("100 BPM", drums)
-        self.assertIn("brushed", drums)
         self.assertIn("half-time", drums)
-        self.assertIn("FILM CLUB: 4/4 ELECTRO HOUSE · 100 BPM", self.film)
-        self.assertIn('value="house">Electro house · four-on-the-floor', self.film)
-        self.assertIn('id="filmAuditionPanel"', self.film)
+        self.assertIn("long legato", violin)
+        self.assertIn("granular", glass)
+        self.assertIn('id="filmCounterRhythm"', self.film)
+        self.assertIn('id="filmCounterReadout"', self.film)
+        self.assertIn('id="filmGrooveEnergy"', self.film)
+        self.assertIn('id="filmNoteHold"', self.film)
         self.assertIn('id="filmAuditionStatus"', self.film)
         self.assertIn('id="filmAuditionBlend"', self.film)
-        self.assertIn("02 · HEAR CELLO + HARMONIUM", self.film)
-        self.assertIn("02 · UNDERCURRENT · warm cello + harmonium bass", self.film)
-        self.assertIn('id="filmNoteHold"', self.film)
-        self.assertIn('value="2400"', self.film)
+        self.assertIn('data-film-audition="cello"', self.film)
         self.assertIn('id="filmNoteHoldValue"', self.film)
         self.assertNotIn('id="filmNoteHold"', self.source)
-        for name in ("piano", "cello", "violin", "glass", "drums"):
-            self.assertIn(f'data-film-audition="{name}"', self.film)
-        self.assertNotIn('id="filmAuditionPanel"', self.source)
-        for cue in ("float", "awaken", "tension", "human", "release"):
-            self.assertIn(f'data-film-density="{cue}"', self.film)
-        self.assertIn('id="filmDensityStatus"', self.film)
+        self.assertNotIn('id="filmCounterRhythm"', self.source)
+        self.assertIn('value="house">Electro house · four-on-the-floor',
+                      self.film)
         self.assertEqual(len(set(FILM_PROMPTS)), 5)
         # Don't ship song audio or change the original five prompt defaults.
         self.assertNotIn("<audio", self.film)
@@ -173,7 +166,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('id="filmSyncNativePrompts"', self.film)
         self.assertIn('id="filmNativePromptStatus"', self.film)
         self.assertIn('APPLY FILM CLUB SOUNDS TO MRT2', self.film)
-        self.assertIn('NATIVE PROMPT BANK NOT YET VERIFIED', self.film)
+        self.assertIn('CHECKING NATIVE HOST', self.film)
         self.assertIn('shared Magenta generator', self.film)
         self.assertIn('id="filmManualBridge"', self.film)
         self.assertIn('id="filmCopyStatus"', self.film)

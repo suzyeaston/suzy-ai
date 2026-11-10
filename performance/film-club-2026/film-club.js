@@ -8,6 +8,33 @@
   const status = document.getElementById("filmPromptStatus");
   if (!button || !status) return;
 
+  // Film-only orchestration and vocal processing. A second 3+3+2 pattern
+  // runs inside the original eighth-note scheduler; no second clock.
+  // Original Futureproof behavior is unchanged when this page isn't open.
+  window.suzyFilmClubLowCello=true;
+  window.suzyFilmClubVocalClean=true;
+  const shadow=document.getElementById("filmCounterRhythm");
+  const shadowLabel=document.getElementById("filmCounterReadout");
+  if(shadow){
+    const setShadow=()=>{
+      window.suzyFilmCounterRhythm=Math.max(0,Math.min(1,Number(shadow.value)/100));
+      if(shadowLabel)shadowLabel.textContent=shadow.value+"%";
+    };
+    shadow.addEventListener("input",setShadow);
+    setShadow();
+  }
+  // Noise-safe airy vocal starting point: modest wet-only delay, gentle
+  // feedback and lowpass, rather than an amplified constant noise wash.
+  // The source mic and recorded PCM remain completely dry.
+  for(const [id,value] of [
+    ["vocalEchoMode","dotted"],["vocalEchoLevel","15"],
+    ["vocalEchoFeedback","15"],["vocalAir","44"],
+    ["monitorReverb","20"]]){
+    const field=document.getElementById(id);
+    if(field)field.value=value;
+  }
+  if(typeof updateVoiceEcho==="function")updateVoiceEcho();
+
   // Film Club is a new page, with its own browser loop memory. Choose a
   // denser original local groove without modifying Futureproof defaults or
   // restarting the shared native Magenta model. The drum metre stays 4/4.
@@ -139,8 +166,10 @@
       "FILM TEXT READY · GOOGLE AU SOUND BANK NOT CONFIRMED";
   }
   function explainState(state, bank=textBank()) {
+    if(state?.phase==="starting" || state?.phase==="initializing")
+      return "NATIVE MRT2 HOST IS STARTING · WAIT FOR MODEL INITIALIZATION, THEN CHECK PROMPTS AGAIN.";
     if(!matchesHost(state,bank))
-      return "HOST STILL HAS OLDER PROMPTS · APPLY FILM CLUB SOUNDS OR COPY INTO GOOGLE.";
+      return "HOST STILL HAS OLDER PROMPTS · CLICK APPLY FILM CLUB SOUNDS TO SEND THIS PAGE'S FIVE PROMPTS.";
     // The Swift subprocess has its own desired strings. We only regard the
     // AU's fullState MGRT_Prompts readback as evidence of serialized state.
     // Even matching AU fullState cannot prove the actual model was embedded:
@@ -215,15 +244,21 @@
     syncing=true;nativeApply.disabled=true;
     reportNative("RESTARTING SHARED MRT2 AND SENDING FIVE FILM PROMPTS…",false);
     try{
-      // Use the existing, tested TOASTER stop/start path, which configures
-      // prompts before the Swift host's AU model initialization.
-      if(typeof applyPrompts!=="function")throw Error("Original TOASTER prompt control unavailable");
-      await applyPrompts();
+      // Film-only strict apply: the shared TOASTER applyPrompts() catches
+      // exceptions internally, so awaiting it can appear successful even
+      // when the native POST failed. Call the same original transport
+      // directly, and propagate errors to THIS status panel.
+      if(typeof aiFetch!=="function")throw Error("Native TOASTER control unavailable");
+      await aiFetch("stop");
+      const started=await aiFetch("start",{prompts:desired});
+      if(typeof aiDisplay==="function")aiDisplay(started);
+      if(typeof aiNativeReady!=="undefined" && aiNativeReady &&
+         typeof syncAIMix==="function")await syncAIMix();
       let result=null;
       for(let attempt=0;attempt<15;attempt++){
         result=await getNativeState();
         lastState=result;
-        if(matchesAU(result,desired) || 
+        if(matchesAU(result,desired) ||
            (result.phase==="host-running" && matchesHost(result,desired) &&
              result.au_prompt_readback_available===false))break;
         await new Promise(resolve=>window.setTimeout(resolve,400));

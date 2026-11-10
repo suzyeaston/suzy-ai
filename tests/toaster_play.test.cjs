@@ -572,6 +572,64 @@ test("100 BPM house preset is four-on-the-floor with backbeat clap and offbeat h
  assert.equal(run("tickSeconds()"),.3,"100 BPM means 300 ms per eighth");
 });
 
+test("Film Club counter rhythm interlocks with house kick on same beat clock, with no extra Futureproof hits",async()=>{
+ const {run,get}=rig();
+ run("changeTempo(100)");
+ await run("startStop()");
+ run('setDrumGroove("4/4","house");drumEnergy=.24');
+ const counts=run(`(()=>{
+   let voices=0;const original=ctx.createOscillator.bind(ctx);
+   ctx.createOscillator=()=>{
+     const o=original(),start=o.start.bind(o);
+     o.start=(t)=>{voices++;start(t)};return o;
+   };
+   const inspect=(at,mix)=>{
+     window.suzyFilmCounterRhythm=mix;
+     const before=voices;pulse(ctx.currentTime+.15,at);
+     return voices-before;
+   };
+   const originalMain=inspect(0,0);
+   const layeredDownbeat=inspect(0,.54);
+   const layeredOffbeat=inspect(1,.54);
+   const layeredSnare=inspect(2,.54);
+   const layeredTom=inspect(3,.54);
+   return [originalMain,layeredDownbeat,layeredOffbeat,layeredSnare,layeredTom];
+ })()`);
+ assert.deepEqual(Array.from(counts),[1,2,2,3,2],
+    "second 3+3+2 percussion pattern is genuinely audible but not double-kick");
+ assert.equal(run("bpm"),100);
+ assert.equal(get("drumMeter").value,"4/4");
+ assert.equal(run("rhythmBarSteps()"),8);
+ assert.equal(run("filmCounterPattern(0).tom"),true);
+ assert.equal(run("filmCounterPattern(3).tom"),true);
+ assert.equal(run("filmCounterPattern(6).tom"),true);
+ assert.equal(run("filmCounterPattern(2).rim"),true);
+ assert.equal(run("filmCounterPattern(1).shimmer"),true);
+ assert.equal(run("filmCounterPattern(16).step"),0,
+   "counter loop is phase-aligned over two master bars");
+});
+
+test("Film Club vocal FX gate cleans wet sends but leaves dry Scarlett input and recordings untouched",async()=>{
+ const {run,get}=rig();
+ run("window.suzyFilmClubVocalClean=true");
+ await run("startStop()");
+ assert.equal(run("vocalEchoPreFilter.frequency.value"),170);
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitoringVoice"),true);
+ assert.equal(run("monitorDry.gain.value"),.8);
+ assert.equal(run("monitorFxGate.gain.value"),.008,"silence starts with wet FX gated");
+ assert.equal(run("monitorChorusWet.gain.value"),.10,"quiet chorus only on gated wet path");
+ assert.equal(run("monitorFilter.frequency.value"),120);
+ run("monitorGateAnalyser.getFloatTimeDomainData=samples=>samples.fill(.05);updateLiveVocalGate()");
+ assert.equal(run("monitorFxGate.gain.value"),1,"singing opens wet effects smoothly");
+ run("monitorGateHoldUntil=Date.now()-300;monitorGateAnalyser.getFloatTimeDomainData=samples=>samples.fill(0);updateLiveVocalGate()");
+ assert.equal(run("monitorFxGate.gain.value"),.008,"room noise cannot constantly feed echo/reverb");
+ assert.equal(run("monitorDry.gain.value"),.8,"the expressive dry voice is never gated");
+ await run("toggleVoiceMonitor()");
+ assert.equal(run("monitorFxGate"),null,"wet FX nodes are disconnected on monitor stop");
+ assert.equal(run("monitorChorusLFO"),null,"modulated delay stops, no lingering CPU");
+});
+
 test("driving electronic and hand-drum inspired styles add real offbeat hits without shifting the rhythm grid",async()=>{
  const {run,get}=rig();await run("startStop()");
  const bpm=run("bpm"),meter=get("drumMeter").value,clock=run("stepNumber");

@@ -24,17 +24,93 @@ Sources:
 - https://www.mazmazika.com/chordanalyzer/grimes-vadakin-songs/accelerando-chords
 - https://www.hooktheory.com/theorytab/view/grimes/accelerando-ft-vadakin
 
+## v1.0: more buoyant Accelerando-inspired instruments
+
+The harmony stays **Em → E7 → Am → E** and the one shared looper
+clock stays **100 BPM / 4/4**. The Film Club bank now gives every
+instrument an active rhythmic role rather than asking the entire ensemble
+to float on long sustained notes:
+
+- **Acoustic piano:** bouncing eighth-note figures, clipped offbeat chords,
+  quick sixteenth-note pickups and octave answers; suspended resonance remains
+  underneath instead of swallowing the attack.
+- **Cello + harmonium:** warm bowed low notes remain the foundation, but
+  spiccato/pizzicato eighths and a **3+3+2** cello response push against
+  the kick while the reed bellows breathe.
+- **Violin + glass:** expressive short-bow, upward replies, tiny sparkling
+  glass subdivisions and contrasting longer phrases. The quiet half-time
+  break leaves space for voice.
+- **Drums:** clearer clap and hats, busier but controlled ghost notes,
+  and a contrast between the straight pulse and the shadow rhythm.
+
+The Film Club PULSE fader now begins at **58%** and SHADOW BEAT at **62%**
+for a livelier opening groove. They control real local percussion; the
+instrument changes are *MRT2 prompts*, not a claim that the native generator
+creates five independent synchronized stems or a guaranteed exact timbre.
+To hear them, explicitly apply the new Film Club sound prompts and check
+the Google AU window. **Export existing native loop takes before applying**,
+because the shared native host may restart. For independent editable layers
+record short piano, cello and violin/glass PCM takes using the original
+pedals, then arrange in Logic Pro. Short Z/X/C/V chord pickups against the
+longer low cello foundation are a useful way to make it dance without
+changing the master clock or copying any copyrighted melody.
+
+## v0.9: interlocking beats, cleaner ethereal vocals, smaller interface
+
+The three large Film Club panels in the rehearsal screenshots have been
+removed from the visible surface: the big **Record the performance** box,
+the oversized **Pyramid Afterimage** composition/audition box, and the
+five large **0–60s storyboard / energy** cards. The original recording
+engine and controls are **not deleted**: expand the compact
+**RECORD SYSTEM AUDIO · LOGIC / OPTIONAL SCARLETT** item beneath the
+header. The five actual MRT2 HEAR audition buttons and 2.4-second
+native sustain slider are preserved in **INSTRUMENT AUDITION**,
+collapsed by default. Gastown cue JSON remains in a small **ADVANCED**
+drawer, and the real Film Club instrument/loop pedals remain below.
+
+**Two actual interlocking rhythms share one 100 BPM, 4/4 clock.**
+The main rhythm is a four-on-the-floor kick/backbeat and offbeat hats.
+The second is a softer 3+3+2-inspired two-bar shadow pattern of synthesized
+low tom, offbeat rim and metallic shimmer strokes. Adjust the two compact
+faders marked **PULSE** and **SHADOW BEAT** independently. Neither starts
+a second MIDI transport or doubles the kick; existing PCM recordings,
+the native MRT2 generator, and the original Futureproof route stay on
+their original timing. Shadow percussion is browser-only audio and is
+**not** falsely claimed to be included in the original three-lane
+drum-MIDI export. For Logic, capture the mixed system audio (or remake
+the shadow layer as a separate percussion stem).
+
+The Film Club **vocal texture** now defaults to a moderately wet
+dotted-eighth echo (15%), low feedback (15%), darker airy tone (44%),
+and lower live reverb (20%). Live Scarlett voice has a *wet-only* adaptive
+gate (soft hysteresis, 200ms hold), 120 Hz input highpass, filtered
+delay rumble rejection at 170 Hz, and a very quiet modulated doubling
+chorus. This stops quiet mic/room noise from endlessly exciting
+reverb/echo while allowing the **dry** headphone feed to retain natural
+dynamic expression. Recorded vocal PCM stays dry and can be treated
+non-destructively later in Logic. This is a broad shimmering
+jazz-electronica sound design idea, not an imitation of a specific
+artist's recording or vocal identity.
+
+For monitoring: use closed-back headphones, turn off **Scarlett
+direct monitoring** if Chrome is monitoring too, and avoid running
+the VE-22's wet output *plus* heavy browser effects at the same time.
+If the room/interface noise is stronger than your voice, lower physical
+gain rather than increasing feedback; you can also turn TAPE ECHO OFF
+and keep just the gated reverb/chorus. The original Emergency KILL VOCAL
+FX button still works and does not remove saved audio clips.
+
 ## Recording the whole performance for Logic Pro
 
-The Film Club UX now places the **original TOASTER full-set recorder**
-directly under the top header, **expanded by default**, above the
-Accelerando instrument, prompt and looping controls. This is the **same
+The Film Club UX retains the **original TOASTER full-set recorder**
+directly below the top header, now in a **compact collapsed control**,
+rather than the previous oversized always-open panel. This is the **same
 existing full-set capture engine**, not a second recording engine or a
 button that records only the browser drum bus.
 
 In Chrome on macOS:
 
-1. Under **🔴 FILM CLUB RECORDING · SCREEN AUDIO + VOCALS → LOGIC**,
+1. Expand **● RECORD SYSTEM AUDIO · LOGIC / OPTIONAL SCARLETT**,
    optionally check **Include Scarlett / VE-22 voice**.
 2. Click **● RECORD FULL SET**. This user-initiated click is what makes
    Chrome ask for screen-sharing permission. Nothing should ask for
