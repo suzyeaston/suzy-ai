@@ -3041,7 +3041,8 @@ async function startNativeInstrumentTake(which,role){
   const d=inheritPedalPeriod(which);
   const first=!d.locked; // AI drums establish their own first loop, just like piano and violin.
   const period=d.pedalPeriodSeconds||d.lengthSteps*tickSeconds();
-  // Overdub must include the wait until existing beat one plus a full pass.
+  // Subsequent instruments may start on the next visible green beat one.
+  // They no longer wait for an entire piano master loop to start recording.
   const seconds=first?120:Math.min(120,period*2+1);
   const requestAt=ctx.currentTime;
   const begin=await aiFetch("capture-start",{seconds});
@@ -3052,20 +3053,22 @@ async function startNativeInstrumentTake(which,role){
   const capturedAt=(requestAt+responseAt)*.5;
    // Arm the native capture BEFORE the next true bar one. Only samples
    // recorded after the visible beat-one cue become part of the loop.
-   const gridStartAt=first?gridTimeAt(responseAt,6*tickSeconds()):
-    loopMasterOrigin(which)+Math.ceil(Math.max(0,responseAt+.15-loopMasterOrigin(which))/period)*period;
+   const gridStartAt=gridTimeAt(responseAt,6*tickSeconds());
    const beginStep=Math.round((gridStartAt-transportEpoch)/tickSeconds());
    take={which,role,first,id:begin.capture_id,startedAt:capturedAt,gridStartAt,
-         beginStep,seconds,finishing:false,timer:null};
+         beginStep,seconds,finishing:false,autoComplete:false,timer:null};
   nativeTake=take;
   updateNativeLaneControls();
   const statusEl=$("nativeStatus-"+which+"-"+role);
   statusEl.textContent=first?
      "● ARMED · WAIT FOR GREEN BEAT 1 · PLAY · DONE TO LOOP":
-     "● RECORDING NATIVE AUDIO · stacking one full phrase on the shared beat";
+     "● RECORDING ON SHARED BEAT · DONE WHEN YOUR INSTRUMENT PHRASE ENDS";
    updatePedalClock();
   if(!first)take.timer=setTimeout(()=>{
-   if(nativeTake===take)finishNativeInstrumentTake().catch(warn);
+   if(nativeTake===take){
+    take.autoComplete=true; // preserve full-pass behaviour when DONE isn't pressed
+    finishNativeInstrumentTake().catch(warn);
+   }
   },Math.max(50,Math.ceil((gridStartAt+period-ctx.currentTime)*1000)));
  }catch(e){
   if(take?.id)aiFetch("capture-stop",{id:take.id}).catch(()=>{});
@@ -3080,22 +3083,27 @@ async function startNativeInstrumentTake(which,role){
 async function finishNativeInstrumentTake(){
  const take=nativeTake;
  if(!take||take.finishing)return;
- if(take.first&&ctx.currentTime<take.gridStartAt+tickSeconds()*2)
-  return tell("WAIT FOR GO! · play at least one beat before DONE.");
+ if(ctx.currentTime<take.gridStartAt+tickSeconds()*2)
+  return tell("WAIT FOR GO! · play at least one beat before DONE for any instrument.");
  take.finishing=true;clearTimeout(take.timer);
   take.stopRequestedAt=ctx.currentTime; // BEFORE network / WAV download / decode latency
   updateNativeLaneControls();
  const which=take.which,role=take.role,el=$("nativeStatus-"+which+"-"+role);
  try{
   const targetDeck=loopDeck(which);
-  // The first Magenta phrase follows DONE to the nearest NEXT eighth note.
-  // Never truncate an actual attack at the end of the performed phrase.
-  // Saved drum metre and green beat-one timing remain unchanged.
-  const masterSteps=take.first?
-    Math.max(2,Math.min(256,Math.ceil((take.stopRequestedAt-take.gridStartAt)/tickSeconds()))):
-    targetDeck.lengthSteps;
-  const periodSeconds=take.first?masterSteps*tickSeconds():
-   (targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds());
+  // Piano, violin, cello, glass and drums now share pedal semantics:
+  // manual DONE defines THIS instrument's short repeat period. The piano
+  // master duration, its original anchor, and the rhythm remain untouched.
+  // Automatic end after a full master pass preserves legacy full-pass takes.
+  const masterSeconds=targetDeck.pedalPeriodSeconds||targetDeck.lengthSteps*tickSeconds();
+  const elapsed=Math.max(0,take.stopRequestedAt-take.gridStartAt);
+  const performedSteps=Math.max(2,Math.min(256,Math.ceil(elapsed/tickSeconds())));
+  const layerSteps=take.first?performedSteps:
+    take.autoComplete?targetDeck.lengthSteps:
+    Math.min(targetDeck.lengthSteps,performedSteps);
+  const periodSeconds=!take.first&&take.autoComplete?masterSeconds:
+    layerSteps*tickSeconds();
+  const masterSteps=take.first?layerSteps:targetDeck.lengthSteps;
   const result=await aiFetch("capture-stop",{
    id:take.id,live_loop:preferNativeMemoryLoop(),
    preroll_seconds:Math.max(0,take.gridStartAt-take.startedAt),
@@ -3131,30 +3139,31 @@ async function finishNativeInstrumentTake(){
    tell("NATIVE LOOP IS PLAYING · optional waveform WAV unavailable; saved live controls stay available.");
   }
   const d=loopDeck(which);
-  // First audio length MUST span whole rhythm bars, not the AU WAV's
-   // arbitrary sample count (including capture-start and STOP HTTP jitter).
-   const frames=take.first?Math.round(masterSteps*tickSeconds()*ctx.sampleRate):
-    Math.max(1,Math.round((d.pedalPeriodSeconds||d.lengthSteps*tickSeconds())*ctx.sampleRate));
+  // PCM length follows this particular performance, not silent padding to
+  // the old master. HTTP/decoder delay must not change the phrase duration.
+  const frames=Math.max(1,Math.round(periodSeconds*ctx.sampleRate));
   const buffer=recorded?ctx.createBuffer(Math.min(2,recorded.numberOfChannels),frames,ctx.sampleRate):null;
   const inputs=buffer?Array.from({length:buffer.numberOfChannels},
    (_,channel)=>recorded.getChannelData(channel)):[];
   let shifted=0;
+  // Every native instrument keeps its own phrase-zero and trims pre-roll.
+  // Short violin / glass / cello overdubs no longer contain an inherited
+  // padded silence before each replay.
+  if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
   if(take.first){
-    // Capture began before the musician's green beat-one cue; drop pre-roll.
-    if(buffer)writeFirstGridLoop(buffer,inputs,take.startedAt,take.gridStartAt);
     d.locked=true;d.lengthSteps=masterSteps;
     d.anchorStep=take.beginStep;d.loopEnabled=true;
     d.pedalPeriodSeconds=buffer?.duration||periodSeconds;
     d.pedalOriginOffsetSeconds=take.gridStartAt-transportEpoch;
-   }else{
-   if(buffer)shifted=writeAlignedLoopAudio(buffer,inputs,take.startedAt,loopMasterOrigin(which));
   }
   const nativeLive=result.native_loop_playing===true;
   const layer={id:crypto.randomUUID(),kind:"printed",instrumentRole:role,
    name:nativeLaneLabel(which,role)+(nativeLive?" · NATIVE MEMORY":" · BROWSER WAV FALLBACK"),
    nativeLive,nativeLoopID:nativeLive?(result.native_loop_id||take.id):null,
    buffer,level:.8,muted:false,
-   pedalAligned:!!d.pedalPeriodSeconds,loopOriginStep:d.anchorStep,arrStartBar:0,source:null,gain:null};
+   pedalAligned:true,pedalOriginOffsetSeconds:take.gridStartAt-transportEpoch,
+   pedalPeriodSeconds:periodSeconds,loopOriginStep:take.beginStep,
+   arrStartBar:0,source:null,gain:null};
   d.layers.push(layer);
   // Printing the original native chord foundation should not keep replaying
   // its MIDI into whatever violin/guitar prompt is selected next.
@@ -3168,7 +3177,7 @@ async function finishNativeInstrumentTake(){
   if(!nativeLive)startLoopAudio(which,layer);
   renderClips(which);applyLoopGateNow(which);
   const handoffMs=Math.round(Math.max(0,ctx.currentTime-take.stopRequestedAt)*1000);
-  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+Number((d.lengthSteps/rhythmBarSteps()).toFixed(2))+
+  el.textContent="↻ LOOP PLAYING · "+role.toUpperCase()+" · "+Number((periodSeconds/barDuration()).toFixed(2))+
     " BARS @ "+bpm+" BPM · "+(nativeLive?
     "NATIVE MEMORY REPLAY · NO WAV PLAYBACK HANDOFF":
     handoffMs+"ms WAV HANDOFF (FALLBACK)")+" · STOP SAVED pauses playback";
@@ -3236,8 +3245,12 @@ function layerFxReturnBus(which,layer){
   decks[which].voiceFxBus:layerOutputBus(which,layer);
 }
 function layerPlaybackPhase(which,layer,at){
- const origin=layer.pedalAligned?loopMasterOrigin(which):
-  transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
+ // Each printed instrument can loop on its own period from its own bar-one
+ // cue without restarting the piano master, drum metre or song transport.
+ const origin=layer.pedalAligned?
+   (Number.isFinite(layer.pedalOriginOffsetSeconds)?
+     transportEpoch+layer.pedalOriginOffsetSeconds:loopMasterOrigin(which)):
+   transportEpoch+(layer.loopOriginStep??((layer.arrStartBar??0)*8))*tickSeconds();
  const offset=(Number(layer.sourceOffsetBars)||0)*8*tickSeconds();
  return ((at-origin+offset)%layer.buffer.duration+layer.buffer.duration)%layer.buffer.duration;
 }
