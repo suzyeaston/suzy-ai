@@ -890,6 +890,15 @@ final class MRT2Host {
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
+        case "show-au-ui-safe":
+            // Film Club may open an EXISTING Google prompt editor but must
+            // never switch AU model-loading modes or call stop()/start().
+            // In bookmark mode, the old show-au-ui action would destroy
+            // the live generator. Fail closed rather than lose the music.
+            guard selectModelInGoogleUI, active, !loading else {
+                return ["error": "Current Google prompt window cannot be opened without restarting the native AU. Keep playback running and use the existing window if available."]
+            }
+            showGoogleAUInterface()
         case "transport-play":
             guard active else { return ["error":"AI host not ready"] }
             transportPlaying.store(true, ordering: .relaxed)
