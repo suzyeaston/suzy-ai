@@ -21,6 +21,15 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club dual-groove / clean vocals v0.9:** The large
+recording/composition/audition/storyboard panels are consolidated into
+compact controls. A true second 3+3+2 percussion layer interlocks with
+the 100 BPM house kick on one clock; pulse and shadow-groove levels
+are independent. Film-only live voice adds an adaptive gate to wet
+FX sends, filtered dotted echo and subtle chorus while keeping dry
+Scarlett recording intact. See
+[rehearsal and Logic capture guide](performance/film-club-2026/README.md).
+
 **Film Club harmony v0.8:** Film-only **Em → E7 → Am → E**
 from the four main chords charted for Grimes/VADAKIN's Accelerando, with
 E Phrygian Dominant colour and an E-minor bridge as sectional context.
