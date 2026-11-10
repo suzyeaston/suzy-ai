@@ -14,45 +14,43 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Film Club-only original arrangement: rhythmic buoyancy without
-    # copying melodies, stems or vocal phrasing from any source recording.
-    "Bright, buoyant real acoustic jazz grand piano with felt-hammer "
-    "attack and warm wood resonance. Em, E7, Am, E in 100 BPM 4/4: "
-    "bouncing eighth-note ostinatos, syncopated chord stabs on the "
-    "offbeats, quick sixteenth-note upward arpeggio pickups and octave "
-    "answers. Accented G-natural to G-sharp lift; sustained ninths "
-    "underneath short dancing notes. Build from playful pulse to urgent "
-    "sparkling drive, then an intimate half-time bridge. Human timing, no "
-    "synth piano, bells or drums.",
-    "Deep bowed cello and breathing pump harmonium bass, warm E2 and A2 "
-    "roots below Em, E7, Am, E. Buoyant pizzicato and spiccato offbeat "
-    "eighths trade with long low arco notes; a two-bar 3+3+2 cello "
-    "ostinato pushes against the steady 100 BPM 4/4 kick, with octave "
-    "pickups and reed-organ bellows pulsing between notes. Elastic, "
-    "physical, uplifting drive with dark warm fundamentals, then a held "
-    "half-time breath. Never generic bright synth bass, snare or "
-    "percussion.",
-    "Close lyrical bowed violin with warm vibrato over Em E7 Am E. Skip "
-    "between clipped syncopated offbeat bow strokes, nimble ascending "
-    "eighth- and sixteenth-note replies to piano, and a soaring long "
-    "legato phrase. Human portamento and quick tremolo create an "
-    "exuberant double-time feel above a 100 BPM 4/4 groove; a sudden "
-    "quiet half-time bridge gives the voice space. Intimate, slightly "
-    "uncanny, not a pop synth lead or drums.",
-    "Shimmering bowed glass and vibraphone with icy granular harmonics, "
-    "not the piano role. Bright high-register syncopated ostinatos and "
-    "little sixteenth-note droplets answer the acoustic piano; "
-    "polyrhythmic echoes dance over Em E7 Am E and a grounded 100 BPM "
-    "pulse. Offbeat metallic glints stack as energy rises, then evaporate "
-    "into a sparse half-time atmospheric bridge. Airy luminous texture "
-    "with human space, no drums, lead vocal or huge wash of hiss.",
-    "Bass-heavy propulsive electro-jazz rhythm at 100 BPM in 4/4. Clean "
-    "four-on-the-floor kick and snappy 2-and-4 clap anchor an "
-    "interlocking 3+3+2 two-bar shadow rhythm: syncopated low toms, sharp "
-    "rim clicks, swinging open and closed hats, rising sixteenth-note "
-    "ghost hits. Bouncy urgency and dark futuristic momentum; dynamic "
-    "build, abrupt half-time bridge, ecstatic return. Keep the kick "
-    "clear, no harsh noise wash, sampled voice or lead melody.",
+    # Film-only original electronic sound design, no borrowed melody,
+    # source recording, voice clone or independent fake browser synth.
+    "Glittering FM synth piano with a bell-bright electric attack and warm "
+    "detuned polysynth tail. Bouncy two-octave sixteenth-note arpeggio "
+    "cascades, clipped offbeat chord stabs, little rising answers and a wide "
+    "chorus shimmer. A playful repeating hook climbs through Em E7 Am E at "
+    "100 BPM, with G-sharp on E7 tugging into A minor. Percussive keys "
+    "upfront, elastic gated delay and short sparkling decays; futuristic "
+    "upbeat electro-pop, never an acoustic grand or jazz improvisation.",
+    "Rubbery analog monosynth bass with a powerful clean sub below gritty "
+    "resonant midbass. Saturated square-wave growl, fast filter-envelope "
+    "plucks, pitch-sliding octave pickups and an infectious two-bar 3+3+2 "
+    "syncopated riff against a steady four-on-floor kick. E and A roots push "
+    "Em E7 Am E at 100 BPM. Sidechain breathing, punchy gaps after each "
+    "phrase and brief acid squelches; physical, dark, danceable, not bowed "
+    "strings, harmonium or rock bass.",
+    "Exhilarating icy electro-pop SYNTH LEAD, not violin: a crisp digital "
+    "pluck doubled by a wide detuned supersaw halo. A memorable two-bar "
+    "rising melody leaps an octave, flickers into tight sixteenth-note runs, "
+    "then lands on one long luminous note. Expressive portamento, tiny pitch "
+    "bends, vowel-like formant filtering without sung words, glossy chorus "
+    "and bright gated reverb. Em E7 Am E, 100 BPM with rushing double-time "
+    "energy; dramatic, hooky, euphoric, never acoustic strings or guitar.",
+    "Alien pixel-glass COUNTERMELODY made of tiny FM bells, spectral granular "
+    "shards, metallic ring-modulated chirps and stuttering high synth plucks. "
+    "Answer the main supersaw lead in the gaps with playful offbeat 3+3+2 "
+    "motifs and rapid cascading sixteenths, then bloom into an airy stereo "
+    "echo cloud for a brief half-time breakdown. Crystal-bright but not "
+    "harsh, futuristic and strange over Em E7 Am E at 100 BPM. No harp, "
+    "celesta, acoustic mallets, busy drums or vocals.",
+    "Futuristic electronic club BEAT at 100 BPM: deep four-on-floor sub kick, "
+    "dry clap on 2 and 4, metallic sixteenth hats and a syncopated 3+3+2 "
+    "rim/tom pattern. Distorted glitch fills and bright reverse-cymbal "
+    "pickups accelerate the sensation without speeding the clock. Bass ducks "
+    "around each kick; sudden sparse half-time break, then explosive "
+    "full-groove return. Punchy, kinetic, slightly alien electro, no acoustic "
+    "jazz kit, rock fills or sung samples.",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -85,19 +83,19 @@ def render_film_club_page(original: str, token: str) -> str:
         "Your original piano, violin and voice stay exactly where they are":
             "Em → E7 → Am → E · Film Club-only harmonies, original live-loop engine.",
         "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
-            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: acoustic grand piano, deep cello/harmonium bass, expressive violin, glass/harp, and evolving percussion.",
+            "One Google MRT2 Small model with five Film Club AI sound directions: neon FM synth piano, pumping analog bass, supersaw lead, granular digital glass, and hyperkinetic electronic drums. Original MIDI chords and loop pedals are preserved.",
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
             "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
         "01 · PYRAMID · intimate piano":
-            "01 · PYRAMID JAZZ · sustained resonant piano",
+            "01 · NEON FM · shimmering synth piano",
         "02 · PYRAMID ORBIT · low cello / harmonium drone":
-            "02 · UNDERCURRENT · warm cello + harmonium bass",
+            "02 · SUB ENGINE · pumping analog bass",
         "03 · PYRAMID · MAGENTA VIOLIN LEAD":
-            "03 · HUMAN INTERRUPTION · legato jazz violin",
+            "03 · SUPERSAW · soaring electronic lead",
         "04 · PYRAMID ORBIT · glass harmonics / harp":
-            "04 · CITY GLASS · ringing vibraphone / harmonics",
+            "04 · PIXEL DUST · granular FM sparkle",
         "DRUM SOUND PROMPT · EDITABLE":
-            "05 · PULSE · brushed jazz electronica / sub",
+            "05 · ELECTRO PULSE · glitch club drums",
     }
     for old, new in labels.items():
         if old not in page:
@@ -209,7 +207,7 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-native-sync output{font:800 12px/1.5 ui-monospace,monospace;color:#fff4e6}
 .film-native-sync small{font-size:11px;color:#f6e1d4}
 .film-manual-bridge{margin:12px 0 18px;border:1px solid #e1b6c4;border-radius:13px;
-  padding:16px;background:#271e2d;color:#fff4e8}
+  padding:16px;background:#271e2d;color:#fff4e8;scroll-margin-top:170px}
 .film-manual-bridge h3{font-size:19px;margin:3px 0 6px}
 .film-manual-bridge p{font-size:13px;line-height:1.55;margin:4px 0 12px}
 .film-manual-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
@@ -227,15 +225,17 @@ def render_film_club_page(original: str, token: str) -> str:
     # The official Google AU model-selector UI is not a browser DOM we can
     # automate or attest to from TOASTER. Offer an honest, reliable
     # clipboard-assisted route if its own window still shows old prompts.
-    bridge = """<section class="film-manual-bridge" id="filmManualBridge"
- aria-label="Copy Film Club prompts into Google's native Audio Unit window">
-<div class="film-tag">WHEN GOOGLE'S WINDOW STILL SHOWS THE OLD SOUNDS</div>
-<h3>Use the native plugin's five prompt rows</h3>
-<p>Google MRT2 can display or continue generating from an older sound bank
-even when the SUZY host accepted updated text. Select each matching prompt
-row in Google's own window, replace its text, and press Enter/confirm.
-Use these copy buttons to transfer the exact Film Club prompts.
-They copy text only; they do not restart or secretly modify the model.</p>
+    bridge = """<details class="film-manual-bridge" id="filmManualBridge">
+<summary>OPTIONAL TROUBLESHOOTING · COPY PROMPTS ONLY IF AUTOMATIC MODEL RELOAD IS UNAVAILABLE</summary>
+<div class="film-tag">ALTERNATE GOOGLE AU EDITOR</div>
+<h3>Manual fallback for an unsupported Google plugin build</h3>
+<p>Choose COPY 01–05 below, paste each prompt into the corresponding
+row of the <strong>existing</strong> Google MRT2 window, then press Enter
+to confirm. Editing in Google avoids restarting its selected model.
+SUZY cannot write into Google's separate plugin window automatically;
+the buttons only copy text and do not interrupt your live loops.</p>
+<button type="button" id="filmOpenGooglePrompts">↗ OPEN CURRENT GOOGLE PROMPT WINDOW · NO RESTART</button>
+<output role="status" aria-live="polite" id="filmGoogleEditorStatus">OPEN ONLY THE EXISTING GOOGLE AU · NO MODEL RESTART</output>
 <div class="film-manual-list">
 <button type="button" class="film-copy-slot" data-prompt-copy="promptPyramid">COPY 01 · PIANO</button>
 <button type="button" class="film-copy-slot" data-prompt-copy="promptFishes">COPY 02 · CELLO</button>
@@ -247,18 +247,22 @@ They copy text only; they do not restart or secretly modify the model.</p>
 <small>Do not confuse the Bank 1–3 memory slots with these sound-prompt rows.
 Google's own prompt edits are the final authority for what the popup shows.
 If you're currently recording a take, finish and export it first.</small>
-</section>"""
+</details>"""
     editor = '<details class="prompt-editor" id="promptEditor">'
     sync_panel = """<section class="film-native-sync" aria-label="Native MRT2 prompt synchronization">
 <div class="film-tag">GOOGLE MRT2 · ACTIVE SOUND BANK</div>
-<p>These Film Club prompts are new, but the Google Audio Unit may still be
-running the original Futureproof sounds. Apply the five prompts below to
-the <strong>real native MRT2 host</strong> before auditioning.</p>
-<button type="button" id="filmSyncNativePrompts">↻ APPLY FILM CLUB SOUNDS TO MRT2</button>
+<p>Replace Google's original Futureproof sound bank with these five new
+electronic Film Club prompts <strong>inside the real MRT2 model</strong>.
+The app reuses the model bookmark granted by Google's own window so the
+new Audio Unit can load the new prompt embeddings without losing the
+selected model. No browser synthesizer or manual text copying required.</p>
+<button type="button" id="filmSyncNativePrompts">✦ LOAD FIVE NEON SOUNDS INTO GOOGLE MRT2</button>
 <output id="filmNativePromptStatus" role="status" aria-live="polite">CHECKING NATIVE HOST…</output>
-<small>This action restarts the shared Magenta generator and may clear native
-in-memory loops. Export important takes first. Opening this page alone never
-changes the host or Google's window.</small></section>"""
+<small>First select the existing local mrt2_small model in Google's window
+once, if prompted, to grant the model bookmark. Applying replaces the AI
+instance and briefly interrupts playback. Finish and export native takes
+first; this control refuses to erase active native loops. The host verifies
+serialized prompt text, but only listening can verify generated audio.</small></section>"""
     if editor not in page:
         raise ValueError("Original TOASTER prompt editor anchor changed")
     page = page.replace(editor, sync_panel + bridge + editor, 1)
@@ -282,8 +286,8 @@ changes the host or Google's window.</small></section>"""
   <summary>✦ INSTRUMENT AUDITION · FIVE NATIVE SOUNDS / NOTE SUSTAIN</summary>
   <p style="font-size:12px">One MRT2 generator: audition a sound, then
   record a separate PCM layer with the existing pedals below.</p>
-  <p style="font-size:12px">BRIGHTER GROOVE: use short Z/X/C/V piano chord
-  pickups, then record an offbeat cello answer and a faster glass or violin
+  <p style="font-size:12px">NEON GROOVE: use short Z/X/C/V synth-piano chord
+  pickups, then record an offbeat analog bass answer and faster digital lead
   phrase. The held low notes can stay underneath. This changes phrasing,
   not the 100 BPM loop clock.</p>
   <div class="film-sustain">
@@ -291,10 +295,10 @@ changes the host or Google's window.</small></section>"""
     <input type="range" id="filmNoteHold" min="400" max="4800" step="200" value="2400">
   </div>
   <div class="film-audition-grid">
-    <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
-    <button type="button" data-film-audition="cello">02 · HEAR CELLO + HARMONIUM</button>
-    <button type="button" data-film-audition="violin">03 · HEAR VIOLIN</button>
-    <button type="button" data-film-audition="glass">04 · HEAR GLASS</button>
+    <button type="button" data-film-audition="piano">01 · HEAR FM SYNTH PIANO</button>
+    <button type="button" data-film-audition="cello">02 · HEAR ANALOG SUB BASS</button>
+    <button type="button" data-film-audition="violin">03 · HEAR SUPERSAW LEAD</button>
+    <button type="button" data-film-audition="glass">04 · HEAR GRANULAR GLASS</button>
     <button type="button" data-film-audition="drums">05 · HEAR DRUMS</button>
     <button type="button" id="filmAuditionBlend" aria-pressed="false">BLEND FIVE · ONE GENERATOR</button>
   </div>

@@ -2,7 +2,7 @@
 import http.client
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from http.server import ThreadingHTTPServer
 
 from suzy_ai.music.magenta_stage import MagentaStageHandler, PAGE
@@ -130,6 +130,68 @@ class StageHttpTests(unittest.TestCase):
         self.assertFalse(data["logic_audio_device_observed"])
         self.assertFalse(data["can_change_host_audio_output"])
         self.assertEqual(self.request("POST", "/api/audio-routing", {"device": 0})[0], 404)
+
+    def test_full_five_prompt_bank_reaches_native_host_instead_of_http_413(self):
+        # Regression: the Film Club five-string request is > 2 KiB,
+        # previously blocked by the stage before native AI code ran.
+        import json
+        from suzy_ai.music.film_club_pyramid import FILM_PROMPTS
+        from suzy_ai.music.magenta_stage import (
+            CONTROL_JSON_MAX_BYTES, PROMPT_JSON_MAX_BYTES
+        )
+        payload = {"prompts": list(FILM_PROMPTS)}
+        byte_length = len(json.dumps(payload).encode("utf8"))
+        self.assertGreater(byte_length, CONTROL_JSON_MAX_BYTES)
+        self.assertLess(byte_length, PROMPT_JSON_MAX_BYTES)
+        fake = Mock()
+        fake.command.return_value = {"phase": "initializing"}
+        self.server.RequestHandlerClass.native_host = fake
+        status, result = self.request("POST", "/api/ai/reload-prompts", payload)
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result["phase"], "initializing")
+        fake.command.assert_called_once_with("reload-prompts", payload)
+
+    def test_large_prompt_json_is_allowed_only_for_prompt_endpoints(self):
+        from suzy_ai.music.magenta_stage import PROMPT_JSON_MAX_BYTES
+        fake = Mock()
+        fake.command.return_value = {"phase": "initializing"}
+        self.server.RequestHandlerClass.native_host = fake
+        bank = {"prompts": ["synth " + "a" * 475 for _ in range(5)]}
+        for route, action in (
+            ("/api/ai/reload-prompts", "reload-prompts"),
+            ("/api/ai/configure-prompts", "configure-prompts"),
+            ("/api/ai/start", "start"),
+        ):
+            with self.subTest(route=route):
+                status, result = self.request("POST", route, bank)
+                self.assertEqual(status, 200, result)
+                fake.command.assert_called_with(action, bank)
+        # Non-prompt actions retain their original 2048 byte cap.
+        fake.reset_mock()
+        status, result = self.request("POST", "/api/test",
+                                      {"padding": "a" * 2500})
+        self.assertEqual(status, 413)
+        self.assertIn("2048 bytes", result["error"])
+        fake.command.assert_not_called()
+        # A huge prompt request is still refused before touching AI.
+        status, result = self.request(
+            "POST", "/api/ai/reload-prompts",
+            {"prompts": ["x" * PROMPT_JSON_MAX_BYTES] * 5}
+        )
+        self.assertEqual(status, 413)
+        self.assertIn(str(PROMPT_JSON_MAX_BYTES), result["error"])
+        fake.command.assert_not_called()
+
+    def test_large_prompt_endpoint_keeps_authentication_and_origin_checks(self):
+        from suzy_ai.music.film_club_pyramid import FILM_PROMPTS
+        fake = Mock()
+        self.server.RequestHandlerClass.native_host = fake
+        payload = {"prompts": list(FILM_PROMPTS)}
+        self.assertEqual(self.request("POST", "/api/ai/reload-prompts",
+                                      payload, token=False)[0], 403)
+        self.assertEqual(self.request("POST", "/api/ai/reload-prompts",
+                                      payload, origin="https://wrong.example")[0], 403)
+        fake.command.assert_not_called()
 
     def test_static_ui_refuses_fictional_audio_controls(self):
         html = PAGE.read_text(encoding="utf8")

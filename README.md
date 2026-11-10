@@ -21,7 +21,19 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
-**Film Club upbeat instrumental v1.0:** The Film-only Google MRT2
+**Film Club v1.1 · actual Google MRT2 prompt reload:** The
+original AI Audio Unit and looping engine remain the only Google sound
+generator. Film Club now uses five futuristic electronic prompts (FM
+synth-piano, analog sub, supersaw lead, granular glass and club drums).
+The new Film Club button first checks for a model bookmark granted by
+Google's own AU, then reloads the ONE real Google model with that
+bookmark and the new sounds at initialization. Missing bookmark, active
+native loops or unknown model state block the restart instead of
+silencing playback. No browser instrument replacement and no
+five-row manual prompt paste as the normal workflow. See
+[Film Club MRT2 recovery guide](performance/film-club-2026/README.md).
+
+**Earlier Film Club upbeat instrumental v1.0 (superseded):** The Film-only Google MRT2
 prompts now emphasize buoyant acoustic-piano eighth-note figures, active
 cello/harmonium offbeats, nimble violin and sparkling glass replies over
 Em–E7–Am–E. The local straight and 3+3+2 shadow grooves start at 58% and

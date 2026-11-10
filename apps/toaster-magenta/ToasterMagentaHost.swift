@@ -23,6 +23,14 @@ final class MRT2Host {
     // Switching modes rebuilds the SAME AU instance; never create two models.
     private var selectModelInGoogleUI = ProcessInfo.processInfo.environment["SUZY_MRT2_MODEL_VIA_UI"] == "1"
     private var showGoogleUIAfterRestart = false
+    // After the performer selects mrt2_small in Google's own AU editor,
+    // its fullState contains an extension-created security-scoped bookmark.
+    // Reuse THAT bookmark on a fresh AU to load the requested text bank.
+    // A Swift-created bookmark crosses signing identities and can fail 259.
+    // Keep it in memory only, never log, expose or persist its bytes.
+    private var googleGrantedModelBookmark: Data?
+    private var googleGrantedModelName: String?
+    private var promptReloadPhase = "idle"
     private var held: [UInt8] = []
     private var melodyHeld = Set<UInt8>()
     // A browser pointer tap can last less than the MRT2 neural control latency.
@@ -119,12 +127,16 @@ final class MRT2Host {
         let actualAUPrompts = auItems?.prefix(5).compactMap { $0["text"] as? String }
         let available = actualAUPrompts?.count == 5
         let sameBank = available && actualAUPrompts == prompts
+        let pluginBookmark = auState?["MGRT_ModelBookmark"] as? Data
+        let hasPluginBookmark = pluginBookmark != nil && (pluginBookmark?.count ?? 0) > 64
         return [
             "phase": active ? "host-running" : loading ? "initializing" : "inactive",
             "native_au": generator != nil,
             "audio_engine_running": engine?.isRunning ?? false,
             "model_load_requested": modelRequested,
-            "model_loading_source": selectModelInGoogleUI ? "native_google_au_ui" : "bookmarked_state_request",
+            "model_loading_source": googleGrantedModelBookmark != nil
+                ? "google_au_granted_bookmark" :
+                selectModelInGoogleUI ? "native_google_au_ui" : "bookmarked_state_request",
             "native_au_ui_requested": auUIRequestPending,
             "native_au_ui_error": auUIError,
             "native_au_ui_request_count": auUIRequestCount,
@@ -168,6 +180,10 @@ final class MRT2Host {
             // Google model-picker's load path does not confirm that
             // saved prompt text has been embedded for generation.
             "au_prompt_embeddings_verified": false,
+            // Flag only: never transmit security-scoped bookmark contents.
+            "google_model_bookmark_available": hasPluginBookmark,
+            "google_model_bookmark_reusable": hasPluginBookmark && nativeLoopPlayers.isEmpty && !loading,
+            "prompt_reload_phase": promptReloadPhase,
             "prompt_slot_count": prompts.count,
             "prompt_weights": (10...14).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
             "lead_mix": ["pyramid": Double(leadMix["pyramid"] ?? 0),
@@ -704,7 +720,16 @@ final class MRT2Host {
                     state["MGRT_Prompts"] = weighted + (0..<1).map { _ in
                         ["text":"","weight":0.0] as [String:Any]
                     }
-                    if self.selectModelInGoogleUI {
+                    if let googleBookmark = self.googleGrantedModelBookmark {
+                        // Google's extension created this bookmark after the
+                        // performer actually selected the model in its own UI.
+                        // The extension, not Swift, can resolve it on reload.
+                        state["MGRT_ModelBookmark"] = googleBookmark
+                        state["MGRT_ModelName"] = self.googleGrantedModelName ?? "mrt2_small"
+                        self.modelRequested = true
+                        self.bookmarkScopeVerified = false
+                        self.bookmarkSelfResolutionVerified = false
+                    } else if self.selectModelInGoogleUI {
                         state.removeValue(forKey: "MGRT_ModelBookmark")
                         state.removeValue(forKey: "MGRT_ModelName")
                         self.modelRequested = false
@@ -749,6 +774,12 @@ final class MRT2Host {
                     self.engine = audio
                     self.active = true
                     self.configure()
+                    if self.promptReloadPhase == "reinitializing" {
+                        // Running AVAudioEngine does not prove Google loaded
+                        // a model or produced audio. The AU text readback
+                        // and live audio signal remain separate checks.
+                        self.promptReloadPhase = "model-requested-awaiting-audio"
+                    }
                     if self.showGoogleUIAfterRestart {
                         self.showGoogleUIAfterRestart = false
                         // The AU is now running without the external bookmark.
@@ -775,7 +806,7 @@ final class MRT2Host {
         // loader to Google's own model picker. Stop the current native AU
         // before creating its replacement, preserving prompts, MIDI settings,
         // transport preference, and all *browser* audio loops.
-        if !selectModelInGoogleUI {
+        if !selectModelInGoogleUI && googleGrantedModelBookmark == nil {
             guard active && !loading else {
                 auUIError = "Native Magenta is still starting. Wait for the AU to run, then open the model selector."
                 return
@@ -890,12 +921,56 @@ final class MRT2Host {
         case "start": start()
         case "stop": stop()
         case "show-au-ui": showGoogleAUInterface()
+        case "show-au-ui-safe":
+            // Can also reopen the AU restored with Google's own bookmark.
+            // Never switch model modes or restart merely to show the window.
+            guard (selectModelInGoogleUI || googleGrantedModelBookmark != nil), active, !loading else {
+                return ["error": "Current Google prompt window cannot be opened without restarting the native AU. Keep playback running and use the existing window if available."]
+            }
+            showGoogleAUInterface()
         case "transport-play":
             guard active else { return ["error":"AI host not ready"] }
             transportPlaying.store(true, ordering: .relaxed)
         case "transport-pause":
             guard active else { return ["error":"AI host not ready"] }
             transportPlaying.store(false, ordering: .relaxed)
+        case "reload-prompts":
+            // MODEL-PRESERVING RELOAD, NOT A BROWSER SYNTH FALLBACK.
+            // Google's live UI calls set_text_prompts inside its own AU.
+            // Swift's fullState setter alone does NOT re-embed prompts
+            // while the model is loaded. Google's documented AU source
+            // re-embeds saved strings after loading from a trusted bookmark
+            // in a NEW instance. Capture that plugin-owned bookmark first.
+            guard let list = request["prompts"] as? [String],
+                  list.count == 5,
+                  list.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 500 }) else {
+                return ["error": "Five nonempty prompts required (maximum 500 characters each)"]
+            }
+            guard active, !loading, let au = generator?.auAudioUnit else {
+                return ["error": "MRT2 must be running before updating its sound bank"]
+            }
+            guard nativeLoopPlayers.isEmpty &&
+                  !nativeCaptureArmed.load(ordering: .relaxed) else {
+                return ["error": "Finish and export native recordings before replacing the sound bank; AI was not stopped"]
+            }
+            let currentState = au.fullState ?? [:]
+            guard let granted = currentState["MGRT_ModelBookmark"] as? Data,
+                  granted.count > 64 && granted.count < 1_048_576 else {
+                // Crucial: do NOT stop a playing model just to discover
+                // it cannot reload. Open Google's selector and select the
+                // existing local model once to grant its bookmark.
+                return ["error": "Google MRT2 has no reusable model bookmark yet. Select mrt2_small in the Google model window once, then retry. Current audio was not stopped."]
+            }
+            googleGrantedModelBookmark = granted
+            googleGrantedModelName = (currentState["MGRT_ModelName"] as? String) ?? "mrt2_small"
+            prompts = list
+            selectModelInGoogleUI = false
+            promptReloadPhase = "reinitializing"
+            // One intentional AU replacement only AFTER the bookmark has
+            // passed preflight. The new AU receives the new text alongside
+            // Google's trusted model bookmark BEFORE it loads the model.
+            stop()
+            start()
         case "configure-prompts":
             // Google's AU reads the text strings while loading the model.
             // Changing fullState AFTER it is loaded doesn't update embeddings;

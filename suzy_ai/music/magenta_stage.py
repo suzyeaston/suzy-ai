@@ -32,6 +32,19 @@ PERFORMANCE_TIMELINE_SCRIPT = Path(__file__).with_name("toaster_performance_time
 VOICE_FOLLOW_SCRIPT = Path(__file__).with_name("toaster_voice_follow.js")
 FILM_CLUB_DIR = Path(__file__).resolve().parents[2] / "performance" / "film-club-2026"
 
+# Most control calls are tiny. Five UTF-8 MRT2 prompts can each contain
+# 500 characters, however, so a 2 KiB JSON body cap rejects the full
+# legitimate bank before validation in NativeMagentaHost.command().
+# Keep the larger allowance strictly on prompt-writing endpoints.
+CONTROL_JSON_MAX_BYTES = 2048
+PROMPT_JSON_MAX_BYTES = 16384
+PROMPT_BODY_ROUTES = frozenset((
+    "/api/ai/reload-prompts",
+    "/api/ai/configure-prompts",
+    "/api/ai/start",
+))
+
+
 
 class MagentaStageHandler(BaseHTTPRequestHandler):
     bridge: MagentaMidiBridge
@@ -138,9 +151,13 @@ class MagentaStageHandler(BaseHTTPRequestHandler):
         if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
             return self.reply(415, {"error": "JSON body required"})
         length = self.headers.get("Content-Length", "")
-        if not length.isdecimal() or not 0 <= int(length) <= 2048:
+        max_bytes = (PROMPT_JSON_MAX_BYTES if self.path in PROMPT_BODY_ROUTES
+                     else CONTROL_JSON_MAX_BYTES)
+        if not length.isdecimal() or not 0 <= int(length) <= max_bytes:
             self.close_connection = True
-            return self.reply(413, {"error": "invalid request length"})
+            return self.reply(413, {
+                "error": f"JSON request body exceeds permitted size ({max_bytes} bytes)"
+            })
         try:
             data = json.loads(self.rfile.read(int(length)))
             if not isinstance(data, dict):

@@ -23,10 +23,12 @@ ACTIONS = {
     "stop": frozenset(),
     "status": frozenset(),
     "show-au-ui": frozenset(),
+    "show-au-ui-safe": frozenset(),
     "transport-play": frozenset(),
     "transport-pause": frozenset(),
     "scene": frozenset({"scene"}),
     "configure-prompts": frozenset({"prompts"}),
+    "reload-prompts": frozenset({"prompts"}),
     "mix": frozenset({"value"}),
     "lead-mix": frozenset({"scene", "value"}),
     "drum-mix": frozenset({"value"}),
@@ -243,7 +245,7 @@ class NativeMagentaHost:
                     and not (action == "start" and fields == {"prompts"})
                     and not chord_fields and not capture_fields):
                 raise ValueError("invalid AI action fields")
-            if action == "configure-prompts" or (action == "start" and "prompts" in data):
+            if action in ("configure-prompts", "reload-prompts") or (action == "start" and "prompts" in data):
                 strings = data["prompts"]
                 if (
                     not isinstance(strings, list)
