@@ -338,20 +338,46 @@ final class MRT2Host {
                 }
             }
         }
+        // A live loop pedal must not sit silent for ANOTHER full phrase after
+        // DONE just because HTTP/PCM cleanup missed the next original beat one.
+        // Keep that original audio-clock origin, but begin the captured loop
+        // near-immediately at the phase that would be playing right now.
+        // Rotating the samples changes only the replay start, not the groove,
+        // tempo, audio contents, or duration. It remains phase-locked across
+        // subsequent cycles and the AU cannot record its own replay.
+        let first = firstHostTime &+ AVAudioTime.hostTime(forSeconds: preRoll)
+        let cycle = max(UInt64(1), AVAudioTime.hostTime(forSeconds: period))
+        let scheduled = mach_absolute_time() &+ AVAudioTime.hostTime(forSeconds: 0.075)
+        let phaseTicks = scheduled > first ? (scheduled - first) % cycle : 0
+        let phaseFrames = Int((Double(phaseTicks) / Double(cycle) *
+                               Double(frames)).rounded(.down)) % frames
+        if phaseFrames > 0 {
+            // Three in-place reversals perform a left rotation. This avoids
+            // allocating a second potentially 120-second stereo PCM buffer.
+            func reverseRange(_ samples: UnsafeMutablePointer<Float>,
+                              _ begin: Int, _ end: Int) {
+                var left = begin
+                var right = end - 1
+                while left < right {
+                    let value = samples[left]
+                    samples[left] = samples[right]
+                    samples[right] = value
+                    left += 1
+                    right -= 1
+                }
+            }
+            for channel in 0..<Int(format.channelCount) {
+                reverseRange(dst[channel], 0, phaseFrames)
+                reverseRange(dst[channel], phaseFrames, frames)
+                reverseRange(dst[channel], 0, frames)
+            }
+        }
         let player = AVAudioPlayerNode()
         // The player is mixed OUTSIDE the captured AU node and never fed back.
         audio.attach(player)
         audio.connect(player, to: audio.mainMixerNode, format: format)
         player.volume = 0.8
         player.scheduleBuffer(output, at: nil, options: [.loops], completionHandler: nil)
-        // Preserve the original host-audio beat-one timestamp across HTTP
-        // latency. If DONE happens too close to beat one, schedule the NEXT
-        // complete boundary. Buffer repetition is sample-accurate thereafter.
-        let first = firstHostTime &+ AVAudioTime.hostTime(forSeconds: preRoll)
-        let cycle = max(UInt64(1), AVAudioTime.hostTime(forSeconds: period))
-        let earliest = mach_absolute_time() &+ AVAudioTime.hostTime(forSeconds: 0.16)
-        let repeats = earliest > first ? (earliest - first + cycle - 1) / cycle : 0
-        let scheduled = first &+ repeats &* cycle
         player.play(at: AVAudioTime(hostTime: scheduled))
         nativeLoopPlayers[id] = player
         nativeLoopFrames[id] = frames
@@ -360,6 +386,8 @@ final class MRT2Host {
                           Double(AVAudioTime.hostTime(forSeconds: 1)) * 1000)
         return ["native_loop_playing": true, "native_loop_id": id,
                 "native_loop_frames": frames, "native_loop_rate": format.sampleRate,
+                "native_loop_phase_frames": phaseFrames,
+                "native_loop_start_mode": "immediate_phase_locked",
                 "native_loop_scheduled_ms": max(0, delayMs)]
     }
     private func setNativeLoopVolume(id: String, level: Double) -> [String: Any] {

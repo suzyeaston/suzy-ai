@@ -41,6 +41,27 @@ available as an **archived 60-second synthetic score sketch**, with an
 explicit link at the top to the new performance view. It is no longer the
 primary Film Club instrument.
 
+## First loop: immediate pedal handoff (updated)
+
+On the **first** piano or other instrument take, press **DONE** as your phrase
+ends. TOASTER closes the first MIDI phrase at the next *unscheduled eighth-note
+tick*, rather than waiting to complete a full measure. Native Magenta
+captures use the same shorter first-phrase period; the native Mac PCM engine
+starts replay at the correct phase within about one small scheduling buffer
+after the capture is processed, instead of waiting another whole loop.
+
+The **drum metre, BPM, existing green beat-one cue and original start anchor**
+remain intact. Like a hardware looper, a phrase that does not end on the
+same bar division can create an intentional cross-rhythm against the backing
+drums. If you want a strict four-bar pattern, press DONE near the matching
+green one. Subsequent overdubs continue to follow the first loop's period.
+This doesn't convert previously recorded browser or native PCM in memory.
+
+The actual native loop still has unavoidable HTTP/capture processing latency
+between DONE and playback; this fix eliminates the *extra full-cycle wait*
+after that processing. Confirm with headphones on your Mac before using it
+in the final film recording.
+
 ## What is reused unchanged from Futureproof
 
 - Floating 1–4 beat clock; record on the highlighted green beat 1.

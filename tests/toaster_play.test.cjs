@@ -1006,14 +1006,38 @@ test("performer presses DONE and that exact phrase length becomes an immediately
  run(`ctx.currentTime=transportEpoch+(${begin}+4.25)*tickSeconds()`);
  run('record("pyramid")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,8,"DONE completes the current rhythm bar");
+ assert.equal(finish-begin,5,"DONE closes at the next eighth-note tick, not the end of the bar");
  assert.match(get("recordHint-pyramid").textContent,/DONE/);
  run(`ctx.currentTime=transportEpoch+(${finish}+3)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null);
- assert.equal(run("decks.pyramid.lengthSteps"),8);
+ assert.equal(run("decks.pyramid.lengthSteps"),5);
  assert.equal(run("decks.pyramid.anchorStep"),begin);
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),1,"opening rest is part of musical timing");
  assert.equal(get("loopToggle-pyramid").disabled,false);
+});
+
+test("first MIDI piano loop replays on the very next free tick, without waiting for green one",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setInstrumentSource("pyramid","local")');
+ run('record("pyramid")');
+ const begin=run("recording.beginAt");
+ run(`ctx.currentTime=transportEpoch+(${begin}+0.1)*tickSeconds();scheduler()`);
+ run('beginChord("pyramid",0,"key:first");endChord("key:first")');
+ // DONE right after a previous measure marker must not round up an entire bar.
+ run(`ctx.currentTime=transportEpoch+(${begin}+8.1)*tickSeconds()`);
+ run('record("pyramid")');
+ const end=run("recording.endAt");
+ assert.equal(end-begin,9,"one eighth tick from DONE, never an extra seven");
+ const originalBpm=run("bpm");
+ const originalMeter=get("drumMeter").value;
+ run(`ctx.currentTime=transportEpoch+(${end}+.25)*tickSeconds();scheduler()`);
+ assert.equal(run("recording"),null);
+ assert.equal(run("decks.pyramid.lengthSteps"),9);
+ assert.equal(run("decks.pyramid.anchorStep"),begin);
+ assert.equal(run("bpm"),originalBpm);
+ assert.equal(get("drumMeter").value,originalMeter);
+ assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
+ assert.match(get("pedalClockCue").textContent,/LOOP|BAR|BEAT|READY/);
 });
 
 test("DONE after a different phrase duration locks that custom length and not any preset bar",async()=>{
@@ -1025,9 +1049,9 @@ test("DONE after a different phrase duration locks that custom length and not an
  run(`ctx.currentTime=transportEpoch+(${begin}+11.25)*tickSeconds()`);
  run('record("fishes")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,16,"DONE is resolved on the next full rhythm bar");
+ assert.equal(finish-begin,12,"DONE resolves at the next unscheduled eighth tick");
  run(`ctx.currentTime=transportEpoch+(${finish}+2)*tickSeconds();scheduler()`);
- assert.equal(run("decks.fishes.lengthSteps"),16);
+ assert.equal(run("decks.fishes.lengthSteps"),12);
  assert.equal(run("decks.fishes.anchorStep"),begin,"leading beat rest must not be cropped");
  assert.equal(run("decks.fishes.layers[0].events[0].step"),1);
  assert.match(get("recordHint-fishes").textContent,/LOOP PLAYING/);
@@ -1477,11 +1501,11 @@ test("first-loop pedal trims dead air before first played chord and replays at D
  run(`ctx.currentTime=transportEpoch+(${begin}+10.45)*tickSeconds()`);
  run('record("pyramid")');
  const finish=run("recording.endAt");
- assert.equal(finish-begin,16,"whole-bar closing preserves rhythm");
+ assert.equal(finish-begin,11,"short-tick handoff avoids nearly a measure of silence");
  run(`ctx.currentTime=transportEpoch+(${finish}+1)*tickSeconds();scheduler()`);
  assert.equal(run("recording"),null);
  assert.equal(run("decks.pyramid.anchorStep"),begin,"piano rests remain at the first three beat positions");
- assert.equal(run("decks.pyramid.lengthSteps"),16);
+ assert.equal(run("decks.pyramid.lengthSteps"),11);
  assert.equal(run("decks.pyramid.layers[0].events[0].step"),3);
  assert.match(get("recordHint-pyramid").textContent,/LOOP PLAYING/);
 });
@@ -2340,7 +2364,7 @@ test("RECORD TAKE still auto-selects the instrument prompt after removing manual
  assert.match(get("nativeStatus-pyramid-chords").textContent,/WAV HANDOFF \(FALLBACK\)/);
 });
 
-test("real native WAV frame duration wins over an inaccurate browser DONE timestamp",async()=>{
+test("native first loop uses next performed tick, not WAV duration or stop latency",async()=>{
  const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
  calls.decodedFrames=7*48000;
  env.fetch=async(url)=>{
@@ -2355,11 +2379,12 @@ test("real native WAV frame duration wins over an inaccurate browser DONE timest
  const start=run("nativeTake.gridStartAt");
  run("ctx.currentTime=nativeTake.gridStartAt+barDuration()+.12");
  await run("finishNativeInstrumentTake()");
- assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("barDuration()"))<1/48000,
-  "WAV length and STOP network offset cannot change the musical period");
+ assert.ok(Math.abs(run("decks.pyramid.pedalPeriodSeconds")-run("9*tickSeconds()"))<1/48000,
+  "an eighth tick after DONE sets the period, not native WAV duration or network completion");
+ assert.equal(run("decks.pyramid.lengthSteps"),9,"do not delay to another full bar");
  assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001);
  const l=run("decks.pyramid.layers[0]");
- assert.ok(l.source.startOffset>=0&&l.source.startOffset<run("barDuration()"));
+ assert.ok(l.source.startOffset>=0&&l.source.startOffset<run("9*tickSeconds()"));
 });
 
 test("drum take inherits piano's exact 3.7s pedal period and phase rather than starting a second loop clock",async()=>{
@@ -2603,6 +2628,39 @@ test("MIDI first take never arms on beat two just because next tick was pre-sche
  assert.ok(start>=8);
  run("ctx.currentTime=transportEpoch+recording.beginAt*tickSeconds()+.01;updatePedalClock()");
  assert.equal(get("pedalCueBig").textContent,"GO!");
+});
+
+test("native first piano DONE midway through a bar closes a short live-loop phrase",async()=>{
+ const {run,env,calls}=rig();await run("startStop()");run("aiNativeReady=true");
+ calls.decodedFrames=12*48000;
+ const sent=[];
+ env.fetch=async(url,opts)=>{
+  const op=String(url).split("/").pop();
+  if(opts?.body)sent.push({op,...JSON.parse(opts.body)});
+  if(op==="status")return {ok:true,json:async()=>({native_loop_capture_supported:true})};
+  if(op==="capture-start")return {ok:true,json:async()=>({capture_id:"piano-immediate"})};
+  if(op==="capture-stop")return {ok:true,json:async()=>({
+   ready:true,frames:12*48000,peak:.4,audio_url:"/api/ai/capture/piano-immediate",
+   native_loop_playing:true,native_loop_scheduled_ms:70,
+   native_loop_id:"piano-immediate",native_loop_start_mode:"immediate_phase_locked"
+  })};
+  if(String(url)==="/api/ai/capture/piano-immediate")
+   return {ok:true,arrayBuffer:async()=>new Uint8Array(44).buffer};
+  return {ok:true,json:async()=>({})};
+ };
+ await run('startNativeInstrumentTake("pyramid","chords")');
+ const start=run("nativeTake.gridStartAt");
+ run("ctx.currentTime=nativeTake.gridStartAt+4.1*tickSeconds()");
+ await run("finishNativeInstrumentTake()");
+ const stop=sent.find(x=>x.op==="capture-stop");
+ assert.ok(stop,"native capture-stop must be invoked");
+ assert.equal(run("decks.pyramid.lengthSteps"),5,"first piano loop must NOT pad to eight ticks");
+ assert.ok(Math.abs(stop.period_seconds-run("5*tickSeconds()"))<.001);
+ assert.equal(run("decks.pyramid.layers[0].nativeLive"),true);
+ assert.equal(run("decks.pyramid.layers[0].source"),null,"do not double-play captured native PCM");
+ assert.ok(Math.abs(run('loopMasterOrigin("pyramid")')-start)<.001,
+  "retain original downbeat origin for future overdubs");
+ assert.equal(run("drumMeter"),"4/4","shared drum metre unchanged");
 });
 
 test("real Swift memory looping starts native take without duplicate browser AudioBuffer playback",async()=>{
