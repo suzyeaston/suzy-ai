@@ -21,6 +21,14 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club harmony v0.8:** Film-only **Em → E7 → Am → E**
+from the four main chords charted for Grimes/VADAKIN's Accelerando, with
+E Phrygian Dominant colour and an E-minor bridge as sectional context.
+Real Z/X/C/V pads, registered native Swift harmony bank, lower
+cello/harmonium octave and live-loop MIDI all agree. Retains original
+TOASTER Futureproof F♯ harmonies and our 100 BPM 4/4 Film Club clock.
+See [the film rehearsal chart](performance/film-club-2026/README.md).
+
 **Film Club warm low-end v0.7:** Bring back the original Pyramid's
 low bowed cello and breathy pump harmonium/reed-organ bass, with
 cello's Film-only MIDI chord voicings one octave below the piano.
