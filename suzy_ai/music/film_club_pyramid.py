@@ -14,42 +14,43 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Film-only original sound design. Synth-led, high-energy and no
-    # artist recording, copied melody, stems, or voice identity.
-    "Glittering futuristic synth piano, not acoustic piano. Glassy FM "
-    "electric keys, detuned saw layers, short rubbery pluck attacks, "
-    "shimmering stereo chorus and sequenced sixteenth-note arpeggios. "
-    "Minor-key synth-pop over Em E7 Am E, 100 BPM four-four with double-time "
-    "bounce, bright offbeat stabs and huge sparkling release. Tight gated "
-    "delay, glossy icy highs, elastic electro pulse, dramatic filter sweeps. "
-    "No grand piano, jazz, orchestra or vocals.",
-    "Dark analog synth bass with saturated sub and sidechain pump. Detuned "
-    "pulse-wave midbass, warm E2 and A2, syncopated octave jumps, 3+3+2 "
-    "rubbery bass riff answering a straight four-on-floor kick. Acidic "
-    "resonant filter slides, brief metallic clicks and distorted tape edges, "
-    "ominous then euphoric. Em E7 Am E at 100 BPM, perceived double-time "
-    "momentum. No bowed cello, harmonium, acoustic bass or vocals.",
-    "High soaring synthetic lead, icy formant-free synth voice texture, "
-    "supersaw harmonies and crystalline portamento. Nimble arpeggiated "
-    "sixteenths alternate with huge sustained minor-key melody notes over Em "
-    "E7 Am E. Subtle pitch glide, metallic FM sparkle, high stereo shimmer "
-    "and tight gated reverb. Surreal neon dream-pop energy, urgent "
-    "double-time feel on 100 BPM clock. No acoustic violin, string quartet "
-    "or sampled singer.",
-    "Alien glass synth and digital fairy-dust percussion: bright FM bells, "
-    "pixelated granular droplets, ring-modulated chimes, glitchy offbeat "
-    "plucks and spectral delay trails. Tiny syncopated sixteenth-note loops "
-    "climb over Em E7 Am E. Translucent high-end shimmer above deep "
-    "electronic bass, rhythmic and luminous, with a sudden spacious "
-    "half-time break. No vibraphone, harp, guitar, acoustic mallets or "
-    "vocals.",
-    "Hyperkinetic electronic club drums at 100 BPM four-four: huge tight sub "
-    "kick, crunchy clap on 2 and 4, shimmering metallic closed hats, fast "
-    "sixteenth glitches, syncopated rim and distorted tom fills. Second "
-    "interlocking 3+3+2 percussion rhythm against the straight kick; "
-    "pumping, ecstatic double-time sensation and dramatic half-time dropout. "
-    "Neon electro-pop with a dark futuristic edge. Dry controlled "
-    "transients, no acoustic jazz drums, piano or vocals.",
+    # Film-only original electronic sound design, no borrowed melody,
+    # source recording, voice clone or independent fake browser synth.
+    "Glittering FM synth piano with a bell-bright electric attack and warm "
+    "detuned polysynth tail. Bouncy two-octave sixteenth-note arpeggio "
+    "cascades, clipped offbeat chord stabs, little rising answers and a wide "
+    "chorus shimmer. A playful repeating hook climbs through Em E7 Am E at "
+    "100 BPM, with G-sharp on E7 tugging into A minor. Percussive keys "
+    "upfront, elastic gated delay and short sparkling decays; futuristic "
+    "upbeat electro-pop, never an acoustic grand or jazz improvisation.",
+    "Rubbery analog monosynth bass with a powerful clean sub below gritty "
+    "resonant midbass. Saturated square-wave growl, fast filter-envelope "
+    "plucks, pitch-sliding octave pickups and an infectious two-bar 3+3+2 "
+    "syncopated riff against a steady four-on-floor kick. E and A roots push "
+    "Em E7 Am E at 100 BPM. Sidechain breathing, punchy gaps after each "
+    "phrase and brief acid squelches; physical, dark, danceable, not bowed "
+    "strings, harmonium or rock bass.",
+    "Exhilarating icy electro-pop SYNTH LEAD, not violin: a crisp digital "
+    "pluck doubled by a wide detuned supersaw halo. A memorable two-bar "
+    "rising melody leaps an octave, flickers into tight sixteenth-note runs, "
+    "then lands on one long luminous note. Expressive portamento, tiny pitch "
+    "bends, vowel-like formant filtering without sung words, glossy chorus "
+    "and bright gated reverb. Em E7 Am E, 100 BPM with rushing double-time "
+    "energy; dramatic, hooky, euphoric, never acoustic strings or guitar.",
+    "Alien pixel-glass COUNTERMELODY made of tiny FM bells, spectral granular "
+    "shards, metallic ring-modulated chirps and stuttering high synth plucks. "
+    "Answer the main supersaw lead in the gaps with playful offbeat 3+3+2 "
+    "motifs and rapid cascading sixteenths, then bloom into an airy stereo "
+    "echo cloud for a brief half-time breakdown. Crystal-bright but not "
+    "harsh, futuristic and strange over Em E7 Am E at 100 BPM. No harp, "
+    "celesta, acoustic mallets, busy drums or vocals.",
+    "Futuristic electronic club BEAT at 100 BPM: deep four-on-floor sub kick, "
+    "dry clap on 2 and 4, metallic sixteenth hats and a syncopated 3+3+2 "
+    "rim/tom pattern. Distorted glitch fills and bright reverse-cymbal "
+    "pickups accelerate the sensation without speeding the clock. Bass ducks "
+    "around each kick; sudden sparse half-time break, then explosive "
+    "full-groove return. Punchy, kinetic, slightly alien electro, no acoustic "
+    "jazz kit, rock fills or sung samples.",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
