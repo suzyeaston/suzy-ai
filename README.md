@@ -8,6 +8,14 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+**Film Club v0.3:** Two driving electronica/hand-drum-inspired local
+grooves, an energy fader and five more rhythmic Magenta prompts have been
+added to the continuing Pyramid composition. Native violin, cello, glass
+and drum takes may now loop independent shorter phrases immediately after
+DONE, without padding silence to the piano's full master period. The
+shared meter stays intact. See
+[Film Club performance notes](performance/film-club-2026/README.md).
+
 ## ✳ PYRAMID / SOFT RESET · Film Club continuation
 
 For BC + AI Film Club's **Make Art Not War** music video with Gastown
