@@ -581,7 +581,7 @@ test("driving electronic and hand-drum inspired styles add real offbeat hits wit
  assert.equal(run("stepNumber"),clock);
  assert.equal(run("loopSteps"),16);
  assert.equal(run("decks.pyramid.lengthSteps"),16);
- assert.match(get("drumStatus").textContent,/4\\/4 grid/);
+ assert.ok(get("drumStatus").textContent.includes("4/4 grid"));
 });
 
 test("overdubs preserve instruments and live/loop levels are independent",async()=>{
