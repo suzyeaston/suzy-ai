@@ -26,6 +26,11 @@ class NativeMRT2Tests(unittest.TestCase):
     def test_reject_invalid_controls_without_forking_model(self):
         invalid = [
             ("chord", {"index": True}), ("chord", {"index": 4}),
+            ("chord-hold", {"seconds":0.1}),
+            ("chord-hold", {"seconds":9}),
+            ("chord-hold", {"seconds":float("nan")}),
+            ("chord-hold", {"seconds":True}),
+            ("chord-hold", {"seconds":"2.4"}),
             ("scene", {"scene":"bad"}), ("mix", {"value":2}),
             ("mix", {"value":"0.3"}), ("volume", {"value":-1}),
             ("mute", {"value":1}), ("drums", {"value":1}), ("drums", {"value":"yes"}), ("start", {"model":"remote"}),
@@ -56,6 +61,7 @@ class NativeMRT2Tests(unittest.TestCase):
         for op in ("start", "stop", "status", "scene", "mix", "volume", "mute", "chord", "release", "tempo", "note", "note-off"):
             self.assertIn(op, ACTIONS)
         self.assertEqual(ACTIONS["chord"], {"index"})
+        self.assertEqual(ACTIONS["chord-hold"], {"seconds"})
         self.assertEqual(ACTIONS["scene"], {"scene"})
         self.assertEqual(ACTIONS["show-au-ui"], set())
         self.assertEqual(ACTIONS["mute"], {"value"})
@@ -167,6 +173,18 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('                chordStartedAt = ProcessInfo.processInfo.systemUptime', source)
         self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
         self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
+
+    def test_film_club_native_sustain_does_not_change_futureproof_default(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn("private var minimumChordHoldSeconds", source)
+        self.assertIn('?? 480', source)
+        self.assertIn('case "chord-hold":', source)
+        self.assertIn('seconds >= 0.2, seconds <= 4.8', source)
+        self.assertIn("minimumChordHoldSeconds = seconds", source)
+        self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
+        self.assertIn("cancelPendingChordRelease()", source)
+        self.assertIn("releaseChordAfterMinimumHold()", source)
 
     def test_reselecting_same_native_scene_does_not_cancel_current_notes(self):
         source = (Path(__file__).resolve().parents[1]
