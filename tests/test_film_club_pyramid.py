@@ -176,7 +176,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('id="filmManualBridge"', self.film)
         self.assertIn('id="filmCopyStatus"', self.film)
         self.assertEqual(self.film.count('data-prompt-copy='), 5)
-        self.assertIn("Google's native Audio Unit window", self.film)
+        self.assertIn("GOOGLE MRT2", self.film)
         self.assertNotIn('id="filmManualBridge"', self.source)
         self.assertNotIn('id="filmSyncNativePrompts"', self.source)
 
