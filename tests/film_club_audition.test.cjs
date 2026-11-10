@@ -86,7 +86,7 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
    assert.equal(h.calls[i].role,map[name][1]);
    assert.ok(h.weights[i]>.8);
    assert.equal(h.buttons[i].getAttribute("aria-pressed"),"true");
-   assert.match(h.output.textContent,new RegExp("SELECTED "+name.toUpperCase()));
+   assert.match(h.output.textContent,new RegExp("AUDITION CHORD SENT · "+name.toUpperCase()));
    assert.match(h.output.textContent,/NOW PLAY Z\/X\/C/);
  }
  const actions=h.changes.map(x=>x.action);
