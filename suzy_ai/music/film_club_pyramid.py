@@ -14,36 +14,36 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Each prompt gives one voice a distinct job inside the same suspended,
-    # swung 4/4 composition. Intensity increases by layering, not by forcing
-    # the generative model to invent a whole song in every prompt.
-    "Dark, close grand piano, audible wood and felt hammer attack. "
-    "Weighted low-mid suspended chord strikes and irregular syncopated "
-    "answers, space and silence between resonances, slight swung timing "
-    "against a steady 100 BPM 4/4 clock. F sharp, G major seventh and A sixth "
-    "harmonic gravity; intimate, unsettling and human, not a bright house "
-    "riff, not continuous arpeggios, no drums or vocals",
-    "Low acoustic cello with a woody pizzicato F sharp heartbeat and "
-    "occasional scraped bowed notes, sparse offbeat two-note answers and "
-    "falling semitone ornaments. Firm attacks, natural decay and deliberate "
-    "rests, restrained distorted sub undertone. 100 BPM suspended 4/4 "
-    "cinematic electronica, tense and melancholic, no pad wash or drums",
-    "Close solo bowed violin, eerie sustained tones, slow expressive slides "
-    "and slight imperfect vibrato, then increasingly urgent bowed tremolo "
-    "and clipped answering motifs, finally a vulnerable long release. "
-    "Suspended F sharp harmonies and dark modal inflections, human phrasing "
-    "above 100 BPM syncopation, no synthetic lead or drums",
-    "Glassy celesta, resonant struck-metal harmonics and isolated harp "
-    "plucks, tiny asynchronous echoes and granular shimmer that gather "
-    "into an insistent repeating ostinato, then fall back to silence. "
-    "Dark suspended F sharp, G major seventh, A sixth colors, fragile "
-    "cinematic electronica at 100 BPM, no drums or piano",
-    "Dark kinetic 100 BPM 4/4 electronic break and house hybrid: grounded "
-    "quarter-note low kick, swung backbeat and displaced snare ghosts, "
-    "grainy syncopated hats, muted low toms and sparse frame-drum inspired "
-    "dum tek accents. Begin restrained, build density and distorted bass "
-    "pressure, dramatic half-time release without changing tempo. "
-    "Organic and ominous, no melody or sampled voices",
+    # Five independent timbral colours, never five full arrangements.
+    # Notes ring while an independent 100 BPM pulse builds in the browser.
+    "Warm, resonant acoustic jazz grand piano. Deep, voiced F sharp "
+    "suspended chords, G major seventh and A sixth extensions with ninths, "
+    "soft rubato and a loping swung four-four feel. Hold each chord for "
+    "several seconds so the woody overtones bloom and overlap; gentle "
+    "uneven accents and long natural decay, spacious dark room ambience, "
+    "no repeated staccato riff, no drums or bright synth",
+    "Deep acoustic cello and upright-bass resonance, lyrical sustained "
+    "arco strokes and warm vibrato, occasional plucked low F sharp to "
+    "answer the piano. Long expressive notes with bowed harmonics, slow "
+    "chromatic jazz passing tones and a pulsing electronic sub beneath "
+    "the decay. Spacious 100 BPM swung four-four; no clipped spiccato, "
+    "no drums and no synthetic lead",
+    "Intimate lyrical jazz violin, singing bowed legato phrases with "
+    "imperfect vibrato, portamento and long held notes floating over "
+    "suspended F sharp and G major seventh harmony. Slowly growing "
+    "tremolo and shimmering granular electronic tail; mournful and "
+    "futuristic, 100 BPM swung pulse underneath, no snare or bright lead",
+    "Sustained glass harmonica, bowed vibraphone and harp harmonics "
+    "with long ringing overtones. Sparse suspended ninths and elevenths, "
+    "soft tape delay and granular digital halo, fragments that bloom "
+    "and dissolve instead of busy sixteenth-note runs. Dark, spectral "
+    "100 BPM ambient electronica, no piano, voice or drum kit",
+    "Organic jazz-electronica drum atmosphere at 100 BPM in four-four, "
+    "soft deep electronic kick with a breathing pulse, loose brushed "
+    "snare and ghost notes behind the beat, shuffling cymbal shimmer, "
+    "sub-bass swells and swelling distorted low percussion. Build "
+    "tension through density and texture, then a dramatic half-time "
+    "breath, not nonstop aggressive club drums, no melody or vocals",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -80,15 +80,15 @@ def render_film_club_page(original: str, token: str) -> str:
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
             "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
         "01 · PYRAMID · intimate piano":
-            "01 · PYRAMID SHADOW · weighted suspended piano",
+            "01 · PYRAMID JAZZ · sustained resonant piano",
         "02 · PYRAMID ORBIT · low cello / harmonium drone":
-            "02 · UNDERCURRENT · acoustic cello and dark sub",
+            "02 · UNDERCURRENT · long bowed cello / bass",
         "03 · PYRAMID · MAGENTA VIOLIN LEAD":
-            "03 · HUMAN INTERRUPTION · trembling bowed violin",
+            "03 · HUMAN INTERRUPTION · legato jazz violin",
         "04 · PYRAMID ORBIT · glass harmonics / harp":
-            "04 · CITY GLASS · granular metallic echoes",
+            "04 · CITY GLASS · ringing vibraphone / harmonics",
         "DRUM SOUND PROMPT · EDITABLE":
-            "05 · MACHINE PRESSURE · 100 BPM dark breakbeat",
+            "05 · PULSE · brushed jazz electronica / sub",
     }
     for old, new in labels.items():
         if old not in page:
@@ -134,6 +134,11 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-audition-grid button[aria-pressed="true"]{background:#b2f0cd;color:#182f2b;border-color:#b2f0cd}
 .film-audition-grid button:disabled{opacity:.6;cursor:progress}
 .film-audition output{display:block;font:700 12px/1.5 ui-monospace,monospace;color:#b6f0d3;padding:7px 0;min-height:20px}
+.film-sustain{display:grid;gap:7px;margin:12px 0;color:#f9e9ec}
+.film-sustain label{font:800 12px ui-monospace,monospace}
+.film-sustain input{width:min(100%,430px);accent-color:#b9edda}
+.film-sustain small{font-size:11px;line-height:1.5;color:#ead9e7}
+
 .film-cue-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .film-cue-actions button{padding:10px 14px;font-size:12px}
 .film-native-sync{border:1px solid #b5f1d6;background:#233c38;border-radius:12px;padding:15px;margin:15px 0;display:grid;gap:8px}
@@ -209,12 +214,20 @@ changes the host or Google's window.</small></section>"""
   FIRST LOOP → DONE → LOOP, native PCM pedals and Gastown film cues remain.</p>
   <section class="film-audition" id="filmAuditionPanel" aria-label="Audition the five actual native MRT2 sound roles">
     <div class="film-tag">WHY ONLY PIANO? THE OTHER PROMPT WEIGHTS DEFAULT TO ZERO</div>
-    <h3>Hear a voice · then record its own loop</h3>
+    <h3>Hear a sustained voice · then record its own loop</h3>
     <p>Google MRT2 is one blended generator, not five audio tracks. Select
-    a sound below, then play your existing Z / X / C chord pads to audition
-    it. Press its regular RECORD TAKE → DONE → LOOP pedal to capture a
+    a sound below to send a sustained audition chord automatically, or
+    hold Z / X / C as long as you like. Press its regular
+    RECORD TAKE → DONE → LOOP pedal to capture a
     real, independently repeating PCM layer. The original loop clock,
     recordings and prompts are not reset by these selectors.</p>
+    <div class="film-sustain">
+      <label for="filmNoteHold">NATIVE CHORD SUSTAIN · <strong id="filmNoteHoldValue">2.4 seconds</strong></label>
+      <input type="range" id="filmNoteHold" min="400" max="4800" step="200" value="2400" aria-label="Minimum native MRT2 chord hold in milliseconds">
+      <small>Film-only sustained audition: even a quick click rings for at least
+      this long, while a physically held key stays active until released.
+      Releasing an old chord never cuts off a new one.</small>
+    </div>
     <div class="film-audition-grid">
       <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
       <button type="button" data-film-audition="cello">02 · HEAR CELLO</button>
