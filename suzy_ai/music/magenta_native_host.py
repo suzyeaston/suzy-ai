@@ -23,6 +23,7 @@ ACTIONS = {
     "stop": frozenset(),
     "status": frozenset(),
     "show-au-ui": frozenset(),
+    "show-au-ui-safe": frozenset(),
     "transport-play": frozenset(),
     "transport-pause": frozenset(),
     "scene": frozenset({"scene"}),
