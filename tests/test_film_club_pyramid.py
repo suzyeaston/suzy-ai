@@ -44,6 +44,39 @@ class FilmClubPyramidTests(unittest.TestCase):
             "Original Futureproof page must never be modified by rendering"
         )
 
+    def test_full_set_recorder_is_prominent_and_reuses_original_capture_controls(self):
+        # Accelerando has a long scene/audition banner. The original
+        # collapsible recorder was hidden far below it, leading users to
+        # believe system-audio capture was missing.
+        self.assertIn('id="filmRecordStudio" open', self.film)
+        self.assertIn('🔴 FILM CLUB RECORDING', self.film)
+        self.assertIn('Entire Screen + Share system audio', self.film)
+        self.assertIn('STOP &amp; SAVE AUDIO', self.film)
+        self.assertIn('Google MRT2', self.film)
+        self.assertIn('Logic Pro', self.film)
+        self.assertNotIn('id="filmRecordStudio"', self.source)
+        for id_ in ('setRecordStart', 'setRecordStop', 'setRecordMic',
+                    'setRecordStatus'):
+            self.assertEqual(self.film.count(f'id="{id_}"'), 1)
+            self.assertEqual(self.source.count(f'id="{id_}"'), 1)
+        self.assertLess(self.film.index('</header>'),
+                        self.film.index('id="filmRecordStudio"'))
+        self.assertLess(self.film.index('id="filmRecordStudio"'),
+                        self.film.index('id="filmClubCues"'))
+        self.assertLess(self.film.index('id="setRecordStop"'),
+                        self.film.index('id="rhythm"'))
+        self.assertIn('async function startSetRecording()', self.film)
+        self.assertIn('function stopSetRecording()', self.film)
+        # The original Futureproof view stays collapsed by default.
+        self.assertIn('<details class="advanced-session"><summary>',
+                      self.source)
+        self.assertIn('▸ ADVANCED · Record the entire performance',
+                      self.source)
+        self.assertNotIn(
+            '<details class="advanced-session"><summary>',
+            self.film
+        )
+
     def test_five_different_prompts_are_only_in_film_view(self):
         self.assertEqual(len(PROMPT_IDS), 5)
         self.assertEqual(len(FILM_PROMPTS), 5)
