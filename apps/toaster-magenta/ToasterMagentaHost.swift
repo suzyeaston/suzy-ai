@@ -104,6 +104,17 @@ final class MRT2Host {
     ]
 
     func report() -> [String: Any] {
+        // Critically, Swift's requested prompt bank is not Google's AU
+        // actual serialized bank. Google may show an older state in its
+        // own WKWebView, especially after selecting a model in its UI.
+        // Read this from the actual instantiated Audio Unit, never from
+        // our local `prompts` variable. It is still NOT proof that the
+        // MusicCoCa embeddings or audible audio have been updated.
+        let auState = generator?.auAudioUnit.fullState
+        let auItems = auState?["MGRT_Prompts"] as? [[String: Any]]
+        let actualAUPrompts = auItems?.prefix(5).compactMap { $0["text"] as? String }
+        let available = actualAUPrompts?.count == 5
+        let sameBank = available && actualAUPrompts == prompts
         return [
             "phase": active ? "host-running" : loading ? "initializing" : "inactive",
             "native_au": generator != nil,
@@ -146,7 +157,13 @@ final class MRT2Host {
             "native_loop_capture_source": "google_reverb_output_tap_pcm_without_browser_or_loop_feedback",
             "native_memory_loop_supported": generator != nil && engine?.isRunning == true,
             "native_memory_loop_count": nativeLoopPlayers.count,
-            "text_prompts": prompts,
+            "text_prompts": prompts, // requested in SUZY host, not guaranteed in Google AU
+            "au_prompt_texts": actualAUPrompts ?? [],
+            "au_prompt_readback_available": available,
+            "au_prompt_bank_matches_host": sameBank,
+            // Google model-picker's load path does not confirm that
+            // saved prompt text has been embedded for generation.
+            "au_prompt_embeddings_verified": false,
             "prompt_slot_count": prompts.count,
             "prompt_weights": (10...14).map { Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: AUParameterAddress($0))?.value ?? 0) },
             "lead_mix": ["pyramid": Double(leadMix["pyramid"] ?? 0),

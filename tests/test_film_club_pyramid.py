@@ -95,6 +95,11 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('APPLY FILM CLUB SOUNDS TO MRT2', self.film)
         self.assertIn('NATIVE PROMPT BANK NOT YET VERIFIED', self.film)
         self.assertIn('shared Magenta generator', self.film)
+        self.assertIn('id="filmManualBridge"', self.film)
+        self.assertIn('id="filmCopyStatus"', self.film)
+        self.assertEqual(self.film.count('data-prompt-copy='), 5)
+        self.assertIn("Google's native Audio Unit window", self.film)
+        self.assertNotIn('id="filmManualBridge"', self.source)
         self.assertNotIn('id="filmSyncNativePrompts"', self.source)
 
     def test_tokens_and_csp_sensitive_local_scripts(self):

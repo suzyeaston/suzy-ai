@@ -92,6 +92,20 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn("currentMRT2", swift)
         self.assertIn("legacyMRT2", swift)
 
+    def test_google_prompt_status_is_derived_from_actual_au_fullstate(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('let auState = generator?.auAudioUnit.fullState', source)
+        self.assertIn('auState?["MGRT_Prompts"]', source)
+        self.assertIn('"au_prompt_texts": actualAUPrompts ?? []', source)
+        self.assertIn('"au_prompt_readback_available": available', source)
+        self.assertIn('"au_prompt_bank_matches_host": sameBank', source)
+        self.assertIn('"au_prompt_embeddings_verified": false', source)
+        self.assertIn('"text_prompts": prompts', source)
+        self.assertLess(source.index('let auState = generator?.auAudioUnit.fullState'),
+                        source.index('return [', source.index('func report() ->')),
+                        "AU state should be read before emitting report")
+        
     def test_native_transport_is_moving_or_google_au_writes_silence(self):
         # Google's MRT2 render block requires UI play OR moving DAW transport.
         # A running AVAudioEngine alone is insufficient to hear the generator.
