@@ -7,7 +7,7 @@ const desired=["film piano","film cello","film violin","film glass","film breakb
 const defaults=()=>Array.from({length:5},(_,i)=>"Futureproof "+i);
 
 function harness({active=defaults(),auActive,confirm=true,applied=true,applyAu=true,
-   phase="host-running",loops=0,legacy=false}={}){
+   phase="host-running",loops=0,legacy=false,startFails=false}={}){
   let calls=0,confirmText="",requests=0,copied="";
   let bank=active.slice(),actual=Array.isArray(auActive)?auActive.slice():active.slice();
   const el=(value="")=>({
@@ -47,10 +47,15 @@ function harness({active=defaults(),auActive,confirm=true,applied=true,applyAu=t
       });
       return {ok:true,json:async()=>state};
     },
-    applyPrompts:async()=>{
+    aiFetch:async(action,data={})=>{
+      if(action==="stop")return {phase:"inactive"};
+      if(action!=="start")throw Error("Unexpected native operation "+action);
       calls++;
-      if(applied){bank=names.map(id=>dom.get(id).value.trim());if(applyAu)actual=bank.slice();}
+      if(startFails)throw Error("MRT2 model could not initialize");
+      if(applied){bank=data.prompts.slice();if(applyAu)actual=bank.slice();}
+      return {phase, audio_engine_running:phase==="host-running"};
     },
+    aiDisplay:()=>{},syncAIMix:async()=>{},
     setDrumGroove(){},stageStarted:false
   };
   vm.runInNewContext(source,sandbox,{filename:"film-club.js"});
@@ -119,4 +124,17 @@ test("editing visible prompt invalidates apparent match until applied again",asy
  assert.match(h.dom.get("filmNativePromptStatus").textContent,/FILM SOUND TEXT EDITED/);
  assert.match(h.dom.get("filmPromptStatus").textContent,/GOOGLE AU SOUND BANK NOT CONFIRMED/);
  await h.click();assert.equal(h.calls,1);assert.equal(h.bank[0],"completely different film piano");
+});
+
+test("native apply errors are shown instead of swallowed as success",async()=>{
+ const h=harness({startFails:true});await h.settle();await h.click();
+ assert.equal(h.calls,1);
+ assert.match(h.dom.get("filmNativePromptStatus").textContent,/PROMPT SYNC FAILED/);
+ assert.match(h.dom.get("filmNativePromptStatus").textContent,/could not initialize/);
+ assert.deepEqual(h.bank,defaults(),"failed native apply does not change host bank");
+});
+test("starting Google host is not mislabelled as an old sound bank",async()=>{
+ const h=harness({phase:"initializing"});await h.settle();
+ assert.match(h.dom.get("filmNativePromptStatus").textContent,/HOST IS STARTING/);
+ assert.doesNotMatch(h.dom.get("filmNativePromptStatus").textContent,/OLDER PROMPTS/);
 });
