@@ -608,7 +608,9 @@ test("driving electronic and hand-drum inspired styles add real offbeat hits wit
 });
 
 test("house intensity adds true subdivisions without speeding the unchanged 4/4 clock",async()=>{
- const {run,get}=rig();await run("startStop()");
+ const {run,get}=rig();
+ run("changeTempo(100)"); // Film Club sets tempo before the first take
+ await run("startStop()");
  run('setDrumGroove("4/4","house")');
  const bpm=run("bpm"),meter=get("drumMeter").value,step=run("stepNumber");
  const counts=run(`(()=>{
