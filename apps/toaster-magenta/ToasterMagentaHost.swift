@@ -1000,7 +1000,16 @@ final class MRT2Host {
             guard let nextNotes = chords[harmony] else {
                 return ["error": "harmony must be pyramid or fishes"]
             }
-            let next = nextNotes[i]
+            // Optional Film Club low-cello voicing. The *same* suspended
+            // chord is played an octave below piano, giving the cello and
+            // harmonium prompt a genuine bass-register MIDI foundation.
+            // Normal Futureproof piano, violin and drum chords stay put.
+            let octave = request["octave"] as? Int ?? 0
+            guard (octave == 0 || octave == -12),
+                  !request.keys.contains("octave") || request["octave"] is Int else {
+                return ["error":"chord octave must be 0 or -12 semitones"]
+            }
+            let next = nextNotes[i].map { UInt8(Int($0) + octave) }
             if request["legato"] as? Bool == true {
                 // Loop playback: retain common tones instead of sending
                 // note-off/on pairs at every chord transition. A chord held
