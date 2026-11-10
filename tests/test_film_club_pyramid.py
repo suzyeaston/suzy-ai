@@ -115,7 +115,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("100 BPM", piano)
         self.assertIn("cello", cello)
         self.assertIn("harmonium", cello)
-        self.assertIn("low-register", cello)
+        self.assertIn("warm E2 and A2", cello)
         self.assertIn("3+3+2", drums)
         self.assertIn("100 BPM", drums)
         self.assertIn("half-time", drums)
