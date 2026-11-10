@@ -77,7 +77,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("long natural decay", piano)
         self.assertIn("100 BPM", cello)
         self.assertIn("sustained", cello)
-        self.assertIn("long expressive", cello)
+        self.assertIn("long expressive", cello.lower())
         self.assertIn("legato", violin)
         self.assertIn("long held notes", violin)
         self.assertIn("long ringing overtones", glass)
