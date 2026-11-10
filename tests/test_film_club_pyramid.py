@@ -171,7 +171,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('NO RESTART', self.film)
         self.assertNotIn('↻ APPLY FILM CLUB SOUNDS TO MRT2', self.film)
         self.assertIn('CHECKING NATIVE HOST', self.film)
-        self.assertIn('shared Magenta generator', self.film)
+        self.assertIn('never stopped by this control', self.film)
         self.assertIn('id="filmManualBridge"', self.film)
         self.assertIn('id="filmCopyStatus"', self.film)
         self.assertEqual(self.film.count('data-prompt-copy='), 5)
