@@ -549,6 +549,29 @@ test("rhythm styles and 3/4, 6/8, 5/4 retain distinct accent groupings",async()=
  // Changing percussion meter does NOT lie about the 4/4 recorded clip grid.
  assert.equal(run("songCycleSteps('pyramid')"),16);
 });
+test("100 BPM house preset is four-on-the-floor with backbeat clap and offbeat hats",async()=>{
+ const {run,get}=rig();
+ // This is an opt-in style on the original instrument, not a change to
+ // the existing Futureproof soft-pulse defaults or 105 BPM initial clock.
+ assert.equal(get("drumStyle").value,"pulse");
+ assert.equal(run("bpm"),105);
+ run('setDrumGroove("4/4","house")');
+ run('changeTempo(100)');
+ get("tempo").value="100";
+ assert.equal(run("bpm"),100);
+ assert.equal(get("drumMeter").value,"4/4");
+ assert.equal(get("drumStyle").value,"house");
+ for(let step=0;step<16;step++){
+  const event=run("drumPattern("+step+")");
+  assert.equal(event.kick,step%2===0,"kick must strike every quarter-note");
+  assert.equal(event.snare,step%8===2||step%8===6,"snare must hit beats two and four");
+  assert.equal(event.hat,step%2===1,"hats must land on every offbeat");
+ }
+ assert.equal(run("rhythmBarSteps()"),8);
+ assert.equal(run("drumLoopSteps()"),16);
+ assert.equal(run("tickSeconds()"),.3,"100 BPM means 300 ms per eighth");
+});
+
 test("driving electronic and hand-drum inspired styles add real offbeat hits without shifting the rhythm grid",async()=>{
  const {run,get}=rig();await run("startStop()");
  const bpm=run("bpm"),meter=get("drumMeter").value,clock=run("stepNumber");

@@ -430,6 +430,7 @@ body{padding-top:86px}
   <option value="trip">Downtempo trip-hop</option><option value="broken">Broken / experimental</option>
   <option value="drive">Propulsive electronica / breaks</option>
   <option value="frame">Frame-drum electro / syncopated</option>
+  <option value="house">Electro house · four-on-the-floor</option>
  </select>
  <small id="drumStatus" class="subtle">4/4 · Soft pulse · independent drum accents. Recorded clips still use the 4/4 song grid.</small>
  <div class="drum-sequencer">
@@ -931,7 +932,8 @@ let activeMicDeviceId=null,micMeterSource=null,micMeterAnalyser=null,micMeterTim
 let drumMeter="4/4",drumStyle="pulse",customDrumHits=null,drumVariationNumber=0,drumEnergy=.62;
 const DRUM_STEPS=Object.freeze({"3/4":6,"4/4":8,"5/4":10,"6/8":6});
 const DRUM_STYLES=Object.freeze({pulse:"Soft pulse",brush:"Brushed / ghost",trip:"Downtempo trip-hop",broken:"Broken / experimental",
- drive:"Propulsive electronica / breaks",frame:"Frame-drum electro / syncopated"});
+ drive:"Propulsive electronica / breaks",frame:"Frame-drum electro / syncopated",
+ house:"Electro house · four-on-the-floor"});
 let parkedBar=0,seekRevision=0;
 const heldKeys=new Map();
 const heldNotes=new Map();
@@ -1217,6 +1219,20 @@ function drumPattern(count){
  }else if(drumStyle==="trip"){
   kick=down||beat===(len>=8?len-3:len-2);
   snare=secondary&&!kick;hat=beat%2===1&&!kick&&!snare;
+ }else if(drumStyle==="house"){
+  // Strict 4/4 house pulse: every quarter-note kick (eighths 0/2/4/6),
+  // claps at beats 2+4 (eighths 2/6), offbeat hats (1/3/5/7).
+  // For the other metres this style is unavailable via the Film Club preset;
+  // use the existing meter's downbeat and secondary pattern instead.
+  if(drumMeter==="4/4"){
+   kick=beat%2===0;
+   snare=beat===2||beat===6;
+   hat=beat%2===1;
+  }else{
+   kick=down||secondary;
+   snare=secondary;
+   hat=beat%2===1;
+  }
  }else if(drumStyle==="drive"){
   // Offbeat kicks, two backbeat snare hits and moving hats. The rhythm
   // scheduler still advances one eighth-note per step at the same BPM.
@@ -1344,8 +1360,9 @@ function toggleRhythmAudio(){
 function pulse(time,count){
  if(!rhythmCanSound())return; // MIDI/recording clock runs even with browser drums silent.
  const {kick,snare,hat,down,secondary}=drumPattern(count);
- const kinetic=drumStyle==="drive"||drumStyle==="frame";
- const amount=(drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:kinetic?.76:.69)*
+ const kinetic=drumStyle==="drive"||drumStyle==="frame"||drumStyle==="house";
+ const amount=(drumStyle==="brush"?.46:drumStyle==="broken"?.72:drumStyle==="trip"?.92:
+    drumStyle==="house"?.94:kinetic?.76:.69)*
     (kinetic?.55+.65*drumEnergy:1);
  // Three independent hits allow a custom MIDI groove to layer kick/snare/hat.
  for(const [lane,on] of [["kick",kick],["snare",snare],["hat",hat]]){
@@ -1369,13 +1386,14 @@ function pulse(time,count){
  // chord loop timing, native Magenta generation, or editable MIDI grid.
  // They are synthesized browser percussion, not claimed traditional samples.
  if(kinetic&&!customDrumHits&&drumEnergy>.05){
-  const steps=drumStyle==="frame"?[.33,.66]:[.50];
+  const steps=drumStyle==="frame"?[.33,.66]:
+    drumStyle==="house"?[.50]:[.50];
   for(const fraction of steps){
    const at=time+tickSeconds()*fraction;
    const o=ctx.createOscillator(),g=ctx.createGain();
    o.type="triangle";o.frequency.setValueAtTime(drumStyle==="frame"?1180:920,at);
    o.frequency.exponentialRampToValueAtTime(420,at+.038);
-   const weight=(drumStyle==="frame"?.024:.035)*drumEnergy*(down?.65:1);
+   const weight=(drumStyle==="frame"?.024:drumStyle==="house"?.028:.035)*drumEnergy*(down?.65:1);
    g.gain.setValueAtTime(.0001,at);
    g.gain.exponentialRampToValueAtTime(Math.max(.001,weight),at+.003);
    g.gain.exponentialRampToValueAtTime(.0001,at+.042);
