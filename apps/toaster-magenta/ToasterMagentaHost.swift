@@ -892,7 +892,7 @@ final class MRT2Host {
         case "show-au-ui": showGoogleAUInterface()
         case "show-au-ui-safe":
             // Film Club may open an EXISTING Google prompt editor but must
-            // never switch AU model-loading modes or call stop()/start().
+            // never switch AU model-loading modes or recreate the generator.
             // In bookmark mode, the old show-au-ui action would destroy
             // the live generator. Fail closed rather than lose the music.
             guard selectModelInGoogleUI, active, !loading else {
