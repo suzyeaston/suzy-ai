@@ -1,6 +1,7 @@
 /* Film Club native AU sound auditor / performer controls.
  * Keeps the original TOASTER live-looper, prompts, beat clock and existing
  * native PCM clips untouched. There is ONE MRT2 AU, not five audio stems.
+ * HEAR controls send an explicit, sustained audition chord on user click.
  */
 (() => {
   "use strict";
@@ -17,6 +18,38 @@
     drums:  {which:"drums",role:"drums",index:4}
   });
   let busy = false;
+  const sustainInput=document.getElementById("filmNoteHold");
+  const sustainValue=document.getElementById("filmNoteHoldValue");
+  function sustainSeconds(){
+    const ms=Number(sustainInput?.value||2400);
+    return Math.max(.4,Math.min(4.8,Math.round(ms/200)*.2));
+  }
+  function showSustain(){
+    if(sustainValue)sustainValue.textContent=sustainSeconds().toFixed(1)+" seconds";
+  }
+  async function setNativeSustain(){
+    if(typeof aiFetch!=="function")throw Error("Native sustained-note controls unavailable");
+    const result=await aiFetch("chord-hold",{seconds:sustainSeconds()});
+    const applied=Number(result?.chord_min_hold_ms);
+    if(!Number.isFinite(applied) ||
+       Math.abs(applied-sustainSeconds()*1000)>20)
+      throw Error("MRT2 did not confirm the requested note hold");
+    return applied;
+  }
+  showSustain();
+  sustainInput?.addEventListener("input",showSustain);
+  sustainInput?.addEventListener("change",async()=>{
+    if(busy||!canSwitch())return;
+    setBusy(true);
+    try{
+      const applied=await setNativeSustain();
+      status.textContent="NATIVE CHORD SUSTAIN SET TO "+(applied/1000).toFixed(1)+
+        "s · HOLD KEYS FOR LONGER NOTES · RECORDED LOOPS UNCHANGED";
+    }catch(e){
+      status.textContent="NATIVE SUSTAIN NOT APPLIED · "+(e?.message||e);
+    }finally{setBusy(false);}
+  });
+
 
   function label(weights){
     if(!Array.isArray(weights)||weights.length!==5)
@@ -99,8 +132,31 @@
       status.textContent="SELECTING "+name.toUpperCase()+" IN THE SHARED MRT2 GENERATOR…";
       try{
         await selectNativeLane(slot.which,slot.role);
+        // An instrument button must produce a REAL chord audition, not just
+        // turn up an otherwise silent model weight. Short clicks now ring
+        // for the performer's chosen minimum hold in the native Swift host.
+        // Google's single generator still requires a loaded model/output.
+        const before=await readState();
+        if(before.muted===true){
+          await aiFetch("mute",{value:false});
+          if(typeof aiMuted!=="undefined")aiMuted=false;
+          const mute=document.getElementById("aiMute");
+          if(mute){
+            mute.setAttribute("aria-pressed","false");
+            mute.textContent="🔇 MUTE AI";
+          }
+        }
+        if(before.transport_playing===false){
+          await aiFetch("transport-play");
+        }
+        await setNativeSustain();
+        await aiFetch("chord",{index:0,harmony:"pyramid",legato:true});
+        await aiFetch("release");
         const ok=await display(slot.index,false);
         mark(ok?name:"");
+        if(ok)status.textContent="AUDITION CHORD SENT · "+name.toUpperCase()+
+          " · MINIMUM HOLD "+sustainSeconds().toFixed(1)+"s · "+
+          "HOLD Z/X/C FOR LONG LEGATO NOTES · "+label((await readState()).prompt_weights);
       }catch(e){
         mark("");
         status.textContent="FAILED TO SELECT "+name.toUpperCase()+" · "+(e?.message||e);
@@ -158,8 +214,14 @@
         allow.textContent="🥁 AI DRUM AUDIO ALLOWED";
       }
       // Existing syncAIMix may run again later; keep its controls truthful.
+      await setNativeSustain();
+      await aiFetch("chord",{index:0,harmony:"pyramid",legato:true});
+      await aiFetch("release");
       const ok=await display(null,true);
       mark(ok?"ensemble":"");
+      if(ok)status.textContent="FIVE PROMPTS WEIGHTED IN ONE GENERATOR · "+
+        "SUSTAINED AUDITION CHORD SENT · "+sustainSeconds().toFixed(1)+
+        "s MINIMUM · RECORD SEPARATE TAKES FOR REAL INSTRUMENT LAYERS";
     }catch(e){
       mark("");
       status.textContent="NATIVE ENSEMBLE BLEND FAILED · "+(e?.message||e);
