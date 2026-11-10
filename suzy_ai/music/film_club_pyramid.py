@@ -184,6 +184,10 @@ def render_film_club_page(original: str, token: str) -> str:
   font:750 11px ui-monospace,monospace}
 .film-control-bar input[type=range]{width:110px;accent-color:#b9efda}
 .film-control-bar output{font:800 11px ui-monospace,monospace;color:#d0f5df}
+.film-patch-strip{display:flex;gap:5px;flex-wrap:wrap;flex-basis:100%;align-items:center}
+.film-patch-strip button{font:800 10px ui-monospace,monospace;padding:6px 9px;
+  border:1px solid #a6c9d1;border-radius:7px;background:#303547;color:#d6f5f0}
+.film-patch-strip button[aria-pressed=true]{background:#b7f2d8;color:#202e2f}
 .film-record-small{border:1px solid #786477;border-radius:10px;
   background:#25212d;padding:10px 12px;margin:8px 0 14px}
 .film-record-small>summary{font-size:12px;color:#e9d5df;font-weight:800}
@@ -278,6 +282,13 @@ A matching saved prompt bank does not prove audible model embedding.</small></se
   <strong>ACCELERANDO · Em → E7 → Am → E · 100 BPM</strong>
   <button type="button" id="filmSynthKeys" aria-pressed="true">✦ NEON SYNTH PIANO · ON</button>
   <output id="filmSynthKeysStatus" role="status">LOCAL FM SYNTH · PLAYS WITHOUT GOOGLE PROMPT RESTART</output>
+  <div class="film-patch-strip" role="group" aria-label="Five playable electronic local sound presets">
+    <button type="button" data-film-local-patch="keys" aria-pressed="true">01 · FM KEYS</button>
+    <button type="button" data-film-local-patch="bass" aria-pressed="false">02 · RUBBER SUB</button>
+    <button type="button" data-film-local-patch="pad" aria-pressed="false">03 · SUPERSAW PAD</button>
+    <button type="button" data-film-local-patch="pluck" aria-pressed="false">04 · PIXEL GLASS</button>
+    <button type="button" data-film-local-patch="violin" aria-pressed="false">05 · SAW LEAD</button>
+  </div>
   <label for="filmGrooveEnergy">PULSE
     <input id="filmGrooveEnergy" type="range" min="0" max="100" value="58" aria-label="Main electro pulse density">
     <output id="filmGrooveReadout" for="filmGrooveEnergy">58%</output>
