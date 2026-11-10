@@ -11,7 +11,17 @@ function harness({stageStarted=false}={}){
   const button={disabled:false,attrs:{},textContent:"",handlers:{},
     setAttribute(k,v){this.attrs[k]=v},addEventListener(k,fn){this.handlers[k]=fn}};
   const status={textContent:""};
-  const document={getElementById:id=>({filmSynthKeys:button,filmSynthKeysStatus:status})[id]};
+  const patchButtons=["keys","bass","pad","pluck","violin"].map(value=>({
+    dataset:{filmLocalPatch:value},attrs:{},handlers:{},
+    setAttribute(k,v){this.attrs[k]=v},
+    addEventListener(k,fn){this.handlers[k]=fn}
+  }));
+  const instrumentSelect={value:"keys"};
+  const document={
+    getElementById:id=>({filmSynthKeys:button,filmSynthKeysStatus:status,
+      "instrument-pyramid":instrumentSelect})[id],
+    querySelectorAll:s=>s==="[data-film-local-patch]"?patchButtons:[]
+  };
   const makeOsc=()=>({frequency:{value:440,setValueAtTime(){}},detune:{value:0},
     connect(){},start(){},stop(){stopCount++}});
   const ctx={currentTime:10,createOscillator:makeOsc,
@@ -23,6 +33,7 @@ function harness({stageStarted=false}={}){
     SCENES:{pyramid:{notes:[[52,55,59,64],[52,56,59,62]]}},
     openAudio:async()=>{audioStarts++},
     setInstrumentSource:(which,source)=>{decks[which].instrumentSource=source;sourceChanges.push(source)},
+    setInstrument:(which,instrument)=>{decks[which].instrument=instrument},
     localInstrumentAudible:which=>decks[which].instrumentSource==="local",
     makeVoice:(...args)=>{
       extraNotes.push(args);
@@ -32,7 +43,7 @@ function harness({stageStarted=false}={}){
     synth:(...args)=>{originalNotes.push(args)}
   };
   vm.runInNewContext(file,sandbox,{filename:"neon-synth.js"});
-  return {sandbox,button,status,decks,presets,sourceChanges,
+  return {sandbox,button,status,decks,presets,sourceChanges,patchButtons,instrumentSelect,
     get audioStarts(){return audioStarts},
     get originalNotes(){return originalNotes},
     get extraNotes(){return extraNotes},
@@ -82,4 +93,19 @@ test("starting mid-session does not silently change the currently selected sourc
  assert.deepEqual(h.sourceChanges,[]);
  assert.equal(h.decks.pyramid.instrumentSource,"ai");
  assert.equal(h.button.attrs["aria-pressed"],"false");
+});
+
+test("five quick sound bank buttons actually change the local synthesizer patch",async()=>{
+ const h=harness();
+ assert.equal(h.patchButtons.length,5);
+ assert.equal(h.patchButtons[0].attrs["aria-pressed"],"true");
+ await h.patchButtons[1].handlers.click();
+ assert.equal(h.decks.pyramid.instrument,"bass");
+ assert.equal(h.decks.pyramid.instrumentSource,"local");
+ assert.equal(h.instrumentSelect.value,"bass");
+ assert.equal(h.patchButtons[1].attrs["aria-pressed"],"true");
+ assert.match(h.status.textContent,/RUBBER ANALOG SUB/);
+ await h.patchButtons[3].handlers.click();
+ assert.equal(h.decks.pyramid.instrument,"pluck");
+ assert.match(h.status.textContent,/PIXEL GLASS PLUCK/);
 });
