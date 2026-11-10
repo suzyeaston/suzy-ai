@@ -42,6 +42,7 @@ class FilmClubStageTests(unittest.TestCase):
             ("/film-club/soft-reset/?utm_source=chatgpt.com", "text/html", b"FILM CLUB"),
             ("/film-club/soft-reset/film-club.js", "text/javascript", b"filmExportCues"),
             ("/film-club/soft-reset/audition.js", "text/javascript", b"filmAuditionStatus"),
+            ("/film-club/soft-reset/neon-synth.js", "text/javascript", b"suzyFilmClubSynthPiano"),
             ("/film-club/soft-reset/score.js", "text/javascript", b"buildScore"),
             ("/film-club/soft-reset/audio.js", "text/javascript", b"schedulePrint"),
             ("/film-club/soft-reset/app.js", "text/javascript", b"humanTakes"),
