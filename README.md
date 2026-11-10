@@ -8,6 +8,11 @@ The artistic direction is informed by 1990s hip-hop and R&B, Vancouver's own mus
 
 > The technology serves the music. The musician decides what enters the mix.
 
+**Film Club v0.4:** The Film-specific default is now **100 BPM,
+4/4 electro house**, with four-on-the-floor local kicks, 2-and-4 backbeat,
+offbeat hats and more strongly articulated piano/cello Magenta prompts.
+The original Futureproof clock/presets remain unchanged.
+
 **Film Club v0.3:** Two driving electronica/hand-drum-inspired local
 grooves, an energy fader and five more rhythmic Magenta prompts have been
 added to the continuing Pyramid composition. Native violin, cello, glass
