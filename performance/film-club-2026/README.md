@@ -47,9 +47,11 @@ The Film Club PULSE fader now begins at **58%** and SHADOW BEAT at **62%**
 for a livelier opening groove. They control real local percussion; the
 instrument changes are *MRT2 prompts*, not a claim that the native generator
 creates five independent synchronized stems or a guaranteed exact timbre.
-To hear them, explicitly apply the new Film Club sound prompts and check
-the Google AU window. **Export existing native loop takes before applying**,
-because the shared native host may restart. For independent editable layers
+To hear them, use **UPDATE FILM CLUB SOUNDS SAFELY**. If Google MRT2
+is already running, use **COPY 01–05** to edit its own prompt rows without
+restarting or losing live audio. If the native host is idle, this can
+start it with the new bank; Google may still require selecting `mrt2_small`.
+No status message proves the model is audibly using the intended timbre. For independent editable layers
 record short piano, cello and violin/glass PCM takes using the original
 pedals, then arrange in Logic Pro. Short Z/X/C/V chord pickups against the
 longer low cello foundation are a useful way to make it dance without
@@ -436,61 +438,77 @@ See `examples/mrt2/auv3/MagentaRT_AudioUnit.mm` in
 `magenta/magenta-realtime`. We cannot safely patch Google's installed
 extension or claim to have remotely edited its proprietary runtime.
 
-### Reliable path with the official Google window
+### Non-destructive Google MRT2 prompt workflow (Film Club)
 
-1. Export any important native in-memory audio loops first.
-2. Open Film Club and, if necessary, use **APPLY FILM CLUB SOUNDS TO MRT2**
-   to request the saved bank, confirming the native restart.
-3. Look at the new status: a host match is not a Google AU match.
-   If the Swift binary is old, run `bash scripts/build-toaster-magenta.sh`
-   from the repo checkout and relaunch the stage.
-4. Open the native Google model window. If its five prompt rows still display
-   old strings, use **COPY 01 / 02 / 03 / 04 / 05** in the new
-   **When Google's window still shows the old sounds** panel.
-   For each matching Google prompt row, select the old text and paste
-   the copied Film Club text (Cmd+V), confirming the edit inside Google.
-5. Listen after each prompt switch. This uses Google's own supported UI
-   event path, which calls its running engine's `set_text_prompts`.
-   The Google popup is the source of truth for prompt edits; the
-   in-app status cannot attest to auditory correctness.
+This fixes a real failure: the old green `APPLY FILM CLUB SOUNDS TO MRT2`
+button stopped a **playing** Audio Unit, closed its selected Google
+model window, then attempted to restart it. In the Google-UI model mode
+that new instance may not have a selected model, so the AI went silent.
+The new Film-only control **never sends `stop` to the native host**.
 
-Copying text never restarts or changes anything automatically, so you can
-work through these rows deliberately and avoid needlessly wiping loops.
+1. **When MRT2 is already playing:** click **UPDATE FILM CLUB SOUNDS
+   SAFELY**. It reveals the five **COPY 01–05** buttons and leaves
+   Google playing, including its current native memory loops.
+2. Copy prompt 01, paste it into Google's **existing** first prompt row,
+   then press Enter to confirm. Repeat for 02 cello, 03 violin,
+   04 glass and 05 drums. These are real text edits inside Google's own
+   running Audio Unit, not edits to the memory banks or browser-only labels.
+3. The new **OPEN CURRENT GOOGLE PROMPT WINDOW · NO RESTART** action can
+   bring forward an existing Google model-picker window. If the AU is in
+   bookmark mode or has not finished loading, this action **refuses to
+   switch modes**, precisely because doing so could destroy running audio.
+   If the Google popup is already open, you can simply use it directly.
+4. If native MRT2 is **idle**, the same Update button may issue one
+   `start` request with all five Film Club strings. It never stops an
+   active model, calls a second start during initialization, or retries
+   blindly when the status endpoint is unavailable. Selecting
+   `mrt2_small` in Google's own window may still be needed.
+5. Audition the actual sound. A match in Google's serialized
+   `MGRT_Prompts` is useful evidence of saved text, but not proof its
+   MusicCoCa embeddings or audio output were updated.
 
-## Why the Google MRT2 popup still showed the original prompts
+Film Club also captures the old expanded TOASTER **APPLY PROMPTS** /
+**APPLY DRUM PROMPT** buttons and routes them through this same safe
+flow, rather than letting the shared legacy stop/start handler run. The
+original `/toaster/live` Futureproof workflow is unchanged.
 
-The Film Club HTML rendered five new text boxes, but Google's separate
-**native AU popup** still showed the original Futureproof sound bank.
-Changing the page or refreshing Chrome does **not** automatically reconfigure
-a running Audio Unit. The stage starts its native model with the normal
-default bank, and we intentionally do not overwrite it just by navigating.
+The browser **cannot automatically type into Google's separate AUv3
+window**. Google owns that editor, so a true in-place prompt update
+currently requires the official UI. This PR makes that path accessible
+without destroying a working model, and distinguishes AU saved text from
+the Swift host's desired text. If Google now matches the five Film prompts
+while the Swift host still reports Futureproof strings, the status reports
+the AU match instead of misleadingly calling the prompts old.
 
-The Film Club view now has a prominent **APPLY FILM CLUB SOUNDS TO MRT2**
-button next to the prompt editor. Above that button the app reads
-`/api/ai/status` (without modifying the model) and compares all **five
-actual native-host `text_prompts` values** with the five visible Film Club
-textarea values. It shows an explicit mismatch instead of merely claiming
-the page has loaded a new sound.
+### Troubleshooting a silent or stale model
 
-When you click APPLY:
-1. Export native in-memory audio takes you want to keep, then confirm the
-   restart. The app reports the active native loop count if available.
-2. The existing TOASTER action stops the shared native generator, configures
-   five Film Club text prompts, then starts the **same** Audio Unit.
-3. The Film Club panel reads back the host's text bank and reports either
-   **host verified**, **still starting**, or **NOT VERIFIED**. It never
-   claims the new sound is proven audible merely from a status response.
-4. If the Google AU popup is still showing a stale page after the host
-   reports the new text, **close and reopen that native window** and
-   select the local `mrt2_small` model again if it asks. This interface
-   belongs to Google, not the browser.
+Check that Google actually has `mrt2_small` loaded and its transport is
+playing; choose a live MIDI note in the AU window. If the editor shows
+the old text, use COPY 01–05 in the current window without closing the
+AU. If the native host says it is initializing, allow initialization to
+finish; don't start a second generator. If **OPEN CURRENT GOOGLE PROMPT
+WINDOW** refuses to open, this means the current host is not safely in
+Google's UI mode, not that the new prompts were installed. To deliberately
+change loading modes, export native takes first and use the original
+model-selector controls separately from this safe prompt workflow.
 
-The underlying `/toaster/live` source continues to display the
-Futureproof text presets. Both pages control the **same running Audio
-Unit**, so the actual active prompt bank can be either version depending
-on which one was most recently applied. To switch back, visit
-`/toaster/live` and apply its prompts deliberately. Never rely on a
-browser refresh to restore the native host.
+This is not a claim that the underlying installed Google plugin has
+been modified. The safe editor action requires rebuilding the Swift
+companion when testing the PR on Mac:
+
+```bash
+cd ~/Projects/suzy-ai
+git fetch origin
+git switch fix/film-club-nondestructive-google-mrt2-prompts
+git pull --ff-only
+bash scripts/build-toaster-magenta.sh
+.venv-mac/bin/python -m suzy_ai.music.magenta_stage
+```
+
+The live page remains `http://127.0.0.1:7345/film-club/soft-reset/`.
+Stop the old stage with Ctrl+C before launching the new code. Unlike
+pressing the old Apply button, browsing to this view doesn't reconfigure
+the native model.
 
 ## Five Film Club prompts
 
@@ -508,13 +526,11 @@ prompts. The original Python prompt constants and audio host code remain
 untouched.
 
 **Important limitation:** both pages control the **same** native
-Magenta Audio Unit when connected to the same stage. Editing Film Club
-prompts in the browser does nothing to the model until you deliberately
-press **APPLY PROMPTS** (or start a stopped host from the film page).
-That restart can silence/clear unsaved **native memory loops**. The Film
-Club page asks for confirmation before APPLY. It cannot promise concurrent
-independent model configurations. To return to the Futureproof sound, open
-`/toaster/live` and reapply its original prompts, once your takes are safe.
+Magenta Audio Unit. Browser prompt text does not automatically change a
+playing Google model. Film Club now uses safe in-place edits in Google's
+own prompt editor when audio is running; Futureproof retains its original
+prompt workflow. No independent model or silent automatic hot-swap is
+claimed. Export takes before any deliberately chosen model restart.
 
 ## Gastown film edit guide (not a second clock)
 
