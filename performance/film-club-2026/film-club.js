@@ -73,11 +73,54 @@
       state.text_prompts.length === bank.length &&
       state.text_prompts.every((value,index)=>value===bank[index]);
   }
-  function reportNative(message,verified=false) {
+  function matchesAU(state, bank=textBank()) {
+    return state?.au_prompt_readback_available===true &&
+      Array.isArray(state.au_prompt_texts) &&
+      state.au_prompt_texts.length===bank.length &&
+      state.au_prompt_texts.every((value,index)=>value===bank[index]);
+  }
+  function reportNative(message, serialized=false) {
     if(nativeState)nativeState.textContent=message;
-    if(status)status.textContent=verified?
-      "HOST REPORTS FILM PROMPTS · GOOGLE UI STILL NEEDS VISUAL CHECK":
-      "FILM TEXT READY · NATIVE HOST NOT VERIFIED";
+    if(status)status.textContent=serialized?
+      "AU SAVED TEXT MATCHES · ACTUAL GOOGLE SOUND/POPUP UNVERIFIED":
+      "FILM TEXT READY · GOOGLE AU SOUND BANK NOT CONFIRMED";
+  }
+  function explainState(state, bank=textBank()) {
+    if(!matchesHost(state,bank))
+      return "HOST STILL HAS OLDER PROMPTS · APPLY FILM CLUB SOUNDS OR COPY INTO GOOGLE.";
+    // The Swift subprocess has its own desired strings. We only regard the
+    // AU's fullState MGRT_Prompts readback as evidence of serialized state.
+    // Even matching AU fullState cannot prove the actual model was embedded:
+    // Google's UI-model load path skips reapplying cached text embeddings.
+    if(!Object.prototype.hasOwnProperty.call(state,"au_prompt_readback_available"))
+      return "OLD SWIFT HOST BINARY · REBUILD NATIVE HOST, THEN RESTART STAGE. GOOGLE UI UNVERIFIED.";
+    if(state.au_prompt_readback_available!==true)
+      return "SUZY HOST HAS FILM TEXT BUT GOOGLE AU READBACK IS UNAVAILABLE · USE COPY BUTTONS.";
+    if(!matchesAU(state,bank))
+      return "SUZY HOST HAS FILM TEXT BUT GOOGLE AU STILL REPORTS OLD TEXT · USE COPY BUTTONS.";
+    return "AU SERIALIZED PROMPTS MATCH. THIS DOES NOT PROVE GOOGLE'S MODEL OR UI UPDATED. IF YOU SEE OLD TEXT, COPY THE FIVE PROMPTS INTO GOOGLE'S WINDOW.";
+  }
+  // Manual bridge edits Google's own prompt rows. No app-to-AU automation
+  // is claimed, and nothing is transmitted or restarted when copying text.
+  const copyState=document.getElementById("filmCopyStatus");
+  for(const button of document.querySelectorAll("[data-prompt-copy]")){
+    button.addEventListener("click",async()=>{
+      const id=button.dataset.promptCopy;
+      if(!promptIds.includes(id))return;
+      const field=document.getElementById(id);
+      const value=field?.value.trim();
+      if(!value){if(copyState)copyState.textContent="PROMPT IS EMPTY";return;}
+      try{
+        if(!navigator.clipboard?.writeText)throw Error("Clipboard API unavailable");
+        await navigator.clipboard.writeText(value);
+        if(copyState)copyState.textContent=button.textContent.trim()+
+          " COPIED · PASTE INTO MATCHING ROW IN GOOGLE MRT2 (CMD+V)";
+      }catch{
+        field?.focus();
+        field?.select();
+        if(copyState)copyState.textContent="SELECTED PROMPT TEXT · PRESS CMD+C, THEN PASTE INTO GOOGLE.";
+      }
+    });
   }
   async function getNativeState() {
     const response=await fetch("/api/ai/status",{cache:"no-store"});
@@ -89,17 +132,7 @@
     try{
       const state=await getNativeState();
       lastState=state;
-      if(matchesHost(state)) {
-        if(state.phase==="host-running" && state.audio_engine_running===true){
-          reportNative("✓ NATIVE HOST REPORTS ALL FIVE FILM PROMPTS. CLOSE/REOPEN GOOGLE AU WINDOW IF IT STILL SHOWS OLD TEXT.",true);
-        }else{
-          reportNative("FILM PROMPTS CONFIGURED IN HOST · model still starting. Verify Google window after loading.",false);
-        }
-      }else if(Array.isArray(state.text_prompts)) {
-        reportNative("OLD OR EDITED SOUND BANK ACTIVE IN MRT2 · CLICK APPLY FILM CLUB SOUNDS TO MRT2.",false);
-      }else{
-        reportNative("NATIVE HOST NOT READY · NO PROMPT READBACK YET. APPLY WHEN READY.",false);
-      }
+      reportNative(explainState(state),matchesAU(state));
     }catch(err){
       reportNative("CANNOT VERIFY MRT2 BANK · "+(err?.message||err),false);
     }
@@ -113,8 +146,8 @@
     }
     let old;
     try{old=await getNativeState();lastState=old;}catch{old=null;}
-    if(old?.phase==="host-running"&&matchesHost(old,desired)){
-      reportNative("✓ THE HOST ALREADY REPORTS THESE FIVE PROMPTS · NO RESTART NEEDED. REFRESH THE GOOGLE UI IF ITS DISPLAY IS STALE.",true);
+    if(old?.phase==="host-running"&&matchesAU(old,desired)){
+      reportNative("AU SERIALIZED PROMPTS ALREADY MATCH · NO RESTART. GOOGLE'S VISIBLE SOUND BANK MAY STILL BE OLD; USE THE FIVE COPY BUTTONS.",true);
       return;
     }
     const loopCount=Number(old?.native_memory_loop_count||0);
@@ -137,17 +170,13 @@
       for(let attempt=0;attempt<15;attempt++){
         result=await getNativeState();
         lastState=result;
-        if(matchesHost(result,desired))break;
+        if(matchesAU(result,desired) || 
+           (result.phase==="host-running" && matchesHost(result,desired) &&
+             result.au_prompt_readback_available===false))break;
         await new Promise(resolve=>window.setTimeout(resolve,400));
       }
-      if(matchesHost(result,desired)){
-        reportNative(result.phase==="host-running" && result.audio_engine_running===true?
-          "✓ NATIVE HOST VERIFIED: FIVE FILM CLUB PROMPTS. GOOGLE'S POPUP MAY BE STALE; CLOSE/REOPEN IT TO CHECK.":
-          "✓ FIVE FILM PROMPTS RECEIVED BY HOST; MRT2 STILL LOADING. VERIFY IN GOOGLE WINDOW WHEN READY.",
-          result.phase==="host-running" && result.audio_engine_running===true);
-      }else{
-        reportNative("NOT VERIFIED · NATIVE HOST DID NOT REPORT THE NEW BANK. CHECK THE AI HOST STATUS BEFORE RECORDING.",false);
-      }
+      if(result)reportNative(explainState(result,desired),matchesAU(result,desired));
+      else reportNative("NO NATIVE RESPONSE · GOOGLE BANK NOT VERIFIED. USE COPY BUTTONS.",false);
     }catch(error){
       reportNative("PROMPT SYNC FAILED · "+(error?.message||error),false);
     }finally{
