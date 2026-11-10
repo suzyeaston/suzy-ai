@@ -156,8 +156,8 @@
         }
         await setNativeSustain();
         await aiFetch("chord",name==="cello"?
-          {index:0,harmony:"pyramid",legato:true,octave:-12}:
-          {index:0,harmony:"pyramid",legato:true});
+          {index:0,harmony:"accelerando",legato:true,octave:-12}:
+          {index:0,harmony:"accelerando",legato:true});
         await aiFetch("release");
         const ok=await display(slot.index,false);
         mark(ok?name:"");
@@ -222,7 +222,7 @@
       }
       // Existing syncAIMix may run again later; keep its controls truthful.
       await setNativeSustain();
-      await aiFetch("chord",{index:0,harmony:"pyramid",legato:true});
+      await aiFetch("chord",{index:0,harmony:"accelerando",legato:true});
       await aiFetch("release");
       const ok=await display(null,true);
       mark(ok?"ensemble":"");
