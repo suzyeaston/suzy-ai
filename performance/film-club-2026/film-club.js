@@ -37,6 +37,43 @@
     update();
   }
 
+  // Performance macros: accelerate density, not the audio-clock tempo.
+  // These are live performer buttons, not a game sync/autoplay mechanism.
+  const sceneDynamics=Object.freeze({
+    float:{energy:24,level:34},
+    awaken:{energy:49,level:39},
+    tension:{energy:88,level:52},
+    human:{energy:8,level:20},
+    release:{energy:45,level:35}
+  });
+  const densityStatus=document.getElementById("filmDensityStatus");
+  const densityButtons=[...document.querySelectorAll("[data-film-density]")];
+  for(const b of densityButtons){
+    b.setAttribute("aria-pressed","false");
+    b.addEventListener("click",()=>{
+      const key=b.dataset.filmDensity;
+      const plan=sceneDynamics[key];
+      if(!plan)return;
+      if(energy){
+        energy.value=String(plan.energy);
+        if(typeof drumEnergy!=="undefined")drumEnergy=plan.energy/100;
+        if(energyReadout)energyReadout.textContent=String(plan.energy)+"%";
+      }
+      const rhythmLevel=document.getElementById("rhythmLevel");
+      if(rhythmLevel){
+        rhythmLevel.value=String(plan.level);
+        const meter=document.getElementById("rhythmLevelNumber");
+        if(meter)meter.textContent=String(plan.level)+"%";
+        if(typeof updateRhythmAudio==="function")updateRhythmAudio();
+      }
+      densityButtons.forEach(other=>other.setAttribute("aria-pressed",
+        String(other===b)));
+      if(densityStatus)densityStatus.textContent=
+        key.toUpperCase()+" · "+plan.energy+"% PERCUSSION ENERGY · "+
+        "BPM UNCHANGED · LOOPS UNTOUCHED";
+    });
+  }
+
   const scenes = Object.freeze([
     {id:"float",start:0,end:10,hint:"Harbour and reflective pavement. Begin with the Pyramid piano loop and space.",visual_event:"gastown_harbour",instruments:["piano","glass"]},
     {id:"awaken",start:10,end:24,hint:"Accumulate cello, glass and bow motion; movement grows without a compulsory tempo change.",visual_event:"city_awakes",instruments:["piano","cello","glass"]},
