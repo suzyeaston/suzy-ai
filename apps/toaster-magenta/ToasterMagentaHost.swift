@@ -100,6 +100,10 @@ final class MRT2Host {
     ]
     private let chords: [String: [[UInt8]]] = [
         "pyramid": [[54, 58, 61, 66], [55, 59, 62, 66], [57, 61, 64, 66], [54, 58, 61, 66]],
+        // Film Club-only chord override, from the supplied Accelerando
+        // transcription: Em → E7 → Am → E. Keep original Pyramid untouched.
+        // The second chord carries G-sharp and D-natural (the E7 tension).
+        "accelerando": [[52, 55, 59, 64], [52, 56, 59, 62], [57, 60, 64, 69], [52, 56, 59, 64]],
         "fishes": [[52, 55, 59, 62], [54, 57, 61, 64], [57, 61, 64, 69], [55, 59, 62, 66]],
     ]
 
@@ -998,9 +1002,18 @@ final class MRT2Host {
             }
             let harmony = request["harmony"] as? String ?? scene
             guard let nextNotes = chords[harmony] else {
-                return ["error": "harmony must be pyramid or fishes"]
+                return ["error": "harmony must be pyramid, fishes or accelerando"]
             }
-            let next = nextNotes[i]
+            // Optional Film Club low-cello voicing. The *same* suspended
+            // chord is played an octave below piano, giving the cello and
+            // harmonium prompt a genuine bass-register MIDI foundation.
+            // Normal Futureproof piano, violin and drum chords stay put.
+            let octave = request["octave"] as? Int ?? 0
+            guard (octave == 0 || octave == -12),
+                  !request.keys.contains("octave") || request["octave"] is Int else {
+                return ["error":"chord octave must be 0 or -12 semitones"]
+            }
+            let next = nextNotes[i].map { UInt8(Int($0) + octave) }
             if request["legato"] as? Bool == true {
                 // Loop playback: retain common tones instead of sending
                 // note-off/on pairs at every chord transition. A chord held

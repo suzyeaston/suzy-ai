@@ -5,6 +5,9 @@
  */
 (() => {
   "use strict";
+  // The Film route has a deep, warm cello/harmonium bass MIDI foundation.
+  // This flag is absent on /toaster/live, preserving Futureproof voicings.
+  window.suzyFilmClubLowCello = true;
   const status = document.getElementById("filmAuditionStatus");
   const blend = document.getElementById("filmAuditionBlend");
   const buttons = [...document.querySelectorAll("[data-film-audition]")];
@@ -152,7 +155,9 @@
           await aiFetch("transport-play");
         }
         await setNativeSustain();
-        await aiFetch("chord",{index:0,harmony:"pyramid",legato:true});
+        await aiFetch("chord",name==="cello"?
+          {index:0,harmony:"accelerando",legato:true,octave:-12}:
+          {index:0,harmony:"accelerando",legato:true});
         await aiFetch("release");
         const ok=await display(slot.index,false);
         mark(ok?name:"");
@@ -217,7 +222,7 @@
       }
       // Existing syncAIMix may run again later; keep its controls truthful.
       await setNativeSustain();
-      await aiFetch("chord",{index:0,harmony:"pyramid",legato:true});
+      await aiFetch("chord",{index:0,harmony:"accelerando",legato:true});
       await aiFetch("release");
       const ok=await display(null,true);
       mark(ok?"ensemble":"");

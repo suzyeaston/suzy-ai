@@ -85,9 +85,13 @@
   button.addEventListener("click", () => {
     const payload = {
       schema_version:"suzy-film-cues/v2",
-      composition:"Pyramid / Soft Reset (Film Club continuation)",
+      composition:"Pyramid / Accelerando Afterimage (Film Club four-chord adaptation)",
       duration_sec:60,
-      harmony_reference:["F♯","Gmaj7","A6","F♯"],
+      harmony_reference:["Em","E7","Am","E"],
+      chord_basis:"Four main chords reported in Mazmazika; rehearsal adaptation of Accelerando, not its full timeline",
+      harmonic_colour:"E Phrygian Dominant verses/chorus, E minor bridge (Hooktheory); contrasting G-natural/G-sharp and occasional F-natural",
+      reference_tempo_bpm:124,
+      performance_tempo_bpm:100,
       instrument_prompts:"film-view-specific, locally editable; no audio included",
       source_instrument:"SUZY//TOAST Pyramid live loop system",
       visual_project:"Gastown Simulator",

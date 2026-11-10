@@ -14,36 +14,38 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Five independent timbral colours, never five full arrangements.
-    # Notes ring while an independent 100 BPM pulse builds in the browser.
-    "Warm, resonant acoustic jazz grand piano. Deep, voiced F sharp "
-    "suspended chords, G major seventh and A sixth extensions with ninths, "
-    "soft rubato and a loping swung 4/4 feel at 100 BPM. Hold each chord for "
-    "several seconds so the woody overtones bloom and overlap; gentle "
-    "uneven accents and long natural decay, spacious dark room ambience, "
-    "no repeated staccato riff, no drums or bright synth",
-    "Deep acoustic cello and upright-bass resonance, lyrical sustained "
-    "arco strokes and warm vibrato, occasional plucked low F sharp to "
-    "answer the piano. Long expressive notes with bowed harmonics, slow "
-    "chromatic jazz passing tones and a pulsing electronic sub beneath "
-    "the decay. Spacious 100 BPM swung four-four; no clipped spiccato, "
-    "no drums and no synthetic lead",
-    "Intimate lyrical jazz violin, singing bowed legato phrases with "
-    "imperfect vibrato, portamento and long held notes floating over "
-    "suspended F sharp and G major seventh harmony. Slowly growing "
-    "tremolo and shimmering granular electronic tail; mournful and "
-    "futuristic, 100 BPM swung pulse underneath, no snare or bright lead",
-    "Sustained glass harmonica, bowed vibraphone and harp harmonics "
-    "with long ringing overtones. Sparse suspended ninths and elevenths, "
-    "soft tape delay and granular digital halo, fragments that bloom "
-    "and dissolve instead of busy sixteenth-note runs. Dark, spectral "
-    "100 BPM ambient electronica, no piano, voice or drum kit",
-    "Organic jazz-electronica drum atmosphere at 100 BPM in four-four, "
-    "soft deep electronic kick with a breathing pulse, loose brushed "
-    "snare and ghost notes behind the beat, shuffling cymbal shimmer, "
-    "sub-bass swells and swelling distorted low percussion. Build "
-    "tension through density and texture, then a dramatic half-time "
-    "breath, not nonstop aggressive club drums, no melody or vocals",
+    # Four-chord Film Club adaptation; the original Futureproof F-sharp bank
+    # remains unchanged. Instrument roles are independent timbral prompts.
+    "Natural acoustic jazz grand piano: felt hammer attacks, real resonant "
+    "piano strings, warm wooden soundboard, long overlapping chord decay. "
+    "Play the four sustained harmonies E minor, E dominant seventh, A minor "
+    "and E major, with gentle ninth extensions and slightly swung rubato. "
+    "Let G-natural resolve to G-sharp in E7. Dark spacious piano at "
+    "100 BPM 4/4, no electric piano, organ, bell synthesizer or drums",
+    "Low warm bowed cello doubled by a softly breathing pump harmonium "
+    "reed-organ bass drone. The bass moves E2 to E2 to A2 to E2 beneath "
+    "E minor, E dominant seventh, A minor, E major harmony. Deep woody "
+    "resonance and round low-frequency fundamentals, long legato arco "
+    "strokes, subtle vibrato and slow warm reed swells; modal F-natural "
+    "passing colour for tension. 100 BPM 4/4, no bright synth or drums",
+    "Expressive lyrical jazz violin in long bowed legato tones, gliding "
+    "portamento and human imperfect vibrato over E minor to E dominant "
+    "seventh, A minor and E major. Dark minor phrasing contrasts with "
+    "G-sharp dominant tension and occasional F-natural Phrygian colour. "
+    "Gradually increase tremolo and granular electronic resonance, then "
+    "return to a fragile long release; 100 BPM 4/4, no drums",
+    "Sustained glass harmonica, bowed vibraphone and harp harmonics. "
+    "Long ringing overtones and spacious granular delays surround "
+    "E minor, E7, A minor and E major chords; occasional F-natural "
+    "Phrygian colour, shifting major-minor tension and open jazz ninths. "
+    "Sparse spectral textures bloom into motion, then disappear. "
+    "100 BPM cinematic electronica, no piano, voice or drums",
+    "Organic 100 BPM four-four jazz-electronica rhythm: rounded electronic "
+    "kick, brushed backbeat and ghost snare, shuffling cymbal shimmer, "
+    "low toms and sub-bass pressure beneath E minor, E7, A minor, E major. "
+    "Darker modal F-natural ornaments, increasing rhythmic density and "
+    "distortion with an abrupt half-time feeling in the bridge, no lead "
+    "melody, sampled vocals or continuous aggressive house fills",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
@@ -72,17 +74,17 @@ def render_film_club_page(original: str, token: str) -> str:
         "FUTUREPROOF · THE APPLIANCE LATENT SPACE":
             "FILM CLUB · PYRAMID / SOFT RESET · MAKE ART NOT WAR",
         "PYRAMID · THE LIVING LOOP":
-            "PYRAMID · THE LIVING LOOP / FILM CLUB",
+            "PYRAMID / ACCELERANDO · THE LIVING LOOP",
         "Your original piano, violin and voice stay exactly where they are":
-            "The Futureproof harmony continues. Record NEW Film Club takes on this page.",
+            "Em → E7 → Am → E · Film Club-only harmonies, original live-loop engine.",
         "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
-            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: felt piano, cello/sub shadow, expressive violin, glass/harp, and evolving percussion.",
+            "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: acoustic grand piano, deep cello/harmonium bass, expressive violin, glass/harp, and evolving percussion.",
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
             "✦ FILM CLUB ONLY · FIVE MAGENTA SOUND PROMPTS",
         "01 · PYRAMID · intimate piano":
             "01 · PYRAMID JAZZ · sustained resonant piano",
         "02 · PYRAMID ORBIT · low cello / harmonium drone":
-            "02 · UNDERCURRENT · long bowed cello / bass",
+            "02 · UNDERCURRENT · warm cello + harmonium bass",
         "03 · PYRAMID · MAGENTA VIOLIN LEAD":
             "03 · HUMAN INTERRUPTION · legato jazz violin",
         "04 · PYRAMID ORBIT · glass harmonics / harp":
@@ -94,6 +96,64 @@ def render_film_club_page(original: str, token: str) -> str:
         if old not in page:
             raise ValueError("TOASTER view anchor changed: " + old[:60])
         page = page.replace(old, new, 1)
+
+    # Film Club performance-only chords. Keep the original /toaster/live
+    # HTML and its F♯ / Gmaj7 / A6 / F♯ bank unchanged. The renderer
+    # replaces exactly the source's verified anchors and fails closed on
+    # drift. Four playable pads (Z X C V) are available in Film Club.
+    # Mazmazika's main-chord chart is Em / E7 / Am / E; this is a
+    # *rehearsal adaptation*, not a complete transcription of every section.
+    substitutions = (
+        ('pyramid:{names:["F♯","Gmaj7","A6","F♯"],notes:[[54,58,61,66],[55,59,62,66],[57,61,64,66],[54,58,61,66]]',
+         'pyramid:{names:["Em","E7","Am","E"],notes:[[52,55,59,64],[52,56,59,62],[57,60,64,69],[52,56,59,64]]'),
+        ('pyramid:["Z","X","C"],fishes:',
+         'pyramid:["Z","X","C","V"],fishes:'),
+        ('c:{which:"pyramid",index:2},',
+         'c:{which:"pyramid",index:2},v:{which:"pyramid",index:3},'),
+        ('KeyZ:"z",KeyX:"x",KeyC:"c",',
+         'KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v",'),
+        ('<button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>Em</b></button>'),
+        ('<button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>E7</b></button>'),
+        ('<button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>Am</b></button>\n<button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>E</b></button>'),
+        # Rendered film-only native harmony bank: matching Swift MIDI values.
+        ('const bassOctave=(window.suzyFilmClubLowCello===true &&\n     which==="pyramid"&&role==="textureLow")?-12:0;\n   await aiFetch("chord",bassOctave?{index,harmony,legato:true,octave:bassOctave}:\n     {index,harmony,legato:true});',
+         'const bassOctave=(window.suzyFilmClubLowCello===true &&\n     which==="pyramid"&&role==="textureLow")?-12:0;\n   const soundBank=harmony==="pyramid"?"accelerando":harmony;\n   await aiFetch("chord",bassOctave?{index,harmony:soundBank,legato:true,octave:bassOctave}:\n     {index,harmony:soundBank,legato:true});'),
+        ('await aiFetch("chord",legato?{index,legato:true}:{index});',
+         'await aiFetch("chord",legato?{index,legato:true,harmony:which==="pyramid"?"accelerando":"fishes"}:\n      {index,harmony:which==="pyramid"?"accelerando":"fishes"});'),
+    )
+    for old, new in substitutions:
+        if page.count(old) != 1:
+            raise ValueError("TOASTER chord source anchor changed: " + old[:72])
+        page = page.replace(old, new, 1)
+
+    # Keep every *visible* Film Club rehearsal hint in sync with the
+    # actual four-pad bank. Do not alter the original Futureproof source.
+    for old, new in (
+        ('Harmonic orbit: F♯ → Gmaj7 → A6 → F♯.',
+         'Film Club harmony: Em → E7 → Am → E.'),
+        ('Low sustained notes and breathy drones, grounded in your existing F♯ / Gmaj7 / A6 harmony.',
+         'Low sustained cello and warm reed drones under Em / E7 / Am / E, an octave below piano.'),
+        ('PYRAMID: Z X C · WEIRD FISHES: B N M ,',
+         'FILM CLUB: Z X C V · WEIRD FISHES: B N M ,'),
+        ('Press PLAY RHYTHM · Pyramid Z X C · Weird Fishes B N M ,',
+         'Press PLAY RHYTHM · Accelerando Em E7 Am E (Z X C V) · Weird Fishes B N M ,'),
+        ('PYRAMID Z X C · WEIRD FISHES B N M , (comma)',
+         'FILM CLUB Z X C V · WEIRD FISHES B N M , (comma)'),
+        ('PYRAMID · Z X C chords · Fishes B N M ,',
+         'ACCELERANDO · Z X C V chords · Fishes B N M ,'),
+        ('WEIRD FISHES · B N M , chords · Pyramid Z X C',
+         'WEIRD FISHES · B N M , chords · Film Club Z X C V'),
+        (' · PYRAMID Z X C / FISHES B N M , play this sound',
+         ' · ACCELERANDO Z X C V / FISHES B N M , play this sound'),
+        ('KEYBOARD RESET · PYRAMID Z X C · FISHES B N M ,',
+         'KEYBOARD RESET · FILM CLUB Z X C V · FISHES B N M ,'),
+    ):
+        if old not in page:
+            raise ValueError("Film Club visible chord hint anchor changed: " + old[:65])
+        page = page.replace(old, new)
 
     for key, prompt in zip(PROMPT_IDS, FILM_PROMPTS):
         pattern = re.compile(
@@ -207,17 +267,20 @@ changes the host or Google's window.</small></section>"""
 <section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
   <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
   <h2>PYRAMID AFTERIMAGE · an accelerating city, a human interruption.</h2>
-  <p>F♯ → Gmaj7 → A6 remains home, with off-grid suspended chord attacks,
-  human violin and a gradually more urgent electronic pulse. Keep the
-  4/4 clock at 100 BPM. Accelerate the <em>density</em>, bass pressure and
-  texture, then drop abruptly to the human voice. The original RECORD
-  FIRST LOOP → DONE → LOOP, native PCM pedals and Gastown film cues remain.</p>
+  <p><strong>ACCELERANDO HARMONIC REHEARSAL: Em → E7 → Am → E</strong>.
+  The <strong>E7</strong> brings G♯ and D-natural against the opening
+  E-minor G-natural. Hooktheory describes E Phrygian Dominant colour
+  with an E-minor bridge. We adapt that tension to the warm acoustic piano,
+  bowed cello and harmonium at <strong>100 BPM / 4⁄4</strong>. Press
+  <strong>Z · X · C · V</strong> for the four real chords. Build rhythmic
+  density, then interrupt with human violin and voice. The original
+  RECORD FIRST LOOP → DONE → LOOP pedals still drive the music.</p>
   <section class="film-audition" id="filmAuditionPanel" aria-label="Audition the five actual native MRT2 sound roles">
     <div class="film-tag">WHY ONLY PIANO? THE OTHER PROMPT WEIGHTS DEFAULT TO ZERO</div>
     <h3>Hear a sustained voice · then record its own loop</h3>
     <p>Google MRT2 is one blended generator, not five audio tracks. Select
     a sound below to send a sustained audition chord automatically, or
-    hold Z / X / C as long as you like. Press its regular
+    hold Z / X / C / V as long as you like. Press its regular
     RECORD TAKE → DONE → LOOP pedal to capture a
     real, independently repeating PCM layer. The original loop clock,
     recordings and prompts are not reset by these selectors.</p>
@@ -230,7 +293,7 @@ changes the host or Google's window.</small></section>"""
     </div>
     <div class="film-audition-grid">
       <button type="button" data-film-audition="piano">01 · HEAR PIANO</button>
-      <button type="button" data-film-audition="cello">02 · HEAR CELLO</button>
+      <button type="button" data-film-audition="cello">02 · HEAR CELLO + HARMONIUM</button>
       <button type="button" data-film-audition="violin">03 · HEAR VIOLIN</button>
       <button type="button" data-film-audition="glass">04 · HEAR GLASS</button>
       <button type="button" data-film-audition="drums">05 · HEAR DRUMS</button>

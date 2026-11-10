@@ -26,6 +26,10 @@ class NativeMRT2Tests(unittest.TestCase):
     def test_reject_invalid_controls_without_forking_model(self):
         invalid = [
             ("chord", {"index": True}), ("chord", {"index": 4}),
+            ("chord", {"index":0, "octave":-24}),
+            ("chord", {"index":0, "octave":12}),
+            ("chord", {"index":0, "octave":False}),
+            ("chord", {"index":0, "octave":"-12"}),
             ("chord-hold", {"seconds":0.1}),
             ("chord-hold", {"seconds":9}),
             ("chord-hold", {"seconds":float("nan")}),
@@ -173,6 +177,27 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('                chordStartedAt = ProcessInfo.processInfo.systemUptime', source)
         self.assertIn('"chord_min_hold_ms": Int(minimumChordHoldSeconds * 1000)', source)
         self.assertIn('"chord_release_pending": pendingChordRelease != nil', source)
+
+    def test_accelerando_four_chord_bank_is_isolated_from_original_pyramid(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('"accelerando": [[52, 55, 59, 64], [52, 56, 59, 62], [57, 60, 64, 69], [52, 56, 59, 64]]', source)
+        self.assertIn('"pyramid": [[54, 58, 61, 66]', source)
+        self.assertIn('data["harmony"] not in ("pyramid", "fishes", "accelerando")',
+                      (Path(__file__).resolve().parents[1]
+                       / "suzy_ai/music/magenta_native_host.py").read_text())
+        self.assertIn('harmony must be pyramid, fishes or accelerando', source)
+        self.assertEqual(ACTIONS["chord"], {"index"})
+
+    def test_film_low_cello_chord_option_requires_exact_octave(self):
+        source = (Path(__file__).resolve().parents[1]
+                  / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        self.assertIn('request["octave"] as? Int ?? 0', source)
+        self.assertIn('octave == 0 || octave == -12', source)
+        self.assertIn('nextNotes[i].map { UInt8(Int($0) + octave) }', source)
+        self.assertIn('guard (octave == 0 || octave == -12)', source)
+        self.assertIn("chord", ACTIONS)
+        self.assertEqual(ACTIONS["chord"], {"index"})
 
     def test_film_club_native_sustain_does_not_change_futureproof_default(self):
         source = (Path(__file__).resolve().parents[1]

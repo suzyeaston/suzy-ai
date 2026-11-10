@@ -1869,7 +1869,11 @@ function aiNote(which,index,{loopEvent=null,legato=false}={}){
    // Send exact Pyramid pitches as native MIDI notes. Never use the old
    // scene-fishes chord presets, even though its two prompt slots are reused.
    for(const note of textureHeldNotes)await aiFetch("note-off",{note});
-   textureHeldNotes=[...SCENES.pyramid.notes[index]];
+   // Film Club's warm cello/harmonium lives one octave below the piano.
+   // Only the selected low-texture role changes; original TOASTER is exact.
+   const bassOctave=(window.suzyFilmClubLowCello===true &&
+     activePyramidTextureRole==="textureLow")?-12:0;
+   textureHeldNotes=SCENES.pyramid.notes[index].map(note=>note+bassOctave);
    for(const note of textureHeldNotes)await aiFetch("note",{note});
   }else{
    for(const note of textureHeldNotes)await aiFetch("note-off",{note});
@@ -2899,7 +2903,10 @@ function beginLaneHarmony(which,role,harmony,index,key,pad=null){
    if(!aiNativeReady)return;
    // Harmony override prevents a cello/violin PROMPT changing just because
    // Weird Fishes pitches are used. All chords play the real MRT2 AU.
-   await aiFetch("chord",{index,harmony,legato:true});
+   const bassOctave=(window.suzyFilmClubLowCello===true &&
+     which==="pyramid"&&role==="textureLow")?-12:0;
+   await aiFetch("chord",bassOctave?{index,harmony,legato:true,octave:bassOctave}:
+     {index,harmony,legato:true});
    take.started=true;
    if(!take.down&&laneChordOwner===key)await aiFetch("release");
   });
