@@ -412,6 +412,26 @@ class NativeCaptureSecurityTests(unittest.TestCase):
                 host.command(operation, args)
         self.assertIsNone(host.process)
 
+    def test_native_memory_first_replay_is_immediate_and_phase_locked(self):
+        """The first live-loop should never await a complete extra measure."""
+        swift = (Path(__file__).resolve().parents[1]
+                 / "apps/toaster-magenta/ToasterMagentaHost.swift").read_text()
+        start = swift.index("private func startNativeMemoryLoop")
+        stop = swift.index("private func setNativeLoopVolume", start)
+        playback = swift[start:stop]
+        self.assertIn("let phaseTicks = scheduled > first ?", playback)
+        self.assertIn("let phaseFrames = Int(", playback)
+        self.assertIn("reverseRange(dst[channel], 0, phaseFrames)", playback)
+        self.assertIn("reverseRange(dst[channel], phaseFrames, frames)", playback)
+        self.assertIn("player.play(at: AVAudioTime(hostTime: scheduled))", playback)
+        self.assertIn('"native_loop_start_mode": "immediate_phase_locked"', playback)
+        self.assertNotIn("let repeats =", playback)
+        self.assertNotIn("NEXT complete boundary", playback)
+        self.assertIn("AVAudioTime.hostTime(forSeconds: 0.075)", playback)
+        # No new second path into the AU capture bus and no duplicate engine.
+        self.assertIn("audio.connect(player, to: audio.mainMixerNode, format: format)", playback)
+        self.assertNotIn("audio.connect(player, to: reverbUnit", playback)
+
     def test_direct_native_memory_loop_commands_validate_real_time_audio_payloads(self):
         host = NativeMagentaHost(binary=Path("/nonexistent/MRT2"))
         self.assertEqual(ACTIONS["loop-volume"], {"id", "value"})
