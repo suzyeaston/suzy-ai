@@ -170,13 +170,13 @@
       return "GOOGLE MRT2 STARTING · WAIT FOR MODEL INITIALIZATION.";
     if(matchesAU(state,bank))
       return "GOOGLE AU SAVED THE FILM SOUND BANK · PLAY A CHORD TO VERIFY AUDIO.";
+    if(!Object.prototype.hasOwnProperty.call(state||{},"google_model_bookmark_available"))
+      return "OLD SWIFT HOST · REBUILD THE MAC COMPANION TO ENABLE AUTO PROMPT RELOAD.";
     if(state?.phase==="host-running" || state?.audio_engine_running===true){
       if(state?.google_model_bookmark_available===true)
         return "GOOGLE MODEL GRANTED · READY TO APPLY FILM SOUNDS AUTOMATICALLY.";
       return "ORIGINAL GOOGLE SOUNDS STILL LOADED · SELECT mrt2_small ONCE IN THE GOOGLE MODEL WINDOW, THEN APPLY.";
     }
-    if(!Object.prototype.hasOwnProperty.call(state||{},"google_model_bookmark_available"))
-      return "OLD SWIFT HOST · REBUILD THE MAC COMPANION TO ENABLE AUTO PROMPT RELOAD.";
     return "FILM SOUND BANK NOT LOADED · PRESS APPLY WHEN MRT2 IS READY.";
   }
   // Manual bridge edits Google's own prompt rows. No app-to-AU automation
