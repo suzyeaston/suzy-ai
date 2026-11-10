@@ -209,7 +209,7 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-native-sync output{font:800 12px/1.5 ui-monospace,monospace;color:#fff4e6}
 .film-native-sync small{font-size:11px;color:#f6e1d4}
 .film-manual-bridge{margin:12px 0 18px;border:1px solid #e1b6c4;border-radius:13px;
-  padding:16px;background:#271e2d;color:#fff4e8}
+  padding:16px;background:#271e2d;color:#fff4e8;scroll-margin-top:170px}
 .film-manual-bridge h3{font-size:19px;margin:3px 0 6px}
 .film-manual-bridge p{font-size:13px;line-height:1.55;margin:4px 0 12px}
 .film-manual-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
@@ -229,13 +229,15 @@ def render_film_club_page(original: str, token: str) -> str:
     # clipboard-assisted route if its own window still shows old prompts.
     bridge = """<section class="film-manual-bridge" id="filmManualBridge"
  aria-label="Copy Film Club prompts into Google's native Audio Unit window">
-<div class="film-tag">WHEN GOOGLE'S WINDOW STILL SHOWS THE OLD SOUNDS</div>
-<h3>Use the native plugin's five prompt rows</h3>
-<p>Google MRT2 can display or continue generating from an older sound bank
-even when the SUZY host accepted updated text. Select each matching prompt
-row in Google's own window, replace its text, and press Enter/confirm.
-Use these copy buttons to transfer the exact Film Club prompts.
-They copy text only; they do not restart or secretly modify the model.</p>
+<div class="film-tag">SAFE MODE · KEEP YOUR CURRENT GOOGLE AUDIO PLAYING</div>
+<h3>Transfer the five new sounds to Google's current prompt editor</h3>
+<p>Choose COPY 01–05 below, paste each prompt into the corresponding
+row of the <strong>existing</strong> Google MRT2 window, then press Enter
+to confirm. Editing in Google avoids restarting its selected model.
+SUZY cannot write into Google's separate plugin window automatically;
+the buttons only copy text and do not interrupt your live loops.</p>
+<button type="button" id="filmOpenGooglePrompts">↗ OPEN CURRENT GOOGLE PROMPT WINDOW · NO RESTART</button>
+<output role="status" aria-live="polite" id="filmGoogleEditorStatus">OPEN ONLY THE EXISTING GOOGLE AU · NO MODEL RESTART</output>
 <div class="film-manual-list">
 <button type="button" class="film-copy-slot" data-prompt-copy="promptPyramid">COPY 01 · PIANO</button>
 <button type="button" class="film-copy-slot" data-prompt-copy="promptFishes">COPY 02 · CELLO</button>
@@ -251,14 +253,15 @@ If you're currently recording a take, finish and export it first.</small>
     editor = '<details class="prompt-editor" id="promptEditor">'
     sync_panel = """<section class="film-native-sync" aria-label="Native MRT2 prompt synchronization">
 <div class="film-tag">GOOGLE MRT2 · ACTIVE SOUND BANK</div>
-<p>These Film Club prompts are new, but the Google Audio Unit may still be
-running the original Futureproof sounds. Apply the five prompts below to
-the <strong>real native MRT2 host</strong> before auditioning.</p>
-<button type="button" id="filmSyncNativePrompts">↻ APPLY FILM CLUB SOUNDS TO MRT2</button>
+<p>Use the five new Film Club sounds <strong>without stopping the running
+Google Audio Unit</strong>. When MRT2 is playing, this control opens the
+safe copy workflow for Google's existing prompt rows; when the host is idle,
+it can start with the Film Club sound bank. No restart of active music.</p>
+<button type="button" id="filmSyncNativePrompts">✦ UPDATE FILM CLUB SOUNDS SAFELY</button>
 <output id="filmNativePromptStatus" role="status" aria-live="polite">CHECKING NATIVE HOST…</output>
-<small>This action restarts the shared Magenta generator and may clear native
-in-memory loops. Export important takes first. Opening this page alone never
-changes the host or Google's window.</small></section>"""
+<small>Live Google MRT2 cannot be silently rewritten through the browser.
+The current model and its native loops are never stopped by this control.
+A matching saved prompt bank does not prove audible model embedding.</small></section>"""
     if editor not in page:
         raise ValueError("Original TOASTER prompt editor anchor changed")
     page = page.replace(editor, sync_panel + bridge + editor, 1)
