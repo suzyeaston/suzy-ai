@@ -167,25 +167,17 @@
   }
   function explainState(state, bank=textBank()) {
     if(state?.phase==="starting" || state?.phase==="initializing")
-      return "GOOGLE MRT2 STARTING · KEEP THE MODEL WINDOW OPEN; CHECK AGAIN AFTER INITIALIZATION.";
-    // Google's actual AU fullState matters more than the Swift host's
-    // desired strings. Manual edits in Google's window may legitimately
-    // make AU state match while the host-side strings remain older.
+      return "GOOGLE MRT2 STARTING · WAIT FOR MODEL INITIALIZATION.";
     if(matchesAU(state,bank))
-      return matchesHost(state,bank)?
-        "GOOGLE AU SAVED TEXT MATCHES FILM CLUB. MODEL EMBEDDINGS AND AUDIBLE SOUND STILL REQUIRE LISTENING.":
-        "GOOGLE AU SAVED TEXT MATCHES FILM CLUB · HOST LABEL IS OLDER, BUT NO RESTART IS NECESSARY. LISTEN TO VERIFY.";
-    // NEVER suggest restarting a currently audible AU just to change
-    // prompts. The Google model picker resets on a host stop/start.
-    if(state?.phase==="host-running" || state?.audio_engine_running===true)
-      return "MRT2 IS RUNNING WITH DIFFERENT PROMPTS · USE THE SAFE COPY 01–05 WORKFLOW IN GOOGLE; KEEP THE AUDIO UNIT RUNNING.";
-    if(!matchesHost(state,bank))
-      return "HOST DOES NOT HAVE FILM CLUB PROMPTS · SAFE UPDATE CAN START AN IDLE HOST ONLY.";
-    if(!Object.prototype.hasOwnProperty.call(state||{},"au_prompt_readback_available"))
-      return "OLD SWIFT HOST BINARY · REBUILD NATIVE HOST TO CHECK GOOGLE PROMPTS; NO AUTOMATIC RESTART.";
-    if(state.au_prompt_readback_available!==true)
-      return "HOST HAS FILM TEXT · GOOGLE AU READBACK UNAVAILABLE; COPY INTO GOOGLE'S EXISTING PROMPT ROWS.";
-    return "GOOGLE AU REPORTS DIFFERENT SAVED TEXT · USE COPY 01–05; SOUND NOT VERIFIED.";
+      return "GOOGLE AU SAVED THE FILM SOUND BANK · PLAY A CHORD TO VERIFY AUDIO.";
+    if(state?.phase==="host-running" || state?.audio_engine_running===true){
+      if(state?.google_model_bookmark_available===true)
+        return "GOOGLE MODEL GRANTED · READY TO APPLY FILM SOUNDS AUTOMATICALLY.";
+      return "ORIGINAL GOOGLE SOUNDS STILL LOADED · SELECT mrt2_small ONCE IN THE GOOGLE MODEL WINDOW, THEN APPLY.";
+    }
+    if(!Object.prototype.hasOwnProperty.call(state||{},"google_model_bookmark_available"))
+      return "OLD SWIFT HOST · REBUILD THE MAC COMPANION TO ENABLE AUTO PROMPT RELOAD.";
+    return "FILM SOUND BANK NOT LOADED · PRESS APPLY WHEN MRT2 IS READY.";
   }
   // Manual bridge edits Google's own prompt rows. No app-to-AU automation
   // is claimed, and nothing is transmitted or restarted when copying text.
@@ -242,16 +234,17 @@
       const current=await getNativeState();
       if(current?.phase!=="host-running" ||
          current?.audio_engine_running!==true ||
-         current?.native_model_selection_required!==true){
+         (current?.native_model_selection_required!==true &&
+          current?.model_loading_source!=="google_au_granted_bookmark")){
         if(safeGoogleStatus)safeGoogleStatus.textContent=
-          "NO SAFE EDITOR OPEN · THE CURRENT AU IS NOT IN GOOGLE PICKER MODE. DO NOT RESTART A PLAYING SESSION.";
+          "NO SAFE EDITOR · SELECT GOOGLE mrt2_small FIRST. CURRENT AUDIO WAS NOT STOPPED.";
         return;
       }
       if(typeof aiFetch!=="function")throw Error("Native host control unavailable");
       const result=await aiFetch("show-au-ui-safe");
       if(result?.error)throw Error(result.error);
       if(safeGoogleStatus)safeGoogleStatus.textContent=
-        "EXISTING GOOGLE WINDOW REQUESTED · PASTE EACH COPIED PROMPT INTO ITS ROW. NO RESTART.";
+        "GOOGLE MODEL WINDOW REQUESTED · VIEW ACTIVE SOUNDS WITHOUT ANOTHER RESTART.";
     }catch(error){
       if(safeGoogleStatus)safeGoogleStatus.textContent=
         "SAFE WINDOW UNAVAILABLE · "+(error?.message||error)+" · NO RESTART ATTEMPTED.";
@@ -262,59 +255,75 @@
     if(syncing)return;
     const desired=textBank();
     if(desired.some(p=>!p||p.length>500)){
-      reportNative("ALL FIVE SOUND PROMPTS MUST BE NONEMPTY AND UNDER 500 CHARACTERS.",false);
+      reportNative("FIVE NONEMPTY SOUND PROMPTS REQUIRED, EACH UP TO 500 CHARACTERS.",false);
       return;
     }
-    // Fail closed if current native state is unknown. A previous version
-    // sent STOP before learning whether its restart would work.
     let current;
+    try{current=await getNativeState();lastState=current;}
+    catch(error){
+      reportNative("CANNOT VERIFY GOOGLE MODEL · NOTHING WAS STOPPED. "+(error?.message||error),false);
+      return;
+    }
+    const loopCount=Number(current?.native_memory_loop_count||0);
+    if(loopCount>0){
+      reportNative("NATIVE AUDIO LOOPS ARE ACTIVE ("+loopCount+
+        ") · EXPORT AND CLEAR THEM BEFORE RELOADING THE MODEL. NOTHING STOPPED.",false);
+      return;
+    }
+    const running=current?.phase==="host-running"&&
+      current?.audio_engine_running===true;
+    const idle=["inactive","not-running","failed"].includes(current?.phase);
+    if(!running&&!idle){
+      reportNative("GOOGLE MRT2 IS STILL STARTING OR UNAVAILABLE · NO RESTART ATTEMPTED.",false);
+      return;
+    }
+    if(running && current?.google_model_bookmark_available!==true){
+      reportNative("GOOGLE'S MODEL BOOKMARK IS MISSING · SELECT mrt2_small ONCE IN THE ORIGINAL GOOGLE WINDOW, THEN CLICK APPLY AGAIN. NO AUDIO WAS STOPPED.",false);
+      return;
+    }
+    // The Swift companion requires a model-granted security bookmark
+    // BEFORE stopping any playing AU. It then loads a NEW instance with
+    // that bookmark AND all five Film prompt texts at model initialization.
+    // This is Google MRT2 output, not a browser oscillator substitute.
+    if(running&&!window.confirm(
+      "Replace Google's selected MRT2 model instance with the FIVE Film Club sounds? "+
+      "This briefly interrupts AI playback. Export unsaved audio takes first. Continue?"
+    )){
+      reportNative("RELOAD CANCELLED · THE ORIGINAL GOOGLE AUDIO KEEPS PLAYING.",false);
+      return;
+    }
+    syncing=true;nativeApply.disabled=true;
+    reportNative(running?
+      "RELOADING GOOGLE MRT2 WITH ITS OWN GRANTED MODEL BOOKMARK AND FILM PROMPTS…":
+      "STARTING GOOGLE MRT2 WITH FILM PROMPTS…",false);
     try{
-      current=await getNativeState();
-      lastState=current;
+      if(typeof aiFetch!=="function")throw Error("Original native AI bridge unavailable");
+      const started=await aiFetch(running?"reload-prompts":"start",{prompts:desired});
+      if(started?.error)throw Error(started.error);
+      if(typeof aiDisplay==="function")aiDisplay(started);
+      let result=started,verified=false;
+      for(let attempt=0;attempt<40;attempt++){
+        result=await getNativeState();
+        lastState=result;
+        if(result?.error && result?.phase!=="host-running")
+          throw Error(result.error);
+        if(result?.phase==="host-running"&&matchesAU(result,desired)){
+          verified=true;
+          break;
+        }
+        if(result?.phase==="failed")throw Error(result?.error||"Native AU failed to restart");
+        await new Promise(resolve=>window.setTimeout(resolve,500));
+      }
+      if(verified){
+        reportNative("FIVE FILM CLUB PROMPTS SAVED IN GOOGLE'S AU · PLAY A CHORD TO VERIFY THE NEW SOUND. EMBEDDINGS AND AUDIO NOT AUTOMATICALLY VERIFIED.",true);
+      }else{
+        reportNative("GOOGLE RELOAD REQUESTED BUT FULL BANK IS NOT VERIFIED YET · CHECK MODEL/OUTPUT STATUS AND TRY AGAIN ONLY AFTER STARTUP FINISHES.",false);
+      }
     }catch(error){
-      showSafeManualGuide("CANNOT CHECK GOOGLE HOST · NO STOP OR RESTART ATTEMPTED. "+(error?.message||error));
-      return;
-    }
-    if(matchesAU(current,desired)){
-      reportNative("GOOGLE AU SAVED PROMPTS ALREADY MATCH · NO RESTART. LISTEN TO VERIFY THE ACTUAL SOUND.",true);
-      return;
-    }
-    // Most importantly: a running Google AU may already have a selected
-    // mrt2_small model. Its selected model does not survive blindly
-    // stopping/restarting in native model-picker mode. Keep playback,
-    // captured native loops, and the Google prompt editor intact.
-    if(current?.phase==="host-running" ||
-       current?.audio_engine_running===true){
-      showSafeManualGuide("MRT2 STILL PLAYING · NO RESTART. COPY 01–05 INTO THE CURRENT GOOGLE WINDOW; PRESS ENTER IN EACH ROW.");
-      return;
-    }
-    if(current?.phase==="starting" || current?.phase==="initializing"){
-      reportNative("MRT2 IS ALREADY INITIALIZING · NO SECOND START. CHECK AGAIN WHEN THE HOST SETTLES.",false);
-      return;
-    }
-    if(!["inactive","failed","not-running"].includes(current?.phase)){
-      showSafeManualGuide("NATIVE STATUS IS UNKNOWN · NO START/STOP ATTEMPTED. KEEP YOUR CURRENT AUDIO.");
-      return;
-    }
-    if(Number(current?.native_memory_loop_count||0)>0){
-      showSafeManualGuide("NATIVE LOOPS STILL REPORTED · NO AUTOMATIC RECONFIGURATION. EXPORT FIRST.");
-      return;
-    }
-    // Only an IDLE host may be started with new Film prompts. There is no
-    // destructive stop call anywhere in this Film-only path.
-    syncing=true;
-    nativeApply.disabled=true;
-    reportNative("STARTING AN IDLE MRT2 HOST WITH FIVE FILM PROMPTS · NEVER STOPPING ACTIVE AUDIO…",false);
-    try{
-      if(typeof aiFetch!=="function")throw Error("Native TOASTER control unavailable");
-      const result=await aiFetch("start",{prompts:desired});
-      if(typeof aiDisplay==="function")aiDisplay(result);
-      reportNative("IDLE HOST START REQUESTED · WAIT FOR GOOGLE MODEL INITIALIZATION, THEN VERIFY ITS PROMPT ROWS. AUDIO UNVERIFIED.",false);
-    }catch(error){
-      reportNative("SAFE START FAILED · "+(error?.message||error)+" · NO ACTIVE AUDIO WAS STOPPED.",false);
+      reportNative("GOOGLE PROMPT RELOAD FAILED · "+(error?.message||error)+
+        " · CHECK MODEL STATUS; NO FALSE AUDIO SUCCESS CLAIM.",false);
     }finally{
-      syncing=false;
-      nativeApply.disabled=false;
+      syncing=false;nativeApply.disabled=false;
     }
   });
   for(const id of promptIds){
@@ -328,8 +337,8 @@
   window.setInterval?.(()=>void refreshPromptState(),5000);
 
   // The original full-size TOASTER prompt buttons are still present in the
-  // shared DOM. In Film Club they must follow the same non-destructive path,
-  // not invoke their old stop() / start() listener behind the new button.
+  // shared DOM. In Film Club they must use the bookmark-validated reload
+  // action, not the original blind stop/start listener.
   // Capture-phase interception keeps Futureproof /toaster/live unchanged.
   const routeLegacyApplySafely = event => {
     event.preventDefault();
