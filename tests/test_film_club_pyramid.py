@@ -72,20 +72,26 @@ class FilmClubPyramidTests(unittest.TestCase):
             self.assertIn(option, self.film)
         piano, cello, violin, glass, drums = FILM_PROMPTS
         self.assertIn("100 BPM", piano)
-        self.assertIn("punchy", piano.lower())
-        self.assertIn("staccato", piano)
-        self.assertIn("quick note-off", piano)
+        self.assertIn("suspended chord", piano)
+        self.assertIn("syncopated", piano)
+        self.assertIn("silence", piano)
         self.assertIn("100 BPM", cello)
         self.assertIn("pizzicato", cello)
         self.assertIn("offbeat", cello)
-        self.assertIn("short decay", cello)
-        self.assertIn("modal", violin)
-        self.assertIn("sixteenth-note", glass)
-        self.assertIn("four-on-the-floor", drums)
-        self.assertIn("beats 2 and 4", drums)
-        self.assertIn("frame-drum", drums)
+        self.assertIn("natural decay", cello)
+        self.assertIn("tremolo", violin)
+        self.assertIn("granular shimmer", glass)
+        self.assertIn("100 BPM", drums)
+        self.assertIn("backbeat", drums)
+        self.assertIn("half-time release", drums)
         self.assertIn("FILM CLUB: 4/4 ELECTRO HOUSE · 100 BPM", self.film)
         self.assertIn('value="house">Electro house · four-on-the-floor', self.film)
+        self.assertIn('id="filmAuditionPanel"', self.film)
+        self.assertIn('id="filmAuditionStatus"', self.film)
+        self.assertIn('id="filmAuditionBlend"', self.film)
+        for name in ("piano", "cello", "violin", "glass", "drums"):
+            self.assertIn(f'data-film-audition="{name}"', self.film)
+        self.assertNotIn('id="filmAuditionPanel"', self.source)
         self.assertEqual(len(set(FILM_PROMPTS)), 5)
         # Don't ship song audio or change the original five prompt defaults.
         self.assertNotIn("<audio", self.film)
@@ -117,6 +123,9 @@ class FilmClubPyramidTests(unittest.TestCase):
             self.film.count('<script src="/film-club/soft-reset/film-club.js" defer>'), 1
         )
         self.assertNotIn('<script src="https:', self.film)
+        self.assertEqual(
+            self.film.count('<script src="/film-club/soft-reset/audition.js" defer>'), 1
+        )
         self.assertIn('id="filmExportCues"', self.film)
 
     def test_missing_anchor_fails_closed_instead_of_weak_partial_view(self):
