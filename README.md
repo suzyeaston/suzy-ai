@@ -21,6 +21,13 @@ DONE, without padding silence to the piano's full master period. The
 shared meter stays intact. See
 [Film Club performance notes](performance/film-club-2026/README.md).
 
+**Film Club sustain v0.6:** Native piano/cello/violin/glass audition
+buttons now actually trigger a sustained F♯ chord, using a performer
+adjustable 0.4–4.8 s MIDI hold (2.4 s initially) rather than merely
+switching MRT2 prompt weights. Long swung jazz voicings and electronic
+tails replace brittle staccato conditioning. Existing PCM recordings and
+Futureproof's 480 ms default are untouched. [Rehearsal](performance/film-club-2026/README.md).
+
 **Film Club audition/accelerando correction:** The MRT2 Audio Unit is
 ONE blended generator, not five live stems. Its initial native weights
 often leave only piano audible. The Film Club view now has five explicit

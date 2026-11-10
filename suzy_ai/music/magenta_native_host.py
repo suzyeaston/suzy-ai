@@ -7,6 +7,7 @@ native helper is opt-in and must be built with scripts/build-toaster-magenta.sh.
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -35,6 +36,7 @@ ACTIONS = {
     "mute": frozenset({"value"}),
     "drums": frozenset({"value"}),
     "chord": frozenset({"index"}),
+    "chord-hold": frozenset({"seconds"}),
     "tempo": frozenset({"bpm"}),
     "note": frozenset({"note"}),
     "note-off": frozenset({"note"}),
@@ -270,6 +272,11 @@ class NativeMagentaHost:
                 if "harmony" in data and (type(data["harmony"]) is not str
                                           or data["harmony"] not in ("pyramid", "fishes")):
                     raise ValueError("chord harmony must be pyramid or fishes")
+            if action == "chord-hold":
+                seconds = data["seconds"]
+                if (type(seconds) not in (int, float) or not math.isfinite(seconds)
+                        or not 0.2 <= seconds <= 4.8):
+                    raise ValueError("chord-hold seconds must be finite and between 0.2 and 4.8")
             if action == "tempo":
                 bpm = data["bpm"]
                 if type(bpm) not in (int, float) or not 60 <= bpm <= 190:
