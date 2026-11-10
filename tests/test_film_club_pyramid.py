@@ -118,7 +118,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("supersaw", lead)
         self.assertIn("synthetic lead", lead)
         self.assertIn("granular droplets", glass)
-        self.assertIn("glitch-club", drums)
+        self.assertIn("electronic club drums", drums)
         self.assertIn("100 BPM", drums)
         self.assertIn('id="filmSynthKeys"', self.film)
         self.assertIn('NEON SYNTH PIANO', self.film)
