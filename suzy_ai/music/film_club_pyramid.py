@@ -261,7 +261,15 @@ The current model and its native loops are never stopped by this control.
 A matching saved prompt bank does not prove audible model embedding.</small></section>"""
     if editor not in page:
         raise ValueError("Original TOASTER prompt editor anchor changed")
-    page = page.replace(editor, sync_panel + bridge + editor, 1)
+    # The Google UI prompt bank is a separate, optional Audio Unit.
+    # Do not make the broken native handoff the default Film Club sound
+    # workflow: the local neon synth plays immediately without those prompts.
+    page = page.replace(
+        editor,
+        '<details class="film-tools" id="filmNativeAdvanced">'
+        '<summary>OPTIONAL · GOOGLE MRT2 SOUND BANK (ADVANCED)</summary>'
+        + sync_panel + bridge + '</details>' + editor, 1
+    )
     # Remove the photographed full-size recording, soundtrack audition
     # and 60s-storyboard surfaces. Keep the REAL native selectors and
     # recorder inside short collapsed tools, not by deleting their engines.
@@ -350,7 +358,8 @@ A matching saved prompt bank does not prove audible model embedding.</small></se
     page = page.replace(
         "</body>",
         '<script src="/film-club/soft-reset/film-club.js" defer></script>'
-        '<script src="/film-club/soft-reset/audition.js" defer></script></body>',
+        '<script src="/film-club/soft-reset/audition.js" defer></script>'
+        '<script src="/film-club/soft-reset/neon-synth.js" defer></script></body>',
         1
     )
     if page.count('id="filmControlBar"') != 1:
