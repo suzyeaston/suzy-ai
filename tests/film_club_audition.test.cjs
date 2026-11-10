@@ -18,7 +18,10 @@ function harness({ready=true,recording=false,weights=[1,0,0,0,0]}={}){
    const b=node(name);b.dataset.filmAudition=name;return b;
  });
  const output=node("filmAuditionStatus"),blend=node("filmAuditionBlend");
- const elements=new Map([[output.id,output],[blend.id,blend]]);
+ const hold=node("filmNoteHold");hold.value="2400";
+ const holdValue=node("filmNoteHoldValue");
+ const elements=new Map([[output.id,output],[blend.id,blend],
+   [hold.id,hold],[holdValue.id,holdValue]]);
  for(const id of ["mix","aiLeadMix-pyramid","aiLeadMix-fishes","aiDrumMix",
                   "aiLeadMixValue-pyramid","aiLeadMixValue-fishes","aiDrumMixValue"])
    elements.set(id,node(id));
@@ -53,11 +56,11 @@ function harness({ready=true,recording=false,weights=[1,0,0,0,0]}={}){
    },
    aiFetch:async(action,payload)=>{
      changes.push({action,payload});
-     if(action==="mix")mix=payload.value;
-     else if(action==="lead-mix"&&payload.scene==="pyramid")leadP=payload.value;
-     else if(action==="lead-mix"&&payload.scene==="fishes")leadF=payload.value;
-     else if(action==="drum-mix")drum=payload.value;
-     setWeights();
+     if(action==="chord-hold")return {chord_min_hold_ms:Math.round(payload.seconds*1000)};
+     if(action==="mix"){mix=payload.value;setWeights();}
+     else if(action==="lead-mix"&&payload.scene==="pyramid"){leadP=payload.value;setWeights();}
+     else if(action==="lead-mix"&&payload.scene==="fishes"){leadF=payload.value;setWeights();}
+     else if(action==="drum-mix"){drum=payload.value;setWeights();}
      return {prompt_weights:values.slice()};
    }
  };
@@ -86,19 +89,41 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
    assert.match(h.output.textContent,new RegExp("SELECTED "+name.toUpperCase()));
    assert.match(h.output.textContent,/NOW PLAY Z\/X\/C/);
  }
- assert.equal(h.changes.length,0,"existing native selector owns routing; no new secret API writes");
+ const actions=h.changes.map(x=>x.action);
+ assert.equal(actions.filter(a=>a==="chord-hold").length,5);
+ assert.equal(actions.filter(a=>a==="chord").length,5);
+ assert.equal(actions.filter(a=>a==="release").length,5);
+ assert.deepEqual(h.changes.filter(x=>x.action==="chord")
+   .map(x=>x.payload.harmony),Array(5).fill("pyramid"));
+ assert.match(h.output.textContent,/AUDITION CHORD SENT/);
+ assert.equal(h.elements.get("filmNoteHoldValue").textContent,"2.4 seconds");
 });
 test("Blend All Five submits one-AU weighted mix and verifies all weights nonzero",async()=>{
  const h=harness();await h.settle();await h.blend.click();
  const ops=h.changes.map(x=>x.action);
- assert.deepEqual(ops,["mix","lead-mix","lead-mix","drums","drum-mix"]);
+ assert.deepEqual(ops,["mix","lead-mix","lead-mix","drums","drum-mix",
+   "chord-hold","chord","release"]);
  assert.ok(h.weights.every(v=>v>.05),"all five must actually be audible in one mixed generator");
  assert.match(h.output.textContent,/FIVE PROMPTS WEIGHTED IN ONE GENERATOR/);
+ assert.match(h.output.textContent,/SUSTAINED AUDITION CHORD SENT/);
  assert.equal(h.blend.getAttribute("aria-pressed"),"true");
  assert.equal(h.elements.get("aiDrumMix").value,"15");
  assert.equal(h.elements.get("aiLeadMix-pyramid").value,"38");
  assert.equal(h.elements.get("aiLeadMix-fishes").value,"45");
 });
+test("film sustain slider configures 3.8-second native holds without replacing model or audio loops",async()=>{
+ const h=harness();await h.settle();
+ const slider=h.elements.get("filmNoteHold");
+ slider.value="3800";
+ slider.callbacks.input();
+ assert.equal(h.elements.get("filmNoteHoldValue").textContent,"3.8 seconds");
+ await slider.callbacks.change();
+ assert.deepEqual(h.changes.map(x=>x.action),["chord-hold"]);
+ assert.equal(h.changes[0].payload.seconds,3.8);
+ assert.match(h.output.textContent,/3.8s/);
+ assert.equal(h.calls.length,0,"sustain does not select any other model voice");
+});
+
 test("do not switch native prompts while a take is recording",async()=>{
  const h=harness({recording:true});await h.settle();
  await h.buttons[2].click();await h.blend.click();
