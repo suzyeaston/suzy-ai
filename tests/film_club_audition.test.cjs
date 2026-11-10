@@ -95,7 +95,7 @@ test("piano/cello/violin/glass/drums buttons each select one real model prompt w
  assert.equal(actions.filter(a=>a==="chord").length,5);
  assert.equal(actions.filter(a=>a==="release").length,5);
  assert.deepEqual(h.changes.filter(x=>x.action==="chord")
-   .map(x=>x.payload.harmony),Array(5).fill("pyramid"));
+   .map(x=>x.payload.harmony),Array(5).fill("accelerando"));
  assert.match(h.output.textContent,/AUDITION CHORD SENT/);
  assert.equal(h.elements.get("filmNoteHoldValue").textContent,"2.4 seconds");
  assert.equal(h.changes.filter(x=>x.action==="chord")[1].payload.octave,-12,
