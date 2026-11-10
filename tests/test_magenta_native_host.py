@@ -185,7 +185,7 @@ class NativeMRT2Tests(unittest.TestCase):
         self.assertIn('octave == 0 || octave == -12', source)
         self.assertIn('nextNotes[i].map { UInt8(Int($0) + octave) }', source)
         self.assertIn('guard (octave == 0 || octave == -12)', source)
-        self.assertIn('"chord"', ACTIONS)
+        self.assertIn("chord", ACTIONS)
         self.assertEqual(ACTIONS["chord"], {"index"})
 
     def test_film_club_native_sustain_does_not_change_futureproof_default(self):
