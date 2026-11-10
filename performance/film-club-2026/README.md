@@ -5,12 +5,24 @@ A musical continuation of Suzy Easton's October 29 Futureproof Pyramid Orbit
 performance for the Film Club's *Make Art Not War* music video, with Gastown
 Simulator as the visual world.
 
-The creative direction is **a continuation of the Pyramid theme**, not a
-new automatically composed one-minute song. The F♯ → Gmaj7 → A6 harmonic
-space is the anchor. Build the film's tension with layered takes and a musical
-accelerando, then resolve with the performer, voice and violin. Grimes'
-accelerando is a conceptual reference to acceleration and density, **not**
-a request to imitate recordings or reproduce another composition.
+The Film Club composition now uses a **four-chord Accelerando-derived
+rehearsal adaptation** rather than the old Pyramid F♯ progression:
+**Em → E7 → Am → E**. This selection follows the four prominent chords
+listed by Mazmazika (it is not the complete song transcript). Hooktheory
+analyses sections in E Phrygian Dominant and a bridge in E minor, at
+124 BPM in 4/4. The film deliberately retains our 100 BPM, 4/4 loop
+clock, the original TOASTER recording workflow, and the warmth of the
+Pyramid piano, cello, harmonium and violin.
+
+**E7 matters:** E minor's G-natural becomes G-sharp in the dominant
+seventh (E–G♯–B–D), then resolves through A minor before opening into E
+major. F-natural can appear as a sparse Phrygian-dominant colour, not an
+invented fifth chord. The original Futureproof F♯/Gmaj7/A6 song remains
+unchanged at `/toaster/live`.
+
+Sources:
+- https://www.mazmazika.com/chordanalyzer/grimes-vadakin-songs/accelerando-chords
+- https://www.hooktheory.com/theorytab/view/grimes/accelerando-ft-vadakin
 
 ## Open the actual looping instrument
 
@@ -81,6 +93,31 @@ live in the **running browser memory**, and native AU memory loops live in
 the process. Before changing versions or prompting a native restart,
 **export what you care about**. Opening the new route does not migrate
 an in-memory take from another tab.
+
+## v0.8: four playable Accelerando chords, not just labels
+
+Film Club's Pyramid deck has been revoiced as a four-pad performance bank,
+**Z = Em, X = E7, C = Am, V = E**. These play real 4-note MIDI voicings:
+
+| Pad | MIDI notes | Warm cello/harmonium bass register |
+| --- | --- | --- |
+| Z · Em | E3 G3 B3 E4 (52,55,59,64) | E2 G2 B2 E3 |
+| X · E7 | E3 G♯3 B3 D4 (52,56,59,62) | E2 G♯2 B2 D3 |
+| C · Am | A3 C4 E4 A4 (57,60,64,69) | A2 C3 E3 A3 |
+| V · E | E3 G♯3 B3 E4 (52,56,59,64) | E2 G♯2 B2 E3 |
+
+The render-only film variant updates the source's onscreen pads, virtual
+keyboard shortcuts, MIDI event names/notes, native role chord pads, loop
+replay, and **Swift `harmony:"accelerando"` chord overrides** together.
+The cello/harmonium still receives a -12 semitone octave, the piano
+does not. Futureproof's original version is not rewritten.
+Old recorded MIDI clips are interpreted under the currently displayed
+four-chord bank; native PCM takes are audio and not automatically
+reharmonized. **Export earlier takes before a new recording session** if
+you need to preserve their original pitches.
+
+This is an independently played arrangement, not a copied vocal,
+melody or sampled track.
 
 ## v0.7: restore the Pyramid low cello + harmonium foundation
 
