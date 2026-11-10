@@ -14,39 +14,38 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Preserve the original Pyramid sound: a recognisable acoustic piano
-    # over a much lower, warm cello + harmonium foundation. Keep the
-    # single MRT2 generator's five roles distinct.
-    "Natural acoustic jazz grand piano, recognisable felt hammers, piano "
-    "strings and warm wooden soundboard. Clear real-piano attack followed "
-    "by long natural decay. Deep mid-register F sharp suspended chords, "
-    "G major seventh and A sixth with gentle ninths; spacious, human "
-    "rubato floating over a 100 BPM swung 4/4 pulse. Hold each chord for "
-    "several seconds; intimate room resonance, no synthesizer, organ, "
-    "celesta, electric piano, strings or drums",
-    "Deep warm low bowed cello doubled by a soft pump harmonium reed-organ "
-    "bass drone, like the original Pyramid foundation. Low F sharp "
-    "fundamental with a rich round wooden bass body, warm breathing reeds "
-    "and slow sustained arco bow motion. Long expressive connected notes "
-    "and gentle vibrato, occasional dark low octave movement; harmonium "
-    "fills the spaces beneath the cello. 100 BPM 4/4, suspended Gmaj7 "
-    "and A6 colours, no bright synth, staccato plucks or drums",
-    "Intimate lyrical jazz violin, singing bowed legato phrases with "
-    "imperfect vibrato, portamento and long held notes floating over "
-    "suspended F sharp and G major seventh harmony. Slowly growing "
-    "tremolo and shimmering granular electronic tail; mournful and "
-    "futuristic, 100 BPM swung pulse underneath, no snare or bright lead",
-    "Sustained glass harmonica, bowed vibraphone and harp harmonics "
-    "with long ringing overtones. Sparse suspended ninths and elevenths, "
-    "soft tape delay and granular digital halo, fragments that bloom "
-    "and dissolve instead of busy sixteenth-note runs. Dark, spectral "
-    "100 BPM ambient electronica, no piano, voice or drum kit",
-    "Organic jazz-electronica drum atmosphere at 100 BPM in four-four, "
-    "soft deep electronic kick with a breathing pulse, loose brushed "
-    "snare and ghost notes behind the beat, shuffling cymbal shimmer, "
-    "sub-bass swells and swelling distorted low percussion. Build "
-    "tension through density and texture, then a dramatic half-time "
-    "breath, not nonstop aggressive club drums, no melody or vocals",
+    # Four-chord Film Club adaptation; the original Futureproof F-sharp bank
+    # remains unchanged. Instrument roles are independent timbral prompts.
+    "Natural acoustic jazz grand piano: felt hammer attacks, real resonant "
+    "piano strings, warm wooden soundboard, long overlapping chord decay. "
+    "Play the four sustained harmonies E minor, E dominant seventh, A minor "
+    "and E major, with gentle ninth extensions and slightly swung rubato. "
+    "Let G-natural resolve to G-sharp in E7. Dark spacious piano at "
+    "100 BPM 4/4, no electric piano, organ, bell synthesizer or drums",
+    "Low warm bowed cello doubled by a softly breathing pump harmonium "
+    "reed-organ bass drone. The bass moves E2 to E2 to A2 to E2 beneath "
+    "E minor, E dominant seventh, A minor, E major harmony. Deep woody "
+    "resonance and round low-frequency fundamentals, long legato arco "
+    "strokes, subtle vibrato and slow warm reed swells; modal F-natural "
+    "passing colour for tension. 100 BPM 4/4, no bright synth or drums",
+    "Expressive lyrical jazz violin in long bowed legato tones, gliding "
+    "portamento and human imperfect vibrato over E minor to E dominant "
+    "seventh, A minor and E major. Dark minor phrasing contrasts with "
+    "G-sharp dominant tension and occasional F-natural Phrygian colour. "
+    "Gradually increase tremolo and granular electronic resonance, then "
+    "return to a fragile long release; 100 BPM 4/4, no drums",
+    "Sustained glass harmonica, bowed vibraphone and harp harmonics. "
+    "Long ringing overtones and spacious granular delays surround "
+    "E minor, E7, A minor and E major chords; occasional F-natural "
+    "Phrygian colour, shifting major-minor tension and open jazz ninths. "
+    "Sparse spectral textures bloom into motion, then disappear. "
+    "100 BPM cinematic electronica, no piano, voice or drums",
+    "Organic 100 BPM four-four jazz-electronica rhythm: rounded electronic "
+    "kick, brushed backbeat and ghost snare, shuffling cymbal shimmer, "
+    "low toms and sub-bass pressure beneath E minor, E7, A minor, E major. "
+    "Darker modal F-natural ornaments, increasing rhythmic density and "
+    "distortion with an abrupt half-time feeling in the bridge, no lead "
+    "melody, sampled vocals or continuous aggressive house fills",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
