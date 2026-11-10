@@ -14,38 +14,43 @@ from .magenta_native_host import PROMPTS
 
 TITLE = "PYRAMID / SOFT RESET · Film Club"
 FILM_PROMPTS = (
-    # Four-chord Film Club adaptation; the original Futureproof F-sharp bank
-    # remains unchanged. Instrument roles are independent timbral prompts.
-    "Natural acoustic jazz grand piano: felt hammer attacks, real resonant "
-    "piano strings, warm wooden soundboard, long overlapping chord decay. "
-    "Play the four sustained harmonies E minor, E dominant seventh, A minor "
-    "and E major, with gentle ninth extensions and slightly swung rubato. "
-    "Let G-natural resolve to G-sharp in E7. Dark spacious piano at "
-    "100 BPM 4/4, no electric piano, organ, bell synthesizer or drums",
-    "Low warm bowed cello doubled by a softly breathing pump harmonium "
-    "reed-organ bass drone. The bass moves E2 to E2 to A2 to E2 beneath "
-    "E minor, E dominant seventh, A minor, E major harmony. Deep woody "
-    "resonance and round low-frequency fundamentals, long legato arco "
-    "strokes, subtle vibrato and slow warm reed swells; modal F-natural "
-    "passing colour for tension. 100 BPM 4/4, no bright synth or drums",
-    "Expressive lyrical jazz violin in long bowed legato tones, gliding "
-    "portamento and human imperfect vibrato over E minor to E dominant "
-    "seventh, A minor and E major. Dark minor phrasing contrasts with "
-    "G-sharp dominant tension and occasional F-natural Phrygian colour. "
-    "Gradually increase tremolo and granular electronic resonance, then "
-    "return to a fragile long release; 100 BPM 4/4, no drums",
-    "Sustained glass harmonica, bowed vibraphone and harp harmonics. "
-    "Long ringing overtones and spacious granular delays surround "
-    "E minor, E7, A minor and E major chords; occasional F-natural "
-    "Phrygian colour, shifting major-minor tension and open jazz ninths. "
-    "Sparse spectral textures bloom into motion, then disappear. "
-    "100 BPM cinematic electronica, no piano, voice or drums",
-    "Organic 100 BPM four-four jazz-electronica rhythm: rounded electronic "
-    "kick, brushed backbeat and ghost snare, shuffling cymbal shimmer, "
-    "low toms and sub-bass pressure beneath E minor, E7, A minor, E major. "
-    "Darker modal F-natural ornaments, increasing rhythmic density and "
-    "distortion with an abrupt half-time feeling in the bridge, no lead "
-    "melody, sampled vocals or continuous aggressive house fills",
+    # Film Club-only original composition. Harmonic colour comes from the
+    # four-chord rehearsal adaptation; no samples, melodies or copied vocals.
+    "Real acoustic jazz grand piano, unmistakable felt-hammer attack, "
+    "warm wooden body and very long overlapping sustain. Em, E7, Am, E: "
+    "G-natural shifts to G-sharp and D-natural on E7. Spacious swung "
+    "suspended ninths, irregular voicings that float against a driving "
+    "100 BPM 4/4 pulse. Intimate fragile notes widen into dramatic "
+    "low-register strikes, then soften for the bridge. No synth piano, "
+    "bell or percussion",
+    "Deep bowed cello plus breathing pump harmonium reed-organ bass, "
+    "massive warm E2 and A2 fundamentals, softly distorted sub under "
+    "long woody arco legato. Em to E7 to Am to E, with subtle modal "
+    "F-natural passing tension. Slow swells below two interlocking "
+    "100 BPM electronic grooves, increasing weight without losing "
+    "the original human cello. Rich, rounded and sustained, no bright "
+    "synth, snare or staccato plucks",
+    "Close lyrical bowed violin, vulnerable long legato, portamento, "
+    "imperfect vibrato and sustained jazz melody over Em E7 Am E. "
+    "Gradual transformation into urgent tremolo and ghostly granular "
+    "digital harmonics, then a sudden intimate half-time breath. "
+    "Dark modal F-natural over an underlying 100 BPM pulse, emotional "
+    "not robotic, no drum pattern or pop-synth lead",
+    "Sustained bowed glass vibraphone, distant bell harmonics, "
+    "metallic echoes and evolving icy granular synth texture. "
+    "E minor to E7 to A minor to E major with Phrygian-dominant "
+    "F-natural colour. Slow, fragile resonances gather into a dense "
+    "shimmering pattern against the other rhythmic layer, then "
+    "dissolve into silence. Dark futuristic jazz electronica, "
+    "no acoustic piano, no busy lead or drums",
+    "Bass-heavy kinetic electro-jazz rhythm at 100 BPM in 4/4. "
+    "A grounded house kick pulses steadily under an interlocking "
+    "3+3+2 two-bar counter-rhythm: shuffled low toms, displaced "
+    "clacks and granular metallic hats. Huge dark bass pressure, "
+    "gentle distorted tension, escalating subdivisions, abrupt "
+    "half-time breakdown and airy release. Organic swing and "
+    "sinister futuristic atmosphere, not a copy of any recording, "
+    "no sampled voices or lead melody",
 )
 PROMPT_IDS = (
     "promptPyramid", "promptFishes", "promptViolin",
