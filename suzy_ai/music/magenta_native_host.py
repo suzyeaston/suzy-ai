@@ -270,8 +270,8 @@ class NativeMagentaHost:
                 if "legato" in data and type(data["legato"]) is not bool:
                     raise ValueError("legato must be boolean")
                 if "harmony" in data and (type(data["harmony"]) is not str
-                                          or data["harmony"] not in ("pyramid", "fishes")):
-                    raise ValueError("chord harmony must be pyramid or fishes")
+                                          or data["harmony"] not in ("pyramid", "fishes", "accelerando")):
+                    raise ValueError("chord harmony must be pyramid, fishes or accelerando")
                 if "octave" in data and (
                     type(data["octave"]) is not int or data["octave"] not in (-12, 0)
                 ):
