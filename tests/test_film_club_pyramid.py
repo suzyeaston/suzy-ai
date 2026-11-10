@@ -165,7 +165,11 @@ class FilmClubPyramidTests(unittest.TestCase):
         # explicit control and honest verification status on the Film page.
         self.assertIn('id="filmSyncNativePrompts"', self.film)
         self.assertIn('id="filmNativePromptStatus"', self.film)
-        self.assertIn('APPLY FILM CLUB SOUNDS TO MRT2', self.film)
+        self.assertIn('UPDATE FILM CLUB SOUNDS SAFELY', self.film)
+        self.assertIn('id="filmOpenGooglePrompts"', self.film)
+        self.assertIn('id="filmGoogleEditorStatus"', self.film)
+        self.assertIn('NO RESTART', self.film)
+        self.assertNotIn('↻ APPLY FILM CLUB SOUNDS TO MRT2', self.film)
         self.assertIn('CHECKING NATIVE HOST', self.film)
         self.assertIn('shared Magenta generator', self.film)
         self.assertIn('id="filmManualBridge"', self.film)
