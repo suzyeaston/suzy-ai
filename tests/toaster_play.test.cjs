@@ -607,6 +607,33 @@ test("driving electronic and hand-drum inspired styles add real offbeat hits wit
  assert.ok(get("drumStatus").textContent.includes("4/4 grid"));
 });
 
+test("house intensity adds true subdivisions without speeding the unchanged 4/4 clock",async()=>{
+ const {run,get}=rig();await run("startStop()");
+ run('setDrumGroove("4/4","house")');
+ const bpm=run("bpm"),meter=get("drumMeter").value,step=run("stepNumber");
+ const counts=run(`(()=>{
+   let fired=0;
+   const original=ctx.createOscillator.bind(ctx);
+   ctx.createOscillator=()=>{
+     const oscillator=original(),start=oscillator.start.bind(oscillator);
+     oscillator.start=(at)=>{fired++;start(at);};
+     return oscillator;
+   };
+   const one=(value)=>{
+     drumEnergy=value;const before=fired;
+     pulse(ctx.currentTime+.22,1); // offbeat hat plus optional ghost notes
+     return fired-before;
+   };
+   return [one(.24),one(.49),one(.88)];
+ })()`);
+ assert.deepEqual(counts,[1,2,3],
+   "sparse, medium and dense 100 BPM ghost subdivisions are musically distinct");
+ assert.equal(run("bpm"),bpm);
+ assert.equal(get("drumMeter").value,meter);
+ assert.equal(run("stepNumber"),step);
+ assert.equal(run("tickSeconds()"),30/100);
+});
+
 test("overdubs preserve instruments and live/loop levels are independent",async()=>{
  const {get,run}=rig();await run("startStop()"); run('setInstrumentSource("pyramid","local")');
  run('setInstrument("pyramid","pad")');
