@@ -97,7 +97,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn('names:["F♯","Gmaj7","A6","F♯"]', self.source)
         self.assertNotIn('KeyV:"v"', self.source)
         self.assertIn("FILM CLUB · PYRAMID / SOFT RESET", self.film)
-        self.assertIn("shared Magenta generator", self.film)
+        self.assertIn("never stopped by this control", self.film)
         self.assertIn("restart", self.film.lower())
 
     def test_livelier_film_prompts_and_groove_control_preserve_pyramid_harmony(self):
