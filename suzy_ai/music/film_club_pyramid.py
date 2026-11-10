@@ -74,9 +74,9 @@ def render_film_club_page(original: str, token: str) -> str:
         "FUTUREPROOF · THE APPLIANCE LATENT SPACE":
             "FILM CLUB · PYRAMID / SOFT RESET · MAKE ART NOT WAR",
         "PYRAMID · THE LIVING LOOP":
-            "PYRAMID · THE LIVING LOOP / FILM CLUB",
+            "PYRAMID / ACCELERANDO · THE LIVING LOOP",
         "Your original piano, violin and voice stay exactly where they are":
-            "The Futureproof harmony continues. Record NEW Film Club takes on this page.",
+            "Em → E7 → Am → E · Film Club-only harmonies, original live-loop engine.",
         "One MRT2 Small model, five genuine Google AU sound prompts: Pyramid piano, low cello/harmonium, violin, glass bells/harp, and brushed jazz drums. Live blending uses the same native engine.":
             "One MRT2 Small model, the original Pyramid chord instrument and loop pedals, with five new Film Club prompt ideas: acoustic grand piano, deep cello/harmonium bass, expressive violin, glass/harp, and evolving percussion.",
         "✦ EDIT FIVE MAGENTA SOUND PROMPTS":
@@ -128,6 +128,32 @@ def render_film_club_page(original: str, token: str) -> str:
         if page.count(old) != 1:
             raise ValueError("TOASTER chord source anchor changed: " + old[:72])
         page = page.replace(old, new, 1)
+
+    # Keep every *visible* Film Club rehearsal hint in sync with the
+    # actual four-pad bank. Do not alter the original Futureproof source.
+    for old, new in (
+        ('Harmonic orbit: F♯ → Gmaj7 → A6 → F♯.',
+         'Film Club harmony: Em → E7 → Am → E.'),
+        ('Low sustained notes and breathy drones, grounded in your existing F♯ / Gmaj7 / A6 harmony.',
+         'Low sustained cello and warm reed drones under Em / E7 / Am / E, an octave below piano.'),
+        ('PYRAMID: Z X C · WEIRD FISHES: B N M ,',
+         'FILM CLUB: Z X C V · WEIRD FISHES: B N M ,'),
+        ('Press PLAY RHYTHM · Pyramid Z X C · Weird Fishes B N M ,',
+         'Press PLAY RHYTHM · Accelerando Em E7 Am E (Z X C V) · Weird Fishes B N M ,'),
+        ('PYRAMID Z X C · WEIRD FISHES B N M , (comma)',
+         'FILM CLUB Z X C V · WEIRD FISHES B N M , (comma)'),
+        ('PYRAMID · Z X C chords · Fishes B N M ,',
+         'ACCELERANDO · Z X C V chords · Fishes B N M ,'),
+        ('WEIRD FISHES · B N M , chords · Pyramid Z X C',
+         'WEIRD FISHES · B N M , chords · Film Club Z X C V'),
+        (' · PYRAMID Z X C / FISHES B N M , play this sound',
+         ' · ACCELERANDO Z X C V / FISHES B N M , play this sound'),
+        ('KEYBOARD RESET · PYRAMID Z X C · FISHES B N M ,',
+         'KEYBOARD RESET · FILM CLUB Z X C V · FISHES B N M ,'),
+    ):
+        if old not in page:
+            raise ValueError("Film Club visible chord hint anchor changed: " + old[:65])
+        page = page.replace(old, new)
 
     for key, prompt in zip(PROMPT_IDS, FILM_PROMPTS):
         pattern = re.compile(
