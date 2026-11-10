@@ -121,11 +121,35 @@ def render_film_club_page(original: str, token: str) -> str:
 .film-cue-item strong{display:block;color:#bdf3d9;font-size:12px}
 .film-cue-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .film-cue-actions button{padding:10px 14px;font-size:12px}
+.film-native-sync{border:1px solid #b5f1d6;background:#233c38;border-radius:12px;padding:15px;margin:15px 0;display:grid;gap:8px}
+.film-native-sync p{font-size:13px;line-height:1.5;margin:0;color:#f8f0ec}
+.film-native-sync button{background:#b8edcf;color:#18352b;border:1px solid #b8edcf;padding:11px 15px;max-width:420px;border-radius:9px;font-weight:800;cursor:pointer}
+.film-native-sync button:disabled{opacity:.65;cursor:progress}
+.film-native-sync output{font:800 12px/1.5 ui-monospace,monospace;color:#fff4e6}
+.film-native-sync small{font-size:11px;color:#f6e1d4}
 .film-warning{padding:9px 12px;border-left:3px solid #f4d0aa;
   background:#291a24;border-radius:5px;font:12px/1.5 system-ui}
 @media(max-width:700px){.film-cue-grid{grid-template-columns:repeat(2,1fr)}}
 """
     page = page.replace("</style>", style + "</style>", 1)
+    # The native Google AU is a different process/UI. Do not imply that
+    # changed textarea text automatically changes the running model.
+    # Give the performer a prominent, deliberate, verifiable sync action
+    # immediately beside the original prompt editor.
+    editor = '<details class="prompt-editor" id="promptEditor">'
+    sync_panel = """<section class="film-native-sync" aria-label="Native MRT2 prompt synchronization">
+<div class="film-tag">GOOGLE MRT2 · ACTIVE SOUND BANK</div>
+<p>These Film Club prompts are new, but the Google Audio Unit may still be
+running the original Futureproof sounds. Apply the five prompts below to
+the <strong>real native MRT2 host</strong> before auditioning.</p>
+<button type="button" id="filmSyncNativePrompts">↻ APPLY FILM CLUB SOUNDS TO MRT2</button>
+<output id="filmNativePromptStatus" role="status" aria-live="polite">CHECKING NATIVE HOST…</output>
+<small>This action restarts the shared Magenta generator and may clear native
+in-memory loops. Export important takes first. Opening this page alone never
+changes the host or Google's window.</small></section>"""
+    if editor not in page:
+        raise ValueError("Original TOASTER prompt editor anchor changed")
+    page = page.replace(editor, sync_panel + editor, 1)
     banner = """
 <section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
   <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
@@ -157,7 +181,7 @@ def render_film_club_page(original: str, token: str) -> str:
   <div class="film-cue-actions">
     <button id="filmExportCues" type="button">↓ SAVE GASTOWN 60s CUES JSON</button>
     <a href="/toaster/live">Return to Futureproof interface</a>
-    <span class="film-tag" id="filmPromptStatus" role="status">FIVE FILM PROMPTS LOADED IN THIS PAGE</span>
+    <span class="film-tag" id="filmPromptStatus" role="status">FILM TEXT READY · NATIVE PROMPT BANK NOT YET VERIFIED</span>
   </div>
   <p class="film-warning"><strong>Separate composition, shared Mac model:</strong>
   Film prompt text does not replace the Futureproof source presets.
