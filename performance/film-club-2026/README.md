@@ -84,20 +84,24 @@ an in-memory take from another tab.
 
 ## v0.3: a livelier Pyramid, with an independent pedal per instrument
 
-The Film Club view now defaults to **4/4 Propulsive electronica / breaks**
-at the familiar **105 BPM**, without changing the Futureproof route's
-default Soft Pulse. There's a **GROOVE ENERGY** slider and a second
-**Frame-drum electro / syncopated** rhythm to try. Both are original
-local synth patterns with moving kick/snare/hat and extra short percussive
-subdivisions. The subdivision sounds are **browser synthesis**, not a
-recording of traditional percussion or editable notes in the exported
-three-lane GM MIDI. The meter/tempo and performance clock do not change.
+The Film Club view now defaults to **4/4, 100 BPM Electro house ·
+four-on-the-floor**. It has actual local quarter-note kicks on beats 1,
+2, 3, 4; snare/clap accents on 2 and 4; offbeat hats; plus a
+**GROOVE ENERGY** slider (84% at startup). The alternative
+**Frame-drum electro / syncopated** and **Propulsive electronica / breaks**
+rhythms remain available. These are original browser-synth sounds, not
+samples from artists or editable notes for the extra ghost subdivisions
+in the GM MIDI export. This Film-only preset does **not** change the
+Futureproof route's 105 BPM Soft Pulse. Before any first recording,
+the Film Club script sets the actual transport to 100 BPM. Never
+change the tempo under an existing PCM loop; the live engine blocks it.
 
 The sound prompt directions apply to **all five native Magenta slots**:
-piano gets repeating arpeggios and rhythmic chord attacks; cello supplies
-a syncopated low counterline; violin adds expressive modal turns; glass/harp
-gets rippling plucked ostinati; drums bring a driving breakbeat with
-synthetic hand-drum-inspired accents. The original Pyramid chords
+piano gets firm staccato chord strikes and rhythmic rests, cello receives
+pizzicato/spiccato bass ostinati with short decays rather than long pads;
+violin remains expressive with modal turns; glass/harp gets bright
+plucked ostinati; drums supply a 100 BPM kick-clap-offbeat-hat house feel
+with occasional synthetic hand-drum accents. The original Pyramid chords
 **F♯ → Gmaj7 → A6** remain. These are *conditioning prompts*, not
 guarantees that MRT2 will output a particular drum beat. Audition each
 sound and steer it with the keys before capturing.
