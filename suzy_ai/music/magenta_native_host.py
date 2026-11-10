@@ -234,7 +234,7 @@ class NativeMagentaHost:
             if action not in ACTIONS or not isinstance(data, dict):
                 raise ValueError("unknown AI action")
             fields = set(data)
-            chord_fields = action == "chord" and {"index"} <= fields <= {"index", "legato", "harmony"}
+            chord_fields = action == "chord" and {"index"} <= fields <= {"index", "legato", "harmony", "octave"}
             capture_fields = action == "capture-stop" and (
                 fields == {"id"} or
                 fields == {"id", "live_loop", "preroll_seconds", "period_seconds"}
@@ -272,6 +272,10 @@ class NativeMagentaHost:
                 if "harmony" in data and (type(data["harmony"]) is not str
                                           or data["harmony"] not in ("pyramid", "fishes")):
                     raise ValueError("chord harmony must be pyramid or fishes")
+                if "octave" in data and (
+                    type(data["octave"]) is not int or data["octave"] not in (-12, 0)
+                ):
+                    raise ValueError("chord octave must be -12 or 0 semitones")
             if action == "chord-hold":
                 seconds = data["seconds"]
                 if (type(seconds) not in (int, float) or not math.isfinite(seconds)
