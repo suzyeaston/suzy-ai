@@ -2184,7 +2184,7 @@ test("BOSS pedal: DONE plays piano sample zero indefinitely without another tap"
  assert.equal(host.filter(x=>x.op==="capture-start").length,1);
 });
 
-test("overdub inherits first piano duration, remains audible alongside it",async()=>{
+test("a full-length overdub can still match first piano duration and stay audible",async()=>{
  const {run,env,calls,get}=rig();await run("startStop()");
  run("aiNativeReady=true");calls.decodedFrames=8*48000;
  let number=0;const lengths=[];
@@ -2203,7 +2203,7 @@ test("overdub inherits first piano duration, remains audible alongside it",async
  run("ctx.currentTime+=.3");await run('startNativeInstrumentTake("pyramid","lead")');
  assert.ok(lengths[1]>=period*2,
   "native overdub capture includes full period after waiting for the existing downbeat");
- run("ctx.currentTime+=decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
+ run("ctx.currentTime=nativeTake.gridStartAt+decks.pyramid.pedalPeriodSeconds");await run("finishNativeInstrumentTake()");
  assert.equal(run("decks.pyramid.layers.length"),2);
  assert.equal(run("decks.pyramid.layers[0].source.loop"),true);
  assert.equal(run("decks.pyramid.layers[1].source.loop"),true);
