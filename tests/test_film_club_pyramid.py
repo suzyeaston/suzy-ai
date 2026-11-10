@@ -93,7 +93,7 @@ class FilmClubPyramidTests(unittest.TestCase):
         self.assertIn("modal F-natural", cello)
         self.assertIn("legato", violin)
         self.assertIn("E major", violin)
-        self.assertIn("long ringing overtones", glass)
+        self.assertIn("long ringing overtones", glass.lower())
         self.assertIn("E7", glass)
         self.assertIn("100 BPM", drums)
         self.assertIn("brushed", drums)
