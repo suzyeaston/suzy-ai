@@ -103,6 +103,31 @@
     }
   };
 
+  // Give live Z/X/C/V pad taps the same animated pickup as recorded
+  // chords, so the instrument feels electronic BEFORE pressing RECORD.
+  // The existing recorded chord event still owns the loop; on replay
+  // synth() adds the pickup once, without recording duplicate MIDI.
+  if(typeof beginChord==="function"){
+    const beginOriginalChord=beginChord;
+    beginChord=function(which,index,key){
+      beginOriginalChord(which,index,key);
+      if(which!=="pyramid" || decks.pyramid.instrument!=="keys" ||
+         typeof localInstrumentAudible!=="function" ||
+         !localInstrumentAudible(which) || !ctx)return;
+      const notes=SCENES.pyramid.notes[index];
+      if(!Array.isArray(notes)||notes.length<3)return;
+      const first=ctx.currentTime+.014;
+      const step=60/Math.max(60,Number(bpm)||100)/4;
+      const order=[0,2,1,3];
+      for(let i=0;i<4;i++){
+        const at=first+i*step;
+        const voice=makeVoice(which,notes[order[i]%notes.length]+12,
+          at,"keys",.013,false);
+        releaseVoice(voice,at+step*.73);
+      }
+    };
+  }
+
   const patchButtons=[...document.querySelectorAll("[data-film-local-patch]")];
   const validPatches=new Set(["keys","bass","pad","pluck","violin"]);
   function highlightPatch(){
