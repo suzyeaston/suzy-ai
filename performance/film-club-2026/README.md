@@ -24,6 +24,44 @@ Sources:
 - https://www.mazmazika.com/chordanalyzer/grimes-vadakin-songs/accelerando-chords
 - https://www.hooktheory.com/theorytab/view/grimes/accelerando-ft-vadakin
 
+## NEON SYNTH v1.1: playable electronic instruments, no Google prompt paste
+
+The Film Club route now opens with its **Pyramid/Accelerando keys set to
+LOCAL NEON SYNTH**, not the older Google AU sound bank. Z/X/C/V chord
+pads play a real Web Audio synth piano: detuned saw and triangle partials,
+a transient FM modulator that stops at each note release, a descending
+brightness response and four short sixteenth-note arpeggio pickups.
+**This instrument works without Google MRT2 being loaded**; it is not
+misrepresented as native AI audio. The original 100 BPM shared looper,
+stored takes and Futureproof source remain unchanged.
+
+The Film-only local instrument presets now include NEON FM SYNTH PIANO,
+GLACIAL SUPERSAW PAD, PIXEL GLASS PLUCK, RUBBER ANALOG SUB, NEON SAW
+LEAD and SHARP DIGITAL ARP. Switch instruments with the original local
+instrument picker and record loops normally. The main Film control bar
+has an explicit **NEON SYNTH PIANO · ON** button: click it to toggle
+back to the optional native Google piano lane. If you select native,
+Google's sound may still reflect an older bank; that is a separate AUv3
+limitation, not a reason to stop local music.
+
+Five new *optional* native Magenta sound prompt ideas are provided for
+future Google audition: bright FM keys, sidechained analog sub, supersaw
+lead, granular digital glass and fast electronic club drums. They
+replace the old acoustic-first Film Club prompts in the text editor.
+Because Google's installed AUv3 does not reliably re-embed host-written
+`MGRT_Prompts` after loading the model through its GUI, a browser-side
+"Apply" cannot guarantee these native sound prompts will take effect.
+The Google prompt panel is now collapsed under **OPTIONAL · GOOGLE MRT2
+SOUND BANK (ADVANCED)**, rather than presented as the gatekeeper to making
+music. This release does **not** claim the native Google plugin has been
+patched or that its sounds automatically changed.
+
+**Recording:** Local synth audio is the browser instrument bus and is
+captured by the existing live loop/recording workflow. Google's separate
+native stream still requires system audio capture (OBS or screen+system
+audio) to get both into Logic Pro. If no sound is heard, first select
+NEON SYNTH PIANO · ON and play Z/X/C/V after unlocking Chrome audio.
+
 ## v1.0: more buoyant Accelerando-inspired instruments
 
 The harmony stays **Em → E7 → Am → E** and the one shared looper
