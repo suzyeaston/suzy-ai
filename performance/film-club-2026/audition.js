@@ -134,7 +134,7 @@
       ];
       for(const [action,payload] of changes)await aiFetch(action,payload);
       const ui=[
-        ["mix","42"],["aiLeadMix-pyramid","38"],
+        ["aiLeadMix-pyramid","38"],
         ["aiLeadMix-fishes","45"],["aiDrumMix","15"]
       ];
       for(const [id,value] of ui){
@@ -146,6 +146,16 @@
         ["aiDrumMixValue","15%"]
       ]){
         const field=document.getElementById(id);if(field)field.textContent=value;
+      }
+      // The native-only blend is a temporary timbre audition: don't modify
+      // the browser song crossfader, which mixes already-recorded PCM.
+      // Re-select an instrument to leave this blend mode. The two lead and
+      // drum controls above reflect the request, and status readback is
+      // authoritative.
+      const allow=document.getElementById("aiDrums");
+      if(allow){
+        allow.setAttribute("aria-pressed","true");
+        allow.textContent="🥁 AI DRUM AUDIO ALLOWED";
       }
       // Existing syncAIMix may run again later; keep its controls truthful.
       const ok=await display(null,true);
