@@ -65,12 +65,6 @@ final class MRT2Host {
     // This is not a hit-level drum MIDI output or a sequencer.
     private var aiDrumsAllowed = false
     private var outputSignalDetected = false
-    // A lifetime "signal detected" latch can be misleading: it may
-    // describe audio from BEFORE the model was replaced or muted.
-    // Only report audible host PCM as RECENT when it occurred in the
-    // last two seconds. Updated from the main thread, never from the
-    // Audio Unit's real-time render callback.
-    private var lastOutputSignalUptime: TimeInterval?
     // Capture the real AU mixer output, not a browser imitation. Audio writes
     // are serialized off the real-time tap; only small PCM copies occur there.
     private let nativeCaptureQueue = DispatchQueue(label: "suzy.toaster.native-pcm", qos: .userInitiated)
@@ -133,10 +127,6 @@ final class MRT2Host {
         let actualAUPrompts = auItems?.prefix(5).compactMap { $0["text"] as? String }
         let available = actualAUPrompts?.count == 5
         let sameBank = available && actualAUPrompts == prompts
-        let signalAge = lastOutputSignalUptime.map {
-            max(0, ProcessInfo.processInfo.systemUptime - $0)
-        }
-        let outputRecent = signalAge.map { $0 < 2.0 } ?? false
         let pluginBookmark = auState?["MGRT_ModelBookmark"] as? Data
         let hasPluginBookmark = pluginBookmark != nil && (pluginBookmark?.count ?? 0) > 64
         return [
@@ -157,8 +147,6 @@ final class MRT2Host {
             // never the physical headphones or correct Magenta semantics.
             "model_audio_confirmed": outputSignalDetected,
             "output_signal_detected": outputSignalDetected,
-            "output_signal_recent": outputRecent,
-            "seconds_since_output_signal": signalAge ?? -1,
             "midi_gate_enabled": midiGateEnabled,
             "midi_gate_parameter_readback": Double(generator?.auAudioUnit.parameterTree?.parameter(withAddress: 45)?.value ?? -1),
             "model_path": modelPath,
@@ -714,13 +702,7 @@ final class MRT2Host {
                         for channel in 0..<count {
                             for frame in stride(from: 0, to: Int(buffer.frameLength), by: strideLength) {
                                 if abs(samples[channel][frame]) > 0.001 {
-                                    DispatchQueue.main.async {
-                                        self?.outputSignalDetected = true
-                                        self?.lastOutputSignalUptime = ProcessInfo.processInfo.systemUptime
-                                        if self?.promptReloadPhase == "model-requested-awaiting-audio" {
-                                            self?.promptReloadPhase = "audio-confirmed"
-                                        }
-                                    }
+                                    DispatchQueue.main.async { self?.outputSignalDetected = true }
                                     return
                                 }
                             }
@@ -900,7 +882,6 @@ final class MRT2Host {
         loading = false
         modelRequested = false
         outputSignalDetected = false
-        lastOutputSignalUptime = nil
         bookmarkScopeVerified = false
         bookmarkSelfResolutionVerified = false
         hostTransportSupplied = false
