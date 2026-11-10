@@ -82,6 +82,60 @@ the process. Before changing versions or prompting a native restart,
 **export what you care about**. Opening the new route does not migrate
 an in-memory take from another tab.
 
+## v0.6: long jazz chords + sustained native note audition
+
+This version corrects two practical problems with the Film Club sound:
+**HEAR** used to only change a five-prompt weight, not actually play an
+instrument; and the native Swift host defaulted to a **480 ms minimum
+chord hold**. Short taps therefore sent MIDI note-offs before Google's
+neural audio could develop the sustained texture you wanted.
+
+The five **HEAR** buttons now set the matching *real* Google MRT2 prompt,
+apply the current **NATIVE CHORD SUSTAIN** (2.4 s by default), send a
+single actual F♯-centred harmony chord and release it through the existing
+native engine. The host holds it for the full configured minimum even if
+you release the browser control instantly. Holding Z/X/C longer still
+works, and a new chord cancels a pending old note-off rather than being
+cut off by it. Use the slider from 0.4 to 4.8 seconds to audition
+slow-moving voicings. Changing it does **not** restart MRT2, replace
+your five prompt texts, alter the loop period, or overwrite PCM takes.
+
+The **original Futureproof default remains 480 ms**. This longer value
+is applied only after a Film Club performer deliberately touches HEAR
+or changes the new sustain slider. Be aware the two pages share one
+live native host, so the last deliberately applied sustain setting
+remains on that host until it is restarted or changed again.
+
+The revised Film Club prompt palette is one part **swung suspended jazz**
+and one part **spectral futuristic electronics**. It emphasizes deep
+voiced piano chords, long bowed cello and violin lines, ringing
+vibraphone/glass harmonics, granular decay, brushed backbeats and
+low electronic pressure. The clock still runs at 100 BPM 4/4 but
+the pitches/attacks float around it. These are original direction
+prompts, not a transcription of anyone else's composition.
+
+### First listening test
+
+1. Start the rhythm and load `mrt2_small` in Google's Audio Unit.
+2. Apply the revised Film Club prompt bank if the Google popup still
+   shows the previous version. Export valuable takes before a prompt
+   restart.
+3. Click **HEAR PIANO** once; it now actually triggers an audition
+   chord. Listen for a long resonance, not a 480 ms blip.
+4. Click **HEAR CELLO**, then **HEAR VIOLIN**. Each sends the same
+   chord under a different weight, so the timbre can be compared.
+   Use the status message and native model popup to check the
+   instrument weights; this does not promise the model *sounds*
+   correct without listening.
+5. Try holding a real Z/X/C key for four seconds, then releasing.
+   Use **RECORD TAKE → DONE → LOOP** for separate genuine PCM layers.
+6. Once you like the individual instruments, try **BLEND ALL FIVE**
+   to hear a sustained composite generated sound. Five separate
+   looping tracks still require five separately recorded takes.
+
+Changing the sustain only affects *future MIDI notes*, not already
+recorded native audio.
+
 ## v0.5: actually audition the five native sounds + perform the accelerando
 
 **Why only piano?** Google's official MRT2 is one AU generating **one
@@ -96,9 +150,9 @@ The Film Club screen now displays a visible **Hear a voice** board:
 **BLEND ALL FIVE · ONE GENERATOR**. These call the original tested
 `selectNativeLane()` routing function, not a duplicate music engine;
 the board reads back the Audio Unit's real five `prompt_weights`
-and reports the selected weight. Click **HEAR CELLO**, then play
-Z/X/C or the existing chords: you should hear cello-conditioned audio
-instead of the first piano prompt. Repeat for other roles.
+and reports the selected weight. Click **HEAR CELLO** to send a real sustained audition chord, then
+hold Z/X/C for an even longer performance if you want. The piano and
+other prompts are selected in turn for comparison.
 
 **BLEND ALL FIVE** intentionally sets five nonzero native weights
 (roughly 31/20/19/16/15%). This creates *one combined model texture*.
