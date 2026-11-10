@@ -92,6 +92,9 @@ class FilmClubPyramidTests(unittest.TestCase):
         for name in ("piano", "cello", "violin", "glass", "drums"):
             self.assertIn(f'data-film-audition="{name}"', self.film)
         self.assertNotIn('id="filmAuditionPanel"', self.source)
+        for cue in ("float", "awaken", "tension", "human", "release"):
+            self.assertIn(f'data-film-density="{cue}"', self.film)
+        self.assertIn('id="filmDensityStatus"', self.film)
         self.assertEqual(len(set(FILM_PROMPTS)), 5)
         # Don't ship song audio or change the original five prompt defaults.
         self.assertNotIn("<audio", self.film)
