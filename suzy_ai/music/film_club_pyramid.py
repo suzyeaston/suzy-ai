@@ -98,6 +98,38 @@ def render_film_club_page(original: str, token: str) -> str:
             raise ValueError("TOASTER view anchor changed: " + old[:60])
         page = page.replace(old, new, 1)
 
+    # Film Club performance-only chords. Keep the original /toaster/live
+    # HTML and its F♯ / Gmaj7 / A6 / F♯ bank unchanged. The renderer
+    # replaces exactly the source's verified anchors and fails closed on
+    # drift. Four playable pads (Z X C V) are available in Film Club.
+    # Mazmazika's main-chord chart is Em / E7 / Am / E; this is a
+    # *rehearsal adaptation*, not a complete transcription of every section.
+    substitutions = (
+        ('pyramid:{names:["F♯","Gmaj7","A6","F♯"],notes:[[54,58,61,66],[55,59,62,66],[57,61,64,66],[54,58,61,66]]',
+         'pyramid:{names:["Em","E7","Am","E"],notes:[[52,55,59,64],[52,56,59,62],[57,60,64,69],[52,56,59,64]]'),
+        ('pyramid:["Z","X","C"],fishes:',
+         'pyramid:["Z","X","C","V"],fishes:'),
+        ('c:{which:"pyramid",index:2},',
+         'c:{which:"pyramid",index:2},v:{which:"pyramid",index:3},'),
+        ('KeyZ:"z",KeyX:"x",KeyC:"c",',
+         'KeyZ:"z",KeyX:"x",KeyC:"c",KeyV:"v",'),
+        ('<button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>F♯</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="0"><kbd>Z</kbd><b>Em</b></button>'),
+        ('<button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>Gmaj7</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="1"><kbd>X</kbd><b>E7</b></button>'),
+        ('<button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>A6</b></button>',
+         '<button class="pad" data-scene="pyramid" data-chord="2"><kbd>C</kbd><b>Am</b></button>\n<button class="pad" data-scene="pyramid" data-chord="3"><kbd>V</kbd><b>E</b></button>'),
+        # Rendered film-only native harmony bank: matching Swift MIDI values.
+        ('const bassOctave=(window.suzyFilmClubLowCello===true &&\n     which==="pyramid"&&role==="textureLow")?-12:0;\n   await aiFetch("chord",bassOctave?{index,harmony,legato:true,octave:bassOctave}:\n     {index,harmony,legato:true});',
+         'const bassOctave=(window.suzyFilmClubLowCello===true &&\n     which==="pyramid"&&role==="textureLow")?-12:0;\n   const soundBank=harmony==="pyramid"?"accelerando":harmony;\n   await aiFetch("chord",bassOctave?{index,harmony:soundBank,legato:true,octave:bassOctave}:\n     {index,harmony:soundBank,legato:true});'),
+        ('await aiFetch("chord",legato?{index,legato:true}:{index});',
+         'await aiFetch("chord",legato?{index,legato:true,harmony:which==="pyramid"?"accelerando":"fishes"}:\n      {index,harmony:which==="pyramid"?"accelerando":"fishes"});'),
+    )
+    for old, new in substitutions:
+        if page.count(old) != 1:
+            raise ValueError("TOASTER chord source anchor changed: " + old[:72])
+        page = page.replace(old, new, 1)
+
     for key, prompt in zip(PROMPT_IDS, FILM_PROMPTS):
         pattern = re.compile(
             r'(<textarea\s+id="' + re.escape(key) +
@@ -210,17 +242,20 @@ changes the host or Google's window.</small></section>"""
 <section class="film-cue-rail" aria-label="Film Club composition and Gastown storyboard" id="filmClubCues">
   <div class="film-tag">FILM CLUB · PYRAMID AFTERIMAGE · COMPOSITION MODE</div>
   <h2>PYRAMID AFTERIMAGE · an accelerating city, a human interruption.</h2>
-  <p>F♯ → Gmaj7 → A6 remains home, with off-grid suspended chord attacks,
-  human violin and a gradually more urgent electronic pulse. Keep the
-  4/4 clock at 100 BPM. Accelerate the <em>density</em>, bass pressure and
-  texture, then drop abruptly to the human voice. The original RECORD
-  FIRST LOOP → DONE → LOOP, native PCM pedals and Gastown film cues remain.</p>
+  <p><strong>ACCELERANDO HARMONIC REHEARSAL: Em → E7 → Am → E</strong>.
+  The <strong>E7</strong> brings G♯ and D-natural against the opening
+  E-minor G-natural. Hooktheory describes E Phrygian Dominant colour
+  with an E-minor bridge. We adapt that tension to the warm acoustic piano,
+  bowed cello and harmonium at <strong>100 BPM / 4⁄4</strong>. Press
+  <strong>Z · X · C · V</strong> for the four real chords. Build rhythmic
+  density, then interrupt with human violin and voice. The original
+  RECORD FIRST LOOP → DONE → LOOP pedals still drive the music.</p>
   <section class="film-audition" id="filmAuditionPanel" aria-label="Audition the five actual native MRT2 sound roles">
     <div class="film-tag">WHY ONLY PIANO? THE OTHER PROMPT WEIGHTS DEFAULT TO ZERO</div>
     <h3>Hear a sustained voice · then record its own loop</h3>
     <p>Google MRT2 is one blended generator, not five audio tracks. Select
     a sound below to send a sustained audition chord automatically, or
-    hold Z / X / C as long as you like. Press its regular
+    hold Z / X / C / V as long as you like. Press its regular
     RECORD TAKE → DONE → LOOP pedal to capture a
     real, independently repeating PCM layer. The original loop clock,
     recordings and prompts are not reset by these selectors.</p>
