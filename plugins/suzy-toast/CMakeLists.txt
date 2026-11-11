@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(SuzyToast VERSION 0.1.0 LANGUAGES C CXX)
+project(SuzyToast VERSION 0.2.0 LANGUAGES C CXX)
 
 # Pin a JUCE security-patch tag; no fork and no vendored proprietary assets.
 # The JUCE licence choice (GPLv3 / commercial) must be resolved before distribution.

@@ -51,6 +51,7 @@ private:
     std::atomic<suzytoast::LoopCommand> pending_{suzytoast::LoopCommand::none};
     std::atomic<int> publishedState_{static_cast<int>(suzytoast::LoopState::empty)};
     std::atomic<bool> recordRejected_{false};
+    int lastExternalCommand_ = 0;
     std::atomic<double> hostRate_{0.0};
     std::atomic<double> hostBpm_{0.0};
     std::atomic<int> hostChannels_{0};

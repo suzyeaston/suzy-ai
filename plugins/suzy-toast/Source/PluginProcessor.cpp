@@ -39,6 +39,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout SuzyToastAudioProcessor::cre
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID{"scene", 1}, "Live set scene",
         juce::StringArray{"PYRAMID", "EVOLVE", "FISHES"}, 0));
+    // 13-bit sequence + three-bit operation (1=REC 2=PLAY 3=OVERDUB
+    // 4=STOP 5=CLEAR). Exposes native loop commands to the standalone host
+    // without polling UI clicks or making network requests in audio callback.
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID{"control", 1}, "External loop command",
+        0, 65535, 0));
     return layout;
 }
 
@@ -84,6 +90,7 @@ void SuzyToastAudioProcessor::prepareToPlay(double rate, int /*blockSize*/) {
     publishedState_.store(static_cast<int>(suzytoast::LoopState::empty));
     recordRejected_.store(false);
     pending_.store(suzytoast::LoopCommand::none);
+    lastExternalCommand_ = static_cast<int>(value(parameters, "control"));
     lpState_[0] = lpState_[1] = 0.0f;
     outputGain_.reset(rate, 0.008); // Short, click-reducing level/mute ramp.
     outputGain_.setCurrentAndTargetValue(value(parameters, "gain"));
@@ -112,7 +119,21 @@ void SuzyToastAudioProcessor::processBlock(juce::AudioBuffer<float>& audio,
         currentHostBpm = 0.0;
     hostBpm_.store(currentHostBpm, std::memory_order_relaxed);
 
-    const auto action = pending_.exchange(suzytoast::LoopCommand::none);
+    auto action = pending_.exchange(suzytoast::LoopCommand::none);
+    // Exact-once host control using sequence numbers: an unchanged AU
+    // parameter cannot replay a loop command on subsequent audio blocks.
+    const int control = static_cast<int>(value(parameters, "control"));
+    if (control != lastExternalCommand_) {
+        lastExternalCommand_ = control;
+        switch (control & 7) {
+        case 1: action = suzytoast::LoopCommand::record; break;
+        case 2: action = suzytoast::LoopCommand::play; break;
+        case 3: action = suzytoast::LoopCommand::overdub; break;
+        case 4: action = suzytoast::LoopCommand::stop; break;
+        case 5: action = suzytoast::LoopCommand::clear; break;
+        default: break;
+        }
+    }
     switch(action) {
     case suzytoast::LoopCommand::record: {
         const int chosenBars[] = {1, 2, 4};
